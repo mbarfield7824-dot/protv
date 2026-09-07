@@ -135,44 +135,50 @@ export default function Home() {
       {/* Continue Watching — cinematic rail with progress bars */}
       <ContinueWatching items={continueWatchingData} />
 
-      {/* Quick Access Section */}
-      <div className="quick-access">
-        <div className="quick-item">
-          <div className="quick-label">My List</div>
-          <div className="quick-content">
-            <img
-              src={myListData[0]?.thumbnailUrl}
-              alt="My List"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = FALLBACK_POSTER;
-              }}
-            />
-            <div className="quick-info">
-              <p className="quick-title">{myListData[0]?.title}</p>
-              <p className="quick-meta">{myListData[0]?.contentType}</p>
+      {/* Quick Access Section - only show if data exists */}
+      {(myListData.length > 0 || recentlyAddedData.length > 0) && (
+        <div className="quick-access">
+          {myListData.length > 0 && (
+            <div className="quick-item">
+              <div className="quick-label">My List</div>
+              <div className="quick-content">
+                <img
+                  src={myListData[0]?.thumbnailUrl}
+                  alt="My List"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = FALLBACK_POSTER;
+                  }}
+                />
+                <div className="quick-info">
+                  <p className="quick-title">{myListData[0]?.title}</p>
+                  <p className="quick-meta">{myListData[0]?.contentType}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
 
-        <div className="quick-item">
-          <div className="quick-label">Recently Added</div>
-          <div className="quick-content">
-            <img
-              src={recentlyAddedData[0]?.thumbnailUrl}
-              alt="Recently Added"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = FALLBACK_POSTER;
-              }}
-            />
-            <div className="quick-info">
-              <p className="quick-title">{recentlyAddedData[0]?.title}</p>
-              <p className="quick-meta">{recentlyAddedData[0]?.contentType}</p>
+          {recentlyAddedData.length > 0 && (
+            <div className="quick-item">
+              <div className="quick-label">Recently Added</div>
+              <div className="quick-content">
+                <img
+                  src={recentlyAddedData[0]?.thumbnailUrl}
+                  alt="Recently Added"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = FALLBACK_POSTER;
+                  }}
+                />
+                <div className="quick-info">
+                  <p className="quick-title">{recentlyAddedData[0]?.title}</p>
+                  <p className="quick-meta">{recentlyAddedData[0]?.contentType}</p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* PROtv Discover — signature mood-based discovery feature */}
       <DiscoverPanel onMoodSelect={setActiveMood} />
