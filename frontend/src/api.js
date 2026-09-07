@@ -1,13 +1,13 @@
+import { firebaseAuth } from './firebase';
+
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Temporary: until real user login/auth exists, the Admin page uses a
-// shared admin key (set VITE_ADMIN_API_KEY in frontend/.env, matching
-// ADMIN_API_KEY in backend/.env) instead of a Firebase ID token.
-function adminHeaders() {
+async function authenticatedHeaders() {
+  const user = firebaseAuth?.currentUser;
   return {
     'Content-Type': 'application/json',
-    'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
+    ...(user ? { Authorization: `Bearer ${await user.getIdToken()}` } : {}),
   };
 }
 
@@ -46,7 +46,7 @@ export const api = {
   async addVideo(videoData) {
     const res = await fetch(`${API_URL}/videos`, {
       method: 'POST',
-      headers: adminHeaders(),
+      headers: await authenticatedHeaders(),
       body: JSON.stringify(videoData),
     });
     return res.json();
@@ -56,7 +56,7 @@ export const api = {
   async getUploadUrl(metadata) {
     const res = await fetch(`${API_URL}/videos/upload-url`, {
       method: 'POST',
-      headers: adminHeaders(),
+      headers: await authenticatedHeaders(),
       body: JSON.stringify(metadata),
     });
     return res.json();
@@ -85,7 +85,7 @@ export const api = {
   async addVideoFromUrl(metadata) {
     const res = await fetch(`${API_URL}/videos/from-url`, {
       method: 'POST',
-      headers: adminHeaders(),
+      headers: await authenticatedHeaders(),
       body: JSON.stringify(metadata),
     });
     return res.json();
@@ -101,10 +101,7 @@ export const api = {
   async getAdminAllVideos() {
     const res = await fetch(`${API_URL}/videos/admin/all`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
-      },
+      headers: await authenticatedHeaders(),
     });
     return res.json();
   },
@@ -113,10 +110,7 @@ export const api = {
   async approveVideo(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/approve`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
-      },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({ approvalNotes }),
     });
     return res.json();
@@ -126,10 +120,7 @@ export const api = {
   async rejectVideo(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/reject`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
-      },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({ approvalNotes }),
     });
     return res.json();
@@ -139,10 +130,7 @@ export const api = {
   async requestVerification(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/verify`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
-      },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({ approvalNotes }),
     });
     return res.json();

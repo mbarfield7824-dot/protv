@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import { api } from '../api';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
 
@@ -15,6 +16,7 @@ function titleFromFileName(name) {
 }
 
 export default function Admin() {
+  const { user, loading, openAuthModal } = useAuth();
   const [mode, setMode] = useState('file'); // 'file' | 'url' | 'bulk' | 'add-content' | 'review-content'
   const [form, setForm] = useState({
     title: '',
@@ -40,6 +42,28 @@ export default function Admin() {
     },
     []
   );
+
+  if (!loading && !user) {
+    return (
+      <div className="admin-page">
+        <Header />
+        <main className="admin-content">
+          <h1 className="admin-title">Sign in to manage content</h1>
+          <p className="admin-subtitle">
+            Use your PROtv account to upload authorized videos and manage the catalog.
+          </p>
+          <button className="admin-tab active" onClick={openAuthModal}>
+            Sign In
+          </button>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="loading">Loading PROtv...</div>;
+  }
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
