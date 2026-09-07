@@ -1,0 +1,112 @@
+/* Premium PROtv footer */
+.protv-footer {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.95), #000);
+  border-top: 1px solid rgba(65, 105, 225, 0.2);
+  padding: 50px 20px 20px;
+  margin-top: 40px;
+}
+
+.footer-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 40px;
+  padding-bottom: 30px;
+}
+
+.footer-brand {
+  max-width: 280px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 1.3rem;
+}
+
+.footer-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  border-radius: 6px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(65, 105, 225, 0.4);
+}
+
+.footer-logo-text {
+  background: linear-gradient(135deg, #4169E1, #60A5FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-tagline {
+  color: #8a93b0;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.footer-columns {
+  display: flex;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 120px;
+}
+
+.footer-column h4 {
+  color: #60A5FA;
+  font-size: 0.85rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+
+.footer-column a {
+  color: #a0a8c0;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.footer-column a:hover {
+  color: #fff;
+}
+
+.footer-bottom {
+  max-width: 1600px;
+  margin: 0 auto;
+  border-top: 1px solid rgba(65, 105, 225, 0.15);
+  padding-top: 20px;
+  text-align: center;
+}
+
+.footer-bottom p {
+  color: #5a6280;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .footer-content {
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .footer-columns {
+    gap: 30px;
+  }
+}

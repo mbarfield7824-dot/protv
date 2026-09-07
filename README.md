@@ -1,81 +1,92 @@
-# PROtv - Lightweight Streaming Platform
+# PROtv Backend Setup Guide
 
-A free-tier streaming platform MVP built with React, Firebase, and Mux.
+## What We've Built
+- **Express.js** API server with routes for auth and videos
+- **Firebase** integration (Firestore database + Authentication)
+- **Modular structure** ready for Roku/Firestick apps later
 
 ## Project Structure
-
 ```
-src/
-├── components/          # Reusable UI components
-│   ├── Auth/           # Authentication components
-│   ├── Layout/         # Layout (Navbar, etc.)
-│   └── Video/          # Video components
-├── pages/              # Page components
-├── services/           # External API calls (Firebase, Mux)
-├── store/              # Zustand state management
-└── hooks/              # Custom React hooks
+backend/
+├── src/
+│   ├── server.js           # Main Express app
+│   ├── firebase.js         # Firebase config & helpers
+│   ├── routes/
+│   │   ├── auth.js         # Login/signup endpoints
+│   │   └── videos.js       # Video endpoints
+│   └── middleware/
+│       └── auth.js         # Token verification
+├── package.json            # Dependencies
+├── .env.example            # Environment variables template
+└── .env                    # Your actual secrets (create from .env.example)
 ```
 
-## Setup Instructions
+## Setup Steps
 
-### 1. Install Dependencies
+### 1. Create Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Click "Add project" and name it "PROtv"
+3. Enable Firestore Database
+4. Enable Authentication (Email/Password)
+5. Go to Project Settings > Service Accounts > Generate new private key
+6. Download and save as `serviceAccountKey.json` in the backend folder
+
+### 2. Set Environment Variables
 ```bash
-cd protv
+# Copy the template
+cp .env.example .env
+
+# Edit .env and add:
+# - Path to your serviceAccountKey.json
+# - Your Firebase Project ID (from console)
+# - Keep PORT as 5000
+```
+
+### 3. Install & Run
+```bash
+# Install dependencies (already done)
 npm install
+
+# Start the server
+npm start
+
+# You should see:
+# ✓ PROtv Backend running on port 5000
 ```
 
-### 2. Firebase Setup
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Firestore Database
-3. Enable Authentication (Email/Password)
-4. Get your credentials from Project Settings
+### 4. Test with Postman
+1. Download [Postman](https://www.postman.com/downloads/)
+2. Create requests to test:
+   - `GET http://localhost:5000/health` → Should return `{ status: "Backend is running!" }`
+   - `GET http://localhost:5000/videos` → Should return empty array `[]`
 
-### 3. Environment Variables
-1. Copy `.env.example` to `.env.local`
-2. Fill in your Firebase credentials:
-```
-VITE_FIREBASE_API_KEY=your_key
-VITE_FIREBASE_AUTH_DOMAIN=your_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-```
+## API Endpoints (Phase 1)
 
-### 4. Start Development Server
-```bash
-npm run dev
-```
+### Auth Routes
+- `POST /auth/signup` - Create account
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "displayName": "John Doe"
+  }
+  ```
 
-The app will open at http://localhost:5173
-
-## Features (MVP)
-
-- ✅ Home page with featured videos
-- ✅ Browse by category
-- ✅ Video player page
-- ✅ Login/Signup
-- ✅ Admin panel to add movies
-- ⏳ Mux video integration
-- ⏳ Video card components
-
-## Tech Stack
-
-- **Frontend:** React 18 + Vite
-- **Database:** Firebase Firestore
-- **Auth:** Firebase Authentication
-- **Video:** Mux
-- **State:** Zustand
-- **Styling:** Tailwind CSS
+### Video Routes
+- `GET /videos` - Get all videos
+- `GET /videos/:id` - Get single video
+- `GET /videos/categories/list` - Get all categories
+- `POST /videos` - Add new video (requires authentication token)
 
 ## Next Steps
+1. Set up Firebase project ✓
+2. Test backend with Postman
+3. Build database schema (videos, categories, users)
+4. Set up frontend (React + Vite)
+5. Connect frontend to backend
+6. Integrate Mux for video streaming
 
-1. Set up Firestore collection: `/videos`
-2. Build VideoCard and VideoGrid components
-3. Integrate Mux player
-4. Create admin form to add movies
-5. Deploy to Vercel
-
-## IP & Licensing
-
-All code is MIT licensed and fully owned by PROtv. Dependencies are carefully selected to ensure no licensing conflicts.
+## Troubleshooting
+- **Port already in use**: Change `PORT` in `.env`
+- **Firebase auth error**: Check `serviceAccountKey.json` path in `.env`
+- **CORS errors**: Check `FRONTEND_URL` in `.env`
