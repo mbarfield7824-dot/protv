@@ -180,6 +180,7 @@ router.post('/', verifyToken, async (req, res) => {
     const videoId = await addVideo(videoData);
     res.status(201).json({
       message: 'Video added successfully',
+      id: videoId,
       videoId,
       ...videoData,
     });
