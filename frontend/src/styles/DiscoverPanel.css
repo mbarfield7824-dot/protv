@@ -1,0 +1,142 @@
+/* PROtv Discover — signature futuristic mood-based discovery panel */
+.discover-panel {
+  position: relative;
+  margin: 0 20px 60px;
+  padding: 40px 36px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(10, 14, 30, 0.9), rgba(0, 0, 0, 0.95));
+  border: 1px solid rgba(65, 105, 225, 0.35);
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), inset 0 0 60px rgba(65, 105, 225, 0.05);
+  backdrop-filter: blur(12px);
+}
+
+.discover-glow-orb {
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(65, 105, 225, 0.25) 0%, transparent 70%);
+  filter: blur(50px);
+  animation: discoverPulse 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes discoverPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.discover-header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.discover-title {
+  margin: 0 0 8px;
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.discover-icon-mark {
+  color: #4169E1;
+  filter: drop-shadow(0 0 10px rgba(65, 105, 225, 0.8));
+}
+
+.discover-subtitle {
+  margin: 0;
+  color: #60A5FA;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.mood-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.mood-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 12px;
+  border-radius: 16px;
+  background: rgba(65, 105, 225, 0.08);
+  border: 1px solid rgba(65, 105, 225, 0.25);
+  color: #d0d6ee;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  transition: all 0.25s ease;
+}
+
+.mood-emoji {
+  font-size: 1.8rem;
+  filter: drop-shadow(0 0 6px rgba(65, 105, 225, 0.3));
+}
+
+.mood-chip:hover {
+  border-color: rgba(65, 105, 225, 0.6);
+  background: rgba(65, 105, 225, 0.16);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(65, 105, 225, 0.3);
+}
+
+.mood-chip.active {
+  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  border-color: #60A5FA;
+  color: #fff;
+  box-shadow: 0 0 30px rgba(65, 105, 225, 0.6);
+  transform: translateY(-4px);
+}
+
+@media (max-width: 1024px) {
+  .mood-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .discover-panel {
+    padding: 30px 20px;
+    margin: 0 15px 40px;
+  }
+
+  .discover-title {
+    font-size: 1.4rem;
+    letter-spacing: 1.5px;
+  }
+
+  .mood-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .mood-chip {
+    padding: 16px 8px;
+  }
+
+  .mood-emoji {
+    font-size: 1.5rem;
+  }
+
+  .mood-label {
+    font-size: 0.75rem;
+  }
+}

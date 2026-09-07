@@ -1,0 +1,262 @@
+/* Admin — real movie ingestion page */
+.admin-page {
+  min-height: 100vh;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-content {
+  flex: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+  width: 100%;
+}
+
+.admin-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 10px;
+  background: linear-gradient(135deg, #4169E1, #60A5FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.admin-subtitle {
+  color: #a0a6c0;
+  line-height: 1.6;
+  margin: 0 0 32px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.admin-tabs .admin-tab {
+  min-width: 0;
+}
+
+.admin-tab {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(65, 105, 225, 0.08);
+  border: 1px solid rgba(65, 105, 225, 0.25);
+  color: #d0d6ee;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-tab.active {
+  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  border-color: #60A5FA;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(65, 105, 225, 0.4);
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #c0c6de;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.optional {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
+  background: rgba(65, 105, 225, 0.08);
+  border: 1px solid rgba(65, 105, 225, 0.3);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+  border-color: #4169E1;
+}
+
+.admin-error {
+  color: #ff6b6b;
+  font-weight: 600;
+  margin: 0;
+}
+
+.admin-file-help {
+  color: #8f97b6;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.admin-submit {
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  color: white;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(65, 105, 225, 0.4);
+  transition: all 0.2s;
+}
+
+.admin-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(65, 105, 225, 0.55);
+}
+
+.admin-secondary {
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-status {
+  text-align: center;
+  padding: 50px 20px;
+  border-radius: 16px;
+  background: rgba(65, 105, 225, 0.06);
+  border: 1px solid rgba(65, 105, 225, 0.2);
+}
+
+.admin-bulk-status {
+  padding: 28px;
+  border: 1px solid rgba(65, 105, 225, 0.2);
+  border-radius: 16px;
+  background: rgba(65, 105, 225, 0.06);
+}
+
+.admin-bulk-status h2 {
+  margin: 0 0 8px;
+  color: #fff;
+}
+
+.admin-bulk-status > p {
+  margin: 0 0 20px;
+  color: #a0a6c0;
+}
+
+.admin-upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-upload-list li {
+  padding: 12px;
+  border: 1px solid rgba(65, 105, 225, 0.2);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.admin-upload-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #dbe4ff;
+  font-size: 0.9rem;
+}
+
+.admin-upload-title strong {
+  flex: none;
+  color: #60a5fa;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.admin-upload-list .admin-progress-track {
+  max-width: none;
+  margin-top: 10px;
+}
+
+.admin-status p {
+  color: #d0d6ee;
+  font-weight: 600;
+}
+
+.admin-video-id {
+  color: #6b7280 !important;
+  font-size: 0.8rem;
+  font-weight: 400 !important;
+}
+
+.admin-spinner {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 20px;
+  border: 3px solid rgba(65, 105, 225, 0.2);
+  border-top-color: #4169E1;
+  border-radius: 50%;
+  animation: adminSpin 0.8s linear infinite;
+}
+
+@keyframes adminSpin {
+  to { transform: rotate(360deg); }
+}
+
+.admin-progress-track {
+  width: 100%;
+  max-width: 320px;
+  height: 8px;
+  margin: 16px auto 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4169E1, #60A5FA);
+  transition: width 0.2s;
+}
+
+.admin-status-ready {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.06);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.admin-status-error {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.06);
+}
