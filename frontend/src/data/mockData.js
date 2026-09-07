@@ -1,5 +1,5 @@
 // Mock data file - cleaned to show only real backend videos
-// All mock movie data has been removed
+// All mock movie data has been removed - using only real backend videos
 
 export const FALLBACK_POSTER =
   "data:image/svg+xml;utf8," +
@@ -49,7 +49,19 @@ export const FALLBACK_HERO =
     </svg>
   `);
 
-// All mock data arrays removed - using only real backend videos
+// Discover moods for mood-based recommendations
+export const discoverMoods = [
+  { id: 'exciting', name: '🔥 Something Exciting', genres: ['Action', 'Adventure'] },
+  { id: 'funny', name: '😂 Make Me Laugh', genres: ['Comedy'] },
+  { id: 'scary', name: '😱 Scare Me', genres: ['Horror', 'Thriller'] },
+  { id: 'romance', name: '❤️ Romance', genres: ['Romance', 'Drama'] },
+  { id: 'think', name: '🧠 Make Me Think', genres: ['Drama', 'Documentary'] },
+  { id: 'drama', name: '🎭 Drama', genres: ['Drama'] },
+  { id: 'fastpaced', name: '⚡ Fast-Paced', genres: ['Action', 'Thriller'] },
+  { id: 'escape', name: '🌌 Escape Reality', genres: ['Sci-Fi', 'Fantasy'] },
+];
+
+// All mock video arrays removed - showing only real backend videos
 export const mockVideoData = [];
 export const blackCinemaData = [];
 export const independentData = [];
