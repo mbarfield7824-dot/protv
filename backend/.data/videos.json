@@ -338,7 +338,11 @@
     "approvedAt": null,
     "approvedBy": null,
     "approvalNotes": "",
-    "createdAt": "2026-09-07T04:18:52.271Z"
+    "createdAt": "2026-09-07T04:18:52.271Z",
+    "category": "Horror",
+    "thumbnailUrl": "https://via.placeholder.com/300x450?text=Nosferatu",
+    "muxAssetId": "S4FTzhV00KRysLCPm8EkIh01QsisU3v014HB5tng83oX7c",
+    "status": "errored"
   },
   "v_1788754732339_36dd6d7j3": {
     "title": "Night of the Living Dead",
@@ -369,7 +373,11 @@
     "approvedAt": null,
     "approvedBy": null,
     "approvalNotes": "",
-    "createdAt": "2026-09-07T04:18:52.339Z"
+    "createdAt": "2026-09-07T04:18:52.339Z",
+    "category": "Horror",
+    "thumbnailUrl": "https://via.placeholder.com/300x450?text=Night+Living+Dead",
+    "muxAssetId": "atFdPfVUODcCcN7Dbc001rjhjtmlfwk5khI02gVjq00diw",
+    "status": "errored"
   },
   "v_1788754732399_7ohzxeyhg": {
     "title": "Metropolis",
@@ -400,7 +408,11 @@
     "approvedAt": null,
     "approvedBy": null,
     "approvalNotes": "",
-    "createdAt": "2026-09-07T04:18:52.399Z"
+    "createdAt": "2026-09-07T04:18:52.399Z",
+    "category": "Sci-Fi",
+    "thumbnailUrl": "https://via.placeholder.com/300x450?text=Metropolis",
+    "muxAssetId": "fDj1kmVeoXxD7PgC8knl1U00PxY01DjcQNld00pArTqwEc",
+    "status": "errored"
   },
   "v_1788754732472_e6dtwaaoe": {
     "title": "Plan 9 from Outer Space",
@@ -431,7 +443,11 @@
     "approvedAt": null,
     "approvedBy": null,
     "approvalNotes": "",
-    "createdAt": "2026-09-07T04:18:52.472Z"
+    "createdAt": "2026-09-07T04:18:52.472Z",
+    "category": "Sci-Fi",
+    "thumbnailUrl": "https://via.placeholder.com/300x450?text=Plan+9",
+    "muxAssetId": "8BiBy7bShflIIaDr01cGT9BmOB2fjRYV5100OtPUHqcd8",
+    "status": "errored"
   },
   "v_1788754732537_wltvynsun": {
     "title": "Singin' in the Rain",

@@ -1,27 +1,23 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import SearchOverlay from './SearchOverlay';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/Header.css';
 
 export default function Header() {
-  const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  const { user, openAuthModal, signOut } = useAuth();
 
   const navLinks = [
     { to: '/', label: 'Home', active: true },
-    { to: '/trending', label: 'Trending' },
-    { to: '/discover', label: 'Discover' },
-    { to: '/categories', label: 'Categories' },
-    { to: '/my-list', label: 'My List' },
-    { to: '/continue-watching', label: 'Continue Watching' },
+    { to: '/#trending', label: 'Trending' },
+    { to: '/#discover', label: 'Discover' },
+    { to: '/#categories', label: 'Categories' },
+    { to: '/#my-list', label: 'My List' },
+    { to: '/#continue-watching', label: 'Continue Watching' },
   ];
-
-  const handleSignIn = () => {
-    localStorage.setItem('isAdmin', 'true');
-    window.location.reload();
-  };
 
   return (
     <header className="header-premium">
@@ -34,24 +30,11 @@ export default function Header() {
 
         {/* Navigation Menu */}
         <nav className="nav-menu">
-          <Link to="/" className="nav-link active">
-            Home
-          </Link>
-          <Link to="/trending" className="nav-link">
-            Trending
-          </Link>
-          <Link to="/discover" className="nav-link">
-            Discover
-          </Link>
-          <Link to="/categories" className="nav-link">
-            Categories
-          </Link>
-          <Link to="/my-list" className="nav-link">
-            My List
-          </Link>
-          <Link to="/continue-watching" className="nav-link">
-            Continue Watching
-          </Link>
+          {navLinks.map((link) => (
+            <Link key={link.label} to={link.to} className={`nav-link ${link.active ? 'active' : ''}`}>
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Header Actions */}
@@ -67,9 +50,11 @@ export default function Header() {
           </button>
 
           {/* Profile */}
-          <button className="profile-btn">
-            <div className="profile-avatar">U</div>
-          </button>
+          {user && (
+            <button className="profile-btn" title={user.displayName || user.email}>
+              <div className="profile-avatar">{(user.displayName || user.email || 'U').charAt(0).toUpperCase()}</div>
+            </button>
+          )}
 
           {/* Admin: Add Movie - Only show if admin */}
           {isAdmin && (
@@ -79,15 +64,12 @@ export default function Header() {
           )}
 
           {/* Sign In */}
-          {!isAdmin ? (
-            <button className="login-btn" onClick={handleSignIn}>
+          {!user ? (
+            <button className="login-btn" onClick={openAuthModal}>
               Sign In
             </button>
           ) : (
-            <button className="login-btn" onClick={() => {
-              localStorage.removeItem('isAdmin');
-              window.location.reload();
-            }}>
+            <button className="login-btn" onClick={signOut}>
               Sign Out
             </button>
           )}

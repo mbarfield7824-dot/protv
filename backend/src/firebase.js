@@ -1,7 +1,8 @@
 const admin = require('firebase-admin');
 const path = require('path');
 
-// Initialize Firebase Admin SDK
+// Vercel supplies the credential as a protected JSON environment variable;
+// local development keeps using the ignored credential file.
 const serviceAccountKeyPath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
 let db = null;
@@ -9,11 +10,14 @@ let auth = null;
 let firebaseError = null;
 
 try {
-  if (!serviceAccountKeyPath) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set');
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+    : serviceAccountKeyPath
+      ? require(path.resolve(serviceAccountKeyPath))
+      : null;
+  if (!serviceAccount) {
+    throw new Error('Firebase service account credentials are not configured');
   }
-
-  const serviceAccount = require(path.resolve(serviceAccountKeyPath));
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),

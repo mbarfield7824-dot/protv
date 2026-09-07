@@ -9,8 +9,11 @@
 
 .hero-section {
   position: relative;
-  height: 60vh;
-  min-height: 500px;
+  min-height: 640px;
+  padding: 112px 60px 60px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
   overflow: hidden;
   margin-bottom: 60px;
 }
@@ -64,10 +67,7 @@
 }
 
 .hero-content {
-  position: absolute;
-  bottom: 60px;
-  left: 60px;
-  right: 60px;
+  position: relative;
   z-index: 3;
   max-width: 600px;
   animation: fadeInUp 0.8s ease-out;
@@ -262,9 +262,6 @@
 /* Responsive */
 @media (max-width: 1024px) {
   .hero-content {
-    left: 40px;
-    right: 40px;
-    bottom: 40px;
     max-width: 500px;
   }
 
@@ -291,15 +288,12 @@
 
 @media (max-width: 640px) {
   .hero-section {
-    height: 45vh;
-    min-height: 350px;
+    min-height: 520px;
+    padding: 96px 20px 20px;
     margin-bottom: 40px;
   }
 
   .hero-content {
-    left: 20px;
-    right: 20px;
-    bottom: 20px;
     max-width: 100%;
   }
 

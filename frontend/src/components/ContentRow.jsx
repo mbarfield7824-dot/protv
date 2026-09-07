@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import MovieCard from './MovieCard';
 import '../styles/ContentRow.css';
 
-export default function ContentRow({ title, subtitle, content, viewAllLink, onInfo }) {
+export default function ContentRow({ id, title, subtitle, content, viewAllLink, onInfo }) {
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -27,7 +27,7 @@ export default function ContentRow({ title, subtitle, content, viewAllLink, onIn
   };
 
   return (
-    <div className="content-row">
+    <div id={id} className="content-row">
       <div className="row-header">
         <div className="row-titles">
           <h2 className="row-title">{title}</h2>

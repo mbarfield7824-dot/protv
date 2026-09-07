@@ -43,13 +43,10 @@ export const api = {
     }
   },
 
-  async addVideo(videoData, token) {
+  async addVideo(videoData) {
     const res = await fetch(`${API_URL}/videos`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: adminHeaders(),
       body: JSON.stringify(videoData),
     });
     return res.json();
@@ -101,7 +98,7 @@ export const api = {
   },
 
   // ADMIN: Get all videos (including draft, pending, rejected) for review dashboard
-  async getAdminAllVideos(token) {
+  async getAdminAllVideos() {
     const res = await fetch(`${API_URL}/videos/admin/all`, {
       method: 'GET',
       headers: {
@@ -113,7 +110,7 @@ export const api = {
   },
 
   // ADMIN: Approve a video
-  async approveVideo(videoId, approvalNotes, token) {
+  async approveVideo(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/approve`, {
       method: 'PATCH',
       headers: {
@@ -126,7 +123,7 @@ export const api = {
   },
 
   // ADMIN: Reject a video
-  async rejectVideo(videoId, approvalNotes, token) {
+  async rejectVideo(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/reject`, {
       method: 'PATCH',
       headers: {
@@ -139,7 +136,7 @@ export const api = {
   },
 
   // ADMIN: Request rights verification for a video
-  async requestVerification(videoId, approvalNotes, token) {
+  async requestVerification(videoId, approvalNotes) {
     const res = await fetch(`${API_URL}/videos/admin/${videoId}/verify`, {
       method: 'PATCH',
       headers: {
@@ -158,6 +155,27 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, displayName }),
     });
+    return res.json();
+  },
+
+  async getFavorites(token) {
+    const res = await fetch(`${API_URL}/users/me/favorites`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Unable to load favorites.');
+    return res.json();
+  },
+
+  async setFavorite(videoId, favorite, token) {
+    const res = await fetch(`${API_URL}/users/me/favorites/${encodeURIComponent(videoId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ favorite }),
+    });
+    if (!res.ok) throw new Error('Unable to update favorites.');
     return res.json();
   },
 };

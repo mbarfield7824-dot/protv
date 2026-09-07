@@ -90,6 +90,40 @@ router.patch('/admin/:id/verify', verifyToken, async (req, res) => {
   }
 });
 
+// ADMIN: Send an existing catalog entry's authorized source file to Mux.
+// This keeps the original catalog record and lets the normal status endpoint
+// attach the playback ID as soon as Mux finishes processing it.
+router.post('/admin/:id/ingest', verifyToken, async (req, res) => {
+  try {
+    const video = await getVideoById(req.params.id);
+
+    if (!video.videoUrl) {
+      return res.status(400).json({ error: 'This catalog entry has no source video URL.' });
+    }
+
+    if (video.muxAssetId && video.status !== 'errored') {
+      return res.status(409).json({ error: 'This catalog entry is already being processed by Mux.' });
+    }
+
+    const asset = await createAssetFromUrl(video.videoUrl);
+    await updateVideo(req.params.id, {
+      category: video.category || video.genre || 'General',
+      thumbnailUrl: video.thumbnailUrl || video.posterUrl || '',
+      muxAssetId: asset.id,
+      status: 'processing',
+    });
+
+    res.status(202).json({
+      message: 'Mux ingestion started',
+      videoId: req.params.id,
+      assetId: asset.id,
+      status: 'processing',
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // GET /videos/:id - Get single video
 router.get('/:id', async (req, res) => {
   try {
@@ -213,6 +247,7 @@ router.post('/upload-url', verifyToken, async (req, res) => {
       duration: 0,
       views: 0,
       createdBy: req.user.uid,
+      approvalStatus: 'approved',
       status: 'processing',
       muxUploadId: upload.id,
     });
@@ -233,9 +268,9 @@ router.post('/from-url', verifyToken, async (req, res) => {
   try {
     const { title, description, category, thumbnailUrl, sourceUrl, duration } = req.body;
 
-    if (!title || !description || !category || !sourceUrl) {
+    if (!title || !category || !sourceUrl) {
       return res.status(400).json({
-        error: 'title, description, category, and sourceUrl are required',
+        error: 'title, category, and sourceUrl are required',
       });
     }
 
@@ -243,12 +278,13 @@ router.post('/from-url', verifyToken, async (req, res) => {
 
     const videoId = await addVideo({
       title,
-      description,
+      description: description || '',
       category,
       thumbnailUrl: thumbnailUrl || '',
       duration: duration || 0,
       views: 0,
       createdBy: req.user.uid,
+      approvalStatus: 'approved',
       status: 'processing',
       muxAssetId: asset.id,
     });

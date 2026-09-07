@@ -51,14 +51,14 @@ export const FALLBACK_HERO =
 
 // Discover moods for mood-based recommendations
 export const discoverMoods = [
-  { id: 'exciting', name: '🔥 Something Exciting', genres: ['Action', 'Adventure'] },
-  { id: 'funny', name: '😂 Make Me Laugh', genres: ['Comedy'] },
-  { id: 'scary', name: '😱 Scare Me', genres: ['Horror', 'Thriller'] },
-  { id: 'romance', name: '❤️ Romance', genres: ['Romance', 'Drama'] },
-  { id: 'think', name: '🧠 Make Me Think', genres: ['Drama', 'Documentary'] },
-  { id: 'drama', name: '🎭 Drama', genres: ['Drama'] },
-  { id: 'fastpaced', name: '⚡ Fast-Paced', genres: ['Action', 'Thriller'] },
-  { id: 'escape', name: '🌌 Escape Reality', genres: ['Sci-Fi', 'Fantasy'] },
+  { id: 'exciting', icon: '🔥', label: 'Something Exciting', genres: ['Action', 'Adventure'] },
+  { id: 'funny', icon: '😂', label: 'Make Me Laugh', genres: ['Comedy'] },
+  { id: 'scary', icon: '😱', label: 'Scare Me', genres: ['Horror', 'Thriller'] },
+  { id: 'romance', icon: '❤️', label: 'Romance', genres: ['Romance', 'Drama'] },
+  { id: 'think', icon: '🧠', label: 'Make Me Think', genres: ['Drama', 'Documentary'] },
+  { id: 'drama', icon: '🎭', label: 'Drama', genres: ['Drama'] },
+  { id: 'fastpaced', icon: '⚡', label: 'Fast-Paced', genres: ['Action', 'Thriller'] },
+  { id: 'escape', icon: '🌌', label: 'Escape Reality', genres: ['Sci-Fi', 'Fantasy'] },
 ];
 
 // All mock video arrays removed - showing only real backend videos

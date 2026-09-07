@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { FALLBACK_HERO } from '../data/mockData';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/Hero.css';
 
 export default function Hero({ featured }) {
+  const navigate = useNavigate();
+  const { isFavorite, toggleFavorite } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [imgError, setImgError] = useState(false);
 
@@ -61,13 +65,13 @@ export default function Hero({ featured }) {
         </div>
 
         <div className="hero-actions">
-          <button className="btn-play">
+          <button className="btn-play" onClick={() => navigate(`/player/${current.id}`)}>
             <span className="play-icon">▶</span>
             Watch Now
           </button>
-          <button className="btn-list">
-            <span className="list-icon">+</span>
-            My List
+          <button className="btn-list" onClick={() => void toggleFavorite(current.id)}>
+            <span className="list-icon">{isFavorite(current.id) ? '✓' : '+'}</span>
+            {isFavorite(current.id) ? 'In My List' : 'My List'}
           </button>
         </div>
       </div>

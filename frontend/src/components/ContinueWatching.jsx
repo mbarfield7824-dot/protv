@@ -2,13 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { FALLBACK_POSTER } from '../data/mockData';
 import '../styles/ContinueWatching.css';
 
-export default function ContinueWatching({ items }) {
+export default function ContinueWatching({ id, items }) {
   const navigate = useNavigate();
 
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="continue-row">
+    <div id={id} className="continue-row">
       <div className="row-header">
         <div className="row-titles">
           <h2 className="row-title">Continue Watching</h2>
