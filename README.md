@@ -1,16 +1,92 @@
-# React + Vite
+# PROtv Backend Setup Guide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## What We've Built
+- **Express.js** API server with routes for auth and videos
+- **Firebase** integration (Firestore database + Authentication)
+- **Modular structure** ready for Roku/Firestick apps later
 
-Currently, two official plugins are available:
+## Project Structure
+```
+backend/
+├── src/
+│   ├── server.js           # Main Express app
+│   ├── firebase.js         # Firebase config & helpers
+│   ├── routes/
+│   │   ├── auth.js         # Login/signup endpoints
+│   │   └── videos.js       # Video endpoints
+│   └── middleware/
+│       └── auth.js         # Token verification
+├── package.json            # Dependencies
+├── .env.example            # Environment variables template
+└── .env                    # Your actual secrets (create from .env.example)
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Setup Steps
 
-## React Compiler
+### 1. Create Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Click "Add project" and name it "PROtv"
+3. Enable Firestore Database
+4. Enable Authentication (Email/Password)
+5. Go to Project Settings > Service Accounts > Generate new private key
+6. Download and save as `serviceAccountKey.json` in the backend folder
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Set Environment Variables
+```bash
+# Copy the template
+cp .env.example .env
 
-## Expanding the ESLint configuration
+# Edit .env and add:
+# - Path to your serviceAccountKey.json
+# - Your Firebase Project ID (from console)
+# - Keep PORT as 5000
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 3. Install & Run
+```bash
+# Install dependencies (already done)
+npm install
+
+# Start the server
+npm start
+
+# You should see:
+# ✓ PROtv Backend running on port 5000
+```
+
+### 4. Test with Postman
+1. Download [Postman](https://www.postman.com/downloads/)
+2. Create requests to test:
+   - `GET http://localhost:5000/health` → Should return `{ status: "Backend is running!" }`
+   - `GET http://localhost:5000/videos` → Should return empty array `[]`
+
+## API Endpoints (Phase 1)
+
+### Auth Routes
+- `POST /auth/signup` - Create account
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "displayName": "John Doe"
+  }
+  ```
+
+### Video Routes
+- `GET /videos` - Get all videos
+- `GET /videos/:id` - Get single video
+- `GET /videos/categories/list` - Get all categories
+- `POST /videos` - Add new video (requires authentication token)
+
+## Next Steps
+1. Set up Firebase project ✓
+2. Test backend with Postman
+3. Build database schema (videos, categories, users)
+4. Set up frontend (React + Vite)
+5. Connect frontend to backend
+6. Integrate Mux for video streaming
+
+## Troubleshooting
+- **Port already in use**: Change `PORT` in `.env`
+- **Firebase auth error**: Check `serviceAccountKey.json` path in `.env`
+- **CORS errors**: Check `FRONTEND_URL` in `.env`
