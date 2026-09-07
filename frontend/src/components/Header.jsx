@@ -7,16 +7,21 @@ export default function Header() {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
 
   const navLinks = [
     { to: '/', label: 'Home', active: true },
-    { href: '#trending', label: 'Trending' },
-    { href: '#discover', label: 'Discover' },
-    { href: '#categories', label: 'Categories' },
-    { href: '#mylist', label: 'My List' },
-    { href: '#continuing', label: 'Continue Watching' },
-    { to: '/admin', label: '+ Add Movie' },
+    { to: '/trending', label: 'Trending' },
+    { to: '/discover', label: 'Discover' },
+    { to: '/categories', label: 'Categories' },
+    { to: '/my-list', label: 'My List' },
+    { to: '/continue-watching', label: 'Continue Watching' },
   ];
+
+  const handleSignIn = () => {
+    localStorage.setItem('isAdmin', 'true');
+    window.location.reload();
+  };
 
   return (
     <header className="header-premium">
@@ -32,21 +37,21 @@ export default function Header() {
           <Link to="/" className="nav-link active">
             Home
           </Link>
-          <a href="#trending" className="nav-link">
+          <Link to="/trending" className="nav-link">
             Trending
-          </a>
-          <a href="#discover" className="nav-link">
+          </Link>
+          <Link to="/discover" className="nav-link">
             Discover
-          </a>
-          <a href="#categories" className="nav-link">
+          </Link>
+          <Link to="/categories" className="nav-link">
             Categories
-          </a>
-          <a href="#mylist" className="nav-link">
+          </Link>
+          <Link to="/my-list" className="nav-link">
             My List
-          </a>
-          <a href="#continuing" className="nav-link">
+          </Link>
+          <Link to="/continue-watching" className="nav-link">
             Continue Watching
-          </a>
+          </Link>
         </nav>
 
         {/* Header Actions */}
@@ -66,13 +71,26 @@ export default function Header() {
             <div className="profile-avatar">U</div>
           </button>
 
-          {/* Admin: Add Movie */}
-          <Link to="/admin" className="admin-link" title="Add a movie">
-            ➕
-          </Link>
+          {/* Admin: Add Movie - Only show if admin */}
+          {isAdmin && (
+            <Link to="/admin" className="admin-link" title="Add a movie">
+              ➕
+            </Link>
+          )}
 
           {/* Sign In */}
-          <button className="login-btn">Sign In</button>
+          {!isAdmin ? (
+            <button className="login-btn" onClick={handleSignIn}>
+              Sign In
+            </button>
+          ) : (
+            <button className="login-btn" onClick={() => {
+              localStorage.removeItem('isAdmin');
+              window.location.reload();
+            }}>
+              Sign Out
+            </button>
+          )}
 
           {/* Mobile Menu Toggle */}
           <button
@@ -87,26 +105,24 @@ export default function Header() {
 
       {/* Mobile Slide-Out Menu */}
       <div className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
-        {navLinks.map((link) =>
-          link.to ? (
-            <Link
-              key={link.label}
-              to={link.to}
-              className={`mobile-nav-link ${link.active ? 'active' : ''}`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ) : (
-            <a
-              key={link.label}
-              href={link.href}
-              className="mobile-nav-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.label}
-            </a>
-          )
+        {navLinks.map((link) => (
+          <Link
+            key={link.label}
+            to={link.to}
+            className={`mobile-nav-link ${link.active ? 'active' : ''}`}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {link.label}
+          </Link>
+        ))}
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="mobile-nav-link"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            ➕ Add Movie
+          </Link>
         )}
       </div>
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
