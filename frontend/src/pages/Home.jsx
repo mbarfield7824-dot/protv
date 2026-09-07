@@ -100,6 +100,7 @@ export default function Home() {
   }
 
   const combinedCatalog = [...mockVideoData, ...apiVideos];
+  const featured = combinedCatalog[0];
 
   // Filter videos based on selected category
   const getTrendingVideos = () => {
@@ -109,7 +110,7 @@ export default function Home() {
 
   // Get videos recommended based on first video
   const getRecommendedVideos = () => {
-    const featured = mockVideoData[0];
+    if (!featured) return [];
     return combinedCatalog.filter((v) => v.category === featured.category && v.id !== featured.id);
   };
 
@@ -125,7 +126,11 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <Hero featured={mockVideoData[0]} />
+      {featured ? (
+        <Hero featured={featured} />
+      ) : (
+        <div className="hero-loading">No content available. Add videos to get started!</div>
+      )}
 
       {/* Continue Watching — cinematic rail with progress bars */}
       <ContinueWatching items={continueWatchingData} />
@@ -229,7 +234,7 @@ export default function Home() {
 
       <ContentRow
         title="Because You Watched"
-        subtitle={`${mockVideoData[0].title}`}
+        subtitle={featured ? `${featured.title}` : ''}
         content={getRecommendedVideos().slice(0, 8)}
         onInfo={setPreviewVideo}
       />
