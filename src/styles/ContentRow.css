@@ -1,0 +1,222 @@
+/* Content Row - Horizontal Scrolling */
+.content-row {
+  margin-bottom: 60px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 25px;
+  padding: 0 20px;
+}
+
+.row-titles {
+  flex: 1;
+}
+
+.row-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 5px 0;
+  letter-spacing: -0.5px;
+}
+
+.row-subtitle {
+  font-size: 0.95rem;
+  color: #4169E1;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.view-all {
+  color: #4169E1;
+  text-decoration: none;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.view-all:hover {
+  color: #60A5FA;
+  gap: 10px;
+}
+
+.view-all span {
+  font-size: 1.3rem;
+  transition: transform 0.2s;
+}
+
+.view-all:hover span {
+  transform: translateX(3px);
+}
+
+/* Carousel Container */
+.row-container {
+  position: relative;
+  padding: 0 20px;
+}
+
+.content-carousel {
+  display: flex;
+  gap: 20px;
+  overflow-x: scroll;
+  scroll-behavior: smooth;
+  padding-bottom: 10px;
+  scroll-padding-left: 20px;
+  scroll-padding-right: 20px;
+}
+
+.content-carousel::-webkit-scrollbar {
+  height: 4px;
+}
+
+.content-carousel::-webkit-scrollbar-track {
+  background: rgba(65, 105, 225, 0.1);
+  border-radius: 2px;
+}
+
+.content-carousel::-webkit-scrollbar-thumb {
+  background: rgba(65, 105, 225, 0.3);
+  border-radius: 2px;
+}
+
+.content-carousel::-webkit-scrollbar-thumb:hover {
+  background: rgba(65, 105, 225, 0.5);
+}
+
+.carousel-item {
+  flex: 0 0 calc(16.666% - 17px);
+  min-width: 200px;
+  max-width: 220px;
+}
+
+/* Scroll Buttons */
+.scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 45px;
+  height: 45px;
+  background: rgba(65, 105, 225, 0.3);
+  border: 2px solid rgba(65, 105, 225, 0.5);
+  color: white;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  font-weight: 300;
+}
+
+.scroll-btn:hover {
+  background: rgba(65, 105, 225, 0.5);
+  border-color: #4169E1;
+  box-shadow: 0 0 20px rgba(65, 105, 225, 0.6);
+}
+
+.scroll-left {
+  left: -25px;
+}
+
+.scroll-right {
+  right: -25px;
+}
+
+/* Responsive */
+@media (max-width: 1440px) {
+  .carousel-item {
+    flex: 0 0 calc(20% - 16px);
+    max-width: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  .carousel-item {
+    flex: 0 0 calc(25% - 15px);
+  }
+
+  .row-title {
+    font-size: 1.5rem;
+  }
+
+  .row-header {
+    padding: 0 15px;
+  }
+
+  .row-container {
+    padding: 0 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .carousel-item {
+    flex: 0 0 calc(33.333% - 14px);
+  }
+
+  .row-title {
+    font-size: 1.3rem;
+  }
+
+  .scroll-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
+  }
+
+  .scroll-left {
+    left: -20px;
+  }
+
+  .scroll-right {
+    right: -20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .carousel-item {
+    flex: 0 0 calc(50% - 10px);
+    min-width: 140px;
+  }
+
+  .row-title {
+    font-size: 1.1rem;
+  }
+
+  .row-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .view-all {
+    font-size: 0.85rem;
+  }
+
+  .row-header {
+    padding: 0 12px;
+    margin-bottom: 20px;
+  }
+
+  .row-container {
+    padding: 0 12px;
+  }
+
+  .scroll-btn {
+    display: none;
+  }
+
+  .content-carousel {
+    gap: 12px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
