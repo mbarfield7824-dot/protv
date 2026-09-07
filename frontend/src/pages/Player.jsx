@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ContentRow from '../components/ContentRow';
 import { api } from '../api';
+import { useAuth } from '../hooks/useAuth';
 import {
   mockVideoData,
   blackCinemaData,
@@ -21,20 +22,16 @@ export default function Player() {
   const navigate = useNavigate();
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadedVideoId, setLoadedVideoId] = useState(null);
+  const { isFavorite, toggleFavorite } = useAuth();
 
-  useEffect(() => {
-    setLoading(true);
-    fetchVideo();
-    window.scrollTo(0, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  async function fetchVideo() {
+  const fetchVideo = useCallback(async () => {
     // First check the curated mock catalog (covers Trending/Black Cinema/
     // Independent/Anime rails), then fall back to the live backend API.
     const mockMatch = ALL_MOCK_VIDEOS.find((v) => v.id === id);
     if (mockMatch) {
       setVideo(mockMatch);
+      setLoadedVideoId(id);
       setLoading(false);
       return;
     }
@@ -46,11 +43,17 @@ export default function Player() {
       console.error('Failed to load video:', error);
       setVideo(null);
     } finally {
+      setLoadedVideoId(id);
       setLoading(false);
     }
-  }
+  }, [id]);
 
-  if (loading) {
+  useEffect(() => {
+    void Promise.resolve().then(fetchVideo);
+    window.scrollTo(0, 0);
+  }, [fetchVideo]);
+
+  if (loading || loadedVideoId !== id) {
     return (
       <div className="player-loading">
         <div className="player-loading-spinner" />
@@ -72,9 +75,12 @@ export default function Player() {
 
   const hasRealPlayback =
     video.muxPlaybackId && !video.muxPlaybackId.startsWith('demo-playback');
+  const category = video.category || video.genre;
+  const duration = video.runtime || (video.duration ? Math.round(video.duration / 60) : 0);
+  const genres = video.genres?.length ? video.genres : [category].filter(Boolean);
 
   const related = ALL_MOCK_VIDEOS.filter(
-    (v) => v.id !== video.id && v.genres?.some((g) => video.genres?.includes(g))
+    (v) => v.id !== video.id && v.genres?.some((g) => genres.includes(g))
   ).slice(0, 10);
 
   return (
@@ -119,11 +125,11 @@ export default function Player() {
             <h1>{video.title}</h1>
 
             <div className="meta">
-              {video.category && <span className="category-badge">{video.category}</span>}
+              {category && <span className="category-badge">{category}</span>}
               {video.year && <span className="meta-pill">{video.year}</span>}
-              {video.duration && (
+              {duration > 0 && (
                 <span className="meta-pill">
-                  {video.contentType === 'SERIES' ? `${video.duration}m/ep` : `${video.duration}m`}
+                  {video.contentType === 'SERIES' ? `${duration}m/ep` : `${duration}m`}
                 </span>
               )}
               {video.ageRating && <span className="meta-pill">{video.ageRating}</span>}
@@ -137,9 +143,9 @@ export default function Player() {
               )}
             </div>
 
-            {video.genres && video.genres.length > 0 && (
+            {genres.length > 0 && (
               <div className="genre-tags">
-                {video.genres.map((g) => (
+                {genres.map((g) => (
                   <span key={g} className="genre-tag">
                     {g}
                   </span>
@@ -150,7 +156,9 @@ export default function Player() {
             <p className="description">{video.description}</p>
 
             <div className="player-actions">
-              <button className="action-btn primary">+ My List</button>
+              <button className="action-btn primary" onClick={() => void toggleFavorite(video.id)}>
+                {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
+              </button>
               <button className="action-btn">Share</button>
             </div>
           </div>

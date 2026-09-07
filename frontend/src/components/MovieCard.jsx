@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FALLBACK_POSTER } from '../data/mockData';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/MovieCard.css';
 
 export default function MovieCard({ video, onPreview, onInfo }) {
   const navigate = useNavigate();
   const [showPreview, setShowPreview] = useState(false);
   const [previewTimeout, setPreviewTimeout] = useState(null);
+  const { isFavorite, toggleFavorite } = useAuth();
 
   const handleMouseEnter = () => {
     const timeout = setTimeout(() => {
@@ -112,8 +114,16 @@ export default function MovieCard({ video, onPreview, onInfo }) {
             >
               <span>▶</span> Play
             </button>
-            <button className="preview-list" onClick={(e) => e.stopPropagation()}>
-              +
+            <button
+              className="preview-list"
+              aria-label={isFavorite(video.id) ? 'Remove from My List' : 'Add to My List'}
+              title={isFavorite(video.id) ? 'Remove from My List' : 'Add to My List'}
+              onClick={(e) => {
+                e.stopPropagation();
+                void toggleFavorite(video.id);
+              }}
+            >
+              {isFavorite(video.id) ? '✓' : '+'}
             </button>
             {onInfo && (
               <button

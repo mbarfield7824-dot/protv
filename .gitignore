@@ -8,3 +8,6 @@ build/
 .vscode/
 .idea/
 serviceAccountKey.json
+protv-2f48e-*.json
+.vercel
+.env*

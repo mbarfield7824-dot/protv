@@ -103,20 +103,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
         throw new Error('Rights verification notes are required');
       }
 
-      // Submit via admin API (using admin key)
-      const response = await fetch('http://localhost:5000/videos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': import.meta.env.VITE_ADMIN_API_KEY || '',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit content');
-      }
+      await onSubmit(formData);
 
       setSuccess('✅ Content submitted successfully! It has been saved as a draft.');
 

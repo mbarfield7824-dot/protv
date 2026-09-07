@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Hero from '../components/Hero';
 import ContentRow from '../components/ContentRow';
 import ContinueWatching from '../components/ContinueWatching';
@@ -14,10 +13,9 @@ import {
   independentData,
   animeData,
   continueWatchingData,
-  myListData,
-  recentlyAddedData,
   FALLBACK_POSTER,
 } from '../data/mockData';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/Home.css';
 
 const DEFAULT_CATEGORIES = [
@@ -27,6 +25,17 @@ const DEFAULT_CATEGORIES = [
   { id: 'horror', name: 'Horror' },
   { id: 'drama', name: 'Drama' },
 ];
+
+const CATEGORY_SECTION_IDS = {
+  Comedy: 'comedy',
+  Action: 'action',
+  Documentary: 'documentary',
+  Horror: 'horror',
+  Drama: 'drama',
+  'Black Cinema': 'black-cinema',
+  Independent: 'independent',
+  Anime: 'anime',
+};
 
 // Normalizes a raw Firestore video record (from the live backend) into the
 // same shape the UI components expect from the curated mock catalog, so
@@ -52,18 +61,13 @@ function normalizeApiVideo(raw) {
 }
 
 export default function Home() {
-  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [apiVideos, setApiVideos] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [activeMood, setActiveMood] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
-
-  useEffect(() => {
-    fetchCategories();
-    fetchApiVideos();
-  }, []);
+  const { user, favorites } = useAuth();
 
   async function fetchCategories() {
     try {
@@ -84,16 +88,27 @@ export default function Home() {
     try {
       const data = await api.getVideos();
       if (Array.isArray(data) && data.length > 0) {
-        // Only show videos Mux has finished transcoding (status "ready" or
-        // legacy videos with no status field). Skip "processing"/"errored"
-        // ones so half-uploaded movies don't appear broken to visitors.
-        const readyVideos = data.filter((v) => !v.status || v.status === 'ready');
+        // A public catalog entry is playable only after Mux has produced its
+        // public playback ID. Source-only, processing, and failed records
+        // must stay out of viewer-facing rails.
+        const readyVideos = data.filter(
+          (video) => video.status === 'ready' && Boolean(video.muxPlaybackId)
+        );
         setApiVideos(readyVideos.map(normalizeApiVideo));
       }
+
     } catch (error) {
       console.error('Failed to load live videos:', error);
     }
   }
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      void fetchCategories();
+      void fetchApiVideos();
+    }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, []);
 
   if (loading) {
     return <div className="loading">Loading PROtv...</div>;
@@ -101,11 +116,24 @@ export default function Home() {
 
   const combinedCatalog = [...mockVideoData, ...apiVideos];
   const featured = combinedCatalog[0];
+  const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
 
   // Filter videos based on selected category
   const getTrendingVideos = () => {
     if (selectedCategory === 'All') return combinedCatalog.slice(1);
     return combinedCatalog.slice(1).filter((v) => v.category === selectedCategory);
+  };
+
+  const selectCategory = (category) => {
+    setSelectedCategory(category);
+    const sectionId = category === 'All' ? 'trending' : CATEGORY_SECTION_IDS[category];
+    const section = document.getElementById(sectionId);
+    if (section) {
+      window.scrollTo({
+        top: Math.max(0, section.getBoundingClientRect().top + window.scrollY - 100),
+        behavior: 'auto',
+      });
+    }
   };
 
   // Get videos recommended based on first video
@@ -133,55 +161,23 @@ export default function Home() {
       )}
 
       {/* Continue Watching — cinematic rail with progress bars */}
-      <ContinueWatching items={continueWatchingData} />
+      <ContinueWatching id="continue-watching" items={continueWatchingData} />
 
-      {/* Quick Access Section - only show if data exists */}
-      {(myListData.length > 0 || recentlyAddedData.length > 0) && (
-        <div className="quick-access">
-          {myListData.length > 0 && (
-            <div className="quick-item">
-              <div className="quick-label">My List</div>
-              <div className="quick-content">
-                <img
-                  src={myListData[0]?.thumbnailUrl}
-                  alt="My List"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = FALLBACK_POSTER;
-                  }}
-                />
-                <div className="quick-info">
-                  <p className="quick-title">{myListData[0]?.title}</p>
-                  <p className="quick-meta">{myListData[0]?.contentType}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {recentlyAddedData.length > 0 && (
-            <div className="quick-item">
-              <div className="quick-label">Recently Added</div>
-              <div className="quick-content">
-                <img
-                  src={recentlyAddedData[0]?.thumbnailUrl}
-                  alt="Recently Added"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = FALLBACK_POSTER;
-                  }}
-                />
-                <div className="quick-info">
-                  <p className="quick-title">{recentlyAddedData[0]?.title}</p>
-                  <p className="quick-meta">{recentlyAddedData[0]?.contentType}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <section id="my-list" className="my-list-section">
+        {user && myListVideos.length > 0 ? (
+          <ContentRow title="My List" subtitle="Your saved favorites" content={myListVideos} onInfo={setPreviewVideo} />
+        ) : (
+          <div className="my-list-empty">
+            <h2>My List</h2>
+            <p>{user ? 'Save movies and shows with the + My List button to find them here.' : 'Sign in to save favorites and access them on any device.'}</p>
+          </div>
+        )}
+      </section>
 
       {/* PROtv Discover — signature mood-based discovery feature */}
-      <DiscoverPanel onMoodSelect={setActiveMood} />
+      <div id="discover">
+        <DiscoverPanel onMoodSelect={setActiveMood} />
+      </div>
 
       {activeMood && (
         <ContentRow
@@ -193,11 +189,11 @@ export default function Home() {
       )}
 
       {/* Category Filter */}
-      <div className="category-filter-section">
+      <div id="categories" className="category-filter-section">
         <div className="filter-wrapper">
           <button
             className={`filter-btn ${selectedCategory === 'All' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('All')}
+            onClick={() => selectCategory('All')}
           >
             All
           </button>
@@ -205,26 +201,26 @@ export default function Home() {
             <button
               key={cat.id}
               className={`filter-btn ${selectedCategory === cat.name ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat.name)}
+              onClick={() => selectCategory(cat.name)}
             >
               {cat.name}
             </button>
           ))}
           <button
             className={`filter-btn special ${selectedCategory === 'Black Cinema' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Black Cinema')}
+            onClick={() => selectCategory('Black Cinema')}
           >
             Black Cinema
           </button>
           <button
             className={`filter-btn special ${selectedCategory === 'Independent' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Independent')}
+            onClick={() => selectCategory('Independent')}
           >
             Independent
           </button>
           <button
             className={`filter-btn special ${selectedCategory === 'Anime' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Anime')}
+            onClick={() => selectCategory('Anime')}
           >
             Anime
           </button>
@@ -233,12 +229,14 @@ export default function Home() {
 
       {/* Content Rows */}
       <ContentRow
+        id="trending"
         title="🔥 Trending Now"
         content={getTrendingVideos().slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
+        id="black-cinema"
         title="Because You Watched"
         subtitle={featured ? `${featured.title}` : ''}
         content={getRecommendedVideos().slice(0, 8)}
@@ -246,6 +244,7 @@ export default function Home() {
       />
 
       <ContentRow
+        id="independent"
         title="BLACK CINEMA"
         subtitle="Stories. Culture. Icons."
         content={blackCinemaData}
@@ -253,6 +252,7 @@ export default function Home() {
       />
 
       <ContentRow
+        id="anime"
         title="INDEPENDENT SPOTLIGHT"
         subtitle="Discover the stories Hollywood missed."
         content={independentData}
@@ -268,30 +268,35 @@ export default function Home() {
 
       {/* More Rows */}
       <ContentRow
+        id="comedy"
         title="😂 Comedy"
         content={combinedCatalog.filter((v) => v.category === 'Comedy').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
+        id="action"
         title="💥 Action"
         content={combinedCatalog.filter((v) => v.category === 'Action').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
+        id="drama"
         title="🎭 Drama"
         content={combinedCatalog.filter((v) => v.category === 'Drama').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
+        id="horror"
         title="😱 Horror"
         content={combinedCatalog.filter((v) => v.category === 'Horror').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
+        id="documentary"
         title="🎬 Documentary"
         content={combinedCatalog.filter((v) => v.category === 'Documentary').slice(0, 8)}
         onInfo={setPreviewVideo}

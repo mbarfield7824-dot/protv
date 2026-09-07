@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 
 const APPROVAL_STATUSES = {
@@ -15,9 +15,8 @@ const COMMERCIAL_STATUSES = {
   'not-permitted': { label: '❌ Not Permitted', color: '#FF6B6B' },
 };
 
-export default function AdminContentReview({ token }) {
+export default function AdminContentReview() {
   const [videos, setVideos] = useState([]);
-  const [filteredVideos, setFilteredVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,49 +26,50 @@ export default function AdminContentReview({ token }) {
   const [actionInProgress, setActionInProgress] = useState(null);
   const [actionNotes, setActionNotes] = useState('');
 
-  // Fetch all videos for admin
-  useEffect(() => {
-    fetchVideos();
-  }, [token]);
-
-  // Filter videos when search/filters change
-  useEffect(() => {
-    let filtered = videos;
-
-    if (searchQuery) {
-      filtered = filtered.filter(v =>
-        v.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (statusFilter) {
-      filtered = filtered.filter(v => v.approvalStatus === statusFilter);
-    }
-
-    if (genreFilter) {
-      filtered = filtered.filter(v => v.genre === genreFilter);
-    }
-
-    setFilteredVideos(filtered);
-  }, [videos, searchQuery, statusFilter, genreFilter]);
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await api.getAdminAllVideos(token);
+      const data = await api.getAdminAllVideos();
       setVideos(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to load content');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      void fetchVideos();
+    }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [fetchVideos]);
+
+  const filteredVideos = useMemo(() => {
+    let filtered = videos;
+
+    if (searchQuery) {
+      filtered = filtered.filter((video) =>
+        video.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (statusFilter) {
+      filtered = filtered.filter((video) => video.approvalStatus === statusFilter);
+    }
+
+    if (genreFilter) {
+      filtered = filtered.filter((video) => video.genre === genreFilter);
+    }
+
+    return filtered;
+  }, [videos, searchQuery, statusFilter, genreFilter]);
 
   const handleApprove = async (videoId) => {
     try {
       setActionInProgress('approve');
-      await api.approveVideo(videoId, actionNotes, token);
+      await api.approveVideo(videoId, actionNotes);
       setActionNotes('');
       setSelectedVideo(null);
       await fetchVideos();
@@ -83,7 +83,7 @@ export default function AdminContentReview({ token }) {
   const handleReject = async (videoId) => {
     try {
       setActionInProgress('reject');
-      await api.rejectVideo(videoId, actionNotes, token);
+      await api.rejectVideo(videoId, actionNotes);
       setActionNotes('');
       setSelectedVideo(null);
       await fetchVideos();
@@ -97,7 +97,7 @@ export default function AdminContentReview({ token }) {
   const handleRequestVerification = async (videoId) => {
     try {
       setActionInProgress('verify');
-      await api.requestVerification(videoId, actionNotes, token);
+      await api.requestVerification(videoId, actionNotes);
       setActionNotes('');
       setSelectedVideo(null);
       await fetchVideos();

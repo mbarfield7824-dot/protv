@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AdminContentForm from '../components/AdminContentForm';
@@ -16,9 +15,7 @@ function titleFromFileName(name) {
 }
 
 export default function Admin() {
-  const navigate = useNavigate();
   const [mode, setMode] = useState('file'); // 'file' | 'url' | 'bulk' | 'add-content' | 'review-content'
-  const [token, setToken] = useState(null);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -43,12 +40,6 @@ export default function Admin() {
     },
     []
   );
-
-  // Get token for authenticated requests (using demo key for now)
-  useEffect(() => {
-    const demoToken = 'demo-token'; // TODO: Use real Firebase token
-    setToken(demoToken);
-  }, []);
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -227,7 +218,7 @@ export default function Admin() {
     try {
       setError('');
       // Submit structured content to backend
-      const response = await api.addVideo(formData, token);
+      const response = await api.addVideo(formData);
       if (response.error) throw new Error(response.error);
       setStatus('ready');
       setVideoId(response.videoId);
@@ -297,7 +288,7 @@ export default function Admin() {
           </button>
         </div>
 
-        {status === 'idle' && mode !== 'bulk' && (
+        {status === 'idle' && (mode === 'file' || mode === 'url') && (
           <form
             className="admin-form"
             onSubmit={mode === 'file' ? handleFileSubmit : handleUrlSubmit}
@@ -491,8 +482,8 @@ export default function Admin() {
           </div>
         )}
 
-        {mode === 'review-content' && token && (
-          <AdminContentReview token={token} />
+        {mode === 'review-content' && (
+          <AdminContentReview />
         )}
       </div>
 

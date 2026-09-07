@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { FALLBACK_HERO } from '../data/mockData';
+import { useAuth } from '../hooks/useAuth';
 import '../styles/MoviePreview.css';
 
 export default function MoviePreview({ video, onClose }) {
   const navigate = useNavigate();
+  const { isFavorite, toggleFavorite } = useAuth();
 
   if (!video) return null;
 
@@ -33,7 +35,9 @@ export default function MoviePreview({ video, onClose }) {
               <button className="preview-modal-play" onClick={handlePlay}>
                 <span>▶</span> Play
               </button>
-              <button className="preview-modal-list">+ My List</button>
+              <button className="preview-modal-list" onClick={() => void toggleFavorite(video.id)}>
+                {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
+              </button>
             </div>
           </div>
         </div>
