@@ -17,7 +17,7 @@ function titleFromFileName(name) {
 }
 
 export default function Admin() {
-  const { user, loading, openAuthModal } = useAuth();
+  const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
   const [mode, setMode] = useState('file'); // 'file' | 'url' | 'bulk' | 'add-content' | 'review-content'
   const [form, setForm] = useState({
     title: '',
@@ -45,6 +45,17 @@ export default function Admin() {
     []
   );
 
+  const activateOwnerAccess = async () => {
+    setError('');
+    try {
+      await api.claimOwnerAdmin();
+      await user.getIdToken(true);
+      window.location.reload();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
   if (!loading && !user) {
     return (
       <div className="admin-page">
@@ -65,6 +76,29 @@ export default function Admin() {
 
   if (loading) {
     return <div className="loading">Loading PROtv...</div>;
+  }
+
+  if (user && adminLoading) {
+    return <div className="loading">Checking account permissions...</div>;
+  }
+
+  if (user && !isAdmin) {
+    return (
+      <div className="admin-page">
+        <Header />
+        <main className="admin-content">
+          <h1 className="admin-title">Owner access required</h1>
+          <p className="admin-subtitle">
+            Content management is restricted to the PROtv owner account.
+          </p>
+          {error && <p className="admin-error">{error}</p>}
+          <button className="admin-tab active" onClick={() => void activateOwnerAccess()}>
+            Activate Owner Access
+          </button>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));

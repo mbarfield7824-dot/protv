@@ -58,6 +58,19 @@ async function getUserById(uid) {
   }
 }
 
+async function grantAdminRole(email) {
+  if (!auth) {
+    throw new Error('Firebase Admin SDK is not configured');
+  }
+
+  const userRecord = await auth.getUserByEmail(email);
+  await auth.setCustomUserClaims(userRecord.uid, {
+    ...userRecord.customClaims,
+    admin: true,
+  });
+  return userRecord;
+}
+
 // Helper function to add video to Firestore
 async function addVideo(videoData) {
   if (!db) {
@@ -294,6 +307,7 @@ module.exports = {
   auth,
   createUser,
   getUserById,
+  grantAdminRole,
   addVideo,
   getAllVideos,
   getApprovedVideos,

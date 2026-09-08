@@ -1,15 +1,6 @@
 const { auth } = require('../firebase');
 
-// Middleware to verify Firebase ID token, OR an admin API key
-// (set ADMIN_API_KEY in .env) — useful until real user auth/login exists,
-// so you can manage content immediately via the admin upload page.
 async function verifyToken(req, res, next) {
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey && process.env.ADMIN_API_KEY && adminKey === process.env.ADMIN_API_KEY) {
-    req.user = { uid: 'admin' };
-    return next();
-  }
-
   const token = req.headers.authorization?.split('Bearer ')[1];
 
   if (!token) {
@@ -25,4 +16,13 @@ async function verifyToken(req, res, next) {
   }
 }
 
-module.exports = { verifyToken };
+async function verifyAdmin(req, res, next) {
+  await verifyToken(req, res, () => {
+    if (req.user.admin !== true) {
+      return res.status(403).json({ error: 'Admin access is required.' });
+    }
+    next();
+  });
+}
+
+module.exports = { verifyToken, verifyAdmin };
