@@ -60,6 +60,20 @@ npm start
    - `GET http://localhost:5000/health` → Should return `{ status: "Backend is running!" }`
    - `GET http://localhost:5000/videos` → Should return empty array `[]`
 
+### Owner access
+
+Content uploads, catalog edits, reviews, and Mux ingestion require a Firebase
+custom claim. In Vercel, add a protected `OWNER_EMAIL` environment variable
+containing the email address of the PROtv owner account. Deploy it, then sign in
+to `/admin` with that account and select **Activate Owner Access** once. Sign
+out and back in afterward so Firebase issues the account a token with the admin
+claim.
+
+For a local backend with valid Firebase Admin credentials, the equivalent is:
+```bash
+npm run grant-admin -- owner@example.com
+```
+
 ## API Endpoints (Phase 1)
 
 ### Auth Routes

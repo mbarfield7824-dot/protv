@@ -10,8 +10,9 @@ const {
   updateVideoApproval,
   getVideoByUploadId,
   getVideoByAssetId,
+  grantAdminRole,
 } = require('../firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const {
   createDirectUpload,
   getUpload,
@@ -32,9 +33,8 @@ router.get('/', async (req, res) => {
 });
 
 // ADMIN: GET /videos/admin/all - Get ALL videos (including draft, pending, rejected) for admin dashboard
-router.get('/admin/all', verifyToken, async (req, res) => {
+router.get('/admin/all', verifyAdmin, async (req, res) => {
   try {
-    // TODO: Add admin role check here
     const videos = await getAllVideosAdmin();
     res.json(videos);
   } catch (error) {
@@ -42,8 +42,27 @@ router.get('/admin/all', verifyToken, async (req, res) => {
   }
 });
 
+// Bootstrap is restricted to the exact owner identity configured on Vercel.
+// After success, subsequent management requests require the durable admin claim.
+router.post('/admin/claim-owner', verifyToken, async (req, res) => {
+  const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  if (!ownerEmail) {
+    return res.status(503).json({ error: 'Owner access has not been configured.' });
+  }
+  if (req.user.email?.toLowerCase() !== ownerEmail) {
+    return res.status(403).json({ error: 'This account is not the configured owner.' });
+  }
+
+  try {
+    await grantAdminRole(ownerEmail);
+    res.json({ message: 'Owner access activated. Refresh your sign-in token to continue.' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // ADMIN: PATCH /videos/admin/:id/approve - Approve a video
-router.patch('/admin/:id/approve', verifyToken, async (req, res) => {
+router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
     await updateVideoApproval(req.params.id, {
@@ -59,7 +78,7 @@ router.patch('/admin/:id/approve', verifyToken, async (req, res) => {
 });
 
 // ADMIN: PATCH /videos/admin/:id/reject - Reject a video
-router.patch('/admin/:id/reject', verifyToken, async (req, res) => {
+router.patch('/admin/:id/reject', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
     await updateVideoApproval(req.params.id, {
@@ -75,7 +94,7 @@ router.patch('/admin/:id/reject', verifyToken, async (req, res) => {
 });
 
 // ADMIN: PATCH /videos/admin/:id/verify - Request rights verification
-router.patch('/admin/:id/verify', verifyToken, async (req, res) => {
+router.patch('/admin/:id/verify', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
     await updateVideoApproval(req.params.id, {
@@ -93,7 +112,7 @@ router.patch('/admin/:id/verify', verifyToken, async (req, res) => {
 // ADMIN: Send an existing catalog entry's authorized source file to Mux.
 // This keeps the original catalog record and lets the normal status endpoint
 // attach the playback ID as soon as Mux finishes processing it.
-router.post('/admin/:id/ingest', verifyToken, async (req, res) => {
+router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
 
@@ -134,7 +153,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.patch('/:id', verifyToken, async (req, res) => {
+router.patch('/:id', verifyAdmin, async (req, res) => {
   const { title, description, category, thumbnailUrl } = req.body;
   if (typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'A title is required.' });
@@ -164,7 +183,7 @@ router.get('/categories/list', async (req, res) => {
 });
 
 // POST /videos - Add new video with comprehensive metadata (ADMIN ONLY - requires authentication)
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyAdmin, async (req, res) => {
   try {
     const {
       title,
@@ -197,11 +216,6 @@ router.post('/', verifyToken, async (req, res) => {
         error: 'title, videoUrl, rightsHolder, and rightsVerificationNotes are required',
       });
     }
-
-    // TODO: Add admin check (for now, any authenticated user can add)
-    // if (req.user.isAdmin !== true) {
-    //   return res.status(403).json({ error: 'Admin access required' });
-    // }
 
     const videoData = {
       title,
@@ -246,7 +260,7 @@ router.post('/', verifyToken, async (req, res) => {
 // Creates a Mux direct-upload URL and a placeholder Firestore doc
 // (status: "processing") that the frontend can immediately show while
 // Mux transcodes the video in the background.
-router.post('/upload-url', verifyToken, async (req, res) => {
+router.post('/upload-url', verifyAdmin, async (req, res) => {
   try {
     const { title, description, category, thumbnailUrl } = req.body;
 
@@ -283,7 +297,7 @@ router.post('/upload-url', verifyToken, async (req, res) => {
 
 // POST /videos/from-url - "Paste a URL" flow. Ingests an already-hosted
 // video file (S3/GCS/CDN link) directly into Mux without a file upload.
-router.post('/from-url', verifyToken, async (req, res) => {
+router.post('/from-url', verifyAdmin, async (req, res) => {
   try {
     const { title, description, category, thumbnailUrl, sourceUrl, duration } = req.body;
 

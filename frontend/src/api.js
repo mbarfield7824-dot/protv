@@ -108,6 +108,16 @@ export const api = {
     return response;
   },
 
+  async claimOwnerAdmin() {
+    const res = await fetch(`${API_URL}/videos/admin/claim-owner`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to activate owner access.');
+    return response;
+  },
+
   // ADMIN: Get all videos (including draft, pending, rejected) for review dashboard
   async getAdminAllVideos() {
     const res = await fetch(`${API_URL}/videos/admin/all`, {

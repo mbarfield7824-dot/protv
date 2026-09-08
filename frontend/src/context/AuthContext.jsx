@@ -18,12 +18,27 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(isFirebaseConfigured);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [favorites, setFavorites] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(isFirebaseConfigured);
 
   useEffect(() => {
     if (!firebaseAuth) return undefined;
     return onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);
-      if (!nextUser) setFavorites([]);
+      if (!nextUser) {
+        setFavorites([]);
+        setIsAdmin(false);
+        setAdminLoading(false);
+      } else {
+        setAdminLoading(true);
+        nextUser.getIdTokenResult()
+          .then((tokenResult) => setIsAdmin(tokenResult.claims.admin === true))
+          .catch((error) => {
+            console.error('Failed to load account permissions:', error);
+            setIsAdmin(false);
+          })
+          .finally(() => setAdminLoading(false));
+      }
       setLoading(false);
     });
   }, []);
@@ -88,6 +103,8 @@ export function AuthProvider({ children }) {
     user,
     loading,
     favorites,
+    isAdmin,
+    adminLoading,
     isFavorite: (videoId) => favorites.includes(videoId),
     toggleFavorite,
     openAuthModal: () => setAuthModalOpen(true),
