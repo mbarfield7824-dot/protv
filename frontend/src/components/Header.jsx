@@ -7,8 +7,7 @@ import '../styles/Header.css';
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isAdmin = localStorage.getItem('isAdmin') === 'true';
-  const { user, openAuthModal, signOut } = useAuth();
+  const { user, isAdmin, openAuthModal, signOut } = useAuth();
 
   const navLinks = [
     { to: '/', label: 'Home', active: true },
@@ -51,15 +50,20 @@ export default function Header() {
 
           {/* Profile */}
           {user && (
-            <button className="profile-btn" title={user.displayName || user.email}>
+            <Link to="/profile" className="profile-btn" title="Your profile" aria-label="Your profile">
               <div className="profile-avatar">{(user.displayName || user.email || 'U').charAt(0).toUpperCase()}</div>
-            </button>
+            </Link>
           )}
 
           {/* Admin: Add Movie - Only show if admin */}
           {isAdmin && (
             <Link to="/admin" className="admin-link" title="Add a movie">
               ➕
+            </Link>
+          )}
+          {user && (
+            <Link to="/profile" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+              Profile
             </Link>
           )}
 
