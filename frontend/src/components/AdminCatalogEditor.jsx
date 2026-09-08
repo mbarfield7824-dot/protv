@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama'];
+const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama', 'AI Cinema', 'Food', 'Sports'];
 
 export default function AdminCatalogEditor() {
   const [videos, setVideos] = useState([]);
