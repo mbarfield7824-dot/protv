@@ -24,6 +24,9 @@ const DEFAULT_CATEGORIES = [
   { id: 'documentary', name: 'Documentary' },
   { id: 'horror', name: 'Horror' },
   { id: 'drama', name: 'Drama' },
+  { id: 'ai-cinema', name: 'AI Cinema' },
+  { id: 'food', name: 'Food' },
+  { id: 'sports', name: 'Sports' },
 ];
 
 const CATEGORY_SECTION_IDS = {
@@ -32,6 +35,9 @@ const CATEGORY_SECTION_IDS = {
   Documentary: 'documentary',
   Horror: 'horror',
   Drama: 'drama',
+  'AI Cinema': 'ai-cinema',
+  Food: 'food',
+  Sports: 'sports',
   'Black Cinema': 'black-cinema',
   Independent: 'independent',
   Anime: 'anime',
@@ -72,7 +78,12 @@ export default function Home() {
   async function fetchCategories() {
     try {
       const data = await api.getCategories();
-      setCategories(data && data.length > 0 ? data : DEFAULT_CATEGORIES);
+      const apiCategories = Array.isArray(data) ? data : [];
+      const existingNames = new Set(DEFAULT_CATEGORIES.map((category) => category.name));
+      setCategories([
+        ...DEFAULT_CATEGORIES,
+        ...apiCategories.filter((category) => !existingNames.has(category.name)),
+      ]);
     } catch (error) {
       console.error('Failed to load categories:', error);
       setCategories(DEFAULT_CATEGORIES);
@@ -200,7 +211,7 @@ export default function Home() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`filter-btn ${selectedCategory === cat.name ? 'active' : ''}`}
+              className={`filter-btn ${['ai-cinema', 'food', 'sports'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
               onClick={() => selectCategory(cat.name)}
             >
               {cat.name}
@@ -301,6 +312,36 @@ export default function Home() {
         content={combinedCatalog.filter((v) => v.category === 'Documentary').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
+
+      {combinedCatalog.some((video) => video.category === 'AI Cinema') && (
+        <ContentRow
+          id="ai-cinema"
+          title="✦ AI CINEMA"
+          subtitle="Stories created at the edge of imagination."
+          content={combinedCatalog.filter((video) => video.category === 'AI Cinema').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {combinedCatalog.some((video) => video.category === 'Food') && (
+        <ContentRow
+          id="food"
+          title="🍽 FOOD & FLAVOR"
+          subtitle="Recipes, culture, and the stories behind every bite."
+          content={combinedCatalog.filter((video) => video.category === 'Food').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {combinedCatalog.some((video) => video.category === 'Sports') && (
+        <ContentRow
+          id="sports"
+          title="🏆 SPORTS CENTRAL"
+          subtitle="The athletes, moments, and games that move us."
+          content={combinedCatalog.filter((video) => video.category === 'Sports').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
 
       {apiVideos.length > 0 && (
         <ContentRow

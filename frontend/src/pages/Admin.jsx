@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
 
-const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama'];
+const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama', 'AI Cinema', 'Food', 'Sports'];
 const BULK_UPLOAD_CONCURRENCY = 3;
 
 function titleFromFileName(name) {

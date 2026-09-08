@@ -110,6 +110,20 @@
   color: #60A5FA;
 }
 
+.filter-btn.featured {
+  border-color: rgba(96, 165, 250, 0.72);
+  background: linear-gradient(135deg, rgba(65, 105, 225, 0.3), rgba(124, 58, 237, 0.18));
+  color: #dbeafe;
+  box-shadow: inset 0 0 16px rgba(96, 165, 250, 0.08);
+}
+
+.filter-btn.featured:hover,
+.filter-btn.featured.active {
+  border-color: #93c5fd;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.35);
+}
+
 .loading {
   display: flex;
   align-items: center;
