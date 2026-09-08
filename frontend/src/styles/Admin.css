@@ -183,6 +183,50 @@
   background: rgba(0, 0, 0, 0.22);
 }
 
+.bulk-metadata-editor,
+.catalog-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid rgba(65, 105, 225, 0.25);
+  border-radius: 10px;
+  background: rgba(65, 105, 225, 0.05);
+}
+
+.bulk-metadata-editor h2,
+.catalog-editor h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.catalog-editor-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.catalog-editor-heading p {
+  margin: 6px 0 0;
+  color: #a0a6c0;
+  font-size: 0.9rem;
+}
+
+.catalog-editor-item {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) minmax(130px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding-top: 14px;
+  border-top: 1px solid rgba(65, 105, 225, 0.18);
+}
+
+.catalog-editor-item .admin-secondary {
+  padding: 12px 18px;
+}
+
 .admin-upload-title {
   display: flex;
   justify-content: space-between;
@@ -259,4 +303,10 @@
 .admin-status-error {
   border-color: rgba(248, 113, 113, 0.4);
   background: rgba(248, 113, 113, 0.06);
+}
+
+@media (max-width: 700px) {
+  .catalog-editor-item {
+    grid-template-columns: 1fr;
+  }
 }

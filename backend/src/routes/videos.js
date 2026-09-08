@@ -134,6 +134,25 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.patch('/:id', verifyToken, async (req, res) => {
+  const { title, description, category, thumbnailUrl } = req.body;
+  if (typeof title !== 'string' || !title.trim()) {
+    return res.status(400).json({ error: 'A title is required.' });
+  }
+
+  try {
+    await updateVideo(req.params.id, {
+      title: title.trim(),
+      description: typeof description === 'string' ? description : '',
+      category: typeof category === 'string' && category ? category : 'General',
+      thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
+    });
+    res.json(await getVideoById(req.params.id));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // GET /videos/categories - Get all categories
 router.get('/categories/list', async (req, res) => {
   try {
