@@ -97,6 +97,17 @@ export const api = {
     return res.json();
   },
 
+  async updateVideoMetadata(videoId, metadata) {
+    const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {
+      method: 'PATCH',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify(metadata),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to update the video.');
+    return response;
+  },
+
   // ADMIN: Get all videos (including draft, pending, rejected) for review dashboard
   async getAdminAllVideos() {
     const res = await fetch(`${API_URL}/videos/admin/all`, {

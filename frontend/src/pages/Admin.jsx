@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
+import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
@@ -27,6 +28,7 @@ export default function Admin() {
   });
   const [file, setFile] = useState(null);
   const [bulkFiles, setBulkFiles] = useState([]);
+  const [bulkMetadata, setBulkMetadata] = useState([]);
   const [bulkUploads, setBulkUploads] = useState([]);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('idle'); // idle | uploading | processing | ready | errored
@@ -66,6 +68,23 @@ export default function Admin() {
   }
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const selectBulkFiles = (files) => {
+    const selectedFiles = Array.from(files || []);
+    setBulkFiles(selectedFiles);
+    setBulkMetadata(
+      selectedFiles.map((selectedFile, index) => ({
+        id: `${index}-${selectedFile.name}`,
+        title: titleFromFileName(selectedFile.name),
+      }))
+    );
+  };
+
+  const updateBulkTitle = (id, title) => {
+    setBulkMetadata((items) =>
+      items.map((item) => (item.id === id ? { ...item, title } : item))
+    );
+  };
 
   const startPolling = (id) => {
     setVideoId(id);
@@ -173,11 +192,15 @@ export default function Admin() {
       setError('Please choose one or more video files.');
       return;
     }
+    if (bulkMetadata.some((item) => !item.title.trim())) {
+      setError('Every episode needs a title before uploading.');
+      return;
+    }
 
     const uploads = bulkFiles.map((selectedFile, index) => ({
-      id: `${index}-${selectedFile.name}`,
+      id: bulkMetadata[index].id,
       file: selectedFile,
-      title: titleFromFileName(selectedFile.name),
+      title: bulkMetadata[index].title.trim(),
       progress: 0,
       status: 'queued',
       videoId: null,
@@ -231,6 +254,7 @@ export default function Admin() {
     setForm({ title: '', description: '', category: CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '' });
     setFile(null);
     setBulkFiles([]);
+    setBulkMetadata([]);
     setBulkUploads([]);
     setProgress(0);
     setStatus('idle');
@@ -309,6 +333,15 @@ export default function Admin() {
             }}
           >
             📋 Review Content
+          </button>
+          <button
+            className={`admin-tab ${mode === 'edit-catalog' ? 'active' : ''}`}
+            onClick={() => {
+              reset();
+              setMode('edit-catalog');
+            }}
+          >
+            ✏️ Edit Catalog
           </button>
         </div>
 
@@ -402,14 +435,25 @@ export default function Admin() {
                type="file"
                accept="video/*"
                multiple
-               onChange={(e) => setBulkFiles(Array.from(e.target.files || []))}
+               onChange={(e) => selectBulkFiles(e.target.files)}
                required
              />
              <span className="admin-file-help">
-               Titles are taken from each filename. {bulkFiles.length} file
+               Review and edit titles before uploading. {bulkFiles.length} file
                {bulkFiles.length === 1 ? '' : 's'} selected.
              </span>
            </label>
+           {bulkMetadata.length > 0 && (
+             <div className="bulk-metadata-editor">
+               <h2>Episode Titles</h2>
+               {bulkMetadata.map((item, index) => (
+                 <label key={item.id}>
+                   Episode {index + 1}
+                   <input value={item.title} onChange={(event) => updateBulkTitle(item.id, event.target.value)} required />
+                 </label>
+               ))}
+             </div>
+           )}
 
            {error && <p className="admin-error">{error}</p>}
            <button type="submit" className="admin-submit">
@@ -509,6 +553,7 @@ export default function Admin() {
         {mode === 'review-content' && (
           <AdminContentReview />
         )}
+        {mode === 'edit-catalog' && <AdminCatalogEditor />}
       </div>
 
       <Footer />
