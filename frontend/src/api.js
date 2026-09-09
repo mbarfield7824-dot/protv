@@ -108,6 +108,17 @@ export const api = {
     return response;
   },
 
+  async deleteUnpublishedVideo(videoId) {
+    const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {
+      method: 'DELETE',
+      headers: await authenticatedHeaders(),
+    });
+    if (!res.ok) {
+      const response = await res.json();
+      throw new Error(response.error || 'Unable to remove the video.');
+    }
+  },
+
   async claimOwnerAdmin() {
     const res = await fetch(`${API_URL}/videos/admin/claim-owner`, {
       method: 'POST',
