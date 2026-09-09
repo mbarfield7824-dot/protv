@@ -24,15 +24,16 @@ export default function Footer() {
 
           <div className="footer-column">
             <h4>Account</h4>
-            <a href="#my-list">My List</a>
+            <Link to="/#my-list">My List</Link>
             <a href="#history">Watch History</a>
-            <a href="#settings">Settings</a>
+            <Link to="/profile">Settings</Link>
           </div>
 
           <div className="footer-column">
             <h4>Help</h4>
             <a href="#faq">FAQ</a>
-            <a href="#contact">Contact</a>
+            <Link to="/about">About Us</Link>
+            <Link to="/contact">Contact Us</Link>
             <a href="#terms">Terms</a>
             <a href="#privacy">Privacy</a>
           </div>
