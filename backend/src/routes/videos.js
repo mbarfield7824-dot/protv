@@ -7,6 +7,7 @@ const {
   getCategories,
   addVideo,
   updateVideo,
+  deleteVideo,
   updateVideoApproval,
   getVideoByUploadId,
   getVideoByAssetId,
@@ -167,6 +168,19 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
     });
     res.json(await getVideoById(req.params.id));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/:id', verifyAdmin, async (req, res) => {
+  try {
+    const video = await getVideoById(req.params.id);
+    if (video.status === 'ready' && video.muxPlaybackId) {
+      return res.status(409).json({ error: 'Ready titles cannot be removed from this cleanup tool.' });
+    }
+    await deleteVideo(req.params.id);
+    res.status(204).end();
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

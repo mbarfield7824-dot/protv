@@ -155,6 +155,16 @@ async function updateVideo(videoId, updates) {
     return fileStorage.updateVideo(videoId, updates);
   }
 
+  async function deleteVideo(videoId) {
+    if (!db) {
+      const fileStorage = require('./storage');
+      return fileStorage.deleteVideo(videoId);
+    }
+
+    await db.collection('videos').doc(videoId).delete();
+    return true;
+  }
+
   try {
     await db.collection('videos').doc(videoId).update(updates);
     return true;
@@ -315,6 +325,7 @@ module.exports = {
   updateVideoApproval,
   getVideoById,
   updateVideo,
+  deleteVideo,
   getVideoByUploadId,
   getVideoByAssetId,
   getCategories,

@@ -29,20 +29,6 @@ const DEFAULT_CATEGORIES = [
   { id: 'sports', name: 'Sports' },
 ];
 
-const CATEGORY_SECTION_IDS = {
-  Comedy: 'comedy',
-  Action: 'action',
-  Documentary: 'documentary',
-  Horror: 'horror',
-  Drama: 'drama',
-  'AI Cinema': 'ai-cinema',
-  Food: 'food',
-  Sports: 'sports',
-  'Black Cinema': 'black-cinema',
-  Independent: 'independent',
-  Anime: 'anime',
-};
-
 // Normalizes a raw Firestore video record (from the live backend) into the
 // same shape the UI components expect from the curated mock catalog, so
 // real content can appear in the rails without special-casing everywhere.
@@ -137,14 +123,11 @@ export default function Home() {
 
   const selectCategory = (category) => {
     setSelectedCategory(category);
-    const sectionId = category === 'All' ? 'trending' : CATEGORY_SECTION_IDS[category];
-    const section = document.getElementById(sectionId);
-    if (section) {
-      window.scrollTo({
-        top: Math.max(0, section.getBoundingClientRect().top + window.scrollY - 100),
-        behavior: 'auto',
-      });
-    }
+    window.requestAnimationFrame(() => {
+      const sectionId = category === 'All' ? 'trending' : 'category-results';
+      const section = document.getElementById(sectionId);
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   // Get videos recommended based on first video
@@ -159,6 +142,9 @@ export default function Home() {
     const all = [...combinedCatalog, ...blackCinemaData, ...independentData, ...animeData];
     return all.filter((v) => v.genres?.some((g) => activeMood.genres.includes(g)));
   };
+  const selectedCategoryVideos = selectedCategory === 'All'
+    ? []
+    : combinedCatalog.filter((video) => video.category === selectedCategory);
 
   return (
     <div className="home-premium">
@@ -237,6 +223,30 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {selectedCategory !== 'All' && (
+        <section id="category-results" className="category-results">
+          <div className="category-results-heading">
+            <p>Explore PROtv</p>
+            <h2>{selectedCategory}</h2>
+          </div>
+          {selectedCategoryVideos.length > 0 ? (
+            <ContentRow
+              title={`Featured in ${selectedCategory}`}
+              content={selectedCategoryVideos}
+              onInfo={setPreviewVideo}
+            />
+          ) : (
+            <div className="category-empty-state">
+              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : '🏆'}</span>
+              <div>
+                <h3>{selectedCategory} is coming soon</h3>
+                <p>Check back soon for the first titles in this collection.</p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Content Rows */}
       <ContentRow

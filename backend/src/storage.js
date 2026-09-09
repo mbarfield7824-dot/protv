@@ -88,6 +88,15 @@ function updateVideo(id, updates) {
   saveVideos(videos);
 }
 
+function deleteVideo(id) {
+  const videos = loadVideos();
+  if (!videos[id]) {
+    throw new Error('Video not found');
+  }
+  delete videos[id];
+  saveVideos(videos);
+}
+
 // Update video approval
 function updateVideoApproval(id, approvalData) {
   const videos = loadVideos();
@@ -152,6 +161,7 @@ module.exports = {
   getVideoById,
   addVideo,
   updateVideo,
+  deleteVideo,
   updateVideoApproval,
   getAllVideosAdmin,
   getCategories,

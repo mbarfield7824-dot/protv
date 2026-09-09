@@ -64,6 +64,22 @@ export default function AdminCatalogEditor() {
     }
   };
 
+  const removeUnpublishedVideo = async (video) => {
+    if (!window.confirm(`Remove "${video.title}" from the unpublished catalog? This cannot be undone.`)) {
+      return;
+    }
+    setSavingId(video.id);
+    setError('');
+    try {
+      await api.deleteUnpublishedVideo(video.id);
+      setVideos((items) => items.filter((item) => item.id !== video.id));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   if (loading) return <p className="admin-subtitle">Loading catalog...</p>;
 
   return (
@@ -92,9 +108,25 @@ export default function AdminCatalogEditor() {
               {CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
             </select>
           </label>
-          <button className="admin-secondary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
-            {savingId === video.id ? 'Saving...' : 'Save'}
-          </button>
+          <label>
+            Poster image URL
+            <input
+              type="url"
+              placeholder="https://example.com/poster.jpg"
+              value={video.thumbnailUrl || ''}
+              onChange={(event) => updateDraft(video.id, 'thumbnailUrl', event.target.value)}
+            />
+          </label>
+          <div className="catalog-editor-actions">
+            <button className="admin-secondary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
+              {savingId === video.id ? 'Saving...' : 'Save'}
+            </button>
+            {(video.status !== 'ready' || !video.muxPlaybackId) && (
+              <button className="catalog-delete-button" disabled={savingId === video.id} onClick={() => void removeUnpublishedVideo(video)}>
+                Remove unpublished
+              </button>
+            )}
+          </div>
         </article>
       ))}
     </section>
