@@ -16,6 +16,7 @@ import {
   FALLBACK_POSTER,
 } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
+import { isTvEpisode } from '../utils/shows';
 import '../styles/Home.css';
 
 const DEFAULT_CATEGORIES = [
@@ -112,13 +113,14 @@ export default function Home() {
   }
 
   const combinedCatalog = [...mockVideoData, ...apiVideos];
-  const featured = combinedCatalog[0];
+  const movieCatalog = combinedCatalog.filter((video) => !isTvEpisode(video));
+  const featured = movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
 
   // Filter videos based on selected category
   const getTrendingVideos = () => {
-    if (selectedCategory === 'All') return combinedCatalog.slice(1);
-    return combinedCatalog.slice(1).filter((v) => v.category === selectedCategory);
+    if (selectedCategory === 'All') return movieCatalog.slice(1);
+    return movieCatalog.slice(1).filter((v) => v.category === selectedCategory);
   };
 
   const selectCategory = (category) => {
@@ -133,7 +135,7 @@ export default function Home() {
   // Get videos recommended based on first video
   const getRecommendedVideos = () => {
     if (!featured) return [];
-    return combinedCatalog.filter((v) => v.category === featured.category && v.id !== featured.id);
+    return movieCatalog.filter((v) => v.category === featured.category && v.id !== featured.id);
   };
 
   // Discover mood-based recommendations
@@ -144,7 +146,7 @@ export default function Home() {
   };
   const selectedCategoryVideos = selectedCategory === 'All'
     ? []
-    : combinedCatalog.filter((video) => video.category === selectedCategory);
+    : movieCatalog.filter((video) => video.category === selectedCategory);
 
   return (
     <div className="home-premium">
@@ -291,35 +293,35 @@ export default function Home() {
       <ContentRow
         id="comedy"
         title="😂 Comedy"
-        content={combinedCatalog.filter((v) => v.category === 'Comedy').slice(0, 8)}
+        content={movieCatalog.filter((v) => v.category === 'Comedy').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
         id="action"
         title="💥 Action"
-        content={combinedCatalog.filter((v) => v.category === 'Action').slice(0, 8)}
+        content={movieCatalog.filter((v) => v.category === 'Action').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
         id="drama"
         title="🎭 Drama"
-        content={combinedCatalog.filter((v) => v.category === 'Drama').slice(0, 8)}
+        content={movieCatalog.filter((v) => v.category === 'Drama').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
         id="horror"
         title="😱 Horror"
-        content={combinedCatalog.filter((v) => v.category === 'Horror').slice(0, 8)}
+        content={movieCatalog.filter((v) => v.category === 'Horror').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
       <ContentRow
         id="documentary"
         title="🎬 Documentary"
-        content={combinedCatalog.filter((v) => v.category === 'Documentary').slice(0, 8)}
+        content={movieCatalog.filter((v) => v.category === 'Documentary').slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 

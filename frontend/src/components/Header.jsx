@@ -11,6 +11,7 @@ export default function Header() {
 
   const navLinks = [
     { to: '/', label: 'Home', active: true },
+    { to: '/shows', label: 'TV Shows' },
     { to: '/#trending', label: 'Trending' },
     { to: '/#discover', label: 'Discover' },
     { to: '/#categories', label: 'Categories' },

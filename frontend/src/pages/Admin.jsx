@@ -25,6 +25,10 @@ export default function Admin() {
     category: CATEGORY_OPTIONS[0],
     thumbnailUrl: '',
     sourceUrl: '',
+    contentType: 'MOVIE',
+    seriesTitle: '',
+    seasonNumber: 1,
+    episodeNumber: 1,
   });
   const [file, setFile] = useState(null);
   const [bulkFiles, setBulkFiles] = useState([]);
@@ -110,6 +114,7 @@ export default function Admin() {
       selectedFiles.map((selectedFile, index) => ({
         id: `${index}-${selectedFile.name}`,
         title: titleFromFileName(selectedFile.name),
+        episodeNumber: index + 1,
       }))
     );
   };
@@ -117,6 +122,12 @@ export default function Admin() {
   const updateBulkTitle = (id, title) => {
     setBulkMetadata((items) =>
       items.map((item) => (item.id === id ? { ...item, title } : item))
+    );
+  };
+
+  const updateBulkEpisodeNumber = (id, episodeNumber) => {
+    setBulkMetadata((items) =>
+      items.map((item) => (item.id === id ? { ...item, episodeNumber } : item))
     );
   };
 
@@ -256,6 +267,11 @@ export default function Admin() {
             description: form.description,
             category: form.category,
             thumbnailUrl: form.thumbnailUrl,
+            contentType: 'EPISODE',
+            seriesTitle: form.seriesTitle,
+            seasonNumber: form.seasonNumber,
+            episodeNumber: Number(bulkMetadata.find((item) => item.id === upload.id).episodeNumber),
+            episodeTitle: upload.title,
           });
           if (response.error) throw new Error(response.error);
 
@@ -285,7 +301,7 @@ export default function Admin() {
   const reset = () => {
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
-    setForm({ title: '', description: '', category: CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '' });
+    setForm({ title: '', description: '', category: CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
     setFile(null);
     setBulkFiles([]);
     setBulkMetadata([]);
@@ -409,6 +425,29 @@ export default function Admin() {
               Poster / Thumbnail URL <span className="optional">(optional)</span>
               <input value={form.thumbnailUrl} onChange={updateField('thumbnailUrl')} placeholder="https://…" />
             </label>
+            <label>
+              Format
+              <select value={form.contentType} onChange={updateField('contentType')}>
+                <option value="MOVIE">Movie</option>
+                <option value="EPISODE">TV Episode</option>
+              </select>
+            </label>
+            {form.contentType === 'EPISODE' && (
+              <>
+                <label>
+                  Series Title
+                  <input value={form.seriesTitle} onChange={updateField('seriesTitle')} required />
+                </label>
+                <label>
+                  Season Number
+                  <input min="1" type="number" value={form.seasonNumber} onChange={updateField('seasonNumber')} required />
+                </label>
+                <label>
+                  Episode Number
+                  <input min="1" type="number" value={form.episodeNumber} onChange={updateField('episodeNumber')} required />
+                </label>
+              </>
+            )}
 
             {mode === 'file' ? (
               <label>
@@ -442,6 +481,14 @@ export default function Admin() {
 
         {status === 'idle' && mode === 'bulk' && (
          <form className="admin-form" onSubmit={handleBulkSubmit}>
+           <label>
+             Series Title
+             <input value={form.seriesTitle} onChange={updateField('seriesTitle')} required />
+           </label>
+           <label>
+             Season Number
+             <input min="1" type="number" value={form.seasonNumber} onChange={updateField('seasonNumber')} required />
+           </label>
            <label>
              Shared Description <span className="optional">(optional)</span>
              <textarea value={form.description} onChange={updateField('description')} rows={3} />
@@ -481,10 +528,16 @@ export default function Admin() {
              <div className="bulk-metadata-editor">
                <h2>Episode Titles</h2>
                {bulkMetadata.map((item, index) => (
-                 <label key={item.id}>
-                   Episode {index + 1}
-                   <input value={item.title} onChange={(event) => updateBulkTitle(item.id, event.target.value)} required />
-                 </label>
+                 <div className="bulk-episode-metadata" key={item.id}>
+                   <label>
+                     Episode {index + 1} Title
+                     <input value={item.title} onChange={(event) => updateBulkTitle(item.id, event.target.value)} required />
+                   </label>
+                   <label>
+                     Episode Number
+                     <input min="1" type="number" value={item.episodeNumber} onChange={(event) => updateBulkEpisodeNumber(item.id, event.target.value)} required />
+                   </label>
+                 </div>
                ))}
              </div>
            )}
