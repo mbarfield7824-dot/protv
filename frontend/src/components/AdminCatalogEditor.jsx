@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { episodeDetailsFor, seriesTitleFor } from '../utils/shows';
 
 const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama', 'AI Cinema', 'Food', 'Sports'];
 
@@ -28,7 +29,18 @@ export default function AdminCatalogEditor() {
     api.getAdminAllVideos()
       .then((response) => {
         if (!Array.isArray(response)) throw new Error(response.error || 'Unable to load catalog.');
-        if (active) setVideos(response);
+        if (active) setVideos(response.map((video) => {
+          const isEpisode = video.contentType === 'EPISODE' || Boolean(seriesTitleFor(video));
+          const details = episodeDetailsFor(video);
+          return {
+            ...video,
+            contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+            seriesTitle: video.seriesTitle || seriesTitleFor(video),
+            seasonNumber: video.seasonNumber || (isEpisode ? details.seasonNumber : ''),
+            episodeNumber: video.episodeNumber || (isEpisode ? details.episodeNumber : ''),
+            episodeTitle: video.episodeTitle || '',
+          };
+        }));
       })
       .catch((requestError) => {
         if (active) setError(requestError.message);
@@ -56,6 +68,11 @@ export default function AdminCatalogEditor() {
         description: video.description || '',
         category: video.category || 'Comedy',
         thumbnailUrl: video.thumbnailUrl || '',
+        contentType: video.contentType,
+        seriesTitle: video.seriesTitle || '',
+        seasonNumber: video.seasonNumber || '',
+        episodeNumber: video.episodeNumber || '',
+        episodeTitle: video.episodeTitle || '',
       });
     } catch (requestError) {
       setError(requestError.message);
@@ -117,6 +134,33 @@ export default function AdminCatalogEditor() {
               onChange={(event) => updateDraft(video.id, 'thumbnailUrl', event.target.value)}
             />
           </label>
+          <label>
+            Format
+            <select value={video.contentType || 'MOVIE'} onChange={(event) => updateDraft(video.id, 'contentType', event.target.value)}>
+              <option value="MOVIE">Movie</option>
+              <option value="EPISODE">TV Episode</option>
+            </select>
+          </label>
+          {video.contentType === 'EPISODE' && (
+            <>
+              <label>
+                Series title
+                <input value={video.seriesTitle || ''} onChange={(event) => updateDraft(video.id, 'seriesTitle', event.target.value)} />
+              </label>
+              <label>
+                Season
+                <input min="1" type="number" value={video.seasonNumber || ''} onChange={(event) => updateDraft(video.id, 'seasonNumber', event.target.value)} />
+              </label>
+              <label>
+                Episode
+                <input min="1" type="number" value={video.episodeNumber || ''} onChange={(event) => updateDraft(video.id, 'episodeNumber', event.target.value)} />
+              </label>
+              <label>
+                Episode title <span className="optional">(optional)</span>
+                <input value={video.episodeTitle || ''} onChange={(event) => updateDraft(video.id, 'episodeTitle', event.target.value)} />
+              </label>
+            </>
+          )}
           <div className="catalog-editor-actions">
             <button className="admin-secondary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
               {savingId === video.id ? 'Saving...' : 'Save'}

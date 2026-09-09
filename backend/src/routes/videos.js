@@ -155,17 +155,37 @@ router.get('/:id', async (req, res) => {
 });
 
 router.patch('/:id', verifyAdmin, async (req, res) => {
-  const { title, description, category, thumbnailUrl } = req.body;
+  const {
+    title,
+    description,
+    category,
+    thumbnailUrl,
+    contentType,
+    seriesTitle,
+    seasonNumber,
+    episodeNumber,
+    episodeTitle,
+  } = req.body;
   if (typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'A title is required.' });
   }
 
   try {
+    const isEpisode = contentType === 'EPISODE';
     await updateVideo(req.params.id, {
       title: title.trim(),
       description: typeof description === 'string' ? description : '',
       category: typeof category === 'string' && category ? category : 'General',
       thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
+      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+      seriesTitle: isEpisode && typeof seriesTitle === 'string' ? seriesTitle.trim() : '',
+      seasonNumber: isEpisode && Number.isInteger(Number(seasonNumber)) && Number(seasonNumber) > 0
+        ? Number(seasonNumber)
+        : null,
+      episodeNumber: isEpisode && Number.isInteger(Number(episodeNumber)) && Number(episodeNumber) > 0
+        ? Number(episodeNumber)
+        : null,
+      episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
     res.json(await getVideoById(req.params.id));
   } catch (error) {
@@ -276,7 +296,17 @@ router.post('/', verifyAdmin, async (req, res) => {
 // Mux transcodes the video in the background.
 router.post('/upload-url', verifyAdmin, async (req, res) => {
   try {
-    const { title, description, category, thumbnailUrl } = req.body;
+    const {
+      title,
+      description,
+      category,
+      thumbnailUrl,
+      contentType,
+      seriesTitle,
+      seasonNumber,
+      episodeNumber,
+      episodeTitle,
+    } = req.body;
 
     if (!title || !category) {
       return res.status(400).json({
@@ -285,6 +315,10 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
     }
 
     const upload = await createDirectUpload(process.env.FRONTEND_URL);
+    const isEpisode = contentType === 'EPISODE';
+    if (isEpisode && (!seriesTitle?.trim() || !Number.isInteger(Number(seasonNumber)) || !Number.isInteger(Number(episodeNumber)))) {
+      return res.status(400).json({ error: 'TV episodes require a series title, season number, and episode number.' });
+    }
 
     const videoId = await addVideo({
       title,
@@ -297,6 +331,11 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       approvalStatus: 'approved',
       status: 'processing',
       muxUploadId: upload.id,
+      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+      seriesTitle: isEpisode ? seriesTitle.trim() : '',
+      seasonNumber: isEpisode ? Number(seasonNumber) : null,
+      episodeNumber: isEpisode ? Number(episodeNumber) : null,
+      episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
 
     res.status(201).json({
@@ -313,7 +352,7 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
 // video file (S3/GCS/CDN link) directly into Mux without a file upload.
 router.post('/from-url', verifyAdmin, async (req, res) => {
   try {
-    const { title, description, category, thumbnailUrl, sourceUrl, duration } = req.body;
+    const { title, description, category, thumbnailUrl, sourceUrl, duration, contentType, seriesTitle, seasonNumber, episodeNumber, episodeTitle } = req.body;
 
     if (!title || !category || !sourceUrl) {
       return res.status(400).json({
@@ -322,6 +361,10 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
     }
 
     const asset = await createAssetFromUrl(sourceUrl);
+    const isEpisode = contentType === 'EPISODE';
+    if (isEpisode && (!seriesTitle?.trim() || !Number.isInteger(Number(seasonNumber)) || !Number.isInteger(Number(episodeNumber)))) {
+      return res.status(400).json({ error: 'TV episodes require a series title, season number, and episode number.' });
+    }
 
     const videoId = await addVideo({
       title,
@@ -334,6 +377,11 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       approvalStatus: 'approved',
       status: 'processing',
       muxAssetId: asset.id,
+      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+      seriesTitle: isEpisode ? seriesTitle.trim() : '',
+      seasonNumber: isEpisode ? Number(seasonNumber) : null,
+      episodeNumber: isEpisode ? Number(episodeNumber) : null,
+      episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
 
     res.status(201).json({

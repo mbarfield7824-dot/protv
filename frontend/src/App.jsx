@@ -5,6 +5,8 @@ import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Shows from './pages/Shows';
+import ShowDetail from './pages/ShowDetail';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import './App.css';
@@ -20,6 +22,8 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/shows" element={<Shows />} />
+          <Route path="/shows/:slug" element={<ShowDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
