@@ -29,6 +29,8 @@ const DEFAULT_CATEGORIES = [
   { id: 'food', name: 'Food' },
   { id: 'sports', name: 'Sports' },
   { id: 'sci-fi', name: 'Sci-Fi' },
+  { id: 'espanol', name: 'Espanol' },
+  { id: 'international', name: 'International' },
 ];
 
 // Normalizes a raw Firestore video record (from the live backend) into the
@@ -200,7 +202,7 @@ export default function Home() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'sci-fi'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
+              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'sci-fi', 'espanol', 'international'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
               onClick={() => selectCategory(cat.name)}
             >
               {cat.name}
@@ -241,7 +243,7 @@ export default function Home() {
             />
           ) : (
             <div className="category-empty-state">
-              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : '🛸'}</span>
+              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : selectedCategory === 'Espanol' ? '🎞' : selectedCategory === 'International' ? '🌍' : '🛸'}</span>
               <div>
                 <h3>{selectedCategory} is coming soon</h3>
                 <p>Check back soon for the first titles in this collection.</p>
@@ -362,6 +364,26 @@ export default function Home() {
           title="🛸 SCI-FI EXPLORATIONS"
           subtitle="Future worlds, distant planets, and the unknown."
           content={movieCatalog.filter((video) => video.category === 'Sci-Fi').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'Espanol') && (
+        <ContentRow
+          id="espanol"
+          title="🎞 ESPANOL CINEMA"
+          subtitle="Stories and voices from the Spanish-speaking world."
+          content={movieCatalog.filter((video) => video.category === 'Espanol').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'International') && (
+        <ContentRow
+          id="international"
+          title="🌍 INTERNATIONAL CINEMA"
+          subtitle="Great stories from around the world."
+          content={movieCatalog.filter((video) => video.category === 'International').slice(0, 8)}
           onInfo={setPreviewVideo}
         />
       )}
