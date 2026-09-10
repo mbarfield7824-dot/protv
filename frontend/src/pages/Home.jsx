@@ -28,6 +28,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'ai-cinema', name: 'AI Cinema' },
   { id: 'food', name: 'Food' },
   { id: 'sports', name: 'Sports' },
+  { id: 'sci-fi', name: 'Sci-Fi' },
 ];
 
 // Normalizes a raw Firestore video record (from the live backend) into the
@@ -199,7 +200,7 @@ export default function Home() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`filter-btn ${['ai-cinema', 'food', 'sports'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
+              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'sci-fi'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
               onClick={() => selectCategory(cat.name)}
             >
               {cat.name}
@@ -240,7 +241,7 @@ export default function Home() {
             />
           ) : (
             <div className="category-empty-state">
-              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : '🏆'}</span>
+              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : '🛸'}</span>
               <div>
                 <h3>{selectedCategory} is coming soon</h3>
                 <p>Check back soon for the first titles in this collection.</p>
@@ -351,6 +352,16 @@ export default function Home() {
           title="🏆 SPORTS CENTRAL"
           subtitle="The athletes, moments, and games that move us."
           content={combinedCatalog.filter((video) => video.category === 'Sports').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'Sci-Fi') && (
+        <ContentRow
+          id="sci-fi"
+          title="🛸 SCI-FI EXPLORATIONS"
+          subtitle="Future worlds, distant planets, and the unknown."
+          content={movieCatalog.filter((video) => video.category === 'Sci-Fi').slice(0, 8)}
           onInfo={setPreviewVideo}
         />
       )}
