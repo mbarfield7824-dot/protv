@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 const GENRES = [
-  'Action', 'Comedy', 'Drama', 'Horror', 'Documentary', 'Sci-Fi', 'AI Cinema', 'Food', 'Sports',
-  'Sci-Fi', 'Fantasy', 'Romance', 'Thriller', 'Animation',
+  'Action', 'Comedy', 'Drama', 'Horror', 'Documentary', 'Sci-Fi', 'Espanol', 'International',
+  'AI Cinema', 'Food', 'Sports', 'Fantasy', 'Romance', 'Thriller', 'Animation',
   'Adventure', 'Crime', 'Family', 'Musical', 'Western',
 ];
 
