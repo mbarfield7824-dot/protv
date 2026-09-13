@@ -117,13 +117,14 @@ export default function Home() {
 
   const combinedCatalog = [...mockVideoData, ...apiVideos];
   const movieCatalog = combinedCatalog.filter((video) => !isTvEpisode(video));
-  const featured = movieCatalog[0];
+  const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
 
   // Filter videos based on selected category
   const getTrendingVideos = () => {
-    if (selectedCategory === 'All') return movieCatalog.slice(1);
-    return movieCatalog.slice(1).filter((v) => v.category === selectedCategory);
+    const nonFeaturedMovies = movieCatalog.filter((video) => video.id !== featured?.id);
+    if (selectedCategory === 'All') return nonFeaturedMovies;
+    return nonFeaturedMovies.filter((video) => video.category === selectedCategory);
   };
 
   const selectCategory = (category) => {
