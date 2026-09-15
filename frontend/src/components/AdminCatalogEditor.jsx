@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { episodeDetailsFor, seriesTitleFor } from '../utils/shows';
-
-const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama', 'Sci-Fi', 'Espanol', 'International', 'AI Cinema', 'Food', 'Sports'];
 
 export default function AdminCatalogEditor() {
   const [videos, setVideos] = useState([]);
@@ -122,7 +121,7 @@ export default function AdminCatalogEditor() {
           <label>
             Category
             <select value={video.category || 'Comedy'} onChange={(event) => updateDraft(video.id, 'category', event.target.value)}>
-              {CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
+              {UPLOAD_CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
             </select>
           </label>
           <label>

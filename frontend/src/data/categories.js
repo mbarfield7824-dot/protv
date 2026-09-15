@@ -1,0 +1,15 @@
+export const UPLOAD_CATEGORY_OPTIONS = [
+  'Comedy',
+  'Action',
+  'Documentary',
+  'Horror',
+  'Drama',
+  'Sci-Fi',
+  'Espanol',
+  'International',
+  'AI Cinema',
+  'Food',
+  'Sports',
+  'Black Cinema',
+  'Anime',
+];
