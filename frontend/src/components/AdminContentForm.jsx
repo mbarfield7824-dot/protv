@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 
 const GENRES = [
-  'Action', 'Comedy', 'Drama', 'Horror', 'Documentary', 'Sci-Fi', 'Espanol', 'International',
-  'AI Cinema', 'Food', 'Sports', 'Fantasy', 'Romance', 'Thriller', 'Animation',
+  ...UPLOAD_CATEGORY_OPTIONS,
+  'Fantasy', 'Romance', 'Thriller', 'Animation',
   'Adventure', 'Crime', 'Family', 'Musical', 'Western',
 ];
 

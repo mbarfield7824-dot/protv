@@ -31,6 +31,8 @@ const DEFAULT_CATEGORIES = [
   { id: 'sci-fi', name: 'Sci-Fi' },
   { id: 'espanol', name: 'Espanol' },
   { id: 'international', name: 'International' },
+  { id: 'black-cinema', name: 'Black Cinema' },
+  { id: 'anime', name: 'Anime' },
 ];
 
 // Normalizes a raw Firestore video record (from the live backend) into the
@@ -210,22 +212,10 @@ export default function Home() {
             </button>
           ))}
           <button
-            className={`filter-btn special ${selectedCategory === 'Black Cinema' ? 'active' : ''}`}
-            onClick={() => selectCategory('Black Cinema')}
-          >
-            Black Cinema
-          </button>
-          <button
             className={`filter-btn special ${selectedCategory === 'Independent' ? 'active' : ''}`}
             onClick={() => selectCategory('Independent')}
           >
             Independent
-          </button>
-          <button
-            className={`filter-btn special ${selectedCategory === 'Anime' ? 'active' : ''}`}
-            onClick={() => selectCategory('Anime')}
-          >
-            Anime
           </button>
         </div>
       </div>
@@ -274,7 +264,7 @@ export default function Home() {
         id="independent"
         title="BLACK CINEMA"
         subtitle="Stories. Culture. Icons."
-        content={blackCinemaData}
+        content={[...blackCinemaData, ...movieCatalog.filter((video) => video.category === 'Black Cinema')].slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 
@@ -289,7 +279,7 @@ export default function Home() {
       <ContentRow
         title="ANIME UNIVERSE"
         subtitle="Explore. Adventure. Beyond Imagination."
-        content={animeData}
+        content={[...animeData, ...movieCatalog.filter((video) => video.category === 'Anime')].slice(0, 8)}
         onInfo={setPreviewVideo}
       />
 

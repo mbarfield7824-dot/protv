@@ -5,11 +5,11 @@ import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import { api } from '../api';
+import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
 
-const CATEGORY_OPTIONS = ['Comedy', 'Action', 'Documentary', 'Horror', 'Drama', 'Sci-Fi', 'Espanol', 'International', 'AI Cinema', 'Food', 'Sports'];
 const BULK_UPLOAD_CONCURRENCY = 3;
 
 function titleFromFileName(name) {
@@ -22,7 +22,7 @@ export default function Admin() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    category: CATEGORY_OPTIONS[0],
+    category: UPLOAD_CATEGORY_OPTIONS[0],
     thumbnailUrl: '',
     sourceUrl: '',
     contentType: 'MOVIE',
@@ -301,7 +301,7 @@ export default function Admin() {
   const reset = () => {
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
-    setForm({ title: '', description: '', category: CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
+    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
     setFile(null);
     setBulkFiles([]);
     setBulkMetadata([]);
@@ -413,7 +413,7 @@ export default function Admin() {
             <label>
               Category
               <select value={form.category} onChange={updateField('category')}>
-                {CATEGORY_OPTIONS.map((c) => (
+                {UPLOAD_CATEGORY_OPTIONS.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -497,7 +497,7 @@ export default function Admin() {
            <label>
              Category
              <select value={form.category} onChange={updateField('category')}>
-               {CATEGORY_OPTIONS.map((c) => (
+               {UPLOAD_CATEGORY_OPTIONS.map((c) => (
                  <option key={c} value={c}>
                    {c}
                  </option>
