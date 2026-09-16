@@ -24,6 +24,17 @@ const {
 const { getImdbRating } = require('../omdb');
 const router = express.Router();
 
+async function updateImdbRating(video) {
+  try {
+    const rating = await getImdbRating(video);
+    await updateVideo(video.id, rating);
+    return rating;
+  } catch (error) {
+    console.warn(`IMDb rating lookup failed for "${video.title}" (${video.id}): ${error.message}`);
+    return null;
+  }
+}
+
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
 router.get('/', async (req, res) => {
   try {
@@ -429,13 +440,15 @@ router.get('/:id/status', async (req, res) => {
 
     if (asset && asset.status === 'ready') {
       const playbackId = getPlaybackId(asset);
-      await updateVideo(req.params.id, {
+      const readyUpdates = {
         status: 'ready',
         muxPlaybackId: playbackId,
         muxAssetId: asset.id,
         duration: asset.duration ? Math.round(asset.duration) : video.duration,
-      });
-      return res.json({ ...video, status: 'ready', muxPlaybackId: playbackId });
+      };
+      await updateVideo(req.params.id, readyUpdates);
+      const rating = await updateImdbRating({ ...video, ...readyUpdates });
+      return res.json({ ...video, ...readyUpdates, ...rating });
     }
 
     if (asset && asset.status === 'errored') {
@@ -466,12 +479,14 @@ router.post('/webhook', async (req, res) => {
         : await getVideoByAssetId(asset.id);
 
       if (video) {
-        await updateVideo(video.id, {
+        const readyUpdates = {
           status: 'ready',
           muxPlaybackId: playbackId,
           muxAssetId: asset.id,
           duration: asset.duration ? Math.round(asset.duration) : video.duration,
-        });
+        };
+        await updateVideo(video.id, readyUpdates);
+        await updateImdbRating({ ...video, ...readyUpdates });
       }
     }
 
