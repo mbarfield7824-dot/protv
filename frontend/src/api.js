@@ -108,6 +108,16 @@ export const api = {
     return response;
   },
 
+  async refreshImdbRating(videoId) {
+    const res = await fetch(`${API_URL}/videos/admin/${encodeURIComponent(videoId)}/imdb-rating`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to refresh the IMDb rating.');
+    return response;
+  },
+
   async deleteUnpublishedVideo(videoId) {
     const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {
       method: 'DELETE',

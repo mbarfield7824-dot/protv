@@ -8,6 +8,8 @@ export default function AdminCatalogEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [refreshingRatings, setRefreshingRatings] = useState(false);
+  const [ratingStatus, setRatingStatus] = useState('');
 
   const loadVideos = async () => {
     setLoading(true);
@@ -96,6 +98,33 @@ export default function AdminCatalogEditor() {
     }
   };
 
+  const refreshImdbRatings = async () => {
+    setRefreshingRatings(true);
+    setError('');
+    setRatingStatus('');
+    const failures = [];
+
+    for (const [index, video] of videos.entries()) {
+      setRatingStatus(`Refreshing IMDb ratings: ${index + 1} of ${videos.length}`);
+      try {
+        const rating = await api.refreshImdbRating(video.id);
+        setVideos((items) => items.map((item) => (
+          item.id === video.id ? { ...item, ...rating } : item
+        )));
+      } catch (requestError) {
+        failures.push(`${video.title}: ${requestError.message}`);
+      }
+    }
+
+    setRefreshingRatings(false);
+    setRatingStatus(
+      failures.length
+        ? `IMDb refresh completed with ${failures.length} unmatched title${failures.length === 1 ? '' : 's'}.`
+        : 'IMDb ratings refreshed.'
+    );
+    if (failures.length) setError(failures.join(' '));
+  };
+
   if (loading) return <p className="admin-subtitle">Loading catalog...</p>;
 
   return (
@@ -105,9 +134,19 @@ export default function AdminCatalogEditor() {
           <h2>Edit Catalog Metadata</h2>
           <p>Rename uploaded videos without re-uploading or changing their Mux playback.</p>
         </div>
-        <button className="admin-refresh-btn" onClick={() => void loadVideos()}>Refresh</button>
+        <div className="catalog-editor-heading-actions">
+          <button
+            className="admin-secondary"
+            disabled={refreshingRatings}
+            onClick={() => void refreshImdbRatings()}
+          >
+            {refreshingRatings ? 'Refreshing IMDb...' : 'Refresh IMDb Ratings'}
+          </button>
+          <button className="admin-refresh-btn" onClick={() => void loadVideos()}>Refresh</button>
+        </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
+      {ratingStatus && <p className="admin-subtitle">{ratingStatus}</p>}
       {videos.map((video) => (
         <article className="catalog-editor-item" key={video.id}>
           <label>
@@ -133,6 +172,12 @@ export default function AdminCatalogEditor() {
               onChange={(event) => updateDraft(video.id, 'thumbnailUrl', event.target.value)}
             />
           </label>
+          {typeof video.rating === 'number' && (
+            <p className="catalog-imdb-rating">
+              IMDb: ★ {video.rating.toFixed(1)}
+              {video.ratingCount > 0 ? ` (${video.ratingCount.toLocaleString()} votes)` : ''}
+            </p>
+          )}
           <label>
             Format
             <select value={video.contentType || 'MOVIE'} onChange={(event) => updateDraft(video.id, 'contentType', event.target.value)}>
