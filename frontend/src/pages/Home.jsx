@@ -46,7 +46,7 @@ function normalizeApiVideo(raw) {
     category: raw.category || 'General',
     thumbnailUrl: raw.thumbnailUrl || FALLBACK_POSTER,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl,
-    rating: typeof raw.rating === 'number' ? raw.rating : 7.5,
+    rating: typeof raw.rating === 'number' ? raw.rating : null,
     ratingCount: raw.ratingCount || 0,
     year: raw.year || new Date().getFullYear(),
     duration: raw.duration ? Math.round(raw.duration / 60) : 0,

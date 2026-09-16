@@ -21,6 +21,7 @@ const {
   getAsset,
   getPlaybackId,
 } = require('../mux');
+const { getImdbRating } = require('../omdb');
 const router = express.Router();
 
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
@@ -188,6 +189,18 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
     res.json(await getVideoById(req.params.id));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// ADMIN: Look up and persist a title's IMDb rating via OMDb.
+router.post('/admin/:id/imdb-rating', verifyAdmin, async (req, res) => {
+  try {
+    const video = await getVideoById(req.params.id);
+    const rating = await getImdbRating(video);
+    await updateVideo(req.params.id, rating);
+    res.json({ id: req.params.id, ...rating });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

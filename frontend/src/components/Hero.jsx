@@ -58,10 +58,14 @@ export default function Hero({ featured }) {
           <span className="meta-item">{current.duration}m</span>
           <span className="meta-divider">•</span>
           <span className="meta-item">{current.genres.join(', ')}</span>
-          <span className="meta-divider">•</span>
-          <span className="meta-rating">
-            <span className="rating-star">★</span> {current.rating}
-          </span>
+          {typeof current.rating === 'number' && (
+            <>
+              <span className="meta-divider">•</span>
+              <span className="meta-rating">
+                <span className="rating-star">★</span> {current.rating}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="hero-actions">

@@ -55,10 +55,12 @@ export default function MovieCard({ video, onPreview, onInfo }) {
 
         {/* Rating & Metadata */}
         <div className="card-meta">
-          <div className="rating">
-            <span className="star">★</span>
-            {video.rating}
-          </div>
+          {typeof video.rating === 'number' && (
+            <div className="rating">
+              <span className="star">★</span>
+              {video.rating}
+            </div>
+          )}
           <span className="content-type">{video.contentType}</span>
         </div>
 
@@ -88,9 +90,11 @@ export default function MovieCard({ video, onPreview, onInfo }) {
             <div className="preview-meta">
               <span className="year">{video.year}</span>
               <span className="duration">{video.duration}m</span>
-              <span className="rating-badge">
-                <span className="star">★</span> {video.rating}
-              </span>
+              {typeof video.rating === 'number' && (
+                <span className="rating-badge">
+                  <span className="star">★</span> {video.rating}
+                </span>
+              )}
             </div>
           </div>
 
