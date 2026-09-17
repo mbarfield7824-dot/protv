@@ -48,6 +48,11 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
     description: '',
     runtime: 0,
     country: '',
+    maturityRating: '',
+    cast: '',
+    creator: '',
+    language: '',
+    subtitles: '',
 
     // Technical
     videoUrl: '',
@@ -55,7 +60,6 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
     posterUrl: '',
     backdropUrl: '',
     audioInfo: '',
-    subtitleInfo: '',
 
     // Rights & Legal
     copyrightStatus: COPYRIGHT_STATUSES[3],
@@ -117,12 +121,16 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
         description: '',
         runtime: 0,
         country: '',
+        maturityRating: '',
+        cast: '',
+        creator: '',
+        language: '',
+        subtitles: '',
         videoUrl: '',
         trailerUrl: '',
         posterUrl: '',
         backdropUrl: '',
         audioInfo: '',
-        subtitleInfo: '',
         copyrightStatus: COPYRIGHT_STATUSES[3],
         licenseType: LICENSE_TYPES[0],
         rightsHolder: '',
@@ -167,6 +175,59 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
               onChange={handleChange}
               min="1800"
               max={new Date().getFullYear()}
+            />
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label>
+            Maturity Rating (optional)
+            <select name="maturityRating" value={formData.maturityRating} onChange={handleChange}>
+              <option value="">Not rated</option>
+              <option value="G">G</option>
+              <option value="PG">PG</option>
+              <option value="PG-13">PG-13</option>
+              <option value="R">R</option>
+              <option value="NC-17">NC-17</option>
+              <option value="TV-Y">TV-Y</option>
+              <option value="TV-Y7">TV-Y7</option>
+              <option value="TV-G">TV-G</option>
+              <option value="TV-PG">TV-PG</option>
+              <option value="TV-14">TV-14</option>
+              <option value="TV-MA">TV-MA</option>
+            </select>
+          </label>
+          <label>
+            Primary Language (optional)
+            <input
+              type="text"
+              name="language"
+              value={formData.language}
+              onChange={handleChange}
+              placeholder="e.g., English"
+            />
+          </label>
+        </div>
+
+        <div className="form-row">
+          <label>
+            Cast (optional)
+            <input
+              type="text"
+              name="cast"
+              value={formData.cast}
+              onChange={handleChange}
+              placeholder="Names, separated by commas"
+            />
+          </label>
+          <label>
+            Creator / Director (optional)
+            <input
+              type="text"
+              name="creator"
+              value={formData.creator}
+              onChange={handleChange}
+              placeholder="Creator, director, or host"
             />
           </label>
         </div>
@@ -291,8 +352,8 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
             Subtitle Information (optional)
             <input
               type="text"
-              name="subtitleInfo"
-              value={formData.subtitleInfo}
+              name="subtitles"
+              value={formData.subtitles}
               onChange={handleChange}
               placeholder="e.g., English, Spanish, French"
             />

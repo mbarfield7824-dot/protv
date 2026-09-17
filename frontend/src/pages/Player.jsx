@@ -78,6 +78,7 @@ export default function Player() {
   const category = video.category || video.genre;
   const duration = video.runtime || (video.duration ? Math.round(video.duration / 60) : 0);
   const genres = video.genres?.length ? video.genres : [category].filter(Boolean);
+  const maturityRating = video.maturityRating || video.ageRating;
 
   const related = ALL_MOCK_VIDEOS.filter(
     (v) => v.id !== video.id && v.genres?.some((g) => genres.includes(g))
@@ -132,7 +133,7 @@ export default function Player() {
                   {video.contentType === 'SERIES' ? `${duration}m/ep` : `${duration}m`}
                 </span>
               )}
-              {video.ageRating && <span className="meta-pill">{video.ageRating}</span>}
+              {maturityRating && <span className="meta-pill">{maturityRating}</span>}
               {typeof video.rating === 'number' && (
                 <span className="meta-rating">
                   <span className="rating-star">★</span> {video.rating}
@@ -155,10 +156,24 @@ export default function Player() {
 
             <p className="description">{video.description}</p>
 
+            {(video.cast || video.creator || video.language || video.subtitles) && (
+              <dl className="metadata-details">
+                {video.cast && <div><dt>Cast</dt><dd>{video.cast}</dd></div>}
+                {video.creator && <div><dt>Creator / Director</dt><dd>{video.creator}</dd></div>}
+                {video.language && <div><dt>Language</dt><dd>{video.language}</dd></div>}
+                {video.subtitles && <div><dt>Subtitles</dt><dd>{video.subtitles}</dd></div>}
+              </dl>
+            )}
+
             <div className="player-actions">
               <button className="action-btn primary" onClick={() => void toggleFavorite(video.id)}>
                 {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
               </button>
+              {video.trailerUrl && (
+                <a className="action-btn" href={video.trailerUrl} target="_blank" rel="noreferrer">
+                  Watch Trailer
+                </a>
+              )}
               <button className="action-btn">Share</button>
             </div>
           </div>
