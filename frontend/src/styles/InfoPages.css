@@ -60,6 +60,52 @@
   margin-top: 22px;
 }
 
+.info-copy h2 {
+  margin: 34px 0 8px;
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.info-copy h2:first-child {
+  margin-top: 0;
+}
+
+.info-copy a {
+  color: #93c5fd;
+}
+
+.info-link-button {
+  display: inline-flex;
+  padding: 11px 16px;
+  border: 1px solid rgba(96, 165, 250, 0.7);
+  border-radius: 7px;
+  background: rgba(65, 105, 225, 0.25);
+  color: #fff !important;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.faq-list {
+  display: grid;
+  gap: 22px;
+  margin-top: 26px;
+}
+
+.faq-item h2,
+.faq-item p {
+  margin: 0;
+}
+
+.faq-item h2 {
+  font-size: 1.1rem;
+}
+
+.faq-item p {
+  margin-top: 8px;
+  color: #c1c8da;
+  line-height: 1.65;
+}
+
 .info-features {
   padding: 34px;
   border-left: 3px solid #4169e1;

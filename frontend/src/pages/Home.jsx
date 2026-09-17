@@ -267,7 +267,7 @@ export default function Home() {
       />
 
       <ContentRow
-        id="black-cinema"
+        id="because-you-watched"
         title="Because You Watched"
         subtitle={featured ? `${featured.title}` : ''}
         content={getRecommendedVideos().slice(0, 8)}
@@ -275,7 +275,7 @@ export default function Home() {
       />
 
       <ContentRow
-        id="independent"
+        id="black-cinema"
         title="BLACK CINEMA"
         subtitle="Stories. Culture. Icons."
         content={[...blackCinemaData, ...movieCatalog.filter((video) => video.category === 'Black Cinema')].slice(0, 8)}
@@ -283,7 +283,7 @@ export default function Home() {
       />
 
       <ContentRow
-        id="anime"
+        id="independent"
         title="INDEPENDENT SPOTLIGHT"
         subtitle="Discover the stories Hollywood missed."
         content={independentData}
@@ -291,6 +291,7 @@ export default function Home() {
       />
 
       <ContentRow
+        id="anime"
         title="ANIME UNIVERSE"
         subtitle="Explore. Adventure. Beyond Imagination."
         content={[...animeData, ...movieCatalog.filter((video) => video.category === 'Anime')].slice(0, 8)}

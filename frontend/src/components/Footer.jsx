@@ -17,26 +17,26 @@ export default function Footer() {
           <div className="footer-column">
             <h4>Browse</h4>
             <Link to="/shows">TV Shows</Link>
-            <a href="#categories">Categories</a>
-            <a href="#black-cinema">Black Cinema</a>
-            <a href="#independent">Independent</a>
-            <a href="#anime">Anime</a>
+            <Link to="/#categories">Categories</Link>
+            <Link to="/#black-cinema">Black Cinema</Link>
+            <Link to="/#independent">Independent</Link>
+            <Link to="/#anime">Anime</Link>
           </div>
 
           <div className="footer-column">
             <h4>Account</h4>
             <Link to="/#my-list">My List</Link>
-            <a href="#history">Watch History</a>
+            <Link to="/history">Watch History</Link>
             <Link to="/profile">Settings</Link>
           </div>
 
           <div className="footer-column">
             <h4>Help</h4>
-            <a href="#faq">FAQ</a>
+            <Link to="/faq">FAQ</Link>
             <Link to="/about">About Us</Link>
             <Link to="/contact">Contact Us</Link>
-            <a href="#terms">Terms</a>
-            <a href="#privacy">Privacy</a>
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
           </div>
         </div>
       </div>
