@@ -10,6 +10,7 @@ export const UPLOAD_CATEGORY_OPTIONS = [
   'AI Cinema',
   'Food',
   'Sports',
+  'Podcast',
   'Black Cinema',
   'Anime',
 ];
