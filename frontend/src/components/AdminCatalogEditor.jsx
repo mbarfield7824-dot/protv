@@ -69,6 +69,13 @@ export default function AdminCatalogEditor() {
         description: video.description || '',
         category: video.category || 'Comedy',
         thumbnailUrl: video.thumbnailUrl || '',
+        year: video.year || '',
+        maturityRating: video.maturityRating || video.ageRating || '',
+        cast: video.cast || '',
+        creator: video.creator || '',
+        language: video.language || '',
+        subtitles: video.subtitles || video.subtitleInfo || '',
+        trailerUrl: video.trailerUrl || '',
         contentType: video.contentType,
         seriesTitle: video.seriesTitle || '',
         seasonNumber: video.seasonNumber || '',
@@ -171,6 +178,34 @@ export default function AdminCatalogEditor() {
               value={video.thumbnailUrl || ''}
               onChange={(event) => updateDraft(video.id, 'thumbnailUrl', event.target.value)}
             />
+          </label>
+          <label>
+            Release Year
+            <input min="1888" max="2100" type="number" value={video.year || ''} onChange={(event) => updateDraft(video.id, 'year', event.target.value)} />
+          </label>
+          <label>
+            Maturity Rating
+            <input value={video.maturityRating || ''} onChange={(event) => updateDraft(video.id, 'maturityRating', event.target.value)} placeholder="e.g. PG-13" />
+          </label>
+          <label>
+            Cast
+            <input value={video.cast || ''} onChange={(event) => updateDraft(video.id, 'cast', event.target.value)} placeholder="Names, separated by commas" />
+          </label>
+          <label>
+            Creator / Director
+            <input value={video.creator || ''} onChange={(event) => updateDraft(video.id, 'creator', event.target.value)} />
+          </label>
+          <label>
+            Primary Language
+            <input value={video.language || ''} onChange={(event) => updateDraft(video.id, 'language', event.target.value)} placeholder="e.g. English" />
+          </label>
+          <label>
+            Subtitles
+            <input value={video.subtitles || ''} onChange={(event) => updateDraft(video.id, 'subtitles', event.target.value)} placeholder="e.g. English, Spanish" />
+          </label>
+          <label>
+            Trailer Link
+            <input type="url" value={video.trailerUrl || ''} onChange={(event) => updateDraft(video.id, 'trailerUrl', event.target.value)} placeholder="https://youtube.com/…" />
           </label>
           {typeof video.rating === 'number' && (
             <p className="catalog-imdb-rating">

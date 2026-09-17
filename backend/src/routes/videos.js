@@ -35,6 +35,23 @@ async function updateImdbRating(video) {
   }
 }
 
+function optionalHttpUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+
+  let url;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error('Trailer link must be a valid HTTP or HTTPS URL.');
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error('Trailer link must use HTTP or HTTPS.');
+  }
+
+  return url.toString();
+}
+
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
 router.get('/', async (req, res) => {
   try {
@@ -172,6 +189,13 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
     description,
     category,
     thumbnailUrl,
+    year,
+    maturityRating,
+    cast,
+    creator,
+    language,
+    subtitles,
+    trailerUrl,
     contentType,
     seriesTitle,
     seasonNumber,
@@ -189,6 +213,13 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       description: typeof description === 'string' ? description : '',
       category: typeof category === 'string' && category ? category : 'General',
       thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
+      year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
+      maturityRating: typeof maturityRating === 'string' ? maturityRating.trim() : '',
+      cast: typeof cast === 'string' ? cast.trim() : '',
+      creator: typeof creator === 'string' ? creator.trim() : '',
+      language: typeof language === 'string' ? language.trim() : '',
+      subtitles: typeof subtitles === 'string' ? subtitles.trim() : '',
+      trailerUrl: optionalHttpUrl(trailerUrl),
       contentType: isEpisode ? 'EPISODE' : 'MOVIE',
       seriesTitle: isEpisode && typeof seriesTitle === 'string' ? seriesTitle.trim() : '',
       seasonNumber: isEpisode && Number.isInteger(Number(seasonNumber)) && Number(seasonNumber) > 0
@@ -255,6 +286,11 @@ router.post('/', verifyAdmin, async (req, res) => {
       trailerUrl,
       posterUrl,
       backdropUrl,
+      maturityRating,
+      cast,
+      creator,
+      language,
+      subtitles,
       audioInfo,
       subtitleInfo,
       copyrightStatus,
@@ -284,9 +320,14 @@ router.post('/', verifyAdmin, async (req, res) => {
       runtime: runtime || 0,
       country: country || '',
       videoUrl,
-      trailerUrl: trailerUrl || '',
+      trailerUrl: optionalHttpUrl(trailerUrl),
       posterUrl: posterUrl || '',
       backdropUrl: backdropUrl || '',
+      maturityRating: maturityRating || '',
+      cast: cast || '',
+      creator: creator || '',
+      language: language || audioInfo || '',
+      subtitles: subtitles || subtitleInfo || '',
       audioInfo: audioInfo || '',
       subtitleInfo: subtitleInfo || '',
       copyrightStatus: copyrightStatus || 'unknown',
@@ -325,6 +366,13 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       description,
       category,
       thumbnailUrl,
+      year,
+      maturityRating,
+      cast,
+      creator,
+      language,
+      subtitles,
+      trailerUrl,
       contentType,
       seriesTitle,
       seasonNumber,
@@ -349,6 +397,13 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       description: description || '',
       category,
       thumbnailUrl: thumbnailUrl || '',
+      year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
+      maturityRating: typeof maturityRating === 'string' ? maturityRating.trim() : '',
+      cast: typeof cast === 'string' ? cast.trim() : '',
+      creator: typeof creator === 'string' ? creator.trim() : '',
+      language: typeof language === 'string' ? language.trim() : '',
+      subtitles: typeof subtitles === 'string' ? subtitles.trim() : '',
+      trailerUrl: optionalHttpUrl(trailerUrl),
       duration: 0,
       views: 0,
       createdBy: req.user.uid,
@@ -376,7 +431,26 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
 // video file (S3/GCS/CDN link) directly into Mux without a file upload.
 router.post('/from-url', verifyAdmin, async (req, res) => {
   try {
-    const { title, description, category, thumbnailUrl, sourceUrl, duration, contentType, seriesTitle, seasonNumber, episodeNumber, episodeTitle } = req.body;
+    const {
+      title,
+      description,
+      category,
+      thumbnailUrl,
+      year,
+      maturityRating,
+      cast,
+      creator,
+      language,
+      subtitles,
+      trailerUrl,
+      sourceUrl,
+      duration,
+      contentType,
+      seriesTitle,
+      seasonNumber,
+      episodeNumber,
+      episodeTitle,
+    } = req.body;
 
     if (!title || !category || !sourceUrl) {
       return res.status(400).json({
@@ -395,6 +469,13 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       description: description || '',
       category,
       thumbnailUrl: thumbnailUrl || '',
+      year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
+      maturityRating: typeof maturityRating === 'string' ? maturityRating.trim() : '',
+      cast: typeof cast === 'string' ? cast.trim() : '',
+      creator: typeof creator === 'string' ? creator.trim() : '',
+      language: typeof language === 'string' ? language.trim() : '',
+      subtitles: typeof subtitles === 'string' ? subtitles.trim() : '',
+      trailerUrl: optionalHttpUrl(trailerUrl),
       duration: duration || 0,
       views: 0,
       createdBy: req.user.uid,

@@ -25,6 +25,13 @@ export default function Admin() {
     category: UPLOAD_CATEGORY_OPTIONS[0],
     thumbnailUrl: '',
     sourceUrl: '',
+    year: '',
+    maturityRating: '',
+    cast: '',
+    creator: '',
+    language: '',
+    subtitles: '',
+    trailerUrl: '',
     contentType: 'MOVIE',
     seriesTitle: '',
     seasonNumber: 1,
@@ -267,6 +274,13 @@ export default function Admin() {
             description: form.description,
             category: form.category,
             thumbnailUrl: form.thumbnailUrl,
+            year: form.year,
+            maturityRating: form.maturityRating,
+            cast: form.cast,
+            creator: form.creator,
+            language: form.language,
+            subtitles: form.subtitles,
+            trailerUrl: form.trailerUrl,
             contentType: 'EPISODE',
             seriesTitle: form.seriesTitle,
             seasonNumber: form.seasonNumber,
@@ -301,7 +315,7 @@ export default function Admin() {
   const reset = () => {
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
-    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
+    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', year: '', maturityRating: '', cast: '', creator: '', language: '', subtitles: '', trailerUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
     setFile(null);
     setBulkFiles([]);
     setBulkMetadata([]);
@@ -425,6 +439,53 @@ export default function Admin() {
               Poster / Thumbnail URL <span className="optional">(optional)</span>
               <input value={form.thumbnailUrl} onChange={updateField('thumbnailUrl')} placeholder="https://…" />
             </label>
+            <div className="admin-form-row">
+              <label>
+                Release Year <span className="optional">(optional)</span>
+                <input min="1888" max="2100" type="number" value={form.year} onChange={updateField('year')} placeholder="e.g. 1960" />
+              </label>
+              <label>
+                Maturity Rating <span className="optional">(optional)</span>
+                <select value={form.maturityRating} onChange={updateField('maturityRating')}>
+                  <option value="">Not rated</option>
+                  <option value="G">G</option>
+                  <option value="PG">PG</option>
+                  <option value="PG-13">PG-13</option>
+                  <option value="R">R</option>
+                  <option value="NC-17">NC-17</option>
+                  <option value="TV-Y">TV-Y</option>
+                  <option value="TV-Y7">TV-Y7</option>
+                  <option value="TV-G">TV-G</option>
+                  <option value="TV-PG">TV-PG</option>
+                  <option value="TV-14">TV-14</option>
+                  <option value="TV-MA">TV-MA</option>
+                </select>
+              </label>
+            </div>
+            <div className="admin-form-row">
+              <label>
+                Cast <span className="optional">(optional)</span>
+                <input value={form.cast} onChange={updateField('cast')} placeholder="Names, separated by commas" />
+              </label>
+              <label>
+                Creator / Director <span className="optional">(optional)</span>
+                <input value={form.creator} onChange={updateField('creator')} placeholder="Creator, director, or host" />
+              </label>
+            </div>
+            <div className="admin-form-row">
+              <label>
+                Primary Language <span className="optional">(optional)</span>
+                <input value={form.language} onChange={updateField('language')} placeholder="e.g. English" />
+              </label>
+              <label>
+                Subtitles <span className="optional">(optional)</span>
+                <input value={form.subtitles} onChange={updateField('subtitles')} placeholder="e.g. English, Spanish" />
+              </label>
+            </div>
+            <label>
+              Trailer Link <span className="optional">(optional)</span>
+              <input type="url" value={form.trailerUrl} onChange={updateField('trailerUrl')} placeholder="https://youtube.com/…" />
+            </label>
             <label>
               Format
               <select value={form.contentType} onChange={updateField('contentType')}>
@@ -492,6 +553,40 @@ export default function Admin() {
            <label>
              Shared Description <span className="optional">(optional)</span>
              <textarea value={form.description} onChange={updateField('description')} rows={3} />
+           </label>
+           <div className="admin-form-row">
+             <label>
+               Release Year <span className="optional">(optional)</span>
+               <input min="1888" max="2100" type="number" value={form.year} onChange={updateField('year')} />
+             </label>
+             <label>
+               Maturity Rating <span className="optional">(optional)</span>
+               <input value={form.maturityRating} onChange={updateField('maturityRating')} placeholder="e.g. TV-PG" />
+             </label>
+           </div>
+           <div className="admin-form-row">
+             <label>
+               Cast <span className="optional">(optional)</span>
+               <input value={form.cast} onChange={updateField('cast')} placeholder="Names, separated by commas" />
+             </label>
+             <label>
+               Creator / Director <span className="optional">(optional)</span>
+               <input value={form.creator} onChange={updateField('creator')} />
+             </label>
+           </div>
+           <div className="admin-form-row">
+             <label>
+               Primary Language <span className="optional">(optional)</span>
+               <input value={form.language} onChange={updateField('language')} />
+             </label>
+             <label>
+               Subtitles <span className="optional">(optional)</span>
+               <input value={form.subtitles} onChange={updateField('subtitles')} />
+             </label>
+           </div>
+           <label>
+             Trailer Link <span className="optional">(optional)</span>
+             <input type="url" value={form.trailerUrl} onChange={updateField('trailerUrl')} placeholder="https://youtube.com/…" />
            </label>
 
            <label>

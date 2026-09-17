@@ -66,6 +66,12 @@
   gap: 20px;
 }
 
+.admin-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .admin-form label {
   display: flex;
   flex-direction: column;
@@ -349,6 +355,10 @@
 }
 
 @media (max-width: 700px) {
+  .admin-form-row {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-editor-item {
     grid-template-columns: 1fr;
   }

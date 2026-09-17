@@ -21,11 +21,11 @@ function normalizeApiVideo(raw) {
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
     ratingCount: raw.ratingCount || 0,
-    year: raw.year || new Date().getFullYear(),
+    year: raw.year || null,
     duration: raw.runtime ? Math.round(raw.runtime) : raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: 'MOVIE',
     genres: raw.genres?.length ? raw.genres : [raw.category || raw.genre || raw.subgenre || 'General'],
-    ageRating: 'PG-13',
+    ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     views: raw.views || 0,
   };
