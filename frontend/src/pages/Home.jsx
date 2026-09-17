@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Hero from '../components/Hero';
 import ContentRow from '../components/ContentRow';
 import ContinueWatching from '../components/ContinueWatching';
@@ -28,6 +29,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'ai-cinema', name: 'AI Cinema' },
   { id: 'food', name: 'Food' },
   { id: 'sports', name: 'Sports' },
+  { id: 'podcast', name: 'Podcast' },
   { id: 'sci-fi', name: 'Sci-Fi' },
   { id: 'espanol', name: 'Espanol' },
   { id: 'international', name: 'International' },
@@ -66,6 +68,7 @@ export default function Home() {
   const [activeMood, setActiveMood] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites } = useAuth();
+  const { hash } = useLocation();
 
   async function fetchCategories() {
     try {
@@ -112,6 +115,17 @@ export default function Home() {
     }, 0);
     return () => window.clearTimeout(loadTimer);
   }, []);
+
+  useEffect(() => {
+    if (loading || !hash) return undefined;
+
+    const sectionId = decodeURIComponent(hash.slice(1));
+    const scrollTimer = window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [hash, loading]);
 
   if (loading) {
     return <div className="loading">Loading PROtv...</div>;
@@ -205,7 +219,7 @@ export default function Home() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'sci-fi', 'espanol', 'international'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
+              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'podcast', 'sci-fi', 'espanol', 'international'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
               onClick={() => selectCategory(cat.name)}
             >
               {cat.name}
@@ -234,7 +248,7 @@ export default function Home() {
             />
           ) : (
             <div className="category-empty-state">
-              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : selectedCategory === 'Espanol' ? '🎞' : selectedCategory === 'International' ? '🌍' : '🛸'}</span>
+              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : selectedCategory === 'Podcast' ? '🎙' : selectedCategory === 'Espanol' ? '🎞' : selectedCategory === 'International' ? '🌍' : '🛸'}</span>
               <div>
                 <h3>{selectedCategory} is coming soon</h3>
                 <p>Check back soon for the first titles in this collection.</p>
@@ -345,6 +359,16 @@ export default function Home() {
           title="🏆 SPORTS CENTRAL"
           subtitle="The athletes, moments, and games that move us."
           content={combinedCatalog.filter((video) => video.category === 'Sports').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'Podcast') && (
+        <ContentRow
+          id="podcast"
+          title="🎙 PODCASTS"
+          subtitle="Conversations, culture, and voices worth hearing."
+          content={movieCatalog.filter((video) => video.category === 'Podcast').slice(0, 8)}
           onInfo={setPreviewVideo}
         />
       )}
