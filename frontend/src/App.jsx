@@ -7,6 +7,10 @@ import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Faq from './pages/Faq';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import WatchHistory from './pages/WatchHistory';
 import Shows from './pages/Shows';
 import ShowDetail from './pages/ShowDetail';
 import { AuthProvider } from './context/AuthContext';
@@ -37,6 +41,10 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/faq" element={<Faq />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/history" element={<WatchHistory />} />
           <Route path="/shows" element={<Shows />} />
           <Route path="/shows/:slug" element={<ShowDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
