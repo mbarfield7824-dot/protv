@@ -24,7 +24,8 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
     setShowPreview(false);
   };
 
-  const handleClick = () => {
+  const handleClick = (event) => {
+    if (event.target.closest('.card-remove-list')) return;
     navigate(`/player/${video.id}`);
   };
 
@@ -50,8 +51,10 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
         <div className="card-glow" />
         {showListRemoval && isFavorite(video.id) && (
           <button
+            type="button"
             className="card-remove-list"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               void toggleFavorite(video.id);
             }}
