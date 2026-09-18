@@ -147,8 +147,8 @@ export default function Home() {
         id: videoId,
         title: source.title,
         thumbnailUrl: source.thumbnailUrl,
-        season: source.season,
-        episode: source.episode,
+        season: source.seasonNumber,
+        episode: source.episodeNumber,
         minutesLeft: Math.max(1, Math.round((entry.durationSeconds - entry.positionSeconds) / 60)),
         progressPercent: entry.progressPercent,
       };
