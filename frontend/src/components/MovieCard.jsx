@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import '../styles/MovieCard.css';
 
-export default function MovieCard({ video, onPreview, onInfo }) {
+export default function MovieCard({ video, onPreview, onInfo, showListRemoval = false }) {
   const navigate = useNavigate();
   const [showPreview, setShowPreview] = useState(false);
   const [previewTimeout, setPreviewTimeout] = useState(null);
@@ -48,6 +48,17 @@ export default function MovieCard({ video, onPreview, onInfo }) {
         />
         <div className="card-overlay" />
         <div className="card-glow" />
+        {showListRemoval && isFavorite(video.id) && (
+          <button
+            className="card-remove-list"
+            onClick={(e) => {
+              e.stopPropagation();
+              void toggleFavorite(video.id);
+            }}
+          >
+            Remove
+          </button>
+        )}
       </div>
 
       {/* Card Info */}

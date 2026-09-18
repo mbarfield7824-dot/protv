@@ -55,6 +55,26 @@
   opacity: 0;
 }
 
+.card-remove-list {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.card-remove-list:hover {
+  background: #b91c1c;
+  border-color: #fecaca;
+}
+
 /* Card Info */
 .card-info {
   position: absolute;
