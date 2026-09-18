@@ -66,6 +66,5 @@ export const mockVideoData = [];
 export const blackCinemaData = [];
 export const independentData = [];
 export const animeData = [];
-export const continueWatchingData = [];
 export const myListData = [];
 export const recentlyAddedData = [];

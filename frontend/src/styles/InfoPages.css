@@ -81,8 +81,93 @@
   border-radius: 7px;
   background: rgba(65, 105, 225, 0.25);
   color: #fff !important;
+  font: inherit;
   font-weight: 800;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.watch-history-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 36px;
+}
+
+.watch-history-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.16), rgba(17, 24, 39, 0.6));
+}
+
+.watch-history-row img {
+  width: 120px;
+  height: 68px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.watch-history-info h3 {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  color: #fff;
+}
+
+.watch-history-info p {
+  margin: 0 0 8px;
+  color: #93c5fd;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.watch-history-progress-track {
+  width: 100%;
+  max-width: 320px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.watch-history-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #4169e1;
+}
+
+.watch-history-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.watch-history-actions button {
+  padding: 9px 14px;
+  border: 1px solid rgba(96, 165, 250, 0.7);
+  border-radius: 7px;
+  background: rgba(65, 105, 225, 0.25);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.watch-history-actions button.secondary {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #aeb8d0;
+}
+
+@media (max-width: 640px) {
+  .watch-history-row {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .watch-history-actions {
+    grid-column: 1 / -1;
+  }
 }
 
 .faq-list {

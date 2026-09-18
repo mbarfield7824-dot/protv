@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -24,7 +24,10 @@ export default function Player() {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadedVideoId, setLoadedVideoId] = useState(null);
-  const { isFavorite, toggleFavorite } = useAuth();
+  const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
+  const playerRef = useRef(null);
+  const progressRef = useRef(progress);
+  const resumeAppliedRef = useRef(null);
 
   const fetchVideo = useCallback(async () => {
     // First check the curated mock catalog (covers Trending/Black Cinema/
@@ -53,6 +56,54 @@ export default function Player() {
     void Promise.resolve().then(fetchVideo);
     window.scrollTo(0, 0);
   }, [fetchVideo]);
+
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  // Resumes playback where the viewer left off and periodically saves
+  // position so Continue Watching / Watch History stay accurate.
+  useEffect(() => {
+    const playerEl = playerRef.current;
+    const playbackReady = video?.muxPlaybackId && !video.muxPlaybackId.startsWith('demo-playback');
+    if (!playerEl || !playbackReady || !user) return undefined;
+
+    const videoId = video.id;
+
+    const applyResume = () => {
+      if (resumeAppliedRef.current === videoId) return;
+      resumeAppliedRef.current = videoId;
+      const saved = progressRef.current?.[videoId];
+      if (saved?.positionSeconds > 5 && saved.progressPercent < 95) {
+        playerEl.currentTime = saved.positionSeconds;
+      }
+    };
+
+    const saveProgress = () => {
+      const { currentTime, duration } = playerEl;
+      if (!duration || Number.isNaN(duration)) return;
+      void updateProgress(videoId, { positionSeconds: currentTime, durationSeconds: duration });
+    };
+
+    let lastSaved = 0;
+    const handleTimeUpdate = () => {
+      const now = Date.now();
+      if (now - lastSaved < 15000) return;
+      lastSaved = now;
+      saveProgress();
+    };
+
+    playerEl.addEventListener('loadedmetadata', applyResume);
+    playerEl.addEventListener('timeupdate', handleTimeUpdate);
+    playerEl.addEventListener('pause', saveProgress);
+
+    return () => {
+      playerEl.removeEventListener('loadedmetadata', applyResume);
+      playerEl.removeEventListener('timeupdate', handleTimeUpdate);
+      playerEl.removeEventListener('pause', saveProgress);
+      saveProgress();
+    };
+  }, [video, user, updateProgress]);
 
   if (loading || loadedVideoId !== id) {
     return (
@@ -98,6 +149,7 @@ export default function Player() {
           <div className="video-player">
             {hasRealPlayback ? (
               <MuxPlayer
+                ref={playerRef}
                 streamType="on-demand"
                 playbackId={video.muxPlaybackId}
                 metadata={{ video_title: video.title }}

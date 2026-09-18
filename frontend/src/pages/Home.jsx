@@ -13,7 +13,6 @@ import {
   blackCinemaData,
   independentData,
   animeData,
-  continueWatchingData,
   FALLBACK_POSTER,
 } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
@@ -67,7 +66,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeMood, setActiveMood] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
-  const { user, favorites } = useAuth();
+  const { user, favorites, progress } = useAuth();
   const { hash } = useLocation();
 
   async function fetchCategories() {
@@ -136,6 +135,26 @@ export default function Home() {
   const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
 
+  // Only titles that are meaningfully started (>2%) and not finished (<95%)
+  // belong in the rail — finished titles still show up in Watch History.
+  const continueWatchingItems = Object.entries(progress || {})
+    .filter(([, entry]) => entry.progressPercent > 2 && entry.progressPercent < 95)
+    .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .map(([videoId, entry]) => {
+      const source = combinedCatalog.find((video) => video.id === videoId);
+      if (!source) return null;
+      return {
+        id: videoId,
+        title: source.title,
+        thumbnailUrl: source.thumbnailUrl,
+        season: source.season,
+        episode: source.episode,
+        minutesLeft: Math.max(1, Math.round((entry.durationSeconds - entry.positionSeconds) / 60)),
+        progressPercent: entry.progressPercent,
+      };
+    })
+    .filter(Boolean);
+
   // Filter videos based on selected category
   const getTrendingVideos = () => {
     const nonFeaturedMovies = movieCatalog.filter((video) => video.id !== featured?.id);
@@ -180,7 +199,7 @@ export default function Home() {
       )}
 
       {/* Continue Watching — cinematic rail with progress bars */}
-      <ContinueWatching id="continue-watching" items={continueWatchingData} />
+      <ContinueWatching id="continue-watching" items={continueWatchingItems} />
 
       <section id="my-list" className="my-list-section">
         {user && myListVideos.length > 0 ? (

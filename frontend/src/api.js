@@ -208,4 +208,34 @@ export const api = {
     if (!res.ok) throw new Error('Unable to update favorites.');
     return res.json();
   },
+
+  async getProgress(token) {
+    const res = await fetch(`${API_URL}/users/me/progress`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Unable to load watch progress.');
+    return res.json();
+  },
+
+  async setProgress(videoId, { positionSeconds, durationSeconds }, token) {
+    const res = await fetch(`${API_URL}/users/me/progress/${encodeURIComponent(videoId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ positionSeconds, durationSeconds }),
+    });
+    if (!res.ok) throw new Error('Unable to save watch progress.');
+    return res.json();
+  },
+
+  async clearProgress(videoId, token) {
+    const res = await fetch(`${API_URL}/users/me/progress/${encodeURIComponent(videoId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Unable to remove watch progress.');
+    return res.json();
+  },
 };
