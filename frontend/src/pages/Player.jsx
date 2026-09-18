@@ -26,7 +26,6 @@ export default function Player() {
   const [loadedVideoId, setLoadedVideoId] = useState(null);
   const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
   const playerRef = useRef(null);
-  const progressRef = useRef(progress);
   const resumeAppliedRef = useRef(null);
 
   const fetchVideo = useCallback(async () => {
@@ -58,12 +57,6 @@ export default function Player() {
   }, [fetchVideo]);
 
   useEffect(() => {
-    progressRef.current = progress;
-  }, [progress]);
-
-  // Resumes playback where the viewer left off and periodically saves
-  // position so Continue Watching / Watch History stay accurate.
-  useEffect(() => {
     const playerEl = playerRef.current;
     const playbackReady = video?.muxPlaybackId && !video.muxPlaybackId.startsWith('demo-playback');
     if (!playerEl || !playbackReady || !user) return undefined;
@@ -72,16 +65,33 @@ export default function Player() {
 
     const applyResume = () => {
       if (resumeAppliedRef.current === videoId) return;
-      resumeAppliedRef.current = videoId;
-      const saved = progressRef.current?.[videoId];
+      const saved = progress?.[videoId];
       if (saved?.positionSeconds > 5 && saved.progressPercent < 95) {
         playerEl.currentTime = saved.positionSeconds;
+        resumeAppliedRef.current = videoId;
       }
     };
 
+    if (playerEl.readyState >= 1) {
+      applyResume();
+      return undefined;
+    }
+
+    playerEl.addEventListener('loadedmetadata', applyResume);
+    return () => playerEl.removeEventListener('loadedmetadata', applyResume);
+  }, [progress, user, video]);
+
+  // Saves playback position periodically and before the player is removed.
+  useEffect(() => {
+    const playerEl = playerRef.current;
+    const playbackReady = video?.muxPlaybackId && !video.muxPlaybackId.startsWith('demo-playback');
+    if (!playerEl || !playbackReady || !user) return undefined;
+
+    const videoId = video.id;
+
     const saveProgress = () => {
       const { currentTime, duration } = playerEl;
-      if (!duration || Number.isNaN(duration)) return;
+      if (!duration || Number.isNaN(duration) || currentTime < 1) return;
       void updateProgress(videoId, { positionSeconds: currentTime, durationSeconds: duration });
     };
 
@@ -93,12 +103,10 @@ export default function Player() {
       saveProgress();
     };
 
-    playerEl.addEventListener('loadedmetadata', applyResume);
     playerEl.addEventListener('timeupdate', handleTimeUpdate);
     playerEl.addEventListener('pause', saveProgress);
 
     return () => {
-      playerEl.removeEventListener('loadedmetadata', applyResume);
       playerEl.removeEventListener('timeupdate', handleTimeUpdate);
       playerEl.removeEventListener('pause', saveProgress);
       saveProgress();
