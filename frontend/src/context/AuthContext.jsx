@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(isFirebaseConfigured);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [favorites, setFavorites] = useState([]);
+  const [progress, setProgress] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(isFirebaseConfigured);
 
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
       setUser(nextUser);
       if (!nextUser) {
         setFavorites([]);
+        setProgress({});
         setIsAdmin(false);
         setAdminLoading(false);
       } else {
@@ -57,6 +59,54 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let cancelled = false;
+    user.getIdToken()
+      .then((token) => api.getProgress(token))
+      .then((watchProgress) => {
+        if (!cancelled) setProgress(watchProgress || {});
+      })
+      .catch((error) => console.error('Failed to load watch progress:', error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const updateProgress = useCallback(async (videoId, { positionSeconds, durationSeconds }) => {
+    if (!user || !durationSeconds) return;
+
+    const progressPercent = Math.min(100, Math.max(0, Math.round((positionSeconds / durationSeconds) * 100)));
+    const entry = { positionSeconds, durationSeconds, progressPercent, updatedAt: Date.now() };
+    setProgress((current) => ({ ...current, [videoId]: entry }));
+
+    try {
+      const token = await user.getIdToken();
+      await api.setProgress(videoId, { positionSeconds, durationSeconds }, token);
+    } catch (error) {
+      console.error('Failed to save watch progress:', error);
+    }
+  }, [user]);
+
+  const removeProgress = useCallback(async (videoId) => {
+    if (!user) return;
+
+    setProgress((current) => {
+      const next = { ...current };
+      delete next[videoId];
+      return next;
+    });
+
+    try {
+      const token = await user.getIdToken();
+      await api.clearProgress(videoId, token);
+    } catch (error) {
+      console.error('Failed to remove watch progress:', error);
+    }
   }, [user]);
 
   const toggleFavorite = useCallback(async (videoId) => {
@@ -103,10 +153,13 @@ export function AuthProvider({ children }) {
     user,
     loading,
     favorites,
+    progress,
     isAdmin,
     adminLoading,
     isFavorite: (videoId) => favorites.includes(videoId),
     toggleFavorite,
+    updateProgress,
+    removeProgress,
     openAuthModal: () => setAuthModalOpen(true),
     signOut: () => signOut(firebaseAuth),
     register,
