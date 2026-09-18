@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import ContentRow from '../components/ContentRow';
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { fallbackArtworkUrl } from '../utils/artwork';
 import {
   mockVideoData,
   blackCinemaData,
@@ -108,7 +109,7 @@ export default function Player() {
                 className="placeholder-player"
                 style={{
                   backgroundImage: `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.85)), url(${
-                    video.heroImageUrl || video.thumbnailUrl || FALLBACK_POSTER
+                    video.heroImageUrl || video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_POSTER)
                   })`,
                 }}
               >

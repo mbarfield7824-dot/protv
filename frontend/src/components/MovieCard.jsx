@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FALLBACK_POSTER } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
+import { fallbackArtworkUrl } from '../utils/artwork';
 import '../styles/MovieCard.css';
 
 export default function MovieCard({ video, onPreview, onInfo }) {
@@ -37,12 +38,12 @@ export default function MovieCard({ video, onPreview, onInfo }) {
       {/* Card Image */}
       <div className="card-image">
         <img
-          src={video.thumbnailUrl}
+          src={video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_POSTER)}
           alt={video.title}
           className="thumbnail"
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = FALLBACK_POSTER;
+            e.target.src = fallbackArtworkUrl(video, FALLBACK_POSTER);
           }}
         />
         <div className="card-overlay" />
