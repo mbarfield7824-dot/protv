@@ -1,11 +1,14 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { FALLBACK_HERO } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
+import { fallbackArtworkUrl } from '../utils/artwork';
 import '../styles/MoviePreview.css';
 
 export default function MoviePreview({ video, onClose }) {
   const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useAuth();
+  const [artworkFailed, setArtworkFailed] = useState(false);
 
   if (!video) return null;
 
@@ -13,6 +16,9 @@ export default function MoviePreview({ video, onClose }) {
     onClose();
     navigate(`/player/${video.id}`);
   };
+  const artworkUrl = artworkFailed
+    ? fallbackArtworkUrl(video, FALLBACK_HERO)
+    : video.heroImageUrl || video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_HERO);
 
   return (
     <div className="preview-modal-overlay" onClick={onClose}>
@@ -21,10 +27,16 @@ export default function MoviePreview({ video, onClose }) {
           ✕
         </button>
 
+        <img
+          src={video.heroImageUrl || video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_HERO)}
+          alt=""
+          onError={() => setArtworkFailed(true)}
+          style={{ display: 'none' }}
+        />
         <div
           className="preview-modal-backdrop"
           style={{
-            backgroundImage: `url(${video.heroImageUrl || video.thumbnailUrl || FALLBACK_HERO})`,
+            backgroundImage: `url(${artworkUrl})`,
           }}
         >
           <div className="preview-modal-backdrop-overlay" />

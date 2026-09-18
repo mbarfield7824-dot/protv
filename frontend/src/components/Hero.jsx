@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FALLBACK_HERO } from '../data/mockData';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { fallbackArtworkUrl } from '../utils/artwork';
 import '../styles/Hero.css';
 
 export default function Hero({ featured }) {
@@ -25,7 +26,9 @@ export default function Hero({ featured }) {
   };
 
   const current = slides[currentSlide];
-  const backdropUrl = imgError ? FALLBACK_HERO : current.heroImageUrl || current.thumbnailUrl;
+  const backdropUrl = imgError
+    ? fallbackArtworkUrl(current, FALLBACK_HERO)
+    : current.heroImageUrl || current.thumbnailUrl || fallbackArtworkUrl(current, FALLBACK_HERO);
 
   return (
     <div className="hero-section">
