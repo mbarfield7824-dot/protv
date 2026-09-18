@@ -135,10 +135,15 @@ export default function Home() {
   const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
 
-  // Only titles that are meaningfully started (>2%) and not finished (<95%)
-  // belong in the rail — finished titles still show up in Watch History.
+  // Show a title after five seconds, rather than a percentage threshold that
+  // can hide early progress on long movies. Finished titles remain in history.
   const continueWatchingItems = Object.entries(progress || {})
-    .filter(([, entry]) => entry.progressPercent > 2 && entry.progressPercent < 95)
+    .filter(([, entry]) => (
+      Number.isFinite(entry?.positionSeconds) &&
+      Number.isFinite(entry?.durationSeconds) &&
+      entry.positionSeconds >= 5 &&
+      entry.positionSeconds < entry.durationSeconds * 0.95
+    ))
     .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
     .map(([videoId, entry]) => {
       const source = combinedCatalog.find((video) => video.id === videoId);
@@ -150,7 +155,7 @@ export default function Home() {
         season: source.seasonNumber,
         episode: source.episodeNumber,
         minutesLeft: Math.max(1, Math.round((entry.durationSeconds - entry.positionSeconds) / 60)),
-        progressPercent: entry.progressPercent,
+        progressPercent: Math.round((entry.positionSeconds / entry.durationSeconds) * 100),
       };
     })
     .filter(Boolean);
@@ -203,7 +208,13 @@ export default function Home() {
 
       <section id="my-list" className="my-list-section">
         {user && myListVideos.length > 0 ? (
-          <ContentRow title="My List" subtitle="Your saved favorites" content={myListVideos} onInfo={setPreviewVideo} />
+          <ContentRow
+            title="My List"
+            subtitle="Your saved favorites"
+            content={myListVideos}
+            onInfo={setPreviewVideo}
+            showListRemoval
+          />
         ) : (
           <div className="my-list-empty">
             <h2>My List</h2>

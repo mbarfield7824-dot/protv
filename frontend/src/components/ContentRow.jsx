@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import MovieCard from './MovieCard';
 import '../styles/ContentRow.css';
 
-export default function ContentRow({ id, title, subtitle, content, viewAllLink, onInfo }) {
+export default function ContentRow({ id, title, subtitle, content, viewAllLink, onInfo, showListRemoval = false }) {
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -50,7 +50,7 @@ export default function ContentRow({ id, title, subtitle, content, viewAllLink, 
         <div className="content-carousel" ref={scrollRef} onScroll={checkScroll}>
           {content.map((item) => (
             <div key={item.id} className="carousel-item">
-              <MovieCard video={item} onInfo={onInfo} />
+              <MovieCard video={item} onInfo={onInfo} showListRemoval={showListRemoval} />
             </div>
           ))}
         </div>
