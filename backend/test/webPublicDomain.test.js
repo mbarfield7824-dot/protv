@@ -206,6 +206,10 @@ test('serverless web ingestion persists a Mux handoff without waiting in memory'
   assert.deepEqual(decisions.at(-1), {
     id: 'internet-archive:example-film',
     decision: 'processing',
-    details: { catalogId: 'catalog-web-1' },
+    details: {
+      catalogId: 'catalog-web-1',
+      progressPercent: 70,
+      stage: 'Mux is preparing playback',
+    },
   });
 });

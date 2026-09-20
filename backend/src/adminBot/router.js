@@ -312,6 +312,14 @@ function createAdminBotRouter() {
           currentItem: active.map((candidate) => candidate.title).join(', '),
           addedMovies: [],
           failures: [],
+          items: active.map((candidate) => ({
+            id: candidate.id,
+            title: candidate.title,
+            status: 'processing',
+            stage: candidate.stage || 'Mux is preparing playback',
+            progressPercent: candidate.progressPercent || 70,
+            catalogId: candidate.catalogId,
+          })),
         });
       }
       const failed = await candidateStore.list({ decision: 'failed', limit: 20 });
@@ -332,6 +340,15 @@ function createAdminBotRouter() {
             title: candidate.title,
             message: candidate.lastError || 'The title could not be ingested.',
           })),
+          items: needsAttention.map((candidate) => ({
+            id: candidate.id,
+            title: candidate.title,
+            status: 'failed',
+            stage: candidate.stage || 'Retry required',
+            progressPercent: candidate.catalogId ? candidate.progressPercent || 100 : 0,
+            error: candidate.lastError || 'The title could not be ingested.',
+            catalogId: candidate.catalogId || null,
+          })),
         });
       }
       const approved = await candidateStore.list({ decision: 'approved', limit: 1 });
@@ -346,6 +363,14 @@ function createAdminBotRouter() {
             message: `${approved[0].title} was published successfully.`,
           }],
           failures: [],
+          items: [{
+            id: approved[0].id,
+            title: approved[0].title,
+            status: 'completed',
+            stage: 'Published',
+            progressPercent: 100,
+            catalogId: approved[0].catalogId,
+          }],
         });
       }
       return res.json(webJobs.status());

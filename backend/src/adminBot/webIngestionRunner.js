@@ -45,6 +45,8 @@ class WebIngestionRunner {
     try {
       await this.candidateStore.setDecision(candidateId, 'processing', {
         processingBy: actorId,
+        progressPercent: 5,
+        stage: 'Verifying source rights',
       });
       const previous = await this.stateStore.get(key);
       if (previous?.status === 'published') {
@@ -57,6 +59,11 @@ class WebIngestionRunner {
         });
       } else {
         const item = await sourceAdapter.resolve(identifier, contentKind);
+        await this.candidateStore.setDecision(candidateId, 'processing', {
+          processingBy: actorId,
+          progressPercent: 20,
+          stage: 'Preparing catalog metadata',
+        });
         const confirmedAt = new Date().toISOString();
         await this.audit({
           type: 'pd.web-confirmed',
@@ -96,6 +103,11 @@ class WebIngestionRunner {
           tags: generated.tags,
           categories: generated.categories,
         };
+        await this.candidateStore.setDecision(candidateId, 'processing', {
+          processingBy: actorId,
+          progressPercent: 40,
+          stage: 'Preparing poster artwork',
+        });
         let poster;
         try {
           poster = {
@@ -122,6 +134,12 @@ class WebIngestionRunner {
           actorId,
           confirmedAt,
         });
+        await this.candidateStore.setDecision(candidateId, 'processing', {
+          processingBy: actorId,
+          progressPercent: 60,
+          stage: 'Sending video to Mux',
+          catalogId: draft.id,
+        });
         await this.stateStore.set(key, {
           catalogId: draft.id,
           stage: 'Transcoding video',
@@ -135,6 +153,8 @@ class WebIngestionRunner {
           });
           await this.candidateStore.setDecision(candidateId, 'processing', {
             catalogId: ready.id,
+            progressPercent: 70,
+            stage: 'Mux is preparing playback',
           });
           report.status = 'processing';
           report.message = `${item.title} was sent to Mux and will publish automatically when playback is ready.`;
@@ -153,6 +173,8 @@ class WebIngestionRunner {
         await this.candidateStore.setDecision(candidateId, 'approved', {
           catalogId: published.id,
           approvedBy: actorId,
+          progressPercent: 100,
+          stage: 'Published',
         });
         try {
           await this.audit({
@@ -191,6 +213,8 @@ class WebIngestionRunner {
       });
       await this.candidateStore.setDecision(candidateId, 'failed', {
         lastError: message,
+        progressPercent: 100,
+        stage: 'Needs attention',
       });
       await this.audit({
         type: 'pd.web-error',

@@ -18,7 +18,7 @@ function ResultList({ title, items, emptyMessage, kind, renderItem }) {
   );
 }
 
-export default function AdminBotPanel() {
+export default function AdminBotPanel({ onPrepareManualUpload }) {
   const [job, setJob] = useState(null);
   const [audit, setAudit] = useState([]);
   const [error, setError] = useState('');
@@ -31,6 +31,7 @@ export default function AdminBotPanel() {
   const [discoveryJob, setDiscoveryJob] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [candidateStatus, setCandidateStatus] = useState(null);
+  const [startingIds, setStartingIds] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +100,12 @@ export default function AdminBotPanel() {
   }, [webJob?.status, loadDiscovery, loadWebStatus]);
 
   useEffect(() => {
+    if (startingIds.length === 0) return undefined;
+    const timer = setInterval(() => void loadDiscovery(), 1500);
+    return () => clearInterval(timer);
+  }, [startingIds.length, loadDiscovery]);
+
+  useEffect(() => {
     if (discoveryJob?.status !== 'running') return undefined;
     const timer = setInterval(() => void loadDiscovery(), 3000);
     return () => clearInterval(timer);
@@ -131,12 +138,15 @@ export default function AdminBotPanel() {
 
   const ingestWebItem = async (item) => {
     setError('');
+    setStartingIds((current) => [...new Set([...current, item.id])]);
     try {
       setWebJob(await api.ingestPublicDomainWebItem(item.id));
       setConfirmedId('');
       await loadDiscovery();
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setStartingIds((current) => current.filter((id) => id !== item.id));
     }
   };
 
@@ -220,8 +230,32 @@ export default function AdminBotPanel() {
               <p>Mux is preparing the video. Large titles can take several minutes.</p>
             )}
             {webJob.currentItem && <p>Now processing: {webJob.currentItem}</p>}
+            {webJob.items?.length > 0 && (
+              <div className="pd-upload-progress-list">
+                {webJob.items.map((item) => (
+                  <div className={`pd-upload-progress pd-upload-progress-${item.status}`} key={item.id}>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.stage}</span>
+                    </div>
+                    <span>{item.progressPercent}%</span>
+                    <div
+                      className="pd-upload-progress-track"
+                      role="progressbar"
+                      aria-label={`${item.title} upload progress`}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow={item.progressPercent}
+                    >
+                      <div style={{ width: `${item.progressPercent}%` }} />
+                    </div>
+                    {item.error && <small>{item.error}</small>}
+                  </div>
+                ))}
+              </div>
+            )}
             {webJob.addedMovies?.map((item) => <p key={item.catalogId}>{item.message}</p>)}
-            {webJob.failures?.map((item) => (
+            {!webJob.items?.length && webJob.failures?.map((item) => (
               <p className="admin-error" key={item.title}>{item.title}: {item.message}</p>
             ))}
           </div>
@@ -233,6 +267,11 @@ export default function AdminBotPanel() {
             const confirmed = confirmedId === item.id;
             const processing = item.decision === 'processing' && Boolean(item.catalogId);
             const stalled = item.decision === 'processing' && !item.catalogId;
+            const starting = startingIds.includes(item.id);
+            const progressPercent = starting ? Math.max(item.progressPercent || 0, 5) : item.progressPercent;
+            const progressStage = starting
+              ? item.stage || 'Starting upload'
+              : item.stage;
             const failed = item.decision === 'failed';
             return (
               <article className="pd-web-card" key={item.id}>
@@ -258,17 +297,40 @@ export default function AdminBotPanel() {
                   </div>
                   <p>{item.description}</p>
                   <p><strong>Source evidence:</strong> {item.licenseEvidence?.label || item.ingestionReason}</p>
+                  {item.alternateSources?.length > 0 && (
+                    <p><strong>Also found on:</strong> {item.alternateSources.join(', ')}</p>
+                  )}
                   {failed && <p className="admin-error">{item.lastError}</p>}
+                  {(starting || processing || stalled || failed) && (
+                    <div className="pd-card-progress">
+                      <div>
+                        <span>{progressStage || (failed ? 'Needs attention' : 'Preparing upload')}</span>
+                        <strong>{progressPercent || 0}%</strong>
+                      </div>
+                      <div
+                        className="pd-upload-progress-track"
+                        role="progressbar"
+                        aria-label={`${item.title} upload progress`}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow={progressPercent || 0}
+                      >
+                        <div style={{ width: `${progressPercent || 0}%` }} />
+                      </div>
+                    </div>
+                  )}
                   <a href={item.sourceUrl} target="_blank" rel="noreferrer">Review source page</a>
-                  {item.ingestionAvailable && !processing && (
+                  {!processing && (
                     <label className="pd-confirmation">
                       <input
                         type="checkbox"
                         checked={confirmed}
-                        disabled={webJob?.status === 'running'}
+                        disabled={starting}
                         onChange={(event) => setConfirmedId(event.target.checked ? item.id : '')}
                       />
-                      I reviewed the source evidence and confirm this title for ingestion.
+                      {item.ingestionAvailable
+                        ? 'I reviewed the source evidence and confirm this title for ingestion.'
+                        : 'I reviewed this reference and will provide authorized media and complete rights details.'}
                     </label>
                   )}
                   <div className="admin-bot-actions">
@@ -282,10 +344,19 @@ export default function AdminBotPanel() {
                     {item.ingestionAvailable && !processing && (
                       <button
                         className="admin-submit"
-                        disabled={!confirmed || webJob?.status === 'running'}
+                        disabled={!confirmed || starting}
                         onClick={() => void ingestWebItem(item)}
                       >
-                        {failed || stalled ? 'Confirm and Retry' : 'Confirm and Upload'}
+                        {starting ? 'Starting...' : failed || stalled ? 'Confirm and Retry' : 'Confirm and Upload'}
+                      </button>
+                    )}
+                    {!item.ingestionAvailable && (
+                      <button
+                        className="admin-submit"
+                        disabled={!confirmed}
+                        onClick={() => onPrepareManualUpload?.(item)}
+                      >
+                        Continue to Manual Upload
                       </button>
                     )}
                   </div>

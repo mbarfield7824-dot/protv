@@ -658,6 +658,8 @@ router.post('/webhook', async (req, res) => {
           await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'approved', {
             catalogId: video.id,
             approvedBy: video.publicDomainConfirmedBy || 'system:mux-webhook',
+            progressPercent: 100,
+            stage: 'Published',
           });
         }
         await updateImdbRating({ ...video, ...readyUpdates });
@@ -676,6 +678,8 @@ router.post('/webhook', async (req, res) => {
           await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'failed', {
             catalogId: video.id,
             lastError: 'Mux could not transcode the selected title.',
+            progressPercent: 100,
+            stage: 'Needs attention',
           });
         }
       }

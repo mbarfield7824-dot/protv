@@ -48,6 +48,7 @@ export default function Admin() {
   const [status, setStatus] = useState('idle'); // idle | uploading | processing | ready | errored
   const [videoId, setVideoId] = useState(null);
   const [error, setError] = useState('');
+  const [manualUploadDraft, setManualUploadDraft] = useState(null);
   const pollRef = useRef(null);
   const bulkPollRef = useRef(null);
 
@@ -344,6 +345,40 @@ export default function Admin() {
     }
   };
 
+  const prepareReferenceUpload = (candidate) => {
+    reset();
+    setManualUploadDraft({
+      title: candidate.title || '',
+      year: candidate.year || new Date().getFullYear(),
+      genre: 'Drama',
+      subgenre: '',
+      description: candidate.description || '',
+      runtime: 0,
+      country: '',
+      maturityRating: '',
+      cast: '',
+      creator: '',
+      language: '',
+      subtitles: '',
+      videoUrl: '',
+      trailerUrl: '',
+      posterUrl: candidate.thumbnailUrl || '',
+      backdropUrl: '',
+      audioInfo: '',
+      copyrightStatus: 'unknown',
+      licenseType: 'Other',
+      rightsHolder: '',
+      commercialUseStatus: 'requires-verification',
+      attributionRequired: false,
+      attributionText: '',
+      rightsVerificationNotes: `Reference reviewed from ${candidate.sourceLabel || candidate.source}. Confirm the authorized media source and document the rights evidence before approval.`,
+      sourceUrl: candidate.sourceUrl || '',
+      approvalStatus: 'draft',
+    });
+    setMode('add-content');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="admin-page">
       <Header />
@@ -400,6 +435,7 @@ export default function Admin() {
             className={`admin-tab ${mode === 'add-content' ? 'active' : ''}`}
             onClick={() => {
               reset();
+              setManualUploadDraft(null);
               setMode('add-content');
             }}
           >
@@ -761,7 +797,17 @@ export default function Admin() {
 
         {mode === 'add-content' && (
           <div className="admin-form-section">
-            <AdminContentForm onSubmit={handleContentFormSubmit} />
+            {manualUploadDraft && (
+              <p className="admin-reference-notice">
+                This reference is not approved for automatic ingestion. Add an authorized direct
+                video URL and complete the rights fields before saving the draft.
+              </p>
+            )}
+            <AdminContentForm
+              key={manualUploadDraft?.sourceUrl || 'blank-content-form'}
+              initialData={manualUploadDraft}
+              onSubmit={handleContentFormSubmit}
+            />
             {status === 'ready' && (
               <div className="admin-status admin-status-ready">
                 <p>✅ Content submitted successfully!</p>
@@ -779,7 +825,7 @@ export default function Admin() {
           <AdminContentReview />
         )}
         {mode === 'edit-catalog' && <AdminCatalogEditor />}
-        {mode === 'admin-bot' && <AdminBotPanel />}
+        {mode === 'admin-bot' && <AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} />}
         {mode === 'distributor-ingestion' && <DistributorIngestionPanel />}
         {mode === 'assistant' && <AdminAssistantPanel />}
       </div>
