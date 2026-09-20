@@ -62,18 +62,6 @@ export const discoverMoods = [
 // these only when the production catalog cannot be read.
 export const mockVideoData = [
   {
-    id: 'emergency-carnival-of-souls',
-    title: 'Carnival of Souls (1962)',
-    description: 'After surviving a car accident, Mary is haunted by a strange apparition.',
-    category: 'Horror',
-    genres: ['Horror'],
-    contentType: 'MOVIE',
-    year: 1962,
-    duration: 82,
-    runtime: 82,
-    muxPlaybackId: '9yjmmlxn8MOrLjp74VlBhDprv4oY026UVv00fvdwISO6s',
-  },
-  {
     id: 'emergency-looney-tunes-public-domain',
     title: 'Public Domain Looney Tunes & Merrie Melodies',
     description: 'A collection of classic animated shorts that have entered the public domain.',
