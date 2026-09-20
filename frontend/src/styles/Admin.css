@@ -120,6 +120,110 @@
   gap: 16px;
 }
 
+.pd-candidate-controls {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(65, 105, 225, 0.25);
+  border-radius: 14px;
+  background: rgba(10, 15, 30, 0.72);
+}
+
+.pd-status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pd-status-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.72);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pd-status-filters button:hover,
+.pd-status-filters button.active {
+  border-color: #60a5fa;
+  color: #fff;
+  background: rgba(65, 105, 225, 0.28);
+}
+
+.pd-status-filters button span {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #bfdbfe;
+  background: rgba(96, 165, 250, 0.16);
+  text-align: center;
+  font-size: 0.72rem;
+}
+
+.pd-candidate-search {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px);
+  gap: 12px;
+}
+
+.pd-candidate-search label {
+  display: grid;
+  gap: 6px;
+  color: #a0a6c0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pd-candidate-search input,
+.pd-candidate-search select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: 8px;
+  outline: none;
+  color: #f8fafc;
+  background: #111827;
+}
+
+.pd-candidate-search input:focus,
+.pd-candidate-search select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+}
+
+.pd-filter-summary {
+  margin: 0;
+  color: #93a4c2;
+  font-size: 0.82rem;
+}
+
+.pd-filter-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px;
+  border: 1px dashed rgba(96, 165, 250, 0.35);
+  border-radius: 12px;
+  color: #cbd5e1;
+}
+
+.pd-filter-empty button {
+  border: 0;
+  color: #93c5fd;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 800;
+}
+
 .pd-web-card {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr);
@@ -992,6 +1096,10 @@
 
   .pd-web-search-form,
   .pd-web-card {
+    grid-template-columns: 1fr;
+  }
+
+  .pd-candidate-search {
     grid-template-columns: 1fr;
   }
 
