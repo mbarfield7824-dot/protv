@@ -1,5 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+
+const CANDIDATE_FILTERS = [
+  { id: 'all', label: 'All titles' },
+  { id: 'ready', label: 'Ready to review' },
+  { id: 'reference', label: 'Reference only' },
+  { id: 'uploading', label: 'Uploading' },
+  { id: 'retry', label: 'Retry required' },
+  { id: 'attention', label: 'Needs attention' },
+];
+
+function candidateWorkflowStatus(item, startingIds) {
+  if (startingIds.includes(item.id)) return 'uploading';
+  if (item.decision === 'processing') return item.catalogId ? 'uploading' : 'retry';
+  if (item.decision === 'failed') return 'attention';
+  return item.ingestionAvailable ? 'ready' : 'reference';
+}
 
 function readableDescription(value) {
   const text = String(value || '').replace(/&nbsp;|&#160;/gi, ' ').replace(/\s+/g, ' ').trim();
@@ -40,6 +56,9 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
   const [candidates, setCandidates] = useState([]);
   const [candidateStatus, setCandidateStatus] = useState(null);
   const [startingIds, setStartingIds] = useState([]);
+  const [candidateFilter, setCandidateFilter] = useState('all');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('all');
 
   const load = useCallback(async () => {
     try {
@@ -178,6 +197,40 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
     }
   };
 
+  const candidateCounts = useMemo(() => {
+    const counts = Object.fromEntries(CANDIDATE_FILTERS.map((filter) => [filter.id, 0]));
+    counts.all = candidates.length;
+    candidates.forEach((candidate) => {
+      counts[candidateWorkflowStatus(candidate, startingIds)] += 1;
+    });
+    return counts;
+  }, [candidates, startingIds]);
+
+  const candidateSources = useMemo(
+    () => [...new Set(candidates.map((candidate) => candidate.sourceLabel).filter(Boolean))].sort(),
+    [candidates]
+  );
+
+  const visibleCandidates = useMemo(() => {
+    const query = candidateSearch.trim().toLowerCase();
+    const statusOrder = { uploading: 0, retry: 1, attention: 2, ready: 3, reference: 4 };
+    return candidates
+      .filter((candidate) => (
+        (candidateFilter === 'all' || candidateWorkflowStatus(candidate, startingIds) === candidateFilter)
+        && (sourceFilter === 'all' || candidate.sourceLabel === sourceFilter)
+        && (!query || [
+          candidate.title,
+          candidate.description,
+          candidate.sourceLabel,
+          ...(candidate.alternateSources || []),
+        ].some((value) => String(value || '').toLowerCase().includes(query)))
+      ))
+      .sort((left, right) => (
+        statusOrder[candidateWorkflowStatus(left, startingIds)] - statusOrder[candidateWorkflowStatus(right, startingIds)]
+        || String(left.title || '').localeCompare(String(right.title || ''))
+      ));
+  }, [candidateFilter, candidateSearch, candidates, sourceFilter, startingIds]);
+
   const added = job?.addedMovies || [];
   const preview = job?.previewMovies || [];
   const skipped = job?.skippedMovies || [];
@@ -269,9 +322,64 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
           </div>
         )}
 
+        {candidates.length > 0 && (
+          <div className="pd-candidate-controls">
+            <div className="pd-status-filters" aria-label="Filter titles by workflow status">
+              {CANDIDATE_FILTERS.map((filter) => (
+                <button
+                  className={candidateFilter === filter.id ? 'active' : ''}
+                  key={filter.id}
+                  type="button"
+                  aria-pressed={candidateFilter === filter.id}
+                  onClick={() => setCandidateFilter(filter.id)}
+                >
+                  {filter.label}
+                  <span>{candidateCounts[filter.id]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="pd-candidate-search">
+              <label>
+                Search titles
+                <input
+                  type="search"
+                  value={candidateSearch}
+                  onChange={(event) => setCandidateSearch(event.target.value)}
+                  placeholder="Title or source"
+                />
+              </label>
+              <label>
+                Source
+                <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+                  <option value="all">All sources</option>
+                  {candidateSources.map((source) => <option key={source}>{source}</option>)}
+                </select>
+              </label>
+            </div>
+            <p className="pd-filter-summary">
+              Showing {visibleCandidates.length} of {candidates.length} unique titles
+            </p>
+          </div>
+        )}
+
         <div className="pd-web-results">
           {candidates.length === 0 && <p>No titles are waiting. Run discovery to refresh the queue.</p>}
-          {candidates.map((item) => {
+          {candidates.length > 0 && visibleCandidates.length === 0 && (
+            <div className="pd-filter-empty">
+              <strong>No titles match these filters.</strong>
+              <button
+                type="button"
+                onClick={() => {
+                  setCandidateFilter('all');
+                  setCandidateSearch('');
+                  setSourceFilter('all');
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+          {visibleCandidates.map((item) => {
             const confirmed = confirmedId === item.id;
             const processing = item.decision === 'processing' && Boolean(item.catalogId);
             const stalled = item.decision === 'processing' && !item.catalogId;
