@@ -69,10 +69,10 @@ function normalizeApiVideo(raw) {
 }
 
 export default function Home() {
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [apiVideos, setApiVideos] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeMood, setActiveMood] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
