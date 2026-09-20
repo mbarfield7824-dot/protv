@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { api } from '../api';
-import { FALLBACK_POSTER } from '../data/mockData';
+import { FALLBACK_POSTER, mockVideoData } from '../data/mockData';
 import { getShows } from '../utils/shows';
 import '../styles/Shows.css';
 
@@ -13,7 +13,10 @@ export default function Shows() {
 
   useEffect(() => {
     api.getVideos()
-      .then((videos) => setShows(getShows(videos.filter((video) => video.status === 'ready' && video.muxPlaybackId))))
+      .then((videos) => {
+        const liveVideos = videos.filter((video) => video.status === 'ready' && video.muxPlaybackId);
+        setShows(getShows(liveVideos.length > 0 ? liveVideos : mockVideoData));
+      })
       .finally(() => setLoading(false));
   }, []);
 

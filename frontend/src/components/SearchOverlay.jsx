@@ -55,8 +55,8 @@ export default function SearchOverlay({ onClose }) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
 
-    // Include mock data + backend API videos
-    const SEARCH_CATALOG = [...mockVideoData, ...apiVideos, ...blackCinemaData, ...independentData, ...animeData];
+    const primaryCatalog = apiVideos.length > 0 ? apiVideos : mockVideoData;
+    const SEARCH_CATALOG = [...primaryCatalog, ...blackCinemaData, ...independentData, ...animeData];
 
     return SEARCH_CATALOG.filter(
       (v) =>

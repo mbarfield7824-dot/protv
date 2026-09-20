@@ -92,7 +92,8 @@ function publicVideo(video) {
 
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
 router.get('/', async (req, res) => {
-  if (Object.keys(req.query).length > 0) {
+  const externalQueryKeys = Object.keys(req.query).filter((key) => key !== 'path');
+  if (externalQueryKeys.length > 0) {
     return res.redirect(307, '/api/videos');
   }
 

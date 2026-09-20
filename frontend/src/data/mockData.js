@@ -1,6 +1,3 @@
-// Mock data file - cleaned to show only real backend videos
-// All mock movie data has been removed - using only real backend videos
-
 export const FALLBACK_POSTER =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
@@ -61,8 +58,53 @@ export const discoverMoods = [
   { id: 'escape', icon: '🌌', label: 'Escape Reality', genres: ['Sci-Fi', 'Fantasy'] },
 ];
 
-// All mock video arrays removed - showing only real backend videos
-export const mockVideoData = [];
+// Small emergency catalog of already-approved Mux assets. The homepage uses
+// these only when the production catalog cannot be read.
+export const mockVideoData = [
+  {
+    id: 'emergency-carnival-of-souls',
+    title: 'Carnival of Souls (1962)',
+    description: 'After surviving a car accident, Mary is haunted by a strange apparition.',
+    category: 'Horror',
+    genres: ['Horror'],
+    contentType: 'MOVIE',
+    year: 1962,
+    duration: 82,
+    runtime: 82,
+    muxPlaybackId: '9yjmmlxn8MOrLjp74VlBhDprv4oY026UVv00fvdwISO6s',
+  },
+  {
+    id: 'emergency-looney-tunes-public-domain',
+    title: 'Public Domain Looney Tunes & Merrie Melodies',
+    description: 'A collection of classic animated shorts that have entered the public domain.',
+    category: 'Comedy',
+    genres: ['Comedy', 'Animation'],
+    contentType: 'MOVIE',
+    year: 1929,
+    duration: 439,
+    runtime: 439,
+    muxPlaybackId: 'rW001yjQ3t7cQzys016NTXm3Nkp45gMkJ101tHgYd9XrlM',
+  },
+  ...[
+    ['01', 'S02t8T45cJF5EZh8ypSenbn8eBnf83PlJRraPaD6Pc01w', 22],
+    ['02', 'R2J6XV7w00Mcl1B00isOMy5mBYf2RLJJk1NwCXprkTRbQ', 22],
+    ['03', 'ZerfWoN5qd01FAIQFq8ixGGA502xsSYUkPV2uUpaFcx014', 22],
+    ['04', 'ZLgPmOHVvACXUg8PWByr1dIkz7uCw1EWaovTj4FMmmY', 22],
+  ].map(([episode, muxPlaybackId, duration]) => ({
+    id: `emergency-beverly-hillbillies-s01e${episode}`,
+    title: `The Beverly Hillbillies S01 E${episode}`,
+    seriesTitle: 'The Beverly Hillbillies',
+    description: `Season 1, Episode ${Number(episode)}`,
+    category: 'Comedy',
+    genres: ['Comedy'],
+    contentType: 'EPISODE',
+    seasonNumber: 1,
+    episodeNumber: Number(episode),
+    duration,
+    runtime: duration,
+    muxPlaybackId,
+  })),
+];
 export const blackCinemaData = [];
 export const independentData = [];
 export const animeData = [];
