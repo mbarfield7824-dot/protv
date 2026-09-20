@@ -92,11 +92,16 @@ function publicVideo(video) {
 
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
 router.get('/', async (req, res) => {
+  if (Object.keys(req.query).length > 0) {
+    return res.redirect(307, '/api/videos');
+  }
+
   try {
     const videos = await getApprovedVideos();
-    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
+    res.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
     res.json(videos.map(publicVideo));
   } catch (error) {
+    res.set('Cache-Control', 'no-store');
     res.status(500).json({ error: error.message });
   }
 });

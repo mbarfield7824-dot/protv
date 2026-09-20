@@ -180,7 +180,7 @@ function createAdminBotRouter() {
 
   router.get('/audit', verifyAdmin, async (req, res) => {
     try {
-      res.json(await listAdminEvents(100));
+      res.json(await listAdminEvents(25));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -252,6 +252,17 @@ function createAdminBotRouter() {
       res.json({
         items,
         status: snapshot.status,
+        discovery: {
+          ...discoveryJobs.status(),
+          schedule: {
+            enabled: automaticDiscoveryEnabled,
+            nextRunAt: automaticDiscoveryEnabled && snapshot.status.lastDiscoveryAt
+              ? new Date(
+                new Date(snapshot.status.lastDiscoveryAt).getTime() + discoveryIntervalMs
+              ).toISOString()
+              : null,
+          },
+        },
       });
     } catch (error) {
       res.status(500).json({ error: error.message });

@@ -306,9 +306,7 @@ async function getApprovedVideos() {
     });
     return videos;
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getApprovedVideos();
+    throw new Error(`The production catalog is temporarily unavailable: ${error.message}`);
   }
 }
 
