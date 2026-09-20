@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { CandidateStore } = require('../src/adminBot/candidateStore');
+const { CandidateStore, FirestoreCandidateStore } = require('../src/adminBot/candidateStore');
 const { PublicDomainDiscoveryRunner } = require('../src/adminBot/discoveryRunner');
 const { DailyDiscoveryScheduler } = require('../src/adminBot/discoveryScheduler');
 const { parseRss } = require('../src/adminBot/publicDomainMovieDiscoveryService');
@@ -23,6 +23,59 @@ function candidate(overrides = {}) {
   };
 }
 
+function fakeFirestore() {
+  const records = new Map();
+  function ref(collection, id) {
+    const key = `${collection}/${id}`;
+    return {
+      key,
+      async get() {
+        return {
+          exists: records.has(key),
+          data: () => records.get(key),
+        };
+      },
+    };
+  }
+  function write(target, value, options) {
+    records.set(target.key, options?.merge
+      ? { ...(records.get(target.key) || {}), ...value }
+      : value);
+  }
+  return {
+    collection(name) {
+      return {
+        doc: (id) => ref(name, id),
+        async get() {
+          return {
+            docs: [...records.entries()]
+              .filter(([key]) => key.startsWith(`${name}/`))
+              .map(([, value]) => ({ data: () => value })),
+          };
+        },
+      };
+    },
+    batch() {
+      const writes = [];
+      return {
+        set: (...args) => writes.push(args),
+        async commit() {
+          writes.forEach((args) => write(...args));
+        },
+      };
+    },
+    async runTransaction(operation) {
+      const writes = [];
+      const result = await operation({
+        get: (target) => target.get(),
+        set: (...args) => writes.push(args),
+      });
+      writes.forEach((args) => write(...args));
+      return result;
+    },
+  };
+}
+
 test('candidate decisions survive later discovery runs', async (context) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'protv-candidates-'));
   context.after(() => fs.rm(directory, { recursive: true, force: true }));
@@ -36,6 +89,22 @@ test('candidate decisions survive later discovery runs', async (context) => {
   assert.equal(saved.title, 'Updated Example Film');
   assert.equal(saved.decision, 'rejected');
   assert.equal(saved.rejectedBy, 'admin-1');
+});
+
+test('Firestore candidate decisions persist across discovery runs', async () => {
+  const store = new FirestoreCandidateStore(fakeFirestore());
+  await store.upsert([candidate()]);
+  await store.setDecision('internet-archive:item-1', 'rejected', { rejectedBy: 'admin-1' });
+  await store.upsert([candidate({ title: 'Updated Example Film', optionalValue: undefined })]);
+
+  const saved = await store.get('internet-archive:item-1');
+  const status = await store.status();
+  assert.equal(saved.title, 'Updated Example Film');
+  assert.equal(saved.decision, 'rejected');
+  assert.equal(saved.rejectedBy, 'admin-1');
+  assert.equal('optionalValue' in saved, false);
+  assert.equal(status.rejected, 1);
+  assert.ok(status.lastDiscoveryAt);
 });
 
 test('discovery continues when one source fails', async () => {
