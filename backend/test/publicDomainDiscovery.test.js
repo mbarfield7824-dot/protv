@@ -29,15 +29,20 @@ function candidate(overrides = {}) {
 
 function fakeFirestore() {
   const records = new Map();
+  const metrics = { collectionScans: 0, documentReads: 0 };
   function ref(collection, id) {
     const key = `${collection}/${id}`;
     return {
       key,
       async get() {
+        metrics.documentReads += 1;
         return {
           exists: records.has(key),
           data: () => records.get(key),
         };
+      },
+      async set(value, options) {
+        write(this, value, options);
       },
     };
   }
@@ -47,10 +52,12 @@ function fakeFirestore() {
       : value);
   }
   return {
+    metrics,
     collection(name) {
       return {
         doc: (id) => ref(name, id),
         async get() {
+          metrics.collectionScans += 1;
           return {
             docs: [...records.entries()]
               .filter(([key]) => key.startsWith(`${name}/`))
@@ -96,7 +103,8 @@ test('candidate decisions survive later discovery runs', async (context) => {
 });
 
 test('Firestore candidate decisions persist across discovery runs', async () => {
-  const store = new FirestoreCandidateStore(fakeFirestore());
+  const db = fakeFirestore();
+  const store = new FirestoreCandidateStore(db);
   await store.upsert([candidate()]);
   await store.setDecision('internet-archive:item-1', 'rejected', { rejectedBy: 'admin-1' });
   await store.upsert([candidate({ title: 'Updated Example Film', optionalValue: undefined })]);
@@ -109,6 +117,7 @@ test('Firestore candidate decisions persist across discovery runs', async () => 
   assert.equal('optionalValue' in saved, false);
   assert.equal(status.rejected, 1);
   assert.ok(status.lastDiscoveryAt);
+  assert.equal(db.metrics.collectionScans, 1);
 });
 
 test('candidate lists group duplicate titles and prefer ingestible sources', () => {

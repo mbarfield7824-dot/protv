@@ -485,12 +485,15 @@ class AdminAssistantService {
       };
     }
 
-    const [discoveryQueue, failedCandidates, allCandidates, auditEvents] = await Promise.all([
-      this.candidateStore.status(),
-      this.candidateStore.list({ decision: 'failed', limit: 10 }),
-      this.candidateStore.list({ decision: null, limit: 500 }),
+    const [candidateSnapshot, auditEvents] = await Promise.all([
+      this.candidateStore.snapshot(),
       this.listAuditEvents(25),
     ]);
+    const discoveryQueue = candidateSnapshot.status;
+    const allCandidates = candidateSnapshot.items.slice(0, 500);
+    const failedCandidates = allCandidates
+      .filter((candidate) => candidate.decision === 'failed')
+      .slice(0, 10);
     const relevantTitles = relevantCatalogItems(
       normalizedMessage,
       catalog,

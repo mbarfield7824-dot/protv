@@ -1,5 +1,4 @@
 const fs = require('fs/promises');
-const crypto = require('crypto');
 const path = require('path');
 
 function emptyState() {
@@ -58,6 +57,22 @@ function deduplicateCandidates(candidates) {
       .map((candidate) => candidate.sourceLabel || candidate.source)
       .filter((source) => source && source !== (primary.sourceLabel || primary.source)))],
   }));
+}
+
+function candidateSnapshot(state) {
+  const items = deduplicateCandidates(Object.values(state.candidates))
+    .sort((left, right) => String(right.lastSeenAt || '').localeCompare(String(left.lastSeenAt || '')));
+  return {
+    items,
+    status: {
+      lastDiscoveryAt: state.lastDiscoveryAt,
+      pending: items.filter((item) => item.decision === 'pending').length,
+      processing: items.filter((item) => item.decision === 'processing').length,
+      approved: items.filter((item) => item.decision === 'approved').length,
+      rejected: items.filter((item) => item.decision === 'rejected').length,
+      failed: items.filter((item) => item.decision === 'failed').length,
+    },
+  };
 }
 
 class CandidateStore {
@@ -133,29 +148,19 @@ class CandidateStore {
   }
 
   async list({ decision = 'pending', limit = 100 } = {}) {
-    const state = await this.load();
-    return deduplicateCandidates(Object.values(state.candidates))
+    const { items } = await this.snapshot();
+    return items
       .filter((candidate) => !decision || candidate.decision === decision)
-      .sort((left, right) => right.lastSeenAt.localeCompare(left.lastSeenAt))
       .slice(0, limit);
   }
 
   async status() {
-    const state = await this.load();
-    const candidates = deduplicateCandidates(Object.values(state.candidates));
-    return {
-      lastDiscoveryAt: state.lastDiscoveryAt,
-      pending: candidates.filter((item) => item.decision === 'pending').length,
-      processing: candidates.filter((item) => item.decision === 'processing').length,
-      approved: candidates.filter((item) => item.decision === 'approved').length,
-      rejected: candidates.filter((item) => item.decision === 'rejected').length,
-      failed: candidates.filter((item) => item.decision === 'failed').length,
-    };
+    return (await this.snapshot()).status;
   }
-}
 
-function candidateDocumentId(id) {
-  return crypto.createHash('sha256').update(id).digest('hex');
+  async snapshot() {
+    return candidateSnapshot(await this.load());
+  }
 }
 
 function firestoreValue(value) {
@@ -166,86 +171,103 @@ class FirestoreCandidateStore {
   constructor(db, options = {}) {
     if (!db) throw new Error('Firestore is required for the Public Domain discovery queue.');
     this.db = db;
-    this.collection = db.collection(options.collectionName || 'publicDomainCandidates');
-    this.metadata = db.collection('adminAutomation').doc('publicDomainDiscovery');
+    this.legacyCollection = db.collection(options.collectionName || 'publicDomainCandidates');
+    this.stateDocument = db.collection('adminAutomation').doc('publicDomainDiscovery');
+  }
+
+  async load() {
+    const snapshot = await this.stateDocument.get();
+    const saved = snapshot.exists ? snapshot.data() : null;
+    if (saved?.candidates && typeof saved.candidates === 'object') {
+      return {
+        candidates: saved.candidates,
+        lastDiscoveryAt: saved.lastDiscoveryAt || null,
+      };
+    }
+    const legacy = await this.legacyCollection.get();
+    const state = {
+      candidates: Object.fromEntries(legacy.docs
+        .map((document) => document.data())
+        .filter((candidate) => candidate?.id)
+        .map((candidate) => [candidate.id, candidate])),
+      lastDiscoveryAt: saved?.lastDiscoveryAt || null,
+    };
+    await this.stateDocument.set(firestoreValue(state), { merge: true });
+    return state;
+  }
+
+  async update(operation) {
+    await this.load();
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(this.stateDocument);
+      const saved = snapshot.exists ? snapshot.data() : emptyState();
+      const state = {
+        candidates: saved.candidates || {},
+        lastDiscoveryAt: saved.lastDiscoveryAt || null,
+      };
+      const result = await operation(state);
+      const serialized = firestoreValue(state);
+      if (Buffer.byteLength(JSON.stringify(serialized), 'utf8') > 900_000) {
+        throw new Error('The Public Domain review queue is full. Reject or approve older candidates before running discovery again.');
+      }
+      transaction.set(this.stateDocument, serialized, { merge: true });
+      return result;
+    });
   }
 
   async upsert(candidates) {
-    const now = new Date().toISOString();
-    const refs = candidates.map((candidate) => this.collection.doc(candidateDocumentId(candidate.id)));
-    const existing = await Promise.all(refs.map((ref) => ref.get()));
-    const records = candidates.map((candidate, index) => {
-      const previous = existing[index].exists ? existing[index].data() : null;
-      return firestoreValue({
-        ...candidate,
-        decision: previous?.decision || 'pending',
-        discoveredAt: previous?.discoveredAt || now,
-        lastSeenAt: now,
-      });
-    });
-    for (let offset = 0; offset < Math.max(records.length, 1); offset += 400) {
-      const batch = this.db.batch();
-      records.slice(offset, offset + 400).forEach((record, index) => {
-        batch.set(refs[offset + index], record, { merge: true });
-      });
-      if (offset + 400 >= records.length) {
-        batch.set(this.metadata, { lastDiscoveryAt: now }, { merge: true });
+    return this.update((state) => {
+      const now = new Date().toISOString();
+      for (const candidate of candidates) {
+        const previous = state.candidates[candidate.id];
+        state.candidates[candidate.id] = {
+          ...previous,
+          ...candidate,
+          decision: previous?.decision || 'pending',
+          discoveredAt: previous?.discoveredAt || now,
+          lastSeenAt: now,
+        };
       }
-      await batch.commit();
-    }
-    return this.list({ decision: null, limit: Number.MAX_SAFE_INTEGER });
+      state.lastDiscoveryAt = now;
+      return Object.values(state.candidates);
+    });
   }
 
   async setDecision(id, decision, details = {}) {
     if (!['pending', 'processing', 'approved', 'rejected', 'failed'].includes(decision)) {
       throw new Error('Unsupported candidate decision.');
     }
-    const ref = this.collection.doc(candidateDocumentId(id));
-    return this.db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(ref);
-      if (!snapshot.exists || snapshot.data().id !== id) {
-        throw new Error('Discovery candidate was not found.');
-      }
+    return this.update((state) => {
+      const previous = state.candidates[id];
+      if (!previous) throw new Error('Discovery candidate was not found.');
       const candidate = {
-        ...snapshot.data(),
+        ...previous,
         decision,
         ...details,
         decidedAt: new Date().toISOString(),
       };
-      transaction.set(ref, firestoreValue(candidate));
+      state.candidates[id] = candidate;
       return candidate;
     });
   }
 
   async get(id) {
-    const snapshot = await this.collection.doc(candidateDocumentId(id)).get();
-    if (!snapshot.exists || snapshot.data().id !== id) return null;
-    return snapshot.data();
+    return (await this.load()).candidates[id] || null;
   }
 
   async list({ decision = 'pending', limit = 100 } = {}) {
-    const snapshot = await this.collection.get();
-    return deduplicateCandidates(snapshot.docs
-      .map((document) => document.data())
-    )
+    const { items } = await this.snapshot();
+    return items
       .filter((candidate) => !decision || candidate.decision === decision)
-      .sort((left, right) => String(right.lastSeenAt || '').localeCompare(String(left.lastSeenAt || '')))
       .slice(0, limit);
   }
 
   async status() {
-    const [candidates, metadata] = await Promise.all([
-      this.list({ decision: null, limit: Number.MAX_SAFE_INTEGER }),
-      this.metadata.get(),
-    ]);
-    return {
-      lastDiscoveryAt: metadata.exists ? metadata.data().lastDiscoveryAt || null : null,
-      pending: candidates.filter((item) => item.decision === 'pending').length,
-      processing: candidates.filter((item) => item.decision === 'processing').length,
-      approved: candidates.filter((item) => item.decision === 'approved').length,
-      rejected: candidates.filter((item) => item.decision === 'rejected').length,
-      failed: candidates.filter((item) => item.decision === 'failed').length,
-    };
+    return (await this.snapshot()).status;
+  }
+
+  async snapshot() {
+    return candidateSnapshot(await this.load());
   }
 }
 
@@ -257,8 +279,8 @@ function createCandidateStore({ db, filePath, useFirestore = Boolean(process.env
 module.exports = {
   CandidateStore,
   FirestoreCandidateStore,
-  candidateDocumentId,
   createCandidateStore,
+  candidateSnapshot,
   deduplicateCandidates,
   normalizedCandidateTitle,
 };
