@@ -4,6 +4,9 @@ import Footer from '../components/Footer';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
+import AdminBotPanel from '../components/AdminBotPanel';
+import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
+import AdminAssistantPanel from '../admin/AdminAssistantPanel';
 import { api } from '../api';
 import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
@@ -345,11 +348,24 @@ export default function Admin() {
     <div className="admin-page">
       <Header />
 
-      <div className="admin-content">
-        <h1 className="admin-title">Add a Real Movie</h1>
+      <div className={`admin-content ${['admin-bot', 'distributor-ingestion', 'assistant'].includes(mode) ? 'admin-content-wide' : ''}`}>
+        <h1 className="admin-title">
+          {mode === 'admin-bot'
+            ? 'Public Domain Admin Bot'
+            : mode === 'distributor-ingestion'
+              ? 'Distributor Ingestion Adapter'
+              : mode === 'assistant'
+                ? 'Administrator Assistant'
+              : 'Add a Real Movie'}
+        </h1>
         <p className="admin-subtitle">
-          Upload a video file directly, or paste a link to a file already hosted online. Mux
-          transcodes it in the background — this page will update automatically when it's ready.
+          {mode === 'admin-bot'
+            ? 'Safely prepare and publish new Public Domain movies from your approved content folder.'
+            : mode === 'distributor-ingestion'
+              ? 'Import licensed titles from a secure distributor feed with rights and playback checks.'
+              : mode === 'assistant'
+                ? 'Ask operational questions or prepare confirmed catalog metadata and poster corrections.'
+              : 'Upload a video file directly, or paste a link to a file already hosted online. Mux transcodes it in the background — this page will update automatically when it is ready.'}
         </p>
 
         <div className="admin-tabs">
@@ -406,6 +422,33 @@ export default function Admin() {
             }}
           >
             ✏️ Edit Catalog
+          </button>
+          <button
+            className={`admin-tab ${mode === 'admin-bot' ? 'active' : ''}`}
+            onClick={() => {
+              reset();
+              setMode('admin-bot');
+            }}
+          >
+            Public Domain Bot
+          </button>
+          <button
+            className={`admin-tab ${mode === 'distributor-ingestion' ? 'active' : ''}`}
+            onClick={() => {
+              reset();
+              setMode('distributor-ingestion');
+            }}
+          >
+            Distributor Feed
+          </button>
+          <button
+            className={`admin-tab ${mode === 'assistant' ? 'active' : ''}`}
+            onClick={() => {
+              reset();
+              setMode('assistant');
+            }}
+          >
+            Assistant
           </button>
         </div>
 
@@ -736,6 +779,9 @@ export default function Admin() {
           <AdminContentReview />
         )}
         {mode === 'edit-catalog' && <AdminCatalogEditor />}
+        {mode === 'admin-bot' && <AdminBotPanel />}
+        {mode === 'distributor-ingestion' && <DistributorIngestionPanel />}
+        {mode === 'assistant' && <AdminAssistantPanel />}
       </div>
 
       <Footer />

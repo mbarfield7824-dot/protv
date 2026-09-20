@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import SearchOverlay from './SearchOverlay';
 import { useAuth } from '../hooks/useAuth';
@@ -8,16 +8,25 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAdmin, openAuthModal, signOut } = useAuth();
+  const location = useLocation();
 
   const navLinks = [
-    { to: '/', label: 'Home', active: true },
+    { to: '/', label: 'Home' },
     { to: '/shows', label: 'TV Shows' },
+    { to: '/creators', label: 'Creators' },
     { to: '/#trending', label: 'Trending' },
     { to: '/#discover', label: 'Discover' },
     { to: '/#categories', label: 'Categories' },
     { to: '/#my-list', label: 'My List' },
     { to: '/#continue-watching', label: 'Continue Watching' },
   ];
+  const isActive = (to) => (
+    to === '/'
+      ? location.pathname === '/' && !location.hash
+      : to.includes('#')
+        ? location.pathname === '/' && location.hash === to.slice(1)
+        : location.pathname === to || location.pathname.startsWith(`${to}/`)
+  );
 
   return (
     <header className="header-premium">
@@ -31,7 +40,7 @@ export default function Header() {
         {/* Navigation Menu */}
         <nav className="nav-menu">
           {navLinks.map((link) => (
-            <Link key={link.label} to={link.to} className={`nav-link ${link.active ? 'active' : ''}`}>
+            <Link key={link.label} to={link.to} className={`nav-link ${isActive(link.to) ? 'active' : ''}`}>
               {link.label}
             </Link>
           ))}
@@ -96,7 +105,7 @@ export default function Header() {
           <Link
             key={link.label}
             to={link.to}
-            className={`mobile-nav-link ${link.active ? 'active' : ''}`}
+            className={`mobile-nav-link ${isActive(link.to) ? 'active' : ''}`}
             onClick={() => setMobileMenuOpen(false)}
           >
             {link.label}

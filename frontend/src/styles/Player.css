@@ -54,6 +54,39 @@
   height: 100%;
 }
 
+.vast-player-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.vast-ad-container {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.vast-ad-container.is-visible {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.vast-ad-notice {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 21;
+  padding: 6px 9px;
+  border-radius: 5px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.78);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 /* Cinematic placeholder when no live playback id exists yet */
 .placeholder-player {
   position: relative;

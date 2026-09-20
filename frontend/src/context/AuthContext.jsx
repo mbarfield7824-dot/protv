@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
 } from 'firebase/auth';
@@ -134,6 +136,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(async ({ displayName, email, password }) => {
     const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     await updateProfile(credential.user, { displayName });
+    await sendEmailVerification(credential.user);
     setAuthModalOpen(false);
   }, []);
 
@@ -143,8 +146,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    await signInWithPopup(firebaseAuth, googleProvider);
-    setAuthModalOpen(false);
+    try {
+      await signInWithPopup(firebaseAuth, googleProvider);
+      setAuthModalOpen(false);
+    } catch (error) {
+      if (error.code !== 'auth/popup-blocked') throw error;
+      await signInWithRedirect(firebaseAuth, googleProvider);
+    }
   }, []);
 
   const resetPassword = useCallback((email) => sendPasswordResetEmail(firebaseAuth, email), []);

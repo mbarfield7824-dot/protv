@@ -1,4 +1,6 @@
 const Mux = require('@mux/mux-node');
+const fs = require('fs');
+const fsPromises = require('fs/promises');
 
 // Mux client for creating direct uploads and assets, and verifying webhooks.
 // Requires MUX_ACCESS_TOKEN / MUX_SECRET_KEY in the environment (.env).
@@ -45,6 +47,46 @@ async function getAsset(assetId) {
   return mux.video.assets.retrieve(assetId);
 }
 
+async function uploadLocalFile(filePath, corsOrigin) {
+  const upload = await createDirectUpload(corsOrigin);
+  const file = await fsPromises.stat(filePath);
+  const response = await fetch(upload.url, {
+    method: 'PUT',
+    headers: {
+      'Content-Length': String(file.size),
+      'Content-Type': 'application/octet-stream',
+    },
+    body: fs.createReadStream(filePath),
+    duplex: 'half',
+    signal: AbortSignal.timeout(30 * 60 * 1000),
+  });
+  if (!response.ok) {
+    throw new Error(`Mux upload failed (${response.status}).`);
+  }
+  return upload;
+}
+
+async function waitForAssetReady({ uploadId, assetId, timeoutMs = 15 * 60 * 1000, pollMs = 5000 }) {
+  const deadline = Date.now() + timeoutMs;
+  let currentAssetId = assetId || null;
+  while (Date.now() < deadline) {
+    if (!currentAssetId && uploadId) {
+      const upload = await getUpload(uploadId);
+      currentAssetId = upload.asset_id || null;
+      if (upload.status === 'errored' || upload.status === 'cancelled') {
+        throw new Error('Mux could not accept the video upload.');
+      }
+    }
+    if (currentAssetId) {
+      const asset = await getAsset(currentAssetId);
+      if (asset.status === 'ready') return asset;
+      if (asset.status === 'errored') throw new Error('Mux could not transcode the video.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  throw new Error('Mux is still processing the movie. Run the Admin Bot again to resume publishing.');
+}
+
 /** Extracts the public playback ID from a Mux asset object, if ready. */
 function getPlaybackId(asset) {
   const playbackIds = asset?.playback_ids || [];
@@ -64,5 +106,7 @@ module.exports = {
   createAssetFromUrl,
   getAsset,
   getPlaybackId,
+  uploadLocalFile,
+  waitForAssetReady,
   verifyWebhook,
 };

@@ -12,6 +12,16 @@ async function authenticatedHeaders() {
 }
 
 export const api = {
+  async createCreatorSso() {
+    const res = await fetch(`${API_URL}/auth/creator-sso`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to open the Creator Portal.');
+    return response;
+  },
+
   // Videos
   async getVideos() {
     try {
@@ -31,6 +41,24 @@ export const api = {
     } catch {
       return null;
     }
+  },
+
+  async getAdSession(videoId) {
+    const res = await fetch(`${API_URL}/ads/session/${encodeURIComponent(videoId)}`);
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to prepare advertising.');
+    return response;
+  },
+
+  async recordAdEvent(sessionToken, eventType) {
+    const res = await fetch(`${API_URL}/ads/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken, eventType }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to record the ad event.');
+    return response;
   },
 
   async getCategories() {
@@ -176,6 +204,161 @@ export const api = {
       body: JSON.stringify({ approvalNotes }),
     });
     return res.json();
+  },
+
+  async startAdminBot(dryRun = true) {
+    const res = await fetch(`${API_URL}/admin-bot/run`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({ dryRun }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to start the Admin Bot.');
+    return response;
+  },
+
+  async getAdminBotStatus() {
+    const res = await fetch(`${API_URL}/admin-bot/status`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load the Admin Bot status.');
+    return response;
+  },
+
+  async getAdminBotAudit() {
+    const res = await fetch(`${API_URL}/admin-bot/audit`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load Admin Bot activity.');
+    return response;
+  },
+
+  async sendAdminAssistantMessage(message, contextCatalogId = null, history = []) {
+    const res = await fetch(`${API_URL}/admin-assistant/query`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({ message, contextCatalogId, history }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to contact the Administrator Assistant.');
+    return response;
+  },
+
+  async confirmAdminAssistantAction(endpoint, confirmationId, catalogId) {
+    const allowedEndpoints = new Set([
+      'update-poster',
+      'update-metadata',
+      'regenerate-poster',
+      'regenerate-metadata',
+    ]);
+    if (!allowedEndpoints.has(endpoint)) throw new Error('Unsupported Administrator Assistant action.');
+    const res = await fetch(`${API_URL}/admin-assistant/${endpoint}`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({ confirmationId, catalogId, confirmed: true }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || response.message || 'The catalog change failed.');
+    return response;
+  },
+
+  async searchPublicDomainWeb(query, contentKind) {
+    const params = new URLSearchParams({ q: query, contentKind });
+    const res = await fetch(`${API_URL}/admin-bot/web-search?${params}`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to search Internet Archive.');
+    return response;
+  },
+
+  async startPublicDomainDiscovery() {
+    const res = await fetch(`${API_URL}/admin-bot/discovery/run`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to start content discovery.');
+    return response;
+  },
+
+  async getPublicDomainDiscoveryStatus() {
+    const res = await fetch(`${API_URL}/admin-bot/discovery/status`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load discovery status.');
+    return response;
+  },
+
+  async getPublicDomainCandidates(decision = 'review') {
+    const params = new URLSearchParams({ decision });
+    const res = await fetch(`${API_URL}/admin-bot/discovery/candidates?${params}`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load the review queue.');
+    return response;
+  },
+
+  async rejectPublicDomainCandidate(candidateId) {
+    const res = await fetch(
+      `${API_URL}/admin-bot/discovery/candidates/${encodeURIComponent(candidateId)}/reject`,
+      { method: 'POST', headers: await authenticatedHeaders() }
+    );
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to reject the candidate.');
+    return response;
+  },
+
+  async ingestPublicDomainWebItem(candidateId) {
+    const res = await fetch(`${API_URL}/admin-bot/web-ingest`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({ candidateId, confirmation: true }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to ingest the selected title.');
+    return response;
+  },
+
+  async getPublicDomainWebStatus() {
+    const res = await fetch(`${API_URL}/admin-bot/web-status`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load web ingestion status.');
+    return response;
+  },
+
+  async startDistributorIngestion() {
+    const res = await fetch(`${API_URL}/distributor-ingestion/run`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to start distributor ingestion.');
+    return response;
+  },
+
+  async getDistributorIngestionStatus() {
+    const res = await fetch(`${API_URL}/distributor-ingestion/status`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load distributor ingestion status.');
+    return response;
+  },
+
+  async getDistributorIngestionAudit() {
+    const res = await fetch(`${API_URL}/distributor-ingestion/audit`, {
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load distributor activity.');
+    return response;
   },
 
   // Auth

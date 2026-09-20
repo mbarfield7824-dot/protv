@@ -7,6 +7,7 @@ import DiscoverPanel from '../components/DiscoverPanel';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import MoviePreview from '../components/MoviePreview';
+import { CreatorInvitation } from '../components/CreatorExperience';
 import { api } from '../api';
 import {
   mockVideoData,
@@ -18,6 +19,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { isTvEpisode } from '../utils/shows';
 import '../styles/Home.css';
+import '../styles/Creators.css';
 
 const DEFAULT_CATEGORIES = [
   { id: 'comedy', name: 'Comedy' },
@@ -443,6 +445,7 @@ export default function Home() {
         />
       )}
 
+      <CreatorInvitation />
       <Footer />
       {previewVideo && (
         <MoviePreview video={previewVideo} onClose={() => setPreviewVideo(null)} />

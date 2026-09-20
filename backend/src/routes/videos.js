@@ -21,6 +21,7 @@ const {
   getAsset,
   getPlaybackId,
 } = require('../mux');
+const { verifySignedBody } = require('../ads/adRevenueService');
 const { getImdbRating } = require('../omdb');
 const router = express.Router();
 
@@ -52,11 +53,30 @@ function optionalHttpUrl(value) {
   return url.toString();
 }
 
+function publicVideo(video) {
+  const sanitized = { ...video };
+  delete sanitized.adminSourceFilePath;
+  delete sanitized.publicDomainFileHash;
+  delete sanitized.distributorId;
+  delete sanitized.distributorExternalId;
+  delete sanitized.rightsStartAt;
+  delete sanitized.rightsEndAt;
+  delete sanitized.rightsTerritories;
+  delete sanitized.rightsExclusive;
+  delete sanitized.publicDomainSourceId;
+  delete sanitized.publicDomainLicenseEvidence;
+  delete sanitized.publicDomainLicenseUrl;
+  delete sanitized.publicDomainConfirmedBy;
+  delete sanitized.publicDomainConfirmedAt;
+  delete sanitized.creatorProjectId;
+  return sanitized;
+}
+
 // GET /videos - Get all APPROVED videos (public facing - only approved content)
 router.get('/', async (req, res) => {
   try {
     const videos = await getApprovedVideos();
-    res.json(videos);
+    res.json(videos.map(publicVideo));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -88,6 +108,29 @@ router.post('/admin/claim-owner', verifyToken, async (req, res) => {
     res.json({ message: 'Owner access activated. Refresh your sign-in token to continue.' });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/integrations/creator-link', async (req, res) => {
+  try {
+    verifySignedBody(
+      req.rawBody?.toString('utf8') || '',
+      req.header('x-protv-signature') || '',
+      process.env.PROTV_CREATOR_LINK_SECRET || '',
+    );
+    const catalogId = String(req.body.catalogId || '').trim();
+    const creatorProjectId = String(req.body.creatorProjectId || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(catalogId)) throw new Error('A valid catalog ID is required.');
+    if (!/^[0-9a-f-]{36}$/i.test(creatorProjectId)) throw new Error('A valid creator project ID is required.');
+    const video = await getVideoById(catalogId);
+    if (video.approvalStatus !== 'approved') {
+      return res.status(409).json({ error: 'Only approved catalog titles can be linked to a creator project.' });
+    }
+    await updateVideo(catalogId, { creatorProjectId, creatorLinkedAt: new Date().toISOString() });
+    res.json({ linked: true, catalogId, creatorProjectId });
+  } catch (error) {
+    const status = /signature|authentication/.test(error.message) ? 401 : 400;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -177,7 +220,7 @@ router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
-    res.json(video);
+    res.json(publicVideo(video));
   } catch (error) {
     res.status(404).json({ error: error.message });
   }
@@ -505,7 +548,7 @@ router.get('/:id/status', async (req, res) => {
     const video = await getVideoById(req.params.id);
 
     if (video.status !== 'processing') {
-      return res.json(video);
+      return res.json(publicVideo(video));
     }
 
     let asset = null;
@@ -529,15 +572,15 @@ router.get('/:id/status', async (req, res) => {
       };
       await updateVideo(req.params.id, readyUpdates);
       const rating = await updateImdbRating({ ...video, ...readyUpdates });
-      return res.json({ ...video, ...readyUpdates, ...rating });
+      return res.json(publicVideo({ ...video, ...readyUpdates, ...rating }));
     }
 
     if (asset && asset.status === 'errored') {
       await updateVideo(req.params.id, { status: 'errored' });
-      return res.json({ ...video, status: 'errored' });
+      return res.json(publicVideo({ ...video, status: 'errored' }));
     }
 
-    res.json(video);
+    res.json(publicVideo(video));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
