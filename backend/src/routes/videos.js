@@ -23,7 +23,14 @@ const {
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { getImdbRating } = require('../omdb');
+const {
+  CreatorPublishingService,
+  validateCreatorActionRequest,
+} = require('../integrations/creatorPublishingService');
 const router = express.Router();
+const creatorPublishing = new CreatorPublishingService({
+  creatorAgentOrigin: process.env.CREATOR_AGENT_ORIGIN || '',
+});
 
 async function updateImdbRating(video) {
   try {
@@ -131,6 +138,27 @@ router.post('/integrations/creator-link', async (req, res) => {
   } catch (error) {
     const status = /signature|authentication/.test(error.message) ? 401 : 400;
     res.status(status).json({ error: error.message });
+  }
+});
+
+router.post('/integrations/creator-actions', async (req, res) => {
+  try {
+    const rawBody = req.rawBody?.toString('utf8') || '';
+    const payload = validateCreatorActionRequest(
+      rawBody,
+      req.header('x-protv-signature') || '',
+      process.env.PROTV_PUBLISHING_SECRET || '',
+    );
+    const result = await creatorPublishing.execute(payload);
+    res.status(result.status === 'processing' ? 202 : 200).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The Creator Agent request failed.';
+    const status = /signature|authentication|configured/.test(message)
+      ? 401
+      : /still processing|before starting|does not match/.test(message)
+        ? 409
+        : 400;
+    res.status(status).json({ error: message });
   }
 });
 
