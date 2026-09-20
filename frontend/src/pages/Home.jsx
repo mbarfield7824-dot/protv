@@ -38,6 +38,13 @@ const DEFAULT_CATEGORIES = [
   { id: 'anime', name: 'Anime' },
 ];
 
+const FEATURED_PROTV_TITLE_IDS = [
+  '3NAU6BldsmCNs9wjM08a',
+  'WIVB9NPQQzvtvjTBsiKw',
+  'B2MDEH2b25NknMQMEhoM',
+  'zGpbFWvSaup6ioUaoqsN',
+];
+
 // Normalizes a raw Firestore video record (from the live backend) into the
 // same shape the UI components expect from the curated mock catalog, so
 // real content can appear in the rails without special-casing everywhere.
@@ -136,6 +143,9 @@ export default function Home() {
   const movieCatalog = combinedCatalog.filter((video) => !isTvEpisode(video));
   const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
+  const featuredProtvVideos = FEATURED_PROTV_TITLE_IDS
+    .map((id) => apiVideos.find((video) => video.id === id))
+    .filter(Boolean);
 
   // Show a title after five seconds, rather than a percentage threshold that
   // can hide early progress on long movies. Finished titles remain in history.
@@ -207,6 +217,16 @@ export default function Home() {
 
       {/* Continue Watching — cinematic rail with progress bars */}
       <ContinueWatching id="continue-watching" items={continueWatchingItems} />
+
+      {featuredProtvVideos.length > 0 && (
+        <ContentRow
+          id="featured-on-protv"
+          title="Featured on PROtv"
+          subtitle="Four classic favorites, ready to watch"
+          content={featuredProtvVideos}
+          onInfo={setPreviewVideo}
+        />
+      )}
 
       <section id="my-list" className="my-list-section">
         {user && myListVideos.length > 0 ? (
