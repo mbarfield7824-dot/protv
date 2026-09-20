@@ -90,7 +90,7 @@ export default function AdminBotPanel() {
   }, [loadDiscovery]);
 
   useEffect(() => {
-    if (webJob?.status !== 'running') return undefined;
+    if (!['running', 'processing'].includes(webJob?.status)) return undefined;
     const timer = setInterval(() => {
       void loadWebStatus();
       void loadDiscovery();
@@ -216,7 +216,7 @@ export default function AdminBotPanel() {
               {webJob.status.replaceAll('-', ' ')}
             </span>
             <strong>{webJob.message}</strong>
-            {webJob.status === 'running' && (
+            {['running', 'processing'].includes(webJob.status) && (
               <p>Mux is preparing the video. Large titles can take several minutes.</p>
             )}
             {webJob.currentItem && <p>Now processing: {webJob.currentItem}</p>}
@@ -231,7 +231,8 @@ export default function AdminBotPanel() {
           {candidates.length === 0 && <p>No titles are waiting. Run discovery to refresh the queue.</p>}
           {candidates.map((item) => {
             const confirmed = confirmedId === item.id;
-            const processing = item.decision === 'processing';
+            const processing = item.decision === 'processing' && Boolean(item.catalogId);
+            const stalled = item.decision === 'processing' && !item.catalogId;
             const failed = item.decision === 'failed';
             return (
               <article className="pd-web-card" key={item.id}>
@@ -250,7 +251,9 @@ export default function AdminBotPanel() {
                         ? 'Uploading'
                         : failed
                           ? 'Needs attention'
-                          : item.ingestionAvailable ? 'Ready for review' : 'Reference only'}
+                          : stalled
+                            ? 'Retry required'
+                            : item.ingestionAvailable ? 'Ready for review' : 'Reference only'}
                     </span>
                   </div>
                   <p>{item.description}</p>
@@ -282,7 +285,7 @@ export default function AdminBotPanel() {
                         disabled={!confirmed || webJob?.status === 'running'}
                         onClick={() => void ingestWebItem(item)}
                       >
-                        {failed ? 'Confirm and Retry' : 'Confirm and Upload'}
+                        {failed || stalled ? 'Confirm and Retry' : 'Confirm and Upload'}
                       </button>
                     )}
                   </div>

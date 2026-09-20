@@ -153,3 +153,59 @@ test('confirmed web ingestion reaches Mux and publishing in order', async () => 
   assert.equal(state.get(webStateKey('example-film')).status, 'published');
   assert.deepEqual(audits.map((event) => event.type), ['pd.web-confirmed', 'pd.web-ingested']);
 });
+
+test('serverless web ingestion persists a Mux handoff without waiting in memory', async () => {
+  const decisions = [];
+  const state = new Map();
+  const runner = new WebIngestionRunner({
+    archive: { resolve: async () => sourceItem() },
+    aiMetadataService: {
+      enrich: async () => ({
+        description: 'Prepared description.',
+        tags: ['classic'],
+        categories: ['Drama'],
+      }),
+    },
+    posterService: { storeRemoteImage: async () => 'https://archive.org/poster.jpg' },
+    catalogService: {
+      createDraft: async ({ item }) => {
+        assert.equal(item.candidateId, 'internet-archive:example-film');
+        return { id: 'catalog-web-1', status: 'processing' };
+      },
+      ensureTranscoded: async () => ({ id: 'catalog-web-1', status: 'processing' }),
+      publish: async () => {
+        throw new Error('Publishing must wait for Mux readiness.');
+      },
+    },
+    stateStore: {
+      get: async (key) => state.get(key) || null,
+      set: async (key, value) => {
+        const next = { ...(state.get(key) || {}), ...value };
+        state.set(key, next);
+        return next;
+      },
+    },
+    candidateStore: {
+      setDecision: async (id, decision, details) => decisions.push({ id, decision, details }),
+    },
+    audit: async () => {},
+  });
+
+  const report = await runner.run({
+    source: 'internet-archive',
+    identifier: 'example-film',
+    contentKind: 'movie',
+    candidateId: 'internet-archive:example-film',
+    confirmation: true,
+    actorId: 'admin-1',
+  });
+
+  assert.equal(report.status, 'processing');
+  assert.match(report.message, /sent to Mux/);
+  assert.equal(state.get(webStateKey('internet-archive', 'example-film')).catalogId, 'catalog-web-1');
+  assert.deepEqual(decisions.at(-1), {
+    id: 'internet-archive:example-film',
+    decision: 'processing',
+    details: { catalogId: 'catalog-web-1' },
+  });
+});

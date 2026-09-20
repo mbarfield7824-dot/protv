@@ -34,4 +34,45 @@ class IngestionStateStore {
   }
 }
 
-module.exports = { IngestionStateStore };
+class FirestoreIngestionStateStore {
+  constructor(db, collectionName = 'publicDomainIngestionState') {
+    if (!db) throw new Error('Firestore is required for Public Domain ingestion state.');
+    this.db = db;
+    this.collection = db.collection(collectionName);
+  }
+
+  async get(key) {
+    const snapshot = await this.collection.doc(key).get();
+    return snapshot.exists ? snapshot.data() : null;
+  }
+
+  async set(key, value) {
+    const ref = this.collection.doc(key);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      const state = {
+        ...(snapshot.exists ? snapshot.data() : {}),
+        ...JSON.parse(JSON.stringify(value)),
+        updatedAt: new Date().toISOString(),
+      };
+      transaction.set(ref, state);
+      return state;
+    });
+  }
+}
+
+function createIngestionStateStore({
+  db,
+  filePath,
+  collectionName,
+  useFirestore = Boolean(process.env.VERCEL),
+}) {
+  if (useFirestore) return new FirestoreIngestionStateStore(db, collectionName);
+  return new IngestionStateStore(filePath);
+}
+
+module.exports = {
+  FirestoreIngestionStateStore,
+  IngestionStateStore,
+  createIngestionStateStore,
+};

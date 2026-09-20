@@ -45,10 +45,13 @@ class PosterService {
     this.imageBaseUrl = config.imageBaseUrl || '';
     this.imageApiKey = config.imageApiKey || '';
     this.imageModel = config.imageModel || '';
+    this.durableFileStorage = config.durableFileStorage ?? !process.env.VERCEL;
   }
 
   async create(metadata) {
-    await fs.mkdir(this.storageDirectory, { recursive: true });
+    if (this.durableFileStorage) {
+      await fs.mkdir(this.storageDirectory, { recursive: true });
+    }
     const warnings = [];
     try {
       const commonsPoster = await this.findCommonsPoster(metadata);
@@ -153,6 +156,9 @@ class PosterService {
     const payload = await response.json();
     const image = payload.data?.[0];
     if (image?.b64_json) {
+      if (!this.durableFileStorage) {
+        throw new Error('Generated poster bytes require durable poster storage.');
+      }
       const fileName = `${safeFileName(title)}-${crypto.randomUUID()}.png`;
       await fs.writeFile(path.join(this.storageDirectory, fileName), Buffer.from(image.b64_json, 'base64'));
       return this.publicUrl(fileName);
@@ -162,7 +168,9 @@ class PosterService {
   }
 
   async storeRemoteImage(url, title, source) {
-    await fs.mkdir(this.storageDirectory, { recursive: true });
+    if (this.durableFileStorage) {
+      await fs.mkdir(this.storageDirectory, { recursive: true });
+    }
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== 'https:') throw new Error(`${source} poster must use HTTPS.`);
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
@@ -175,6 +183,7 @@ class PosterService {
     }
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length > 15 * 1024 * 1024) throw new Error(`${source} poster exceeded 15 MB.`);
+    if (!this.durableFileStorage) return url;
     const extension = normalizedType === 'image/png' ? '.png' : normalizedType === 'image/webp' ? '.webp' : '.jpg';
     const fileName = `${safeFileName(title)}-${crypto.randomUUID()}${extension}`;
     await fs.writeFile(path.join(this.storageDirectory, fileName), bytes);
@@ -199,6 +208,9 @@ class PosterService {
 <text x="70" y="940" fill="#dbeafe" font-family="Arial" font-size="34">${escapeXml(category)}</text>
 <text x="70" y="1010" fill="#93c5fd" font-family="Arial" font-size="30">${escapeXml(year || 'Classic Cinema')}</text>
 </svg>`;
+    if (!this.durableFileStorage) {
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
     await fs.writeFile(path.join(this.storageDirectory, fileName), svg, 'utf8');
     return this.publicUrl(fileName);
   }

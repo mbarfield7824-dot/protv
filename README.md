@@ -229,8 +229,10 @@ Sources are handled conservatively:
 
 For every ingestible title, the Administrator must open the source, select the confirmation
 checkbox, and choose **Confirm and Upload**. The backend then retrieves the source metadata
-again, rechecks the evidence, creates a draft, sends the original media URL to Mux, waits for
-playback readiness, and publishes. AI does not decide copyright status.
+again, rechecks the evidence, creates a draft, and sends the original media URL to Mux. On a
+continuously running backend it waits for playback readiness. On Vercel it persists the handoff
+in Firestore and returns immediately; the existing Mux webhook publishes the confirmed title when
+playback becomes ready. AI does not decide copyright status.
 
 Automatic scheduling requires a continuously running Node backend. Serverless deployments
 should call the protected discovery-run endpoint from their platform scheduler instead of
@@ -247,9 +249,10 @@ PD_CANDIDATE_STORE_FILE=D:\PROtv-Data\pd-candidates.json
 YOUTUBE_API_KEY=optional_youtube_data_api_key
 ```
 
-On Vercel, PROtv automatically stores the Public Domain discovery queue in Firestore because the
-deployed function filesystem is read-only. `PD_CANDIDATE_STORE_FILE` remains available for local
-development and persistent server environments.
+On Vercel, PROtv automatically stores the Public Domain discovery queue and ingestion handoff
+state in Firestore because the deployed function filesystem is read-only.
+`PD_CANDIDATE_STORE_FILE` and `PD_WEB_STATE_FILE` remain available for local development and
+persistent server environments.
 
 ## Distributor Ingestion Adapter
 

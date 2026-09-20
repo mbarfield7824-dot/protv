@@ -115,7 +115,7 @@ class WebIngestionRunner {
         report.warnings.push(...poster.warnings.map((message) => `${item.title}: ${message}`));
 
         const draft = await this.catalogService.createDraft({
-          item,
+          item: { ...item, candidateId },
           metadata,
           poster,
           previous,
@@ -127,6 +127,22 @@ class WebIngestionRunner {
           stage: 'Transcoding video',
         });
         const ready = await this.catalogService.ensureTranscoded(draft, item.mediaUrl);
+        if (ready.status === 'processing') {
+          await this.stateStore.set(key, {
+            status: 'processing',
+            catalogId: ready.id,
+            stage: 'Mux is preparing playback',
+          });
+          await this.candidateStore.setDecision(candidateId, 'processing', {
+            catalogId: ready.id,
+          });
+          report.status = 'processing';
+          report.message = `${item.title} was sent to Mux and will publish automatically when playback is ready.`;
+          report.completedAt = new Date().toISOString();
+          report.currentItem = item.title;
+          onProgress(report);
+          return report;
+        }
         const published = await this.catalogService.publish(ready, actorId);
         await this.stateStore.set(key, {
           status: 'published',
