@@ -139,8 +139,9 @@ export default function Home() {
     return <div className="loading">Loading PROtv...</div>;
   }
 
-  const combinedCatalog = [...mockVideoData, ...apiVideos];
+  const combinedCatalog = apiVideos.length > 0 ? apiVideos : mockVideoData;
   const movieCatalog = combinedCatalog.filter((video) => !isTvEpisode(video));
+  const showCatalog = combinedCatalog.filter(isTvEpisode);
   const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
   const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
   const featuredProtvVideos = FEATURED_PROTV_TITLE_IDS
@@ -317,6 +318,16 @@ export default function Home() {
         content={getTrendingVideos().slice(0, 8)}
         onInfo={setPreviewVideo}
       />
+
+      {showCatalog.length > 0 && (
+        <ContentRow
+          id="tv-shows"
+          title="TV Shows"
+          subtitle="Episodes ready to watch"
+          content={showCatalog.slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
 
       <ContentRow
         id="because-you-watched"
