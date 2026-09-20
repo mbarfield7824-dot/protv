@@ -47,12 +47,36 @@ function BenefitIcon({ name }) {
 }
 
 export function CreatorPortalButton({ className = '', children = 'Start Uploading' }) {
-  const { openCreatorPortal, opening, error } = useCreatorPortal();
+  const {
+    openCreatorPortal,
+    opening,
+    error,
+    verificationRequired,
+    verificationMessage,
+    sendVerification,
+  } = useCreatorPortal();
   return (
     <div className="creator-portal-action">
       <button className={className} type="button" onClick={openCreatorPortal} disabled={opening}>
         {opening ? 'Opening your dashboard...' : children}
       </button>
+      {verificationRequired && (
+        <div className="creator-verification-notice" role="status">
+          <strong>Verify your email to continue</strong>
+          <p>
+            For account security, confirm your PROtv email address before entering the Creator Portal.
+          </p>
+          <div className="creator-verification-actions">
+            <button type="button" onClick={sendVerification} disabled={opening}>
+              Send verification email
+            </button>
+            <button type="button" onClick={openCreatorPortal} disabled={opening}>
+              I&apos;ve verified — open dashboard
+            </button>
+          </div>
+          {verificationMessage && <p className="creator-action-success">{verificationMessage}</p>}
+        </div>
+      )}
       {error && <p className="creator-action-error" role="alert">{error}</p>}
     </div>
   );

@@ -100,6 +100,37 @@ Creator revenue synchronization requires:
 The Creator Agent calculates creator earnings from the revenue share frozen in the signed contract;
 PROtv and the browser do not submit or choose that percentage.
 
+## Creator publishing API
+
+The private `POST /videos/integrations/creator-actions` endpoint accepts signed server-to-server
+requests from the Creator Agent. It is not a browser publishing endpoint. Every request must carry
+an exact-body SHA-256 HMAC in `X-PROtv-Signature`, a timestamp no more than five minutes old, an
+idempotency request ID, verified ownership, explicit Administrator approval, and—for publishing or
+distribution—a signed contract.
+
+Publishing reserves a deterministic catalog ID before contacting Mux, preventing duplicate catalog
+records during concurrent retries. Mux reads the master through an expiring, project-and-asset
+scoped Creator Agent URL. The configured Creator Agent origin is allowlisted to prevent arbitrary
+server-side URL ingestion. Distribution is refused until Mux reports a ready asset with a public
+playback ID. Licensing and contracting requests record approved operational milestones only.
+
+Configure both production systems with the same high-entropy secret:
+
+```env
+# PROtv backend
+PROTV_PUBLISHING_SECRET=replace_with_a_high_entropy_shared_secret
+CREATOR_AGENT_ORIGIN=https://protv-creator-agent.onrender.com
+
+# Creator Agent
+PROTV_ADAPTER=official-api
+PROTV_API_BASE_URL=https://watchprotv.com/api
+PROTV_PUBLISHING_SECRET=replace_with_the_same_secret
+```
+
+Publishing and distribution remain behind the Creator Agent’s existing ownership, review,
+signed-contract, and Administrator confirmation gates. The API does not add deletion or
+pipeline-modification capabilities.
+
 ## Creator Portal and SSO
 
 The homepage and `/creators` route introduce the Creator Portal, explain Creator benefits, and

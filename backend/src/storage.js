@@ -78,6 +78,24 @@ function addVideo(videoData) {
   return id;
 }
 
+function createCreatorVideo(creatorProjectId, videoData) {
+  const videos = loadVideos();
+  const id = `creator_${creatorProjectId}`;
+  if (videos[id]) return { id, created: false };
+  videos[id] = {
+    ...videoData,
+    creatorProjectId,
+    approvalStatus: videoData.approvalStatus || 'draft',
+    submittedAt: new Date().toISOString(),
+    approvedAt: null,
+    approvedBy: null,
+    approvalNotes: '',
+    createdAt: new Date().toISOString(),
+  };
+  saveVideos(videos);
+  return { id, created: true };
+}
+
 // Update video
 function updateVideo(id, updates) {
   const videos = loadVideos();
@@ -155,11 +173,18 @@ function getVideoByAssetId(assetId) {
   return found ? { id: found[0], ...found[1] } : null;
 }
 
+function getVideoByCreatorProjectId(creatorProjectId) {
+  const videos = Object.entries(loadVideos());
+  const found = videos.find(([_, v]) => v.creatorProjectId === creatorProjectId);
+  return found ? { id: found[0], ...found[1] } : null;
+}
+
 module.exports = {
   getAllVideos,
   getApprovedVideos,
   getVideoById,
   addVideo,
+  createCreatorVideo,
   updateVideo,
   deleteVideo,
   updateVideoApproval,
@@ -167,4 +192,5 @@ module.exports = {
   getCategories,
   getVideoByUploadId,
   getVideoByAssetId,
+  getVideoByCreatorProjectId,
 };

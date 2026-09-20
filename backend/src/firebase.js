@@ -106,6 +106,32 @@ async function addVideo(videoData) {
   }
 }
 
+async function createCreatorVideo(creatorProjectId, videoData) {
+  if (!db) {
+    return require('./storage').createCreatorVideo(creatorProjectId, videoData);
+  }
+  const id = `creator_${creatorProjectId}`;
+  const document = db.collection('videos').doc(id);
+  try {
+    await document.create({
+      ...videoData,
+      creatorProjectId,
+      approvalStatus: videoData.approvalStatus || 'draft',
+      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      approvedAt: null,
+      approvedBy: null,
+      approvalNotes: '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { id, created: true };
+  } catch (error) {
+    if (error.code === 6 || error.code === 'already-exists') {
+      return { id, created: false };
+    }
+    throw new Error(`Failed to reserve the creator catalog title: ${error.message}`);
+  }
+}
+
 // Helper function to get all videos
 async function getAllVideos() {
   if (!db) {
@@ -221,6 +247,26 @@ async function getVideoByAssetId(assetId) {
   }
 }
 
+async function getVideoByCreatorProjectId(creatorProjectId) {
+  if (!db) {
+    const fileStorage = require('./storage');
+    return fileStorage.getVideoByCreatorProjectId(creatorProjectId);
+  }
+
+  try {
+    const snapshot = await db
+      .collection('videos')
+      .where('creatorProjectId', '==', creatorProjectId)
+      .limit(1)
+      .get();
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
+  } catch (error) {
+    throw new Error(`Failed to look up the creator catalog title: ${error.message}`);
+  }
+}
+
 // Helper function to get all categories
 async function getCategories() {
   if (!db) {
@@ -319,6 +365,7 @@ module.exports = {
   getUserById,
   grantAdminRole,
   addVideo,
+  createCreatorVideo,
   getAllVideos,
   getApprovedVideos,
   getAllVideosAdmin,
@@ -328,5 +375,6 @@ module.exports = {
   deleteVideo,
   getVideoByUploadId,
   getVideoByAssetId,
+  getVideoByCreatorProjectId,
   getCategories,
 };
