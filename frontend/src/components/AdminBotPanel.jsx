@@ -121,20 +121,19 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
     if (!['running', 'processing'].includes(webJob?.status)) return undefined;
     const timer = setInterval(() => {
       void loadWebStatus();
-      void loadDiscovery();
-    }, 3000);
+    }, 10000);
     return () => clearInterval(timer);
-  }, [webJob?.status, loadDiscovery, loadWebStatus]);
+  }, [webJob?.status, loadWebStatus]);
 
   useEffect(() => {
     if (startingIds.length === 0) return undefined;
-    const timer = setInterval(() => void loadDiscovery(), 1500);
+    const timer = setInterval(() => void loadDiscovery(), 3000);
     return () => clearInterval(timer);
   }, [startingIds.length, loadDiscovery]);
 
   useEffect(() => {
     if (discoveryJob?.status !== 'running') return undefined;
-    const timer = setInterval(() => void loadDiscovery(), 3000);
+    const timer = setInterval(() => void loadDiscovery(), 10000);
     return () => clearInterval(timer);
   }, [discoveryJob?.status, loadDiscovery]);
 

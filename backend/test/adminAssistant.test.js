@@ -40,6 +40,10 @@ function serviceFixture(overrides = {}) {
     updates,
     service: new AdminAssistantService({
       candidateStore: {
+        snapshot: async () => ({
+          status: { pending: 1, processing: 0, approved: 1, rejected: 0, failed: 0 },
+          items: [],
+        }),
         status: async () => ({ pending: 1, processing: 0, approved: 1, rejected: 0, failed: 0 }),
         list: async () => [],
       },

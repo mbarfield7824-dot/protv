@@ -239,17 +239,19 @@ function createAdminBotRouter() {
     try {
       const requestedDecision = req.query.decision || 'review';
       const allowedDecisions = ['pending', 'processing', 'approved', 'rejected', 'failed'];
+      const snapshot = await candidateStore.snapshot();
       const items = requestedDecision === 'review'
-        ? (await Promise.all(
-          ['pending', 'processing', 'failed'].map((decision) => candidateStore.list({ decision, limit: 100 }))
-        )).flat().sort((left, right) => right.lastSeenAt.localeCompare(left.lastSeenAt)).slice(0, 100)
-        : await candidateStore.list({
-          decision: allowedDecisions.includes(requestedDecision) ? requestedDecision : 'pending',
-          limit: 100,
-        });
+        ? snapshot.items
+          .filter((candidate) => ['pending', 'processing', 'failed'].includes(candidate.decision))
+          .slice(0, 100)
+        : snapshot.items
+          .filter((candidate) => candidate.decision === (
+            allowedDecisions.includes(requestedDecision) ? requestedDecision : 'pending'
+          ))
+          .slice(0, 100);
       res.json({
         items,
-        status: await candidateStore.status(),
+        status: snapshot.status,
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -302,7 +304,8 @@ function createAdminBotRouter() {
 
   router.get('/web-status', verifyAdmin, async (req, res) => {
     try {
-      const processing = await candidateStore.list({ decision: 'processing', limit: 100 });
+      const snapshot = await candidateStore.snapshot();
+      const processing = snapshot.items.filter((candidate) => candidate.decision === 'processing');
       const active = processing.filter((candidate) => candidate.catalogId);
       const stalled = processing.filter((candidate) => !candidate.catalogId);
       if (active.length) {
@@ -322,7 +325,9 @@ function createAdminBotRouter() {
           })),
         });
       }
-      const failed = await candidateStore.list({ decision: 'failed', limit: 20 });
+      const failed = snapshot.items
+        .filter((candidate) => candidate.decision === 'failed')
+        .slice(0, 20);
       const needsAttention = [
         ...stalled.map((candidate) => ({
           ...candidate,
@@ -351,7 +356,9 @@ function createAdminBotRouter() {
           })),
         });
       }
-      const approved = await candidateStore.list({ decision: 'approved', limit: 1 });
+      const approved = snapshot.items
+        .filter((candidate) => candidate.decision === 'approved')
+        .slice(0, 1);
       if (approved.length) {
         return res.json({
           status: 'completed',
