@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const { db, getAllVideos } = require('../firebase');
-const { CandidateStore } = require('../adminBot/candidateStore');
+const { createCandidateStore } = require('../adminBot/candidateStore');
 const { listAdminEvents, logAdminEvent } = require('../adminBot/adminAudit');
 const { getAdminBotRuntimeStatus } = require('../adminBot/router');
 const { getDistributorRuntimeStatus } = require('../distributorIngestion/router');
@@ -399,11 +399,14 @@ async function logMessage({ actorId, conversationId, role, message }) {
 class AdminAssistantService {
   constructor(dependencies = {}) {
     const dataDirectory = path.resolve(__dirname, '../../.data');
-    this.candidateStore = dependencies.candidateStore || new CandidateStore(path.resolve(
-      process.env.PD_CANDIDATE_STORE_FILE
-        || process.env.PD_CANDIDATE_FILE
-        || path.join(dataDirectory, 'pd-candidates.json')
-    ));
+    this.candidateStore = dependencies.candidateStore || createCandidateStore({
+      db,
+      filePath: path.resolve(
+        process.env.PD_CANDIDATE_STORE_FILE
+          || process.env.PD_CANDIDATE_FILE
+          || path.join(dataDirectory, 'pd-candidates.json')
+      ),
+    });
     this.listAuditEvents = dependencies.listAuditEvents || listAdminEvents;
     this.getCatalog = dependencies.getCatalog || getAllVideos;
     this.getPublicDomainStatus = dependencies.getPublicDomainStatus || getAdminBotRuntimeStatus;
@@ -514,6 +517,14 @@ class AdminAssistantService {
         youtube: Boolean(process.env.YOUTUBE_API_KEY),
       },
       relevantTitles,
+      discoveryCandidates: allCandidates
+        .filter((candidate) => candidate.decision === 'pending')
+        .slice(0, 8)
+        .map((candidate) => ({
+          title: candidate.title,
+          source: candidate.sourceLabel || candidate.source,
+          ingestionAvailable: Boolean(candidate.ingestionAvailable),
+        })),
     };
     let reply;
     try {

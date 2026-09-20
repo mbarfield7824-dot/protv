@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const { db } = require('../firebase');
 const { verifyAdmin } = require('../middleware/auth');
 const { getTitleReference } = require('../omdb');
 const { AdminBotRunner } = require('./adminBotRunner');
@@ -14,7 +15,7 @@ const { IngestionStateStore } = require('./stateStore');
 const { InternetArchiveService } = require('./internetArchiveService');
 const { WebCatalogService } = require('./webCatalogService');
 const { WebIngestionRunner } = require('./webIngestionRunner');
-const { CandidateStore } = require('./candidateStore');
+const { createCandidateStore } = require('./candidateStore');
 const { PublicDomainDiscoveryRunner } = require('./discoveryRunner');
 const { DailyDiscoveryScheduler } = require('./discoveryScheduler');
 const { PublicDomainMovieDiscoveryService } = require('./publicDomainMovieDiscoveryService');
@@ -82,11 +83,14 @@ function createAdminBotRouter() {
     maximumFileBytes: Number(process.env.PD_WEB_MAX_FILE_BYTES || 20 * 1024 * 1024 * 1024),
   });
   const wikimedia = new WikimediaVideoService();
-  const candidateStore = new CandidateStore(path.resolve(
-    process.env.PD_CANDIDATE_STORE_FILE
-      || process.env.PD_CANDIDATE_FILE
-      || path.join(dataDirectory, 'pd-candidates.json')
-  ));
+  const candidateStore = createCandidateStore({
+    db,
+    filePath: path.resolve(
+      process.env.PD_CANDIDATE_STORE_FILE
+        || process.env.PD_CANDIDATE_FILE
+        || path.join(dataDirectory, 'pd-candidates.json')
+    ),
+  });
   const webStateStore = new IngestionStateStore(path.resolve(
     process.env.PD_WEB_STATE_FILE || path.join(dataDirectory, 'pd-web-ingestion-state.json')
   ));

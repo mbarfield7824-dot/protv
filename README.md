@@ -247,6 +247,10 @@ PD_CANDIDATE_STORE_FILE=D:\PROtv-Data\pd-candidates.json
 YOUTUBE_API_KEY=optional_youtube_data_api_key
 ```
 
+On Vercel, PROtv automatically stores the Public Domain discovery queue in Firestore because the
+deployed function filesystem is read-only. `PD_CANDIDATE_STORE_FILE` remains available for local
+development and persistent server environments.
+
 ## Distributor Ingestion Adapter
 
 The owner-only Admin page also includes a **Distributor Feed** tab. The adapter retrieves a
