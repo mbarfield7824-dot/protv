@@ -11,7 +11,7 @@ const { discoverFiles } = require('./fileDiscovery');
 const { listAdminEvents, logAdminEvent } = require('./adminAudit');
 const { MetadataExtractor } = require('./metadataExtractor');
 const { PosterService } = require('./posterService');
-const { IngestionStateStore } = require('./stateStore');
+const { createIngestionStateStore } = require('./stateStore');
 const { InternetArchiveService } = require('./internetArchiveService');
 const { WebCatalogService } = require('./webCatalogService');
 const { WebIngestionRunner } = require('./webIngestionRunner');
@@ -49,7 +49,11 @@ function createAdminBotRouter() {
   const dataDirectory = path.resolve(__dirname, '../../.data');
   const stateFile = path.resolve(process.env.PD_STATE_FILE || path.join(dataDirectory, 'pd-ingestion-state.json'));
   const posterDirectory = path.resolve(process.env.PD_POSTER_DIRECTORY || path.join(dataDirectory, 'posters'));
-  const stateStore = new IngestionStateStore(stateFile);
+  const stateStore = createIngestionStateStore({
+    db,
+    filePath: stateFile,
+    collectionName: 'publicDomainLocalIngestionState',
+  });
   const aiMetadataService = new AiMetadataService({
     baseUrl: process.env.AI_BASE_URL,
     apiKey: process.env.AI_API_KEY,
@@ -91,9 +95,13 @@ function createAdminBotRouter() {
         || path.join(dataDirectory, 'pd-candidates.json')
     ),
   });
-  const webStateStore = new IngestionStateStore(path.resolve(
-    process.env.PD_WEB_STATE_FILE || path.join(dataDirectory, 'pd-web-ingestion-state.json')
-  ));
+  const webStateStore = createIngestionStateStore({
+    db,
+    filePath: path.resolve(
+      process.env.PD_WEB_STATE_FILE || path.join(dataDirectory, 'pd-web-ingestion-state.json')
+    ),
+    collectionName: 'publicDomainWebIngestionState',
+  });
   const webRunner = new WebIngestionRunner({
     sources: {
       'internet-archive': archive,
@@ -275,10 +283,10 @@ function createAdminBotRouter() {
       if (!candidate.ingestionAvailable) {
         return res.status(400).json({ error: candidate.ingestionReason || 'This source is reference only.' });
       }
-      if (!['pending', 'failed'].includes(candidate.decision)) {
+      if (!['pending', 'processing', 'failed'].includes(candidate.decision)) {
         return res.status(409).json({ error: `This candidate is already ${candidate.decision}.` });
       }
-      const job = webJobs.start({
+      const report = await webRunner.run({
         source: candidate.source,
         identifier: candidate.externalId,
         contentKind: candidate.contentKind,
@@ -286,14 +294,64 @@ function createAdminBotRouter() {
         confirmation: true,
         actorId: req.user.uid,
       });
-      res.status(202).json(job);
+      res.status(report.status === 'processing' ? 202 : 200).json(report);
     } catch (error) {
       res.status(409).json({ error: error.message });
     }
   });
 
-  router.get('/web-status', verifyAdmin, (req, res) => {
-    res.json(webJobs.status());
+  router.get('/web-status', verifyAdmin, async (req, res) => {
+    try {
+      const processing = await candidateStore.list({ decision: 'processing', limit: 100 });
+      const active = processing.filter((candidate) => candidate.catalogId);
+      const stalled = processing.filter((candidate) => !candidate.catalogId);
+      if (active.length) {
+        return res.json({
+          status: 'processing',
+          message: `Mux is preparing ${active.length} confirmed title${active.length === 1 ? '' : 's'}.`,
+          currentItem: active.map((candidate) => candidate.title).join(', '),
+          addedMovies: [],
+          failures: [],
+        });
+      }
+      const failed = await candidateStore.list({ decision: 'failed', limit: 20 });
+      const needsAttention = [
+        ...stalled.map((candidate) => ({
+          ...candidate,
+          lastError: 'The previous serverless upload did not start. Confirm and retry this title.',
+        })),
+        ...failed,
+      ];
+      if (needsAttention.length) {
+        return res.json({
+          status: 'completed-with-errors',
+          message: `${needsAttention.length} title${needsAttention.length === 1 ? '' : 's'} need attention.`,
+          currentItem: '',
+          addedMovies: [],
+          failures: needsAttention.map((candidate) => ({
+            title: candidate.title,
+            message: candidate.lastError || 'The title could not be ingested.',
+          })),
+        });
+      }
+      const approved = await candidateStore.list({ decision: 'approved', limit: 1 });
+      if (approved.length) {
+        return res.json({
+          status: 'completed',
+          message: `${approved[0].title} was published successfully.`,
+          currentItem: '',
+          addedMovies: [{
+            title: approved[0].title,
+            catalogId: approved[0].catalogId,
+            message: `${approved[0].title} was published successfully.`,
+          }],
+          failures: [],
+        });
+      }
+      return res.json(webJobs.status());
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
   });
 
   return router;

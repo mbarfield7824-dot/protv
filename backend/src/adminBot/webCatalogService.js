@@ -1,5 +1,6 @@
 const {
   addVideo,
+  getAllVideos,
   getVideoById,
   updateVideo,
   updateVideoApproval,
@@ -11,8 +12,9 @@ const {
 } = require('../mux');
 
 class WebCatalogService {
-  constructor({ transcodeTimeoutMs }) {
+  constructor({ transcodeTimeoutMs, deferUntilWebhook = Boolean(process.env.VERCEL) }) {
     this.transcodeTimeoutMs = transcodeTimeoutMs;
+    this.deferUntilWebhook = deferUntilWebhook;
   }
 
   async createDraft({ item, metadata, poster, previous, actorId, confirmedAt }) {
@@ -23,6 +25,14 @@ class WebCatalogService {
         if (!error.message.includes('Video not found')) throw error;
       }
     }
+    const existing = (await getAllVideos()).find((video) => (
+      video.publicDomainCandidateId === item.candidateId
+      || (
+        video.publicDomainSourceId === item.identifier
+        && video.publicDomainSource === item.source
+      )
+    ));
+    if (existing) return existing;
     const videoId = await addVideo({
       title: metadata.title,
       year: metadata.year,
@@ -42,6 +52,7 @@ class WebCatalogService {
       videoUrl: '',
       publicDomainSource: item.source,
       publicDomainSourceId: item.identifier,
+      publicDomainCandidateId: item.candidateId,
       publicDomainSourceUrl: item.sourceUrl,
       publicDomainLicenseEvidence: item.licenseEvidence.label,
       publicDomainLicenseUrl: item.licenseEvidence.url,
@@ -67,6 +78,9 @@ class WebCatalogService {
       const asset = await createAssetFromUrl(mediaUrl);
       assetId = asset.id;
       await updateVideo(video.id, { muxAssetId: assetId, status: 'processing' });
+    }
+    if (this.deferUntilWebhook) {
+      return getVideoById(video.id);
     }
     const asset = await waitForAssetReady({
       assetId,

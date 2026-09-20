@@ -1,5 +1,7 @@
 const express = require('express');
+const path = require('path');
 const {
+  db,
   getAllVideos,
   getApprovedVideos,
   getAllVideosAdmin,
@@ -21,6 +23,7 @@ const {
   getAsset,
   getPlaybackId,
 } = require('../mux');
+const { createCandidateStore } = require('../adminBot/candidateStore');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { getImdbRating } = require('../omdb');
 const {
@@ -28,6 +31,14 @@ const {
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
 const router = express.Router();
+const publicDomainCandidates = createCandidateStore({
+  db,
+  filePath: path.resolve(
+    process.env.PD_CANDIDATE_STORE_FILE
+      || process.env.PD_CANDIDATE_FILE
+      || path.join(__dirname, '../../.data/pd-candidates.json')
+  ),
+});
 const creatorPublishing = new CreatorPublishingService({
   creatorAgentOrigin: process.env.CREATOR_AGENT_ORIGIN || '',
 });
@@ -638,6 +649,17 @@ router.post('/webhook', async (req, res) => {
           duration: asset.duration ? Math.round(asset.duration) : video.duration,
         };
         await updateVideo(video.id, readyUpdates);
+        if (video.publicDomainCandidateId) {
+          await updateVideoApproval(video.id, {
+            approvalStatus: 'approved',
+            approvalNotes: 'Published after Administrator confirmation of source evidence.',
+            approvedBy: video.publicDomainConfirmedBy || 'system:mux-webhook',
+          });
+          await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'approved', {
+            catalogId: video.id,
+            approvedBy: video.publicDomainConfirmedBy || 'system:mux-webhook',
+          });
+        }
         await updateImdbRating({ ...video, ...readyUpdates });
       }
     }
@@ -650,6 +672,12 @@ router.post('/webhook', async (req, res) => {
 
       if (video) {
         await updateVideo(video.id, { status: 'errored' });
+        if (video.publicDomainCandidateId) {
+          await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'failed', {
+            catalogId: video.id,
+            lastError: 'Mux could not transcode the selected title.',
+          });
+        }
       }
     }
 

@@ -6,8 +6,8 @@ const test = require('node:test');
 const { AdminBotRunner } = require('../src/adminBot/adminBotRunner');
 const { discoverFiles, listVideoFiles } = require('../src/adminBot/fileDiscovery');
 const { metadataFromFileName } = require('../src/adminBot/metadataExtractor');
-const { isPublicDomainLicense, wrapTitleLines } = require('../src/adminBot/posterService');
-const { IngestionStateStore } = require('../src/adminBot/stateStore');
+const { PosterService, isPublicDomainLicense, wrapTitleLines } = require('../src/adminBot/posterService');
+const { FirestoreIngestionStateStore, IngestionStateStore } = require('../src/adminBot/stateStore');
 
 async function temporaryDirectory(t) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'protv-admin-bot-'));
@@ -59,6 +59,33 @@ test('discoverFiles skips published hashes but retries failed hashes', async (t)
   assert.deepEqual(second.newItems.map((item) => item.fileName), ['failed.mov']);
 });
 
+test('Firestore ingestion state merges durable processing stages', async () => {
+  let saved = null;
+  const ref = {
+    get: async () => ({ exists: Boolean(saved), data: () => saved }),
+  };
+  const db = {
+    collection: () => ({ doc: () => ref }),
+    async runTransaction(operation) {
+      let pending;
+      const result = await operation({
+        get: (target) => target.get(),
+        set: (_target, value) => { pending = value; },
+      });
+      saved = pending;
+      return result;
+    },
+  };
+  const store = new FirestoreIngestionStateStore(db);
+
+  await store.set('item-1', { status: 'processing', catalogId: 'catalog-1' });
+  await store.set('item-1', { stage: 'Mux is preparing playback' });
+
+  assert.equal((await store.get('item-1')).status, 'processing');
+  assert.equal((await store.get('item-1')).catalogId, 'catalog-1');
+  assert.equal((await store.get('item-1')).stage, 'Mux is preparing playback');
+});
+
 test('poster license screening accepts public-domain markers only', () => {
   assert.equal(isPublicDomainLicense({ LicenseShortName: { value: 'Public domain' } }), true);
   assert.equal(isPublicDomainLicense({ UsageTerms: { value: 'CC0 1.0' } }), true);
@@ -69,6 +96,24 @@ test('fallback poster titles wrap into readable lines', () => {
   assert.deepEqual(
     wrapTitleLines('All public domain Looney Tunes and Merrie Melodies shorts'),
     ['All public domain', 'Looney Tunes and', 'Merrie Melodies', 'shorts']
+  );
+});
+
+test('serverless poster validation keeps the durable source URL', async (context) => {
+  context.mock.method(globalThis, 'fetch', async () => ({
+    ok: true,
+    headers: new Headers({ 'content-type': 'image/jpeg' }),
+    arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+  }));
+  const service = new PosterService({
+    storageDirectory: 'Z:\\read-only',
+    publicBaseUrl: 'https://watchprotv.com',
+    durableFileStorage: false,
+  });
+
+  assert.equal(
+    await service.storeRemoteImage('https://archive.org/poster.jpg', 'Example Film', 'Internet Archive'),
+    'https://archive.org/poster.jpg'
   );
 });
 
