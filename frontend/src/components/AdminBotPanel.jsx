@@ -59,31 +59,49 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
   const [candidateFilter, setCandidateFilter] = useState('all');
   const [candidateSearch, setCandidateSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [pageVisible, setPageVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState === 'visible'
+  );
 
-  const load = useCallback(async () => {
+  const loadStatus = useCallback(async () => {
     try {
-      const [status, events] = await Promise.all([
-        api.getAdminBotStatus(),
-        api.getAdminBotAudit(),
-      ]);
-      setJob(status);
-      setAudit(events);
+      setJob(await api.getAdminBotStatus());
       setError('');
     } catch (requestError) {
       setError(requestError.message);
     }
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => void load(), 0);
-    return () => clearTimeout(timer);
-  }, [load]);
+  const loadAudit = useCallback(async () => {
+    try {
+      setAudit(await api.getAdminBotAudit());
+      setError('');
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadStatus(), loadAudit()]);
+  }, [loadAudit, loadStatus]);
 
   useEffect(() => {
-    if (job?.status !== 'running') return undefined;
-    const timer = setInterval(() => void load(), 3000);
+    const updateVisibility = () => setPageVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!pageVisible) return undefined;
+    const timer = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timer);
+  }, [load, pageVisible]);
+
+  useEffect(() => {
+    if (!pageVisible || job?.status !== 'running') return undefined;
+    const timer = setInterval(() => void loadStatus(), 10000);
     return () => clearInterval(timer);
-  }, [job?.status, load]);
+  }, [job?.status, loadStatus, pageVisible]);
 
   const loadWebStatus = useCallback(async () => {
     try {
@@ -95,11 +113,8 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
 
   const loadDiscovery = useCallback(async () => {
     try {
-      const [status, queue] = await Promise.all([
-        api.getPublicDomainDiscoveryStatus(),
-        api.getPublicDomainCandidates(),
-      ]);
-      setDiscoveryJob(status);
+      const queue = await api.getPublicDomainCandidates();
+      setDiscoveryJob(queue.discovery);
       setCandidates(queue.items);
       setCandidateStatus(queue.status);
     } catch (requestError) {
@@ -108,34 +123,36 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
   }, []);
 
   useEffect(() => {
+    if (!pageVisible) return undefined;
     const timer = setTimeout(() => void loadWebStatus(), 0);
     return () => clearTimeout(timer);
-  }, [loadWebStatus]);
+  }, [loadWebStatus, pageVisible]);
 
   useEffect(() => {
+    if (!pageVisible) return undefined;
     const timer = setTimeout(() => void loadDiscovery(), 0);
     return () => clearTimeout(timer);
-  }, [loadDiscovery]);
+  }, [loadDiscovery, pageVisible]);
 
   useEffect(() => {
-    if (!['running', 'processing'].includes(webJob?.status)) return undefined;
+    if (!pageVisible || !['running', 'processing'].includes(webJob?.status)) return undefined;
     const timer = setInterval(() => {
       void loadWebStatus();
     }, 10000);
     return () => clearInterval(timer);
-  }, [webJob?.status, loadWebStatus]);
+  }, [webJob?.status, loadWebStatus, pageVisible]);
 
   useEffect(() => {
-    if (startingIds.length === 0) return undefined;
-    const timer = setInterval(() => void loadDiscovery(), 3000);
-    return () => clearInterval(timer);
-  }, [startingIds.length, loadDiscovery]);
-
-  useEffect(() => {
-    if (discoveryJob?.status !== 'running') return undefined;
+    if (!pageVisible || startingIds.length === 0) return undefined;
     const timer = setInterval(() => void loadDiscovery(), 10000);
     return () => clearInterval(timer);
-  }, [discoveryJob?.status, loadDiscovery]);
+  }, [startingIds.length, loadDiscovery, pageVisible]);
+
+  useEffect(() => {
+    if (!pageVisible || discoveryJob?.status !== 'running') return undefined;
+    const timer = setInterval(() => void loadDiscovery(), 10000);
+    return () => clearInterval(timer);
+  }, [discoveryJob?.status, loadDiscovery, pageVisible]);
 
   const start = async (dryRun) => {
     setError('');
