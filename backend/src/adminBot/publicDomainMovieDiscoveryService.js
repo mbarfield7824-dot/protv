@@ -12,6 +12,20 @@ function field(block, name) {
   return match ? decodeXml(match[1]).trim() : '';
 }
 
+function cleanDescription(value) {
+  const cleaned = decodeXml(String(value || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' '))
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned || /Drupal\.settings|jQuery\.extend|mediafront_/i.test(cleaned)) {
+    return 'Review the source page for the title description and media details.';
+  }
+  return cleaned.slice(0, 500);
+}
+
 function parseRss(xml) {
   const blocks = String(xml || '').match(/<item>[\s\S]*?<\/item>/gi) || [];
   return blocks.map((block) => {
@@ -25,8 +39,7 @@ function parseRss(xml) {
       externalId: slug,
       title: field(block, 'title') || slug,
       year: null,
-      description: rawDescription.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
-        || 'Review the source page for details.',
+      description: cleanDescription(rawDescription),
       thumbnailUrl: '',
       sourceUrl,
       contentKind: 'movie',
@@ -56,4 +69,4 @@ class PublicDomainMovieDiscoveryService {
   }
 }
 
-module.exports = { PublicDomainMovieDiscoveryService, parseRss };
+module.exports = { PublicDomainMovieDiscoveryService, cleanDescription, parseRss };

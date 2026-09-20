@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 
+function readableDescription(value) {
+  const text = String(value || '').replace(/&nbsp;|&#160;/gi, ' ').replace(/\s+/g, ' ').trim();
+  if (!text || /Drupal\.settings|jQuery\.extend|mediafront_/i.test(text)) {
+    return 'Open the source page to review this title’s description and media details.';
+  }
+  return text.length > 420 ? `${text.slice(0, 417).trimEnd()}...` : text;
+}
+
 function ResultList({ title, items, emptyMessage, kind, renderItem }) {
   return (
     <section className={`admin-bot-result admin-bot-result-${kind}`}>
@@ -275,7 +283,15 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
             const failed = item.decision === 'failed';
             return (
               <article className="pd-web-card" key={item.id}>
-                {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" />}
+                {item.thumbnailUrl ? (
+                  <img src={item.thumbnailUrl} alt="" />
+                ) : (
+                  <div className="pd-poster-placeholder" aria-hidden="true">
+                    <span>▶</span>
+                    <strong>PROtv</strong>
+                    <small>Public Domain</small>
+                  </div>
+                )}
                 <div className="pd-web-card-body">
                   <div className="pd-web-card-heading">
                     <div>
@@ -295,7 +311,7 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
                             : item.ingestionAvailable ? 'Ready for review' : 'Reference only'}
                     </span>
                   </div>
-                  <p>{item.description}</p>
+                  <p>{readableDescription(item.description)}</p>
                   <p><strong>Source evidence:</strong> {item.licenseEvidence?.label || item.ingestionReason}</p>
                   {item.alternateSources?.length > 0 && (
                     <p><strong>Also found on:</strong> {item.alternateSources.join(', ')}</p>

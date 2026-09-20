@@ -10,7 +10,7 @@ const {
 } = require('../src/adminBot/candidateStore');
 const { PublicDomainDiscoveryRunner } = require('../src/adminBot/discoveryRunner');
 const { DailyDiscoveryScheduler } = require('../src/adminBot/discoveryScheduler');
-const { parseRss } = require('../src/adminBot/publicDomainMovieDiscoveryService');
+const { cleanDescription, parseRss } = require('../src/adminBot/publicDomainMovieDiscoveryService');
 const { candidateFromPage } = require('../src/adminBot/wikimediaVideoService');
 const { YouTubeDiscoveryService } = require('../src/adminBot/youtubeDiscoveryService');
 
@@ -166,6 +166,16 @@ test('PublicDomainMovie RSS entries remain reference only', () => {
   assert.equal(result[0].title, 'Example Movie');
   assert.equal(result[0].ingestionAvailable, false);
   assert.match(result[0].description, /classic movie/);
+});
+
+test('PublicDomainMovie descriptions discard embedded player scripts', () => {
+  assert.equal(
+    cleanDescription(`
+      <p>&nbsp;</p>
+      <script>Drupal.settings.mediafront = {"file":"movie.mp4"}; jQuery.extend({});</script>
+    `),
+    'Review the source page for the title description and media details.'
+  );
 });
 
 test('YouTube is disabled clearly without an API key', async () => {
