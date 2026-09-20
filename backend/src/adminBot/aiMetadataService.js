@@ -15,6 +15,42 @@ const ALLOWED_CATEGORIES = [
   'Anime',
 ];
 
+function fallbackMetadata({ title, year, sourceMetadata = {} }) {
+  const evidence = [
+    sourceMetadata.description,
+    sourceMetadata.creator ? `Creator: ${sourceMetadata.creator}.` : '',
+  ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  const searchable = [
+    title,
+    evidence,
+    ...(Array.isArray(sourceMetadata.subjects) ? sourceMetadata.subjects : []),
+  ].join(' ').toLowerCase();
+  const categoryRules = [
+    ['Documentary', /\bdocumentary|nonfiction|history|educational\b/],
+    ['Comedy', /\bcomedy|comic|cartoon|animation\b/],
+    ['Horror', /\bhorror|monster|haunted|terror\b/],
+    ['Sci-Fi', /\bsci[\s-]?fi|science fiction|space|alien\b/],
+    ['Sports', /\bsport|baseball|football|basketball|boxing\b/],
+    ['Food', /\bfood|cooking|recipe|culinary\b/],
+  ];
+  const category = categoryRules.find(([, pattern]) => pattern.test(searchable))?.[0] || 'Drama';
+  const sourceTags = Array.isArray(sourceMetadata.subjects)
+    ? sourceMetadata.subjects.filter((value) => typeof value === 'string' && value.trim())
+    : [];
+  const tags = [...new Set([
+    ...sourceTags,
+    'Public Domain',
+    'Classic',
+    year ? String(year) : '',
+    category,
+  ].filter(Boolean))].slice(0, 8);
+  return {
+    description: evidence || `${title}${year ? ` (${year})` : ''} is presented from verified source metadata for Administrator review.`,
+    tags,
+    categories: [category],
+  };
+}
+
 function parseJsonResponse(content) {
   const cleaned = String(content || '')
     .trim()
@@ -40,7 +76,7 @@ class AiMetadataService {
 
   async enrich({ title, year, runtime, sourceMetadata }) {
     if (!this.configured) {
-      throw new Error('AI metadata is not configured. Add AI_BASE_URL, AI_API_KEY, and AI_MODEL.');
+      return fallbackMetadata({ title, year, runtime, sourceMetadata });
     }
     const prompt = [
       'Prepare plain-language catalog metadata for a movie administrator.',
@@ -90,4 +126,4 @@ class AiMetadataService {
   }
 }
 
-module.exports = { ALLOWED_CATEGORIES, AiMetadataService, parseJsonResponse };
+module.exports = { ALLOWED_CATEGORIES, AiMetadataService, fallbackMetadata, parseJsonResponse };

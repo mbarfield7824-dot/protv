@@ -273,6 +273,84 @@
   color: #a0a6c0;
 }
 
+.pd-upload-progress-list {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+}
+
+.pd-upload-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 10px;
+  background: rgba(10, 15, 30, 0.6);
+}
+
+.pd-upload-progress > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.pd-upload-progress span,
+.pd-upload-progress small {
+  color: #a0a6c0;
+}
+
+.pd-upload-progress small,
+.pd-upload-progress-track {
+  grid-column: 1 / -1;
+}
+
+.pd-upload-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.pd-upload-progress-track > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4169e1, #60a5fa);
+  transition: width 300ms ease;
+}
+
+.pd-upload-progress-completed .pd-upload-progress-track > div {
+  background: #4ade80;
+}
+
+.pd-upload-progress-failed .pd-upload-progress-track > div {
+  background: #f87171;
+}
+
+.pd-card-progress {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+}
+
+.pd-card-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #c7d2fe;
+  font-size: 0.82rem;
+}
+
+.admin-reference-notice {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 10px;
+  color: #fde68a;
+  background: rgba(202, 138, 4, 0.12);
+  line-height: 1.5;
+}
+
 .admin-bot-status-label {
   padding: 5px 9px;
   border-radius: 999px;

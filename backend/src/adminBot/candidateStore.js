@@ -6,6 +6,60 @@ function emptyState() {
   return { candidates: {}, lastDiscoveryAt: null };
 }
 
+function normalizedCandidateTitle(candidate) {
+  return String(candidate.title || '')
+    .toLowerCase()
+    .replace(/\b(18|19|20)\d{2}\b/g, ' ')
+    .replace(/\b(public domain|full movie|complete film|official|hd|4k)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function candidatePriority(candidate) {
+  const decisionPriority = {
+    processing: 50,
+    approved: 40,
+    pending: 30,
+    failed: 20,
+    rejected: 10,
+  };
+  const sourcePriority = {
+    'internet-archive': 20,
+    wikimedia: 15,
+    'public-domain-movie': 5,
+    youtube: 0,
+  };
+  return (candidate.ingestionAvailable ? 100 : 0)
+    + (decisionPriority[candidate.decision] || 0)
+    + (sourcePriority[candidate.source] || 0)
+    + (candidate.description ? 2 : 0)
+    + (candidate.thumbnailUrl ? 1 : 0);
+}
+
+function deduplicateCandidates(candidates) {
+  const groups = new Map();
+  for (const candidate of candidates) {
+    const key = `${candidate.contentKind || 'movie'}:${normalizedCandidateTitle(candidate) || candidate.id}`;
+    const current = groups.get(key);
+    if (!current || candidatePriority(candidate) > candidatePriority(current.primary)) {
+      groups.set(key, {
+        primary: candidate,
+        alternatives: current
+          ? [current.primary, ...current.alternatives]
+          : [],
+      });
+    } else {
+      current.alternatives.push(candidate);
+    }
+  }
+  return [...groups.values()].map(({ primary, alternatives }) => ({
+    ...primary,
+    alternateSources: [...new Set(alternatives
+      .map((candidate) => candidate.sourceLabel || candidate.source)
+      .filter((source) => source && source !== (primary.sourceLabel || primary.source)))],
+  }));
+}
+
 class CandidateStore {
   constructor(filePath) {
     this.filePath = filePath;
@@ -80,7 +134,7 @@ class CandidateStore {
 
   async list({ decision = 'pending', limit = 100 } = {}) {
     const state = await this.load();
-    return Object.values(state.candidates)
+    return deduplicateCandidates(Object.values(state.candidates))
       .filter((candidate) => !decision || candidate.decision === decision)
       .sort((left, right) => right.lastSeenAt.localeCompare(left.lastSeenAt))
       .slice(0, limit);
@@ -88,7 +142,7 @@ class CandidateStore {
 
   async status() {
     const state = await this.load();
-    const candidates = Object.values(state.candidates);
+    const candidates = deduplicateCandidates(Object.values(state.candidates));
     return {
       lastDiscoveryAt: state.lastDiscoveryAt,
       pending: candidates.filter((item) => item.decision === 'pending').length,
@@ -171,8 +225,9 @@ class FirestoreCandidateStore {
 
   async list({ decision = 'pending', limit = 100 } = {}) {
     const snapshot = await this.collection.get();
-    return snapshot.docs
+    return deduplicateCandidates(snapshot.docs
       .map((document) => document.data())
+    )
       .filter((candidate) => !decision || candidate.decision === decision)
       .sort((left, right) => String(right.lastSeenAt || '').localeCompare(String(left.lastSeenAt || '')))
       .slice(0, limit);
@@ -204,4 +259,6 @@ module.exports = {
   FirestoreCandidateStore,
   candidateDocumentId,
   createCandidateStore,
+  deduplicateCandidates,
+  normalizedCandidateTitle,
 };

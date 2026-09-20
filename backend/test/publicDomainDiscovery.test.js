@@ -3,7 +3,11 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { CandidateStore, FirestoreCandidateStore } = require('../src/adminBot/candidateStore');
+const {
+  CandidateStore,
+  FirestoreCandidateStore,
+  deduplicateCandidates,
+} = require('../src/adminBot/candidateStore');
 const { PublicDomainDiscoveryRunner } = require('../src/adminBot/discoveryRunner');
 const { DailyDiscoveryScheduler } = require('../src/adminBot/discoveryScheduler');
 const { parseRss } = require('../src/adminBot/publicDomainMovieDiscoveryService');
@@ -105,6 +109,29 @@ test('Firestore candidate decisions persist across discovery runs', async () => 
   assert.equal('optionalValue' in saved, false);
   assert.equal(status.rejected, 1);
   assert.ok(status.lastDiscoveryAt);
+});
+
+test('candidate lists group duplicate titles and prefer ingestible sources', () => {
+  const items = deduplicateCandidates([
+    candidate({
+      id: 'youtube:one',
+      source: 'youtube',
+      sourceLabel: 'YouTube Creative Commons',
+      title: 'Example Film (1940) - Full Movie HD',
+      ingestionAvailable: false,
+    }),
+    candidate({
+      id: 'internet-archive:item-1',
+      source: 'internet-archive',
+      sourceLabel: 'Internet Archive',
+      title: 'Example Film 1940',
+      ingestionAvailable: true,
+    }),
+  ]);
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].source, 'internet-archive');
+  assert.deepEqual(items[0].alternateSources, ['YouTube Creative Commons']);
 });
 
 test('discovery continues when one source fails', async () => {

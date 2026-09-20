@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 const test = require('node:test');
 const { AdminBotRunner } = require('../src/adminBot/adminBotRunner');
+const { fallbackMetadata } = require('../src/adminBot/aiMetadataService');
 const { discoverFiles, listVideoFiles } = require('../src/adminBot/fileDiscovery');
 const { metadataFromFileName } = require('../src/adminBot/metadataExtractor');
 const { PosterService, isPublicDomainLicense, wrapTitleLines } = require('../src/adminBot/posterService');
@@ -24,6 +25,24 @@ test('metadataFromFileName removes separators and extracts the year', () => {
     title: 'A Trip To The Moon',
     year: null,
   });
+});
+
+test('source metadata provides a safe fallback when AI metadata is unavailable', () => {
+  assert.deepEqual(
+    fallbackMetadata({
+      title: 'History of Flight',
+      year: 1942,
+      sourceMetadata: {
+        description: 'An educational documentary about aviation.',
+        subjects: ['Aviation', 'History'],
+      },
+    }),
+    {
+      description: 'An educational documentary about aviation.',
+      tags: ['Aviation', 'History', 'Public Domain', 'Classic', '1942', 'Documentary'],
+      categories: ['Documentary'],
+    }
+  );
 });
 
 test('listVideoFiles finds supported videos recursively and ignores other files', async (t) => {

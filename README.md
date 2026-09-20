@@ -254,6 +254,12 @@ state in Firestore because the deployed function filesystem is read-only.
 `PD_CANDIDATE_STORE_FILE` and `PD_WEB_STATE_FILE` remain available for local development and
 persistent server environments.
 
+The Administrator queue groups repeated title matches across providers and shows alternate source
+labels on the retained result. Confirmed ingestions expose per-title workflow progress through
+rights verification, metadata, poster preparation, Mux handoff, and publishing. Reference-only
+results can be transferred into **Add Content (With Rights)** with their source details prefilled;
+an authorized media URL and complete rights record are still required.
+
 ## Distributor Ingestion Adapter
 
 The owner-only Admin page also includes a **Distributor Feed** tab. The adapter retrieves a
