@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import MuxPlayer from '@mux/mux-player-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ContentRow from '../components/ContentRow';
+import VastMuxPlayer from '../components/VastMuxPlayer';
 import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
@@ -156,14 +156,7 @@ export default function Player() {
         <div className="player-main">
           <div className="video-player">
             {hasRealPlayback ? (
-              <MuxPlayer
-                ref={playerRef}
-                streamType="on-demand"
-                playbackId={video.muxPlaybackId}
-                metadata={{ video_title: video.title }}
-                accentColor="#4169E1"
-                style={{ width: '100%', height: '100%' }}
-              />
+              <VastMuxPlayer video={video} playerRef={playerRef} />
             ) : (
               <div
                 className="placeholder-player"

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protv.example/schemas/distributor-feed-1.0.json",
+  "title": "PROtv Distributor Feed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "distributor", "items"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "distributor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "externalId",
+          "title",
+          "description",
+          "runtimeSeconds",
+          "categories",
+          "tags",
+          "mediaUrl",
+          "rights"
+        ],
+        "properties": {
+          "externalId": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "releaseYear": {
+            "type": ["integer", "null"],
+            "minimum": 1888,
+            "maximum": 2100
+          },
+          "description": { "type": "string", "minLength": 1 },
+          "runtimeSeconds": { "type": "number", "exclusiveMinimum": 0 },
+          "categories": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "Comedy",
+                "Action",
+                "Documentary",
+                "Horror",
+                "Drama",
+                "Sci-Fi",
+                "Espanol",
+                "International",
+                "AI Cinema",
+                "Food",
+                "Sports",
+                "Podcast",
+                "Black Cinema",
+                "Anime"
+              ]
+            }
+          },
+          "tags": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "mediaUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "poster": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["url", "rightsConfirmed"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://"
+              },
+              "rightsConfirmed": { "type": "boolean" }
+            }
+          },
+          "rights": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "holder",
+              "licenseType",
+              "startAt",
+              "endAt",
+              "territories",
+              "exclusive",
+              "confirmedForStreaming"
+            ],
+            "properties": {
+              "holder": { "type": "string", "minLength": 1 },
+              "licenseType": { "type": "string", "minLength": 1 },
+              "startAt": { "type": "string", "format": "date-time" },
+              "endAt": { "type": "string", "format": "date-time" },
+              "territories": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "exclusive": { "type": "boolean" },
+              "confirmedForStreaming": { "type": "boolean" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

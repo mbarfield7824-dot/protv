@@ -8,3 +8,8 @@ build/
 .vscode/
 .idea/
 serviceAccountKey.json
+.data/pd-candidates.json
+.data/pd-ingestion-state.json
+.data/pd-web-ingestion-state.json
+.data/admin-audit.json
+.data/posters/
