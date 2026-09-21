@@ -6,6 +6,7 @@ import MoviePreview from '../components/MoviePreview';
 import { api } from '../api';
 import { COLLECTION_CONFIG } from '../data/categories';
 import { FALLBACK_POSTER } from '../data/mockData';
+import { useHorizontalScrollState } from '../hooks/useHorizontalScrollState';
 import '../styles/CollectionPage.css';
 
 function normalizeVideo(raw) {
@@ -44,6 +45,13 @@ export default function CollectionPage({ category }) {
   const [activeSubcategory, setActiveSubcategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [previewVideo, setPreviewVideo] = useState(null);
+  const {
+    scrollRef: filterScrollRef,
+    canScrollLeft,
+    canScrollRight,
+    hasOverflow,
+    progress,
+  } = useHorizontalScrollState();
 
   useEffect(() => {
     let active = true;
@@ -81,7 +89,14 @@ export default function CollectionPage({ category }) {
           <span>{config.description}</span>
         </section>
 
-        <nav className="collection-filters" aria-label={`${category} subcategories`}>
+        {hasOverflow && (
+          <div className="collection-filter-hint" aria-hidden="true">
+            <strong>Explore {category}</strong>
+            <span>{canScrollLeft ? '← ' : ''}Swipe for more{canScrollRight ? ' →' : ''}</span>
+          </div>
+        )}
+        <div className={`collection-filter-shell ${canScrollLeft ? 'has-more-left' : ''} ${canScrollRight ? 'has-more-right' : ''}`}>
+        <nav ref={filterScrollRef} className="collection-filters" aria-label={`${category} subcategories`}>
           {['All', ...config.subcategories].map((subcategory) => (
             <button
               type="button"
@@ -99,6 +114,12 @@ export default function CollectionPage({ category }) {
             </button>
           ))}
         </nav>
+        </div>
+        {hasOverflow && (
+          <div className="collection-filter-progress" aria-hidden="true">
+            <span style={{ left: `${progress * 0.72}%` }} />
+          </div>
+        )}
 
         {loading ? (
           <p className="collection-status">Loading {category.toLowerCase()}...</p>

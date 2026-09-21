@@ -1,28 +1,25 @@
-import { useRef, useState } from 'react';
 import MovieCard from './MovieCard';
+import { useHorizontalScrollState } from '../hooks/useHorizontalScrollState';
 import '../styles/ContentRow.css';
 
 export default function ContentRow({ id, title, subtitle, content, viewAllLink, onInfo, showListRemoval = false }) {
-  const scrollRef = useRef(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
+  const {
+    scrollRef,
+    canScrollLeft,
+    canScrollRight,
+    hasOverflow,
+    progress,
+    update,
+  } = useHorizontalScrollState();
 
   const scroll = (direction) => {
     if (scrollRef.current) {
-      const scrollAmount = 400;
+      const scrollAmount = Math.max(260, scrollRef.current.clientWidth * 0.82);
       scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth',
       });
-      setTimeout(checkScroll, 300);
+      setTimeout(update, 350);
     }
   };
 
@@ -38,22 +35,36 @@ export default function ContentRow({ id, title, subtitle, content, viewAllLink, 
             View All <span>›</span>
           </a>
         )}
+        {hasOverflow && (
+          <span className="mobile-swipe-hint" aria-hidden="true">
+            {canScrollLeft ? '← ' : ''}Swipe to explore{canScrollRight ? ' →' : ''}
+          </span>
+        )}
       </div>
 
-      <div className="row-container">
+      <div className={`row-container ${canScrollLeft ? 'has-more-left' : ''} ${canScrollRight ? 'has-more-right' : ''}`}>
         {canScrollLeft && (
           <button className="scroll-btn scroll-left" onClick={() => scroll('left')}>
             ‹
           </button>
         )}
 
-        <div className="content-carousel" ref={scrollRef} onScroll={checkScroll}>
+        <div
+          className="content-carousel"
+          ref={scrollRef}
+          aria-label={`${title} titles. Swipe horizontally for more.`}
+        >
           {content.map((item) => (
             <div key={item.id} className="carousel-item">
               <MovieCard video={item} onInfo={onInfo} showListRemoval={showListRemoval} />
             </div>
           ))}
         </div>
+        {hasOverflow && (
+          <div className="mobile-scroll-progress" aria-hidden="true">
+            <span style={{ left: `${progress * 0.72}%` }} />
+          </div>
+        )}
 
         {canScrollRight && (
           <button className="scroll-btn scroll-right" onClick={() => scroll('right')}>
