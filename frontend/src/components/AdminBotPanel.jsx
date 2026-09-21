@@ -143,6 +143,14 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
   }, [webJob?.status, loadWebStatus, pageVisible]);
 
   useEffect(() => {
+    if (!pageVisible || !['completed', 'completed-with-errors'].includes(webJob?.status)) {
+      return undefined;
+    }
+    const timer = setTimeout(() => void loadDiscovery(), 0);
+    return () => clearTimeout(timer);
+  }, [webJob?.status, loadDiscovery, pageVisible]);
+
+  useEffect(() => {
     if (!pageVisible || startingIds.length === 0) return undefined;
     const timer = setInterval(() => void loadDiscovery(), 10000);
     return () => clearInterval(timer);
