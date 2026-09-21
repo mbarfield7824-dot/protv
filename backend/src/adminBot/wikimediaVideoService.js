@@ -4,8 +4,23 @@ function metadataValue(metadata, name) {
   return String(metadata?.[name]?.value || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function metadataYear(metadata) {
+  const match = metadataValue(metadata, 'DateTimeOriginal').match(/\b(18|19|20)\d{2}\b/);
+  return match ? Number(match[0]) : null;
+}
+
+function preferredVideoUrl(image) {
+  const derivatives = (image.derivatives || [])
+    .filter((item) => item.transcodekey && String(item.type || '').startsWith('video/'))
+    .sort((left, right) => (
+      (Number(right.width || 0) * Number(right.height || 0))
+      - (Number(left.width || 0) * Number(left.height || 0))
+    ));
+  return derivatives[0]?.src || image.url;
+}
+
 function candidateFromPage(page) {
-  const image = page.imageinfo?.[0];
+  const image = page.videoinfo?.[0] || page.imageinfo?.[0];
   if (!image || !String(image.mime || '').startsWith('video/')) return null;
   const evidence = isPublicDomainLicense(image.extmetadata);
   const fileTitle = String(page.title || '').replace(/^File:/i, '').replace(/\.[^.]+$/, '').replace(/_/g, ' ');
@@ -15,7 +30,7 @@ function candidateFromPage(page) {
     sourceLabel: 'Wikimedia Commons',
     externalId: String(page.pageid),
     title: metadataValue(image.extmetadata, 'ObjectName') || fileTitle,
-    year: Number.parseInt(metadataValue(image.extmetadata, 'DateTimeOriginal').slice(0, 4), 10) || null,
+    year: metadataYear(image.extmetadata),
     description: metadataValue(image.extmetadata, 'ImageDescription') || 'Review the Commons page for details.',
     thumbnailUrl: image.thumburl || '',
     sourceUrl: image.descriptionurl || '',
@@ -40,9 +55,9 @@ class WikimediaVideoService {
   async request(params) {
     const query = new URLSearchParams({
       action: 'query',
-      prop: 'imageinfo',
-      iiprop: 'url|mime|mediatype|extmetadata|size',
-      iiurlwidth: '640',
+      prop: 'videoinfo',
+      viprop: 'url|mime|mediatype|extmetadata|size|derivatives',
+      viurlwidth: '640',
       format: 'json',
       origin: '*',
       ...params,
@@ -76,7 +91,7 @@ class WikimediaVideoService {
     if (!candidate?.licenseEvidence.eligible) {
       throw new Error('Wikimedia no longer reports supported Public Domain evidence for this file.');
     }
-    const image = page.imageinfo[0];
+    const image = page.videoinfo?.[0] || page.imageinfo?.[0];
     return {
       identifier: candidate.externalId,
       source: 'Wikimedia Commons',
@@ -87,7 +102,7 @@ class WikimediaVideoService {
       creator: metadataValue(image.extmetadata, 'Artist'),
       subjects: metadataValue(image.extmetadata, 'Categories').split('|').filter(Boolean).slice(0, 20),
       runtime: null,
-      mediaUrl: image.url,
+      mediaUrl: preferredVideoUrl(image),
       posterUrl: candidate.thumbnailUrl,
       sourceUrl: candidate.sourceUrl,
       licenseEvidence: candidate.licenseEvidence,
@@ -101,4 +116,4 @@ class WikimediaVideoService {
   }
 }
 
-module.exports = { WikimediaVideoService, candidateFromPage };
+module.exports = { WikimediaVideoService, candidateFromPage, metadataYear, preferredVideoUrl };

@@ -11,7 +11,11 @@ const {
 const { PublicDomainDiscoveryRunner } = require('../src/adminBot/discoveryRunner');
 const { DailyDiscoveryScheduler } = require('../src/adminBot/discoveryScheduler');
 const { cleanDescription, parseRss } = require('../src/adminBot/publicDomainMovieDiscoveryService');
-const { candidateFromPage } = require('../src/adminBot/wikimediaVideoService');
+const {
+  candidateFromPage,
+  metadataYear,
+  preferredVideoUrl,
+} = require('../src/adminBot/wikimediaVideoService');
 const { YouTubeDiscoveryService } = require('../src/adminBot/youtubeDiscoveryService');
 
 function candidate(overrides = {}) {
@@ -214,6 +218,40 @@ test('Wikimedia allows Public Domain metadata but not a general free license', (
       extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' } },
     }],
   }).ingestionAvailable, false);
+});
+
+test('Wikimedia selects its highest-resolution transcoded derivative for Mux', () => {
+  assert.equal(preferredVideoUrl({
+    url: 'https://upload.wikimedia.org/original.webm',
+    derivatives: [
+      {
+        src: 'https://upload.wikimedia.org/original-with-query.webm',
+        type: 'video/webm; codecs="av1, opus"',
+        width: 1456,
+        height: 1072,
+      },
+      {
+        src: 'https://upload.wikimedia.org/240p.webm',
+        type: 'video/webm; codecs="vp9, opus"',
+        transcodekey: '240p.vp9.webm',
+        width: 326,
+        height: 240,
+      },
+      {
+        src: 'https://upload.wikimedia.org/480p.webm',
+        type: 'video/webm; codecs="vp9, opus"',
+        transcodekey: '480p.vp9.webm',
+        width: 652,
+        height: 480,
+      },
+    ],
+  }), 'https://upload.wikimedia.org/480p.webm');
+});
+
+test('Wikimedia extracts a four-digit year from human-readable dates', () => {
+  assert.equal(metadataYear({ DateTimeOriginal: { value: '29 November 1950' } }), 1950);
+  assert.equal(metadataYear({ DateTimeOriginal: { value: '2025-04-03' } }), 2025);
+  assert.equal(metadataYear({ DateTimeOriginal: { value: 'Unknown' } }), null);
 });
 
 test('daily scheduler runs only when discovery is stale', async () => {

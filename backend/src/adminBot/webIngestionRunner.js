@@ -47,6 +47,7 @@ class WebIngestionRunner {
         processingBy: actorId,
         progressPercent: 5,
         stage: 'Verifying source rights',
+        lastError: '',
       });
       const previous = await this.stateStore.get(key);
       if (previous?.status === 'published') {
