@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 
 const GENRES = [
   ...UPLOAD_CATEGORY_OPTIONS,
@@ -13,6 +13,7 @@ const SUBGENRES = {
   Drama: ['Historical', 'Biographical', 'Social', 'Personal'],
   Horror: ['Psychological', 'Supernatural', 'Slasher', 'Gothic'],
   'Sci-Fi': ['Dystopian', 'Space', 'Time Travel', 'Cyberpunk'],
+  ...CATEGORY_SUBGENRES,
 };
 
 const COPYRIGHT_STATUSES = [
@@ -84,6 +85,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
+      ...(name === 'genre' ? { subgenre: '' } : {}),
     }));
   };
 

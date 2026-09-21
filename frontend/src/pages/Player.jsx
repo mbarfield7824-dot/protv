@@ -137,7 +137,7 @@ export default function Player() {
     video.muxPlaybackId && !video.muxPlaybackId.startsWith('demo-playback');
   const category = video.category || video.genre;
   const duration = video.runtime || (video.duration ? Math.round(video.duration / 60) : 0);
-  const genres = video.genres?.length ? video.genres : [category].filter(Boolean);
+  const genres = [...new Set([...(video.genres || []), category, video.subgenre].filter(Boolean))];
   const maturityRating = video.maturityRating || video.ageRating;
 
   const related = ALL_MOCK_VIDEOS.filter(

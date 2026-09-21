@@ -14,6 +14,7 @@ import WatchHistory from './pages/WatchHistory';
 import Shows from './pages/Shows';
 import ShowDetail from './pages/ShowDetail';
 import Creators from './pages/Creators';
+import CollectionPage from './pages/CollectionPage';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import './App.css';
@@ -49,6 +50,8 @@ function App() {
           <Route path="/shows" element={<Shows />} />
           <Route path="/shows/:slug" element={<ShowDetail />} />
           <Route path="/creators" element={<Creators />} />
+          <Route path="/music" element={<CollectionPage category="Music" />} />
+          <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

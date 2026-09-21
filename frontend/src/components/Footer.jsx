@@ -17,6 +17,8 @@ export default function Footer() {
           <div className="footer-column">
             <h4>Browse</h4>
             <Link to="/shows">TV Shows</Link>
+            <Link to="/music">Music</Link>
+            <Link to="/cartoons">Cartoons</Link>
             <Link to="/#categories">Categories</Link>
             <Link to="/#black-cinema">Black Cinema</Link>
             <Link to="/#independent">Independent</Link>
