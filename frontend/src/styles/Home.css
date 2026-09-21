@@ -62,6 +62,17 @@
   padding-bottom: 8px;
 }
 
+.category-filter-heading,
+.category-scroll-progress {
+  display: none;
+}
+
+.category-filter-shell {
+  position: relative;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
 .filter-wrapper::-webkit-scrollbar {
   height: 4px;
 }
@@ -242,6 +253,78 @@
   .filter-btn {
     padding: 8px 16px;
     font-size: 0.85rem;
+  }
+
+  .category-filter-section {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .category-filter-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1600px;
+    margin: 0 auto 9px;
+  }
+
+  .category-filter-heading strong {
+    font-size: .8rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .category-filter-heading span {
+    color: #93c5fd;
+    font-size: .72rem;
+    font-weight: 800;
+    animation: categorySwipeCue 1.8s ease-in-out infinite;
+  }
+
+  .category-filter-shell.has-more-right::after,
+  .category-filter-shell.has-more-left::before {
+    position: absolute;
+    top: 0;
+    bottom: 8px;
+    z-index: 2;
+    width: 30px;
+    content: '';
+    pointer-events: none;
+  }
+
+  .category-filter-shell.has-more-right::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .94));
+  }
+
+  .category-filter-shell.has-more-left::before {
+    left: 0;
+    background: linear-gradient(270deg, transparent, rgba(0, 0, 0, .9));
+  }
+
+  .category-scroll-progress {
+    position: relative;
+    display: block;
+    width: 82px;
+    height: 3px;
+    margin: 2px auto 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, .22);
+  }
+
+  .category-scroll-progress span {
+    position: absolute;
+    width: 28%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4169e1, #93c5fd);
+    transition: left .15s ease-out;
+  }
+
+  @keyframes categorySwipeCue {
+    0%, 100% { transform: translateX(0); opacity: .72; }
+    50% { transform: translateX(3px); opacity: 1; }
   }
 }
 

@@ -59,6 +59,15 @@
   overflow-x: auto;
 }
 
+.collection-filter-hint,
+.collection-filter-progress {
+  display: none;
+}
+
+.collection-filter-shell {
+  position: relative;
+}
+
 .collection-filters button {
   display: inline-flex;
   flex: 0 0 auto;
@@ -129,5 +138,64 @@
   .collection-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 13px;
+  }
+
+  .collection-filter-hint {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    color: #fff;
+    font-size: .76rem;
+  }
+
+  .collection-filter-hint strong {
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .collection-filter-hint span {
+    color: #93c5fd;
+    font-weight: 800;
+  }
+
+  .collection-filter-shell.has-more-right::after,
+  .collection-filter-shell.has-more-left::before {
+    position: absolute;
+    top: 0;
+    bottom: 8px;
+    z-index: 2;
+    width: 28px;
+    content: '';
+    pointer-events: none;
+  }
+
+  .collection-filter-shell.has-more-right::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent, #000);
+  }
+
+  .collection-filter-shell.has-more-left::before {
+    left: 0;
+    background: linear-gradient(270deg, transparent, #000);
+  }
+
+  .collection-filter-progress {
+    position: relative;
+    display: block;
+    width: 80px;
+    height: 3px;
+    margin: -24px auto 28px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, .22);
+  }
+
+  .collection-filter-progress span {
+    position: absolute;
+    width: 28%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4169e1, #93c5fd);
+    transition: left .15s ease-out;
   }
 }

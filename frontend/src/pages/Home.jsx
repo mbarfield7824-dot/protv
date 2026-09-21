@@ -18,6 +18,7 @@ import {
 } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
 import { isTvEpisode } from '../utils/shows';
+import { useHorizontalScrollState } from '../hooks/useHorizontalScrollState';
 import '../styles/Home.css';
 import '../styles/Creators.css';
 
@@ -83,6 +84,13 @@ export default function Home() {
   const { user, favorites, progress } = useAuth();
   const { hash } = useLocation();
   const navigate = useNavigate();
+  const {
+    scrollRef: categoryScrollRef,
+    canScrollLeft: categoryCanScrollLeft,
+    canScrollRight: categoryCanScrollRight,
+    hasOverflow: categoriesOverflow,
+    progress: categoryProgress,
+  } = useHorizontalScrollState();
 
   async function fetchCategories() {
     try {
@@ -268,7 +276,16 @@ export default function Home() {
 
       {/* Category Filter */}
       <div id="categories" className="category-filter-section">
-        <div className="filter-wrapper">
+        <div className="category-filter-heading">
+          <strong>Browse categories</strong>
+          {categoriesOverflow && (
+            <span aria-hidden="true">
+              {categoryCanScrollLeft ? '← ' : ''}Swipe for more{categoryCanScrollRight ? ' →' : ''}
+            </span>
+          )}
+        </div>
+        <div className={`category-filter-shell ${categoryCanScrollLeft ? 'has-more-left' : ''} ${categoryCanScrollRight ? 'has-more-right' : ''}`}>
+        <div className="filter-wrapper" ref={categoryScrollRef} aria-label="Browse content categories">
           <button
             className={`filter-btn ${selectedCategory === 'All' ? 'active' : ''}`}
             onClick={() => selectCategory('All')}
@@ -295,6 +312,12 @@ export default function Home() {
             Independent
           </button>
         </div>
+        </div>
+        {categoriesOverflow && (
+          <div className="category-scroll-progress" aria-hidden="true">
+            <span style={{ left: `${categoryProgress * 0.72}%` }} />
+          </div>
+        )}
       </div>
 
       {selectedCategory !== 'All' && (

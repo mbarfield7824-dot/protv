@@ -12,6 +12,11 @@
   padding: 0 20px;
 }
 
+.mobile-swipe-hint,
+.mobile-scroll-progress {
+  display: none;
+}
+
 .row-titles {
   flex: 1;
 }
@@ -71,6 +76,8 @@
   padding-bottom: 10px;
   scroll-padding-left: 20px;
   scroll-padding-right: 20px;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
 }
 
 .content-carousel::-webkit-scrollbar {
@@ -95,6 +102,7 @@
   flex: 0 0 calc(16.666% - 17px);
   min-width: 200px;
   max-width: 220px;
+  scroll-snap-align: start;
 }
 
 /* Scroll Buttons */
@@ -185,8 +193,8 @@
 
 @media (max-width: 640px) {
   .carousel-item {
-    flex: 0 0 calc(50% - 10px);
-    min-width: 140px;
+    flex: 0 0 44%;
+    min-width: 120px;
   }
 
   .row-title {
@@ -202,6 +210,9 @@
   }
 
   .row-header {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
     padding: 0 12px;
     margin-bottom: 20px;
   }
@@ -218,5 +229,64 @@
     gap: 12px;
     padding-left: 0;
     padding-right: 0;
+    padding-bottom: 16px;
+  }
+
+  .mobile-swipe-hint {
+    display: inline-flex;
+    margin-left: auto;
+    color: #93c5fd;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    animation: swipeCue 1.8s ease-in-out infinite;
+  }
+
+  .mobile-scroll-progress {
+    position: relative;
+    display: block;
+    width: 76px;
+    height: 3px;
+    margin: 2px auto 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, .22);
+  }
+
+  .mobile-scroll-progress span {
+    position: absolute;
+    top: 0;
+    width: 28%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4169e1, #93c5fd);
+    transition: left .15s ease-out;
+  }
+
+  .row-container.has-more-right::after,
+  .row-container.has-more-left::before {
+    position: absolute;
+    top: 0;
+    bottom: 14px;
+    z-index: 4;
+    width: 28px;
+    content: '';
+    pointer-events: none;
+  }
+
+  .row-container.has-more-right::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .82));
+  }
+
+  .row-container.has-more-left::before {
+    left: 0;
+    background: linear-gradient(270deg, transparent, rgba(0, 0, 0, .7));
+  }
+
+  @keyframes swipeCue {
+    0%, 100% { transform: translateX(0); opacity: .72; }
+    50% { transform: translateX(3px); opacity: 1; }
   }
 }
