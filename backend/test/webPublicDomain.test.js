@@ -335,3 +335,42 @@ test('catalog reconciliation retrieves the Mux asset and records ready playback'
     },
   }]);
 });
+
+test('retrying an errored catalog title creates a fresh Mux asset', async (context) => {
+  const mux = require('../src/mux');
+  const firebase = require('../src/firebase');
+  const updates = [];
+  context.mock.method(mux, 'createAssetFromUrl', async (mediaUrl) => {
+    assert.equal(mediaUrl, 'https://commons.example/woman-on-the-run.webm');
+    return { id: 'mux-asset-retry' };
+  });
+  context.mock.method(firebase, 'updateVideo', async (id, update) => updates.push({ id, update }));
+  context.mock.method(firebase, 'getVideoById', async () => ({
+    id: 'catalog-woman',
+    status: 'processing',
+    muxAssetId: 'mux-asset-retry',
+  }));
+  const modulePath = require.resolve('../src/adminBot/webCatalogService');
+  delete require.cache[modulePath];
+  const { WebCatalogService } = require(modulePath);
+
+  const result = await new WebCatalogService({
+    transcodeTimeoutMs: 1000,
+    deferUntilWebhook: true,
+  }).ensureTranscoded({
+    id: 'catalog-woman',
+    status: 'errored',
+    muxAssetId: 'mux-asset-failed',
+    muxPlaybackId: null,
+  }, 'https://commons.example/woman-on-the-run.webm');
+
+  assert.equal(result.muxAssetId, 'mux-asset-retry');
+  assert.deepEqual(updates, [{
+    id: 'catalog-woman',
+    update: {
+      muxAssetId: 'mux-asset-retry',
+      muxPlaybackId: null,
+      status: 'processing',
+    },
+  }]);
+});

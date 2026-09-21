@@ -74,11 +74,15 @@ class WebCatalogService {
 
   async ensureTranscoded(video, mediaUrl) {
     if (video.status === 'ready' && video.muxPlaybackId) return video;
-    let assetId = video.muxAssetId || null;
+    let assetId = video.status === 'errored' ? null : video.muxAssetId || null;
     if (!assetId) {
       const asset = await createAssetFromUrl(mediaUrl);
       assetId = asset.id;
-      await updateVideo(video.id, { muxAssetId: assetId, status: 'processing' });
+      await updateVideo(video.id, {
+        muxAssetId: assetId,
+        muxPlaybackId: null,
+        status: 'processing',
+      });
     }
     if (this.deferUntilWebhook) {
       return getVideoById(video.id);
