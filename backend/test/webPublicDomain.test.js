@@ -213,3 +213,88 @@ test('serverless web ingestion persists a Mux handoff without waiting in memory'
     },
   });
 });
+
+test('status reconciliation publishes a Mux asset when its webhook was missed', async () => {
+  const decisions = [];
+  const state = new Map();
+  const audits = [];
+  const runner = new WebIngestionRunner({
+    sources: {},
+    aiMetadataService: {},
+    posterService: {},
+    catalogService: {
+      refreshTranscode: async (catalogId) => ({
+        id: catalogId,
+        status: 'ready',
+        muxPlaybackId: 'playback-web-1',
+      }),
+      publish: async (video, actorId) => {
+        assert.equal(actorId, 'admin-1');
+        return video;
+      },
+    },
+    stateStore: {
+      set: async (key, value) => state.set(key, value),
+    },
+    candidateStore: {
+      setDecision: async (id, decision, details) => {
+        const updated = { id, decision, ...details };
+        decisions.push(updated);
+        return updated;
+      },
+    },
+    audit: async (event) => audits.push(event),
+  });
+  const candidate = {
+    id: 'wikimedia:woman-on-the-run',
+    source: 'wikimedia',
+    externalId: 'woman-on-the-run',
+    title: 'Woman On The Run 1950',
+    decision: 'processing',
+    catalogId: 'catalog-web-1',
+    processingBy: 'admin-1',
+  };
+
+  const result = await runner.reconcile(candidate);
+
+  assert.equal(result.decision, 'approved');
+  assert.equal(result.progressPercent, 100);
+  assert.equal(state.get(webStateKey('wikimedia', 'woman-on-the-run')).status, 'published');
+  assert.equal(decisions.at(-1).stage, 'Published');
+  assert.equal(audits.at(-1).details.recoveredBy, 'status-reconciliation');
+});
+
+test('status reconciliation exposes a Mux transcode failure for retry', async () => {
+  const decisions = [];
+  const runner = new WebIngestionRunner({
+    sources: {},
+    aiMetadataService: {},
+    posterService: {},
+    catalogService: {
+      refreshTranscode: async (catalogId) => ({ id: catalogId, status: 'errored' }),
+    },
+    stateStore: {},
+    candidateStore: {
+      setDecision: async (id, decision, details) => {
+        const updated = { id, decision, ...details };
+        decisions.push(updated);
+        return updated;
+      },
+    },
+    audit: async () => {},
+  });
+
+  const result = await runner.reconcile({
+    id: 'wikimedia:failed',
+    source: 'wikimedia',
+    externalId: 'failed',
+    title: 'Failed Film',
+    decision: 'processing',
+    catalogId: 'catalog-failed',
+  });
+
+  assert.equal(result.decision, 'failed');
+  assert.equal(result.progressPercent, 100);
+  assert.match(result.lastError, /retry/i);
+  assert.equal(decisions.length, 1);
+});
