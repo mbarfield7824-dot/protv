@@ -241,6 +241,48 @@ class WebIngestionRunner {
     onProgress(report);
     return report;
   }
+
+  async reconcile(candidate) {
+    if (candidate.decision !== 'processing' || !candidate.catalogId) return candidate;
+    const video = await this.catalogService.refreshTranscode(candidate.catalogId);
+    if (video.status === 'processing') return candidate;
+    if (video.status === 'errored') {
+      return this.candidateStore.setDecision(candidate.id, 'failed', {
+        catalogId: candidate.catalogId,
+        lastError: 'Mux could not transcode the selected title. Confirm the source file and retry.',
+        progressPercent: 100,
+        stage: 'Needs attention',
+      });
+    }
+    if (video.status !== 'ready' || !video.muxPlaybackId) return candidate;
+
+    const actorId = candidate.processingBy || 'system:mux-reconciliation';
+    const published = await this.catalogService.publish(video, actorId);
+    await this.stateStore.set(webStateKey(candidate.source, candidate.externalId), {
+      status: 'published',
+      catalogId: published.id,
+      stage: 'Complete',
+      publishedAt: new Date().toISOString(),
+    });
+    const approved = await this.candidateStore.setDecision(candidate.id, 'approved', {
+      catalogId: published.id,
+      approvedBy: actorId,
+      progressPercent: 100,
+      stage: 'Published',
+    });
+    await this.audit({
+      type: 'pd.web-ingested',
+      message: `Web Public Domain content ingested: ${candidate.title}`,
+      actorId,
+      details: {
+        catalogId: published.id,
+        source: candidate.source,
+        identifier: candidate.externalId,
+        recoveredBy: 'status-reconciliation',
+      },
+    });
+    return approved;
+  }
 }
 
 module.exports = { WebIngestionRunner, webStateKey };

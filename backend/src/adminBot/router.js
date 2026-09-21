@@ -315,7 +315,18 @@ function createAdminBotRouter() {
 
   router.get('/web-status', verifyAdmin, async (req, res) => {
     try {
-      const snapshot = await candidateStore.snapshot();
+      let snapshot = await candidateStore.snapshot();
+      const reconciliationErrors = new Map();
+      for (const candidate of snapshot.items.filter((item) => (
+        item.decision === 'processing' && item.catalogId
+      ))) {
+        try {
+          await webRunner.reconcile(candidate);
+        } catch (error) {
+          reconciliationErrors.set(candidate.id, error.message);
+        }
+      }
+      if (snapshot.status.processing) snapshot = await candidateStore.snapshot();
       const processing = snapshot.items.filter((candidate) => candidate.decision === 'processing');
       const active = processing.filter((candidate) => candidate.catalogId);
       const stalled = processing.filter((candidate) => !candidate.catalogId);
@@ -333,6 +344,7 @@ function createAdminBotRouter() {
             stage: candidate.stage || 'Mux is preparing playback',
             progressPercent: candidate.progressPercent || 70,
             catalogId: candidate.catalogId,
+            error: reconciliationErrors.get(candidate.id) || '',
           })),
         });
       }
