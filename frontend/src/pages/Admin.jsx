@@ -8,7 +8,7 @@ import AdminBotPanel from '../components/AdminBotPanel';
 import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
 import AdminAssistantPanel from '../admin/AdminAssistantPanel';
 import { api } from '../api';
-import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
@@ -26,6 +26,7 @@ export default function Admin() {
     title: '',
     description: '',
     category: UPLOAD_CATEGORY_OPTIONS[0],
+    subgenre: '',
     thumbnailUrl: '',
     sourceUrl: '',
     year: '',
@@ -116,7 +117,11 @@ export default function Admin() {
     );
   }
 
-  const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const updateField = (field) => (e) => setForm((current) => ({
+    ...current,
+    [field]: e.target.value,
+    ...(field === 'category' ? { subgenre: '' } : {}),
+  }));
 
   const selectBulkFiles = (files) => {
     const selectedFiles = Array.from(files || []);
@@ -277,6 +282,7 @@ export default function Admin() {
             title: upload.title,
             description: form.description,
             category: form.category,
+            subgenre: form.subgenre,
             thumbnailUrl: form.thumbnailUrl,
             year: form.year,
             maturityRating: form.maturityRating,
@@ -319,7 +325,7 @@ export default function Admin() {
   const reset = () => {
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
-    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], thumbnailUrl: '', sourceUrl: '', year: '', maturityRating: '', cast: '', creator: '', language: '', subtitles: '', trailerUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
+    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], subgenre: '', thumbnailUrl: '', sourceUrl: '', year: '', maturityRating: '', cast: '', creator: '', language: '', subtitles: '', trailerUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
     setFile(null);
     setBulkFiles([]);
     setBulkMetadata([]);
@@ -513,6 +519,17 @@ export default function Admin() {
                 ))}
               </select>
             </label>
+            {CATEGORY_SUBGENRES[form.category]?.length > 0 && (
+              <label>
+                Subcategory
+                <select value={form.subgenre} onChange={updateField('subgenre')} required>
+                  <option value="">Select a subcategory</option>
+                  {CATEGORY_SUBGENRES[form.category].map((subcategory) => (
+                    <option key={subcategory}>{subcategory}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <label>
               Poster / Thumbnail URL <span className="optional">(optional)</span>
@@ -678,6 +695,17 @@ export default function Admin() {
                ))}
              </select>
            </label>
+           {CATEGORY_SUBGENRES[form.category]?.length > 0 && (
+             <label>
+               Subcategory
+               <select value={form.subgenre} onChange={updateField('subgenre')} required>
+                 <option value="">Select a subcategory</option>
+                 {CATEGORY_SUBGENRES[form.category].map((subcategory) => (
+                   <option key={subcategory}>{subcategory}</option>
+                 ))}
+               </select>
+             </label>
+           )}
 
            <label>
              Poster / Thumbnail URL <span className="optional">(optional)</span>

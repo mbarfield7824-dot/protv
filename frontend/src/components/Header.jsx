@@ -13,6 +13,8 @@ export default function Header() {
   const navLinks = [
     { to: '/', label: 'Home' },
     { to: '/shows', label: 'TV Shows' },
+    { to: '/music', label: 'Music' },
+    { to: '/cartoons', label: 'Cartoons' },
     { to: '/creators', label: 'Creators' },
     { to: '/#trending', label: 'Trending' },
     { to: '/#discover', label: 'Discover' },

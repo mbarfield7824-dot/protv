@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { episodeDetailsFor, seriesTitleFor } from '../utils/shows';
 
 export default function AdminCatalogEditor() {
@@ -68,6 +68,7 @@ export default function AdminCatalogEditor() {
         title: video.title.trim(),
         description: video.description || '',
         category: video.category || 'Comedy',
+        subgenre: video.subgenre || '',
         thumbnailUrl: video.thumbnailUrl || '',
         year: video.year || '',
         maturityRating: video.maturityRating || video.ageRating || '',
@@ -166,10 +167,27 @@ export default function AdminCatalogEditor() {
           </label>
           <label>
             Category
-            <select value={video.category || 'Comedy'} onChange={(event) => updateDraft(video.id, 'category', event.target.value)}>
+            <select
+              value={video.category || 'Comedy'}
+              onChange={(event) => {
+                updateDraft(video.id, 'category', event.target.value);
+                updateDraft(video.id, 'subgenre', '');
+              }}
+            >
               {UPLOAD_CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
             </select>
           </label>
+          {CATEGORY_SUBGENRES[video.category]?.length > 0 && (
+            <label>
+              Subcategory
+              <select value={video.subgenre || ''} onChange={(event) => updateDraft(video.id, 'subgenre', event.target.value)}>
+                <option value="">Select a subcategory</option>
+                {CATEGORY_SUBGENRES[video.category].map((subcategory) => (
+                  <option key={subcategory}>{subcategory}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Poster image URL
             <input

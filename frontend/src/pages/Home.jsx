@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Hero from '../components/Hero';
 import ContentRow from '../components/ContentRow';
 import ContinueWatching from '../components/ContinueWatching';
@@ -36,6 +36,8 @@ const DEFAULT_CATEGORIES = [
   { id: 'international', name: 'International' },
   { id: 'black-cinema', name: 'Black Cinema' },
   { id: 'anime', name: 'Anime' },
+  { id: 'music', name: 'Music' },
+  { id: 'cartoons', name: 'Cartoons' },
 ];
 
 const FEATURED_PROTV_TITLE_IDS = [
@@ -49,11 +51,14 @@ const FEATURED_PROTV_TITLE_IDS = [
 // same shape the UI components expect from the curated mock catalog, so
 // real content can appear in the rails without special-casing everywhere.
 function normalizeApiVideo(raw) {
+  const category = raw.category || raw.genre || 'General';
+  const subgenre = raw.subgenre || '';
   return {
     id: raw.id,
     title: raw.title || 'Untitled',
     description: raw.description || '',
-    category: raw.category || raw.genre || 'General',
+    category,
+    subgenre,
     thumbnailUrl: raw.thumbnailUrl || FALLBACK_POSTER,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
@@ -61,7 +66,7 @@ function normalizeApiVideo(raw) {
     year: raw.year || null,
     duration: raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: raw.contentType || 'MOVIE',
-    genres: raw.genres && raw.genres.length > 0 ? raw.genres : [raw.category || raw.genre || 'General'],
+    genres: [...new Set([...(raw.genres || []), category, subgenre].filter(Boolean))],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     views: raw.views || 0,
@@ -77,6 +82,7 @@ export default function Home() {
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
   const { hash } = useLocation();
+  const navigate = useNavigate();
 
   async function fetchCategories() {
     try {
@@ -272,8 +278,12 @@ export default function Home() {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'podcast', 'sci-fi', 'espanol', 'international'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
-              onClick={() => selectCategory(cat.name)}
+              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'podcast', 'sci-fi', 'espanol', 'international', 'music', 'cartoons'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
+              onClick={() => (
+                cat.name === 'Music' || cat.name === 'Cartoons'
+                  ? navigate(`/${cat.name.toLowerCase()}`)
+                  : selectCategory(cat.name)
+              )}
             >
               {cat.name}
             </button>
@@ -463,6 +473,28 @@ export default function Home() {
           title="🌍 INTERNATIONAL CINEMA"
           subtitle="Great stories from around the world."
           content={movieCatalog.filter((video) => video.category === 'International').slice(0, 8)}
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'Music') && (
+        <ContentRow
+          id="music"
+          title="MUSIC"
+          subtitle="Performances, videos, and sounds for every mood."
+          content={movieCatalog.filter((video) => video.category === 'Music').slice(0, 8)}
+          viewAllLink="/music"
+          onInfo={setPreviewVideo}
+        />
+      )}
+
+      {movieCatalog.some((video) => video.category === 'Cartoons') && (
+        <ContentRow
+          id="cartoons"
+          title="CARTOONS"
+          subtitle="Classic animation, family favorites, and animated adventures."
+          content={movieCatalog.filter((video) => video.category === 'Cartoons').slice(0, 8)}
+          viewAllLink="/cartoons"
           onInfo={setPreviewVideo}
         />
       )}

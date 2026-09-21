@@ -12,11 +12,13 @@ import '../styles/SearchOverlay.css';
 
 // Normalizes backend video to match mock data shape
 function normalizeApiVideo(raw) {
+  const category = raw.category || raw.genre || 'General';
   return {
     id: raw.id,
     title: raw.title || 'Untitled',
     description: raw.description || '',
-    category: raw.category || raw.genre || 'General',
+    category,
+    subgenre: raw.subgenre || '',
     thumbnailUrl: raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
@@ -24,7 +26,7 @@ function normalizeApiVideo(raw) {
     year: raw.year || null,
     duration: raw.runtime ? Math.round(raw.runtime) : raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: 'MOVIE',
-    genres: raw.genres?.length ? raw.genres : [raw.category || raw.genre || raw.subgenre || 'General'],
+    genres: [...new Set([...(raw.genres || []), category, raw.subgenre].filter(Boolean))],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     views: raw.views || 0,
@@ -62,6 +64,7 @@ export default function SearchOverlay({ onClose }) {
       (v) =>
         v.title.toLowerCase().includes(q) ||
         v.category?.toLowerCase().includes(q) ||
+        v.subgenre?.toLowerCase().includes(q) ||
         v.genres?.some((g) => g.toLowerCase().includes(q))
     ).slice(0, 12);
   }, [query, apiVideos]);
