@@ -7,6 +7,7 @@ const {
 } = require('../firebase');
 const {
   createAssetFromUrl,
+  getAsset,
   getPlaybackId,
   waitForAssetReady,
 } = require('../mux');

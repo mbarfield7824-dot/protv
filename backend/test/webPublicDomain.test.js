@@ -298,3 +298,40 @@ test('status reconciliation exposes a Mux transcode failure for retry', async ()
   assert.match(result.lastError, /retry/i);
   assert.equal(decisions.length, 1);
 });
+
+test('catalog reconciliation retrieves the Mux asset and records ready playback', async (context) => {
+  const mux = require('../src/mux');
+  const firebase = require('../src/firebase');
+  const updates = [];
+  context.mock.method(firebase, 'getVideoById', async () => ({
+    id: 'catalog-web-1',
+    status: 'processing',
+    muxAssetId: 'mux-asset-1',
+    duration: 0,
+  }));
+  context.mock.method(firebase, 'updateVideo', async (id, update) => updates.push({ id, update }));
+  context.mock.method(mux, 'getAsset', async (id) => ({
+    id,
+    status: 'ready',
+    duration: 3600,
+    playback_ids: [{ policy: 'public', id: 'playback-web-1' }],
+  }));
+  const modulePath = require.resolve('../src/adminBot/webCatalogService');
+  delete require.cache[modulePath];
+  const { WebCatalogService } = require(modulePath);
+
+  const result = await new WebCatalogService({ transcodeTimeoutMs: 1000 })
+    .refreshTranscode('catalog-web-1');
+
+  assert.equal(result.status, 'ready');
+  assert.equal(result.muxPlaybackId, 'playback-web-1');
+  assert.deepEqual(updates, [{
+    id: 'catalog-web-1',
+    update: {
+      muxAssetId: 'mux-asset-1',
+      muxPlaybackId: 'playback-web-1',
+      duration: 3600,
+      status: 'ready',
+    },
+  }]);
+});
