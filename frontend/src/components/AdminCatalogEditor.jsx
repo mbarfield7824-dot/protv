@@ -3,6 +3,24 @@ import { api } from '../api';
 import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { episodeDetailsFor, seriesTitleFor } from '../utils/shows';
 
+function catalogCategory(video) {
+  return video.category || video.genre || video.categories?.[0] || 'General';
+}
+
+function normalizeCatalogVideo(video) {
+  const isEpisode = video.contentType === 'EPISODE' || Boolean(seriesTitleFor(video));
+  const details = episodeDetailsFor(video);
+  return {
+    ...video,
+    category: catalogCategory(video),
+    contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+    seriesTitle: video.seriesTitle || seriesTitleFor(video),
+    seasonNumber: video.seasonNumber || (isEpisode ? details.seasonNumber : ''),
+    episodeNumber: video.episodeNumber || (isEpisode ? details.episodeNumber : ''),
+    episodeTitle: video.episodeTitle || '',
+  };
+}
+
 export default function AdminCatalogEditor() {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,6 +28,7 @@ export default function AdminCatalogEditor() {
   const [savingId, setSavingId] = useState(null);
   const [refreshingRatings, setRefreshingRatings] = useState(false);
   const [ratingStatus, setRatingStatus] = useState('');
+  const [savedId, setSavedId] = useState(null);
 
   const loadVideos = async () => {
     setLoading(true);
@@ -17,7 +36,7 @@ export default function AdminCatalogEditor() {
     try {
       const response = await api.getAdminAllVideos();
       if (!Array.isArray(response)) throw new Error(response.error || 'Unable to load catalog.');
-      setVideos(response);
+      setVideos(response.map(normalizeCatalogVideo));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -30,18 +49,7 @@ export default function AdminCatalogEditor() {
     api.getAdminAllVideos()
       .then((response) => {
         if (!Array.isArray(response)) throw new Error(response.error || 'Unable to load catalog.');
-        if (active) setVideos(response.map((video) => {
-          const isEpisode = video.contentType === 'EPISODE' || Boolean(seriesTitleFor(video));
-          const details = episodeDetailsFor(video);
-          return {
-            ...video,
-            contentType: isEpisode ? 'EPISODE' : 'MOVIE',
-            seriesTitle: video.seriesTitle || seriesTitleFor(video),
-            seasonNumber: video.seasonNumber || (isEpisode ? details.seasonNumber : ''),
-            episodeNumber: video.episodeNumber || (isEpisode ? details.episodeNumber : ''),
-            episodeTitle: video.episodeTitle || '',
-          };
-        }));
+        if (active) setVideos(response.map(normalizeCatalogVideo));
       })
       .catch((requestError) => {
         if (active) setError(requestError.message);
@@ -62,12 +70,13 @@ export default function AdminCatalogEditor() {
 
   const saveVideo = async (video) => {
     setSavingId(video.id);
+    setSavedId(null);
     setError('');
     try {
-      await api.updateVideoMetadata(video.id, {
+      const savedVideo = await api.updateVideoMetadata(video.id, {
         title: video.title.trim(),
         description: video.description || '',
-        category: video.category || 'Comedy',
+        category: catalogCategory(video),
         subgenre: video.subgenre || '',
         thumbnailUrl: video.thumbnailUrl || '',
         year: video.year || '',
@@ -83,6 +92,10 @@ export default function AdminCatalogEditor() {
         episodeNumber: video.episodeNumber || '',
         episodeTitle: video.episodeTitle || '',
       });
+      setVideos((items) => items.map((item) => (
+        item.id === video.id ? normalizeCatalogVideo(savedVideo) : item
+      )));
+      setSavedId(video.id);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -168,13 +181,16 @@ export default function AdminCatalogEditor() {
           <label>
             Category
             <select
-              value={video.category || 'Comedy'}
+              value={catalogCategory(video)}
               onChange={(event) => {
                 updateDraft(video.id, 'category', event.target.value);
                 updateDraft(video.id, 'subgenre', '');
               }}
             >
               {UPLOAD_CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
+              {!UPLOAD_CATEGORY_OPTIONS.includes(catalogCategory(video)) && (
+                <option>{catalogCategory(video)}</option>
+              )}
             </select>
           </label>
           {CATEGORY_SUBGENRES[video.category]?.length > 0 && (
@@ -262,6 +278,7 @@ export default function AdminCatalogEditor() {
             <button className="admin-secondary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
               {savingId === video.id ? 'Saving...' : 'Save'}
             </button>
+            {savedId === video.id && <span role="status">Saved</span>}
             {(video.status !== 'ready' || !video.muxPlaybackId) && (
               <button className="catalog-delete-button" disabled={savingId === video.id} onClick={() => void removeUnpublishedVideo(video)}>
                 Remove unpublished

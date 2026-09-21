@@ -298,10 +298,15 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
 
   try {
     const isEpisode = contentType === 'EPISODE';
+    const normalizedCategory = typeof category === 'string' && category.trim()
+      ? category.trim()
+      : 'General';
     await updateVideo(req.params.id, {
       title: title.trim(),
       description: typeof description === 'string' ? description : '',
-      category: typeof category === 'string' && category ? category : 'General',
+      category: normalizedCategory,
+      genre: normalizedCategory,
+      categories: [normalizedCategory],
       subgenre: typeof subgenre === 'string' ? subgenre.trim() : '',
       thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
       year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,

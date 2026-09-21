@@ -8,7 +8,7 @@ const { getDistributorRuntimeStatus } = require('../distributorIngestion/router'
 const { AiMetadataService } = require('../adminBot/aiMetadataService');
 const { PosterService } = require('../adminBot/posterService');
 const { AdminCatalogService, validateCatalogId, validateCatalogRights } = require('./catalogService');
-const { normalizeMetadataUpdates } = require('./metadataNormalizer');
+const { normalizeCategory, normalizeMetadataUpdates } = require('./metadataNormalizer');
 const {
   AdminAssistantResponseService,
   answerVerifiedQuestion,
@@ -121,6 +121,33 @@ function parseRuntimeAmount(amount, unit) {
   return value;
 }
 
+function categoryAction(message, catalog, contextCatalogId) {
+  const politePrefix = '(?:(?:can|could|would|will)\\s+you\\s+|please\\s+)*';
+  const patterns = [
+    new RegExp(`^${politePrefix}(?:switch|change|move)\\s+(.+?)\\s+(?:to|into)\\s+(?:the\\s+)?(?:category\\s+)?(.+?)[.!?]*$`, 'i'),
+    new RegExp(`^${politePrefix}put\\s+(.+?)\\s+in(?:to)?\\s+(?:the\\s+)?(?:category\\s+)?(.+?)[.!?]*$`, 'i'),
+    new RegExp(`^${politePrefix}set\\s+(.+?)(?:['’]s)\\s+category\\s+to\\s+(.+?)[.!?]*$`, 'i'),
+    new RegExp(`^${politePrefix}set\\s+(?:the\\s+)?category\\s+for\\s+(.+?)\\s+to\\s+(.+?)[.!?]*$`, 'i'),
+  ];
+  const match = patterns.map((pattern) => message.match(pattern)).find(Boolean);
+  if (!match) return null;
+
+  try {
+    const requestedTitle = /^this(?: title)?$/i.test(match[1].trim()) ? undefined : match[1];
+    const video = findCatalogTitle(catalog, requestedTitle, contextCatalogId);
+    const category = normalizeCategory(match[2]);
+    return {
+      type: 'update-metadata',
+      endpoint: 'update-metadata',
+      video,
+      payload: { updates: { category } },
+      summary: `Move the title to the ${category} category.`,
+    };
+  } catch (error) {
+    return { clarification: error.message };
+  }
+}
+
 function parseAction(message, catalog, contextCatalogId) {
   let match = message.match(/^regenerate metadata for (.+?)[.!?]*$/i);
   if (match) {
@@ -195,17 +222,8 @@ function parseAction(message, catalog, contextCatalogId) {
     };
   }
 
-  match = message.match(/^move (?:this title|(.+?)) to category (.+?)[.!?]*$/i);
-  if (match) {
-    const video = findCatalogTitle(catalog, match[1], contextCatalogId);
-    return {
-      type: 'update-metadata',
-      endpoint: 'update-metadata',
-      video,
-      payload: { updates: { category: match[2] } },
-      summary: `Move the title to the ${match[2]} category.`,
-    };
-  }
+  const parsedCategoryAction = categoryAction(message, catalog, contextCatalogId);
+  if (parsedCategoryAction) return parsedCategoryAction;
 
   match = message.match(/^update (?:the )?poster for (.+?) (?:to|with) (https:\/\/\S+?)[.!?]*$/i);
   if (match) {

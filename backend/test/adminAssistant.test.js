@@ -104,7 +104,72 @@ test('assistant parses supported explicit catalog commands', () => {
     parseAction('Move Example Film to category Comedy.', catalog).payload.updates.category,
     'Comedy'
   );
+  assert.equal(
+    parseAction('Can you switch Example Film to cartoons?', catalog).payload.updates.category,
+    'Cartoons'
+  );
+  assert.equal(
+    parseAction("Set Example Film's category to Music.", catalog).payload.updates.category,
+    'Music'
+  );
   assert.equal(parseAction('Generate a new AI poster for Example Film.', catalog).payload.mode, 'ai');
+});
+
+test('natural category requests resolve unique partial titles and require confirmation', async () => {
+  const superman = video({
+    id: 'superman_123',
+    title: "Fleischer Studios' Superman",
+    category: 'Comedy',
+    genre: 'Comedy',
+    categories: ['Comedy'],
+  });
+  const fixture = serviceFixture({
+    getCatalog: async () => [superman],
+    catalogService: {
+      get: async () => superman,
+      update: async (id, values) => {
+        fixture.updates.push({ id, values });
+        Object.assign(superman, values);
+        return superman;
+      },
+    },
+  });
+
+  const proposal = await fixture.service.query({
+    message: 'Can you switch Superman to cartoons?',
+    actorId: 'admin-1',
+  });
+  assert.equal(proposal.action.catalogId, 'superman_123');
+  assert.match(proposal.reply, /Confirm this change/);
+  assert.equal(fixture.updates.length, 0);
+
+  await fixture.service.executeConfirmedAction({
+    confirmationId: proposal.action.confirmationId,
+    catalogId: proposal.action.catalogId,
+    confirmed: true,
+    actorId: 'admin-1',
+    type: 'update-metadata',
+  });
+  assert.deepEqual(fixture.updates[0].values, {
+    category: 'Cartoons',
+    genre: 'Cartoons',
+    categories: ['Cartoons'],
+  });
+});
+
+test('ambiguous natural category requests ask for an exact title', async () => {
+  const fixture = serviceFixture({
+    getCatalog: async () => [
+      video({ id: 'one', title: 'Superman Adventures' }),
+      video({ id: 'two', title: 'Classic Superman' }),
+    ],
+  });
+  const response = await fixture.service.query({
+    message: 'Change Superman to Cartoons.',
+    actorId: 'admin-1',
+  });
+  assert.equal(response.action, undefined);
+  assert.match(response.reply, /More than one title matched/);
 });
 
 test('natural poster requests create a confirmed best-poster action', async () => {

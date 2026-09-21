@@ -13,6 +13,8 @@ const ALLOWED_CATEGORIES = [
   'Podcast',
   'Black Cinema',
   'Anime',
+  'Music',
+  'Cartoons',
 ];
 
 function fallbackMetadata({ title, year, sourceMetadata = {} }) {
@@ -27,7 +29,9 @@ function fallbackMetadata({ title, year, sourceMetadata = {} }) {
   ].join(' ').toLowerCase();
   const categoryRules = [
     ['Documentary', /\bdocumentary|nonfiction|history|educational\b/],
-    ['Comedy', /\bcomedy|comic|cartoon|animation\b/],
+    ['Cartoons', /\bcartoon|animation|animated\b/],
+    ['Music', /\bmusic|concert|performance|hip-hop|r&b|jazz|classical\b/],
+    ['Comedy', /\bcomedy|comic\b/],
     ['Horror', /\bhorror|monster|haunted|terror\b/],
     ['Sci-Fi', /\bsci[\s-]?fi|science fiction|space|alien\b/],
     ['Sports', /\bsport|baseball|football|basketball|boxing\b/],
