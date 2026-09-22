@@ -135,7 +135,16 @@ export default function Home() {
       void fetchCategories();
       void fetchApiVideos();
     }, 0);
-    return () => window.clearTimeout(loadTimer);
+    const refreshCatalog = () => {
+      if (document.visibilityState === 'visible') void fetchApiVideos();
+    };
+    window.addEventListener('focus', refreshCatalog);
+    document.addEventListener('visibilitychange', refreshCatalog);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.removeEventListener('focus', refreshCatalog);
+      document.removeEventListener('visibilitychange', refreshCatalog);
+    };
   }, []);
 
   useEffect(() => {
