@@ -74,6 +74,16 @@ function normalizeApiVideo(raw) {
   };
 }
 
+function catalogTimestamp(video) {
+  const value = video.approvedAt || video.createdAt || video.submittedAt;
+  if (typeof value === 'string') return Date.parse(value) || 0;
+  if (typeof value === 'number') return value;
+  if (value && typeof value._seconds === 'number') {
+    return (value._seconds * 1000) + Math.floor((value._nanoseconds || 0) / 1_000_000);
+  }
+  return 0;
+}
+
 export default function Home() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [apiVideos, setApiVideos] = useState([]);
@@ -122,7 +132,11 @@ export default function Home() {
         const readyVideos = data.filter(
           (video) => video.status === 'ready' && Boolean(video.muxPlaybackId)
         );
-        setApiVideos(readyVideos.map(normalizeApiVideo));
+        setApiVideos(
+          readyVideos
+            .sort((left, right) => catalogTimestamp(right) - catalogTimestamp(left))
+            .map(normalizeApiVideo)
+        );
       }
 
     } catch (error) {
