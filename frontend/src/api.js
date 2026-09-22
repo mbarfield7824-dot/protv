@@ -25,7 +25,7 @@ export const api = {
   // Videos
   async getVideos() {
     try {
-      const res = await fetch(`${API_URL}/videos`);
+      const res = await fetch(`${API_URL}/videos`, { cache: 'no-store' });
       if (!res.ok) return [];
       return res.json();
     } catch {
@@ -63,7 +63,7 @@ export const api = {
 
   async getCategories() {
     try {
-      const res = await fetch(`${API_URL}/videos/categories/list`);
+      const res = await fetch(`${API_URL}/videos/categories/list`, { cache: 'no-store' });
       if (!res.ok) return [];
       return res.json();
     } catch {

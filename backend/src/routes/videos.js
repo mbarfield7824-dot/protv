@@ -99,7 +99,11 @@ router.get('/', async (req, res) => {
 
   try {
     const videos = await getApprovedVideos();
-    res.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    });
     res.json(videos.map(publicVideo));
   } catch (error) {
     res.set('Cache-Control', 'no-store');
@@ -361,7 +365,11 @@ router.delete('/:id', verifyAdmin, async (req, res) => {
 router.get('/categories/list', async (req, res) => {
   try {
     const categories = await getCategories();
-    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
+    res.set({
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: error.message });
