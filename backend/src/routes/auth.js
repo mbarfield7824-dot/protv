@@ -1,6 +1,6 @@
 const express = require('express');
 const { createUser, getUserById } = require('../firebase');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { createCreatorSsoToken } = require('../auth/creatorSso');
 const router = express.Router();
 
@@ -61,6 +61,24 @@ router.post('/creator-sso', verifyToken, (req, res) => {
     res.json({ url: `${portalUrl}/#sso=${encodeURIComponent(token)}` });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/owner-creator-sso', verifyAdmin, (req, res) => {
+  const portalUrl = String(process.env.CREATOR_PORTAL_URL || '').trim().replace(/\/+$/, '');
+  const secret = String(process.env.CREATOR_SSO_SECRET || '').trim();
+  const ownerEmail = String(process.env.CREATOR_PORTAL_OWNER_EMAIL || 'admin@watchprotv.com').trim().toLowerCase();
+  if (!portalUrl || !secret) {
+    return res.status(503).json({ error: 'Creator Portal SSO is not configured.' });
+  }
+  if (!req.user.email || req.user.email.toLowerCase() !== ownerEmail) {
+    return res.status(403).json({ error: 'Owner access is restricted to the configured PROtv owner account.' });
+  }
+  try {
+    const token = createCreatorSsoToken({ user: req.user, secret, access: 'owner' });
+    return res.json({ url: `${portalUrl}/owner#sso=${encodeURIComponent(token)}` });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 });
 

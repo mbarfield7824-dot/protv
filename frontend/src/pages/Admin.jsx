@@ -72,6 +72,16 @@ export default function Admin() {
     }
   };
 
+  const openOwnerCreatorPortal = async () => {
+    setError('');
+    try {
+      const { url } = await api.createOwnerCreatorSso();
+      window.location.assign(url);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
   if (!loading && !user) {
     return (
       <div className="admin-page">
@@ -408,6 +418,10 @@ export default function Admin() {
                 ? 'Ask operational questions or prepare confirmed catalog metadata and poster corrections.'
               : 'Upload a video file directly, or paste a link to a file already hosted online. Mux transcodes it in the background — this page will update automatically when it is ready.'}
         </p>
+
+        <button className="admin-tab owner-portal-link" type="button" onClick={() => void openOwnerCreatorPortal()}>
+          Creator Portal (Owner Access)
+        </button>
 
         <div className="admin-tabs">
           <button
