@@ -93,11 +93,14 @@
   display: grid;
   gap: 8px;
   margin: 14px 0 22px;
-  padding-left: 24px;
+  padding-left: 0;
 }
 
-.policy-list li {
-  padding-left: 4px;
+.policy-list p {
+  margin: 0;
+  padding-left: 18px;
+  border-left: 2px solid rgba(96, 165, 250, 0.35);
+  color: #d6def0;
 }
 
 .info-copy a {

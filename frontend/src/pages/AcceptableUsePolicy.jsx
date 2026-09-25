@@ -53,9 +53,9 @@ const policySections = [
 
 function PolicyList({ items }) {
   return (
-    <ul className="policy-list">
-      {items.map((item, index) => <li key={typeof item === 'string' ? item : index}>{item}</li>)}
-    </ul>
+    <div className="policy-list">
+      {items.map((item, index) => <p key={typeof item === 'string' ? item : index}>{item}</p>)}
+    </div>
   );
 }
 
