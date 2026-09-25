@@ -10,6 +10,7 @@ import Contact from './pages/Contact';
 import Faq from './pages/Faq';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import AcceptableUsePolicy from './pages/AcceptableUsePolicy';
 import WatchHistory from './pages/WatchHistory';
 import Shows from './pages/Shows';
 import ShowDetail from './pages/ShowDetail';
@@ -46,6 +47,7 @@ function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/acceptable-use-policy" element={<AcceptableUsePolicy />} />
           <Route path="/history" element={<WatchHistory />} />
           <Route path="/shows" element={<Shows />} />
           <Route path="/shows/:slug" element={<ShowDetail />} />
