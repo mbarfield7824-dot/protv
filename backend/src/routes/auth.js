@@ -76,7 +76,7 @@ router.post('/owner-creator-sso', verifyAdmin, (req, res) => {
   }
   try {
     const token = createCreatorSsoToken({ user: req.user, secret, access: 'owner' });
-    return res.json({ url: `${portalUrl}/owner#sso=${encodeURIComponent(token)}` });
+    return res.json({ url: `${portalUrl}/#sso=${encodeURIComponent(token)}` });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
