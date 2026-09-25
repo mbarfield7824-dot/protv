@@ -229,6 +229,12 @@ export default function Player() {
                 </a>
               )}
               <button className="action-btn">Share</button>
+              <a
+                className="action-btn report-content-btn"
+                href={`mailto:support@watchprotv.com?subject=${encodeURIComponent(`Report Content: ${video.title}`)}&body=${encodeURIComponent(`I would like to report the following content:\n\nTitle: ${video.title}\nVideo ID: ${video.id}\n\nReason for report:\n`)}`}
+              >
+                Report Content
+              </a>
             </div>
           </div>
         </div>
