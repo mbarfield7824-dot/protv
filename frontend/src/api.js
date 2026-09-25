@@ -22,6 +22,16 @@ export const api = {
     return response;
   },
 
+  async createOwnerCreatorSso() {
+    const res = await fetch(`${API_URL}/auth/owner-creator-sso`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to open the owner Creator Portal.');
+    return response;
+  },
+
   // Videos
   async getVideos() {
     try {
