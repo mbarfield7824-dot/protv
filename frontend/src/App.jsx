@@ -11,6 +11,7 @@ import Faq from './pages/Faq';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import AcceptableUsePolicy from './pages/AcceptableUsePolicy';
+import DmcaPolicy from './pages/DmcaPolicy';
 import WatchHistory from './pages/WatchHistory';
 import Shows from './pages/Shows';
 import ShowDetail from './pages/ShowDetail';
@@ -48,6 +49,7 @@ function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/acceptable-use-policy" element={<AcceptableUsePolicy />} />
+          <Route path="/dmca-policy" element={<DmcaPolicy />} />
           <Route path="/history" element={<WatchHistory />} />
           <Route path="/shows" element={<Shows />} />
           <Route path="/shows/:slug" element={<ShowDetail />} />
