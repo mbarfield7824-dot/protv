@@ -92,6 +92,28 @@ npm run grant-admin -- owner@example.com
 - `GET /videos/categories/list` - Get all categories
 - `POST /videos` - Add new video (requires authentication token)
 
+### Shared viewer catalog (version 1)
+
+These public, read-only routes run alongside `/videos` (prefix paths with `/api`
+on Vercel). They return only approved, ready records with a nonblank Mux
+playback ID. Catalog items are an explicit viewer-safe field projection; no
+internal rights, approval notes, source URLs, or administrative fields are
+included.
+
+- `GET /v1/catalog?view=all|movies|documentaries&q=...` returns `{ "items": [...] }`.
+  `view` defaults to `all`; `q` is optional, limited to 200 characters, and
+  matches every whitespace-delimited term against title, category, subgenre,
+  and genres without case sensitivity. Invalid view/query values return 400.
+  Results are ordered by catalog ID.
+- `GET /v1/catalog/series` returns `{ "items": [...] }` with Series key, title,
+  category, artwork, season count, and episode count.
+- `GET /v1/catalog/series/:key` returns a Series summary plus seasons in
+  ascending numeric order, each containing episodes sorted by episode number
+  then catalog ID. Unknown keys return 404. Only episodes with an explicit
+  nonblank series title and positive integer season/episode numbers are grouped.
+
+This phase does not add title-detail, playback, login, or write endpoints.
+
 ## Next Steps
 1. Set up Firebase project ✓
 2. Test backend with Postman
