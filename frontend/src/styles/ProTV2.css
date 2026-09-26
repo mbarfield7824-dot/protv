@@ -437,41 +437,55 @@
   height: calc(100% + 80px);
   object-fit: cover;
   object-position: 50% 30%;
-  filter: blur(30px) brightness(0.5) saturate(1.15) hue-rotate(-8deg);
+  filter: blur(34px) brightness(0.34) saturate(0.4);
 }
 
+/* Environment light behind the subject: navy base, electric blue, purple and
+   magenta city glow. Sits under the subject so skin tones stay natural. */
 .ptv-hero__art.is-portrait::before {
   position: absolute;
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(30% 40% at 100% 0%, rgba(5, 6, 15, 0.55), transparent 100%),
-    linear-gradient(270deg, rgba(5, 6, 15, 0.6) 0%, rgba(5, 6, 15, 0) 22%);
+    radial-gradient(3% 4.5% at 88% 64%, rgba(255, 120, 80, 0.55), transparent 100%),
+    radial-gradient(2.4% 3.6% at 94% 70%, rgba(255, 70, 120, 0.5), transparent 100%),
+    radial-gradient(2.6% 4% at 81% 72%, rgba(255, 150, 90, 0.4), transparent 100%),
+    radial-gradient(2% 3% at 97% 22%, rgba(255, 60, 110, 0.6), transparent 100%),
+    radial-gradient(2.2% 3.4% at 90% 12%, rgba(120, 170, 255, 0.55), transparent 100%),
+    radial-gradient(26% 44% at 96% 40%, rgba(214, 40, 170, 0.3), transparent 100%),
+    radial-gradient(34% 52% at 84% 10%, rgba(59, 110, 255, 0.5), transparent 100%),
+    radial-gradient(30% 46% at 22% 20%, rgba(70, 60, 230, 0.4), transparent 100%),
+    radial-gradient(40% 50% at 40% 92%, rgba(124, 58, 237, 0.42), transparent 100%),
+    linear-gradient(180deg, rgba(10, 14, 48, 0.55), rgba(18, 10, 52, 0.6));
   content: "";
   pointer-events: none;
 }
 
 .ptv-hero__art.is-portrait .ptv-hero__img {
   position: absolute;
+  z-index: 2;
   top: -11%;
   left: 50%;
   width: auto;
   height: 148%;
   transform: translateX(-50%);
   object-fit: contain;
-  filter: saturate(1.1) contrast(1.06) brightness(1.05);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 20%, #000 80%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 20%, #000 80%, transparent 100%);
+  filter: saturate(1.02) contrast(1.14) brightness(0.8);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
 }
 
-/* Colour-grades the subject into the PROtv purple/blue atmosphere. */
+/* Re-lights the subject's surroundings blue/purple while a clear ellipse over
+   the face keeps natural skin tones. */
 .ptv-hero__art.is-portrait::after {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(38% 55% at 30% 62%, rgba(124, 58, 237, 0.34), transparent 72%),
-    radial-gradient(34% 50% at 80% 28%, rgba(59, 130, 246, 0.26), transparent 72%);
-  mix-blend-mode: soft-light;
+  z-index: 3;
+  background: linear-gradient(90deg, rgba(50, 80, 255, 0.85), rgba(96, 60, 240, 0.85) 50%, rgba(170, 50, 210, 0.85));
+  -webkit-mask-image: radial-gradient(24% 44% at 60% 44%, transparent 0%, transparent 50%, #000 100%);
+  mask-image: radial-gradient(24% 44% at 60% 44%, transparent 0%, transparent 50%, #000 100%);
+  mix-blend-mode: color;
+  opacity: 0.5;
   content: "";
   pointer-events: none;
 }
@@ -493,12 +507,15 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(60% 70% at 72% 22%, rgba(59, 130, 246, 0.2), transparent 70%),
-    radial-gradient(55% 60% at 26% 70%, rgba(124, 58, 237, 0.3), transparent 72%),
-    radial-gradient(30% 40% at 96% 60%, rgba(124, 58, 237, 0.16), transparent 70%),
-    linear-gradient(90deg, #05060f 0%, #05060f 18%, rgba(5, 6, 15, 0.9) 26%, rgba(5, 6, 15, 0.5) 40%, rgba(5, 6, 15, 0.08) 58%, transparent 72%),
-    linear-gradient(0deg, #05060f 0%, rgba(5, 6, 15, 0.82) 14%, rgba(5, 6, 15, 0.2) 36%, transparent 55%),
-    linear-gradient(180deg, rgba(5, 6, 15, 0.55) 0%, transparent 18%);
+    radial-gradient(22% 30% at 100% 34%, rgba(200, 40, 170, 0.14), transparent 100%),
+    radial-gradient(9% 16% at 78% 44%, rgba(236, 72, 153, 0.12), transparent 100%),
+    radial-gradient(18% 30% at 86% 24%, rgba(6, 8, 30, 0.5), transparent 100%),
+    radial-gradient(50% 60% at 74% 16%, rgba(59, 110, 255, 0.14), transparent 70%),
+    radial-gradient(30% 40% at 12% 8%, rgba(40, 70, 200, 0.16), transparent 100%),
+    radial-gradient(55% 60% at 26% 70%, rgba(124, 58, 237, 0.24), transparent 72%),
+    linear-gradient(90deg, rgba(5, 6, 15, 0.98) 0%, rgba(5, 6, 15, 0.9) 16%, rgba(5, 6, 15, 0.78) 26%, rgba(5, 6, 15, 0.4) 40%, rgba(5, 6, 15, 0.06) 56%, transparent 66%),
+    linear-gradient(0deg, #05060f 0%, rgba(5, 6, 15, 0.84) 13%, rgba(5, 6, 15, 0.32) 34%, transparent 54%),
+    linear-gradient(180deg, rgba(5, 6, 15, 0.4) 0%, transparent 16%);
 }
 
 .ptv-hero__content {
@@ -659,6 +676,169 @@
 @keyframes ptv-rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
+}
+
+/* ---------- Hero fidelity (desktop composition from the 2.0 mockup) ------ */
+
+.ptv-signin__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 1025px) {
+  .ptv-header__bar {
+    height: 76px;
+    margin: 14px 16px 0;
+    padding: 0 30px;
+    border: 1px solid rgba(139, 92, 246, 0.16);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(10, 10, 30, 0.72), rgba(8, 8, 24, 0.5));
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    transition: margin 0.3s ease, border-radius 0.3s ease, background-color 0.3s ease;
+  }
+
+  .ptv-header {
+    background: none;
+  }
+
+  .ptv-header.is-solid {
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .ptv-header.is-solid .ptv-header__bar {
+    background: rgba(8, 8, 24, 0.9);
+  }
+
+  .ptv-header .ptv-wordmark {
+    font-size: 45px;
+    letter-spacing: -0.03em;
+  }
+
+  .ptv-header .ptv-wordmark,
+  .ptv-hero__brand {
+    font-style: normal;
+  }
+
+  .ptv-header__nav {
+    gap: clamp(28px, 3.2vw, 50px);
+    margin-left: 18px;
+  }
+
+  .ptv-header__nav a {
+    font-size: 16.5px;
+  }
+
+  .ptv-header__actions {
+    gap: 26px;
+  }
+
+  .ptv-header .ptv-avatar {
+    width: 42px;
+    height: 42px;
+    border-width: 2px;
+  }
+
+  .ptv-header .ptv-icon-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ptv .ptv-hero__content {
+    margin-top: 84px;
+    padding-left: calc(var(--ptv-pad) + 15px);
+    width: min(720px, 60vw);
+  }
+
+  .ptv .ptv-hero__kicker {
+    margin-bottom: 12px !important;
+    color: rgba(206, 210, 236, 0.86);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+  }
+
+  .ptv .ptv-hero__kicker strong {
+    color: #f4f4ff;
+    font-weight: 700;
+  }
+
+  .ptv .ptv-hero__brand {
+    margin: 0 0 20px -0.03em !important;
+    font-size: clamp(120px, 11vw, 170px);
+    line-height: 0.84;
+    letter-spacing: -0.045em;
+  }
+
+  .ptv .ptv-hero__lede {
+    margin-bottom: 18px !important;
+    color: rgba(238, 240, 255, 0.92);
+    font-size: 22px;
+    line-height: 1.42;
+  }
+
+  .ptv-hero .ptv-hero__actions {
+    gap: 22px;
+  }
+
+  .ptv-hero .ptv-hero__actions .ptv-btn--lg {
+    min-height: 58px;
+    padding: 0 34px;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .ptv-hero .ptv-hero__actions .ptv-btn--primary {
+    min-width: 266px;
+  }
+
+  .ptv-hero .ptv-hero__actions .ptv-btn--ghost {
+    min-width: 209px;
+    border-width: 1.5px;
+  }
+
+  /* Title slides carry a third CTA; keep all three on one line. */
+  .ptv-hero .ptv-hero__actions:has(.ptv-btn--quiet) .ptv-btn--lg {
+    min-width: 0;
+  }
+
+  /* Subject: larger and farther right, clear of the wordmark. */
+  .ptv-hero__art.is-portrait {
+    inset: 0 0 0 26%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 22%);
+  }
+
+  .ptv-hero__art.is-portrait .ptv-hero__img {
+    top: -15%;
+    left: 57%;
+    height: 176%;
+  }
+
+  .ptv .ptv-hero__slogan {
+    top: 44%;
+    right: 46px;
+    font-family: "Segoe Print", "Bradley Hand", "Marker Felt", var(--ptv-display);
+    font-size: 33px;
+    font-weight: 700;
+    line-height: 1.14;
+    letter-spacing: -0.01em;
+    text-align: left;
+    opacity: 0.96;
+    transform: rotate(-15deg);
+  }
+
+  .ptv-hero__dots {
+    right: 84px;
+    bottom: 168px;
+  }
 }
 
 /* ---------- Section stacks & headings ------------------------------------ */
@@ -1637,7 +1817,6 @@
   }
 
   .ptv-header__actions { gap: 6px; }
-  .ptv-signin__label { display: none; }
   .ptv-header__bar { gap: 10px; }
 
   .ptv-hero {

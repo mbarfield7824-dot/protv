@@ -84,7 +84,7 @@ export default function CinematicHero({ brand, titles = [] }) {
           <p className="ptv-hero__lede">
             The home for independent films, documentaries,{' '}
             <br />
-            Black cinema, animation, music and more.
+            Black cinema, anime, music and more.
           </p>
           <div className="ptv-hero__actions">
             <button
