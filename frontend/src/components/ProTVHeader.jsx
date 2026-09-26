@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import SearchOverlay from './SearchOverlay';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const NAV_LINKS = [
@@ -31,13 +30,13 @@ function UserIcon() {
 }
 
 export default function ProTVHeader() {
-  const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef(null);
   const { user, isAdmin, openAuthModal, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -112,7 +111,7 @@ export default function ProTVHeader() {
             type="button"
             className="ptv-icon-button"
             aria-label="Search PROtv"
-            onClick={() => setSearchOpen(true)}
+            onClick={() => navigate('/search')}
           >
             <SearchIcon />
           </button>
@@ -168,8 +167,6 @@ export default function ProTVHeader() {
         {user && <Link to="/profile" onClick={closeAll}>Profile</Link>}
         {isAdmin && <Link to="/admin" onClick={closeAll}>Admin</Link>}
       </nav>
-
-      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
     </header>
   );
 }

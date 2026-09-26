@@ -1,0 +1,108 @@
+.search-page__form {
+  max-width: 760px;
+  margin: 0 auto 48px;
+}
+
+.search-page__label {
+  display: block;
+  margin-bottom: 10px;
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.search-page__input-wrap {
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid rgba(110, 130, 255, 0.42);
+  border-radius: 12px;
+  background: rgba(8, 10, 28, 0.92);
+  box-shadow: 0 0 22px rgba(91, 108, 255, 0.12);
+}
+
+.search-page__input-wrap:focus-within {
+  border-color: rgba(167, 139, 250, 0.85);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.16), 0 0 24px rgba(91, 108, 255, 0.16);
+}
+
+.search-page__input-wrap input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f1f2ff;
+  font: inherit;
+  font-size: 16px;
+}
+
+.search-page__input-wrap input::placeholder {
+  color: rgba(178, 186, 220, 0.62);
+}
+
+.search-page__input-wrap button {
+  flex: 0 0 auto;
+  padding: 0 20px;
+  border: 1px solid rgba(167, 139, 250, 0.55);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6d3be8, #3d55c7);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.search-page__input-wrap button:hover {
+  filter: brightness(1.12);
+}
+
+.search-page__results .movies-page__intro {
+  margin-bottom: 28px;
+}
+
+.search-page__invitation {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 720px;
+  margin: clamp(56px, 10vh, 120px) auto 0;
+  padding: clamp(32px, 5vw, 64px) 24px;
+  border: 1px solid rgba(110, 130, 255, 0.22);
+  border-radius: 16px;
+  background:
+    radial-gradient(70% 100% at 50% 0%, rgba(91, 108, 255, 0.14), transparent 75%),
+    rgba(8, 10, 28, 0.7);
+  text-align: center;
+}
+
+.search-page__invitation h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.025em !important;
+}
+
+.search-page__invitation > p:last-child {
+  max-width: 480px;
+  color: var(--ptv-ink-2);
+}
+
+@media (max-width: 640px) {
+  .search-page__form {
+    margin-bottom: 36px;
+  }
+
+  .search-page__input-wrap {
+    gap: 6px;
+  }
+
+  .search-page__input-wrap input {
+    padding-inline: 8px;
+    font-size: 15px;
+  }
+
+  .search-page__input-wrap button {
+    padding: 0 14px;
+  }
+}
