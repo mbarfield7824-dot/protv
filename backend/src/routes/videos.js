@@ -23,6 +23,7 @@ const {
   createAssetFromUrl,
   getAsset,
   getPlaybackId,
+  verifyWebhook,
 } = require('../mux');
 const { createCandidateStore } = require('../adminBot/candidateStore');
 const { verifySignedBody } = require('../ads/adRevenueService');
@@ -653,6 +654,15 @@ router.get('/:id/status', async (req, res) => {
 // finishes transcoding (video.asset.ready) or fails (video.asset.errored).
 // Requires a publicly reachable URL registered in the Mux dashboard.
 router.post('/webhook', async (req, res) => {
+  if (!process.env.MUX_WEBHOOK_SECRET) {
+    return res.status(503).json({ error: 'Mux webhook verification is not configured.' });
+  }
+  try {
+    await verifyWebhook(req.rawBody?.toString('utf8'), req.headers);
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid Mux webhook signature.' });
+  }
+
   try {
     const event = req.body;
 
@@ -665,7 +675,18 @@ router.post('/webhook', async (req, res) => {
         ? await getVideoByUploadId(uploadId)
         : await getVideoByAssetId(asset.id);
 
-      if (video) {
+      if (video && video.status === 'processing'
+        && (!video.muxAssetId || video.muxAssetId === asset.id)) {
+        if (video.publicDomainCandidateId) {
+          const candidate = await publicDomainCandidates.get(video.publicDomainCandidateId);
+          if (video.approvalStatus !== 'draft' || !video.publicDomainConfirmedBy
+            || candidate?.decision !== 'processing' || candidate.catalogId !== video.id) {
+            return res.status(409).json({ error: 'Public Domain publication is not pending.' });
+          }
+        }
+        if (!playbackId) {
+          return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
+        }
         const readyUpdates = {
           status: 'ready',
           muxPlaybackId: playbackId,
@@ -696,7 +717,8 @@ router.post('/webhook', async (req, res) => {
         ? await getVideoByUploadId(asset.upload_id)
         : await getVideoByAssetId(asset.id);
 
-      if (video) {
+      if (video && video.status === 'processing'
+        && (!video.muxAssetId || video.muxAssetId === asset.id)) {
         await updateVideo(video.id, { status: 'errored' });
         if (video.publicDomainCandidateId) {
           await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'failed', {

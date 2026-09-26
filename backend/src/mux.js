@@ -96,6 +96,9 @@ function getPlaybackId(asset) {
 
 /** Verifies an incoming Mux webhook request signature. */
 async function verifyWebhook(rawBody, headers) {
+  if (!process.env.MUX_WEBHOOK_SECRET) {
+    throw new Error('Mux webhook verification is not configured.');
+  }
   await mux.webhooks.verifySignature(rawBody, headers, process.env.MUX_WEBHOOK_SECRET);
 }
 

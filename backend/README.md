@@ -120,6 +120,14 @@ included.
 
 The versioned catalog remains read-only; it does not add login or write endpoints.
 
+### Mux webhook
+
+Set `MUX_WEBHOOK_SECRET` to the signing secret for the configured Mux webhook
+endpoint (separate from the Mux API token secret). `/videos/webhook` refuses
+requests without a configured secret or a valid signature over the exact raw
+request body. The Admin upload screen can still poll `/videos/:id/status` to
+reconcile Mux processing when a webhook is unavailable.
+
 ## Next Steps
 1. Set up Firebase project ✓
 2. Test backend with Postman
