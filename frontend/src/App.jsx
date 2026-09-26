@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Home from './pages/Home';
+import Movies from './pages/Movies';
 import Player from './pages/Player';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
@@ -40,6 +41,7 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/movies" element={<Movies />} />
           <Route path="/player/:id" element={<Player />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/profile" element={<Profile />} />
