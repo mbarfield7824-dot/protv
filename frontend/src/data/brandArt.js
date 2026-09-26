@@ -3,6 +3,25 @@
 // Every slot accepts an `imageUrl`. When a slot has no imageUrl, the homepage
 // derives artwork from a real catalog title (its Mux still), so no component
 // needs to change once custom PROtv brand key art is available.
+import categorySpriteUrl from '../assets/protv-category-art.png';
+
+// PROtv category key art: one 2×4 sprite sheet with the category names baked
+// into each cell. Cells are [column, row]; categories listed here render the
+// sprite instead of a catalog still and visible label.
+export const CATEGORY_SPRITE = {
+  url: categorySpriteUrl,
+  cells: {
+    'black-cinema': [0, 0],
+    independent: [1, 0],
+    anime: [2, 0],
+    horror: [3, 0],
+    action: [0, 1],
+    comedy: [1, 1],
+    documentary: [2, 1],
+    music: [3, 1],
+  },
+};
+
 export const BRAND_ART = {
   hero: {
     imageUrl: null,

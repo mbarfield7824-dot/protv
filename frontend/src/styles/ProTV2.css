@@ -1271,23 +1271,6 @@
   mix-blend-mode: normal;
 }
 
-.ptv-cat__soon {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 3;
-  padding: 4px 8px;
-  border: 1px solid rgba(196, 181, 253, 0.45);
-  border-radius: 999px;
-  background: rgba(10, 8, 30, 0.6);
-  color: #ddd6fe;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  backdrop-filter: blur(6px);
-}
-
 .ptv-cat__name {
   position: absolute;
   inset: auto 8px 16px;
@@ -1319,6 +1302,43 @@
 .ptv-cat.is-coming:hover img,
 .ptv-cat.is-coming:focus-visible img {
   filter: grayscale(1) contrast(1.12) brightness(1.02);
+}
+
+/* PROtv category key art: crops one cell (inside its baked-in frame) from the
+   2103×748 sprite sheet. Cells are 488×308 at x = 27 + 520.33·col and
+   y = 26 + 352·row, so size/position are expressed as sheet/cell ratios. */
+.ptv-cat--sprite {
+  aspect-ratio: 488 / 308;
+  border-radius: 8px;
+  background: #0b0c22;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.34), 0 0 18px rgba(99, 102, 241, 0.16), 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ptv-cat--sprite::after {
+  box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.16);
+}
+
+.ptv-cat__sprite {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: 430.94% 242.86%;
+  background-position:
+    calc((27 + var(--col) * 520.33) / 1615 * 100%)
+    calc((26 + var(--row) * 352) / 440 * 100%);
+  transition: transform 0.6s ease, filter 0.3s ease;
+}
+
+.ptv-cat--sprite:hover,
+.ptv-cat--sprite:focus-visible,
+.ptv-cat--sprite.is-active {
+  box-shadow: 0 0 0 1.5px rgba(167, 139, 250, 0.8), 0 0 22px rgba(124, 58, 237, 0.3), 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.ptv-cat--sprite:hover .ptv-cat__sprite,
+.ptv-cat--sprite:focus-visible .ptv-cat__sprite {
+  filter: brightness(1.08) saturate(1.05);
+  transform: scale(1.04);
 }
 
 /* ---------- Spotlight ---------------------------------------------------- */
