@@ -56,7 +56,7 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
             <span aria-hidden="true">{saved ? '✓' : '＋'}</span>
           </button>
           {onInfo && (
-            <button type="button" className="ptv-card__action" aria-label={`Details for ${video.title}`} onClick={stop(() => onInfo(video))}>
+            <button type="button" className="ptv-card__action" aria-label={`Details for ${video.title}`} onClick={stop(() => navigate(`/title/${video.id}`))}>
               <span aria-hidden="true">i</span>
             </button>
           )}
