@@ -1,6 +1,6 @@
 const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
-const { browse, seriesCatalog } = require('./readModel');
+const { browse, playableCatalog, seriesCatalog } = require('./readModel');
 
 function createCatalogRouter({
   loadApproved = db
@@ -39,6 +39,34 @@ function createCatalogRouter({
       return res.json(series);
     } catch (error) {
       console.error('Failed to load viewer series detail:', error);
+      return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
+    }
+  });
+
+  const loadTitle = async (id) => playableCatalog(await load()).find((item) => item.id === id);
+
+  router.get('/titles/:id', async (req, res) => {
+    try {
+      const title = await loadTitle(req.params.id);
+      if (!title) return res.status(404).json({ error: 'Title not found.' });
+      return res.json(title);
+    } catch (error) {
+      console.error('Failed to load viewer title:', error);
+      return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
+    }
+  });
+
+  router.get('/titles/:id/playback', async (req, res) => {
+    try {
+      const title = await loadTitle(req.params.id);
+      if (!title) return res.status(404).json({ error: 'Title not found.' });
+      return res.json({
+        id: title.id,
+        streamType: 'on-demand',
+        muxPlaybackId: title.muxPlaybackId,
+      });
+    } catch (error) {
+      console.error('Failed to load viewer playback:', error);
       return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
     }
   });

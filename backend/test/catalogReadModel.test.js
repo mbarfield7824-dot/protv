@@ -145,6 +145,92 @@ test('versioned router returns viewer-safe browse, summaries, details, errors an
   assert.ok(reads >= 6);
 });
 
+test('title detail and playback use the Phase 2A playable catalog projection', async (context) => {
+  const fixture = [
+    title('detail', {
+      title: 'A Viewer Title',
+      description: 'A public description',
+      contentType: 'EPISODE',
+      category: 'Documentary',
+      subgenre: 'Nature',
+      genres: ['Documentary', 'Nature'],
+      year: 2026,
+      duration: 1300,
+      runtime: 22,
+      maturityRating: 'PG',
+      thumbnailUrl: 'https://images.example/thumbnail.jpg',
+      posterUrl: 'https://images.example/poster.jpg',
+      heroImageUrl: 'https://images.example/hero.jpg',
+      seriesTitle: 'Nature Series',
+      seasonNumber: 1,
+      episodeNumber: 2,
+      episodeTitle: 'A Viewer Episode',
+      muxPlaybackId: '  playback-detail  ',
+      muxAssetId: 'internal-asset',
+      muxUploadId: 'internal-upload',
+      videoUrl: 'https://private.example/source',
+      approvalNotes: 'Internal notes',
+      apiKey: 'secret',
+    }),
+    title('draft', { approvalStatus: 'draft' }),
+    title('pending', { approvalStatus: 'pending-review' }),
+    title('rejected', { approvalStatus: 'rejected' }),
+    title('rights', { approvalStatus: 'rights-verification-required' }),
+    title('processing', { status: 'processing' }),
+    title('errored', { status: 'errored' }),
+    title('no-playback', { muxPlaybackId: null }),
+    title('blank-playback', { muxPlaybackId: '   ' }),
+  ];
+  const app = express();
+  app.use('/v1/catalog', createCatalogRouter({ loadApproved: async () => fixture }));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/v1/catalog`;
+
+  const detailResponse = await fetch(`${base}/titles/detail`);
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json();
+  assert.deepEqual(detail, browse(fixture)[0]);
+  assert.deepEqual(detail, {
+    id: 'detail',
+    title: 'A Viewer Title',
+    description: 'A public description',
+    contentType: 'EPISODE',
+    category: 'Documentary',
+    subgenre: 'Nature',
+    genres: ['Documentary', 'Nature'],
+    year: 2026,
+    duration: 1300,
+    runtime: 22,
+    maturityRating: 'PG',
+    thumbnailUrl: 'https://images.example/thumbnail.jpg',
+    posterUrl: 'https://images.example/poster.jpg',
+    heroImageUrl: 'https://images.example/hero.jpg',
+    muxPlaybackId: 'playback-detail',
+    seriesTitle: 'Nature Series',
+    seasonNumber: 1,
+    episodeNumber: 2,
+    episodeTitle: 'A Viewer Episode',
+  });
+
+  const playbackResponse = await fetch(`${base}/titles/detail/playback`);
+  assert.equal(playbackResponse.status, 200);
+  assert.deepEqual(await playbackResponse.json(), {
+    id: 'detail',
+    streamType: 'on-demand',
+    muxPlaybackId: 'playback-detail',
+  });
+
+  for (const id of ['not-found', 'draft', 'pending', 'rejected', 'rights', 'processing', 'errored', 'no-playback', 'blank-playback']) {
+    for (const suffix of ['', '/playback']) {
+      const response = await fetch(`${base}/titles/${id}${suffix}`);
+      assert.equal(response.status, 404, `${id}${suffix}`);
+      assert.deepEqual(await response.json(), { error: 'Title not found.' });
+    }
+  }
+});
+
 test('catalog backend failures return 500 rather than an empty successful catalog', async (context) => {
   context.mock.method(console, 'error', () => {});
   const app = express();
@@ -157,6 +243,11 @@ test('catalog backend failures return 500 rather than an empty successful catalo
   const response = await fetch(`http://127.0.0.1:${server.address().port}/v1/catalog`);
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: 'The catalog is temporarily unavailable.' });
+  for (const suffix of ['/titles/detail', '/titles/detail/playback']) {
+    const titleResponse = await fetch(`http://127.0.0.1:${server.address().port}/v1/catalog${suffix}`);
+    assert.equal(titleResponse.status, 500);
+    assert.deepEqual(await titleResponse.json(), { error: 'The catalog is temporarily unavailable.' });
+  }
 });
 
 test('Vercel bridge preserves catalog view and search without changing legacy videos routing', () => {

@@ -111,8 +111,14 @@ included.
   ascending numeric order, each containing episodes sorted by episode number
   then catalog ID. Unknown keys return 404. Only episodes with an explicit
   nonblank series title and positive integer season/episode numbers are grouped.
+- `GET /v1/catalog/titles/:id` returns the same viewer-safe title projection
+  used by browse and Series. Titles outside the playable catalog return 404.
+- `GET /v1/catalog/titles/:id/playback` returns
+  `{ "id": "...", "streamType": "on-demand", "muxPlaybackId": "..." }`
+  for a playable title, or 404 otherwise. This is a public on-demand
+  availability response, not a player, signed playback or an access entitlement.
 
-This phase does not add title-detail, playback, login, or write endpoints.
+The versioned catalog remains read-only; it does not add login or write endpoints.
 
 ## Next Steps
 1. Set up Firebase project ✓
