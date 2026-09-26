@@ -153,7 +153,12 @@ export default function Player() {
           ← Back to Home
         </button>
 
-        <div className="player-main">
+        <div
+          className="player-main"
+          style={{
+            '--detail-backdrop': `url(${video.heroImageUrl || video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_POSTER)})`,
+          }}
+        >
           <div className="video-player">
             {hasRealPlayback ? (
               <VastMuxPlayer video={video} playerRef={playerRef} />

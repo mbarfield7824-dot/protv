@@ -3,7 +3,7 @@
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(3, 4, 12, .88);
   backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
@@ -18,7 +18,7 @@
 
 .search-overlay-inner {
   width: 100%;
-  max-width: 900px;
+  max-width: 1060px;
   height: fit-content;
   max-height: 80vh;
   display: flex;
@@ -29,16 +29,16 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  background: rgba(10, 14, 30, 0.95);
-  border: 2px solid rgba(65, 105, 225, 0.5);
-  border-radius: 14px;
+  background: rgba(12, 14, 32, .96);
+  border: 1px solid rgba(167, 139, 250, .42);
+  border-radius: 10px;
   padding: 16px 20px;
-  box-shadow: 0 0 40px rgba(65, 105, 225, 0.3);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .45), 0 0 32px rgba(124, 58, 237, .18);
 }
 
 .search-overlay-icon {
   font-size: 1.3rem;
-  color: #4169E1;
+  color: #c4b5fd;
 }
 
 .search-overlay-bar input {
@@ -78,10 +78,42 @@
   padding-right: 4px;
 }
 
+.search-filter-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.search-filter-tabs button {
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .04);
+  color: #aeb5ca;
+  cursor: pointer;
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.search-filter-tabs button.active,
+.search-filter-tabs button:hover {
+  border-color: #a78bfa;
+  background: rgba(124, 58, 237, .22);
+  color: #fff;
+}
+
 .search-overlay-empty {
+  display: grid;
+  gap: 6px;
   color: #8a93b0;
   text-align: center;
   padding: 40px 0;
+}
+
+.search-overlay-empty strong {
+  color: #fff;
+  font-size: 1.1rem;
 }
 
 .search-overlay-grid {
@@ -94,14 +126,14 @@
   cursor: pointer;
   border-radius: 10px;
   overflow: hidden;
-  background: #0a0a0a;
-  border: 1px solid rgba(65, 105, 225, 0.2);
+  background: #0b0d1d;
+  border: 1px solid rgba(148, 163, 184, .14);
   transition: all 0.25s ease;
 }
 
 .search-result-card:hover {
-  border-color: rgba(65, 105, 225, 0.6);
-  box-shadow: 0 10px 30px rgba(65, 105, 225, 0.3);
+  border-color: rgba(167, 139, 250, .6);
+  box-shadow: 0 10px 30px rgba(76, 29, 149, .28);
   transform: translateY(-4px);
 }
 

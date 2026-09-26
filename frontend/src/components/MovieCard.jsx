@@ -29,18 +29,31 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
     navigate(`/player/${video.id}`);
   };
 
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      navigate(`/player/${video.id}`);
+    }
+  };
+
   return (
     <div
       className="movie-card"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`Watch ${video.title}`}
     >
       {/* Card Image */}
       <div className="card-image">
         <img
           src={video.thumbnailUrl || fallbackArtworkUrl(video, FALLBACK_POSTER)}
           alt={video.title}
+          loading="lazy"
+          decoding="async"
           className="thumbnail"
           onError={(e) => {
             e.target.onerror = null;

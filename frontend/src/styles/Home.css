@@ -1,6 +1,8 @@
 /* Premium Home Page */
 .home-premium {
-  background: #000000;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(76, 29, 149, .12), transparent 32rem),
+    #050611;
   color: white;
   min-height: 100vh;
 }
@@ -23,9 +25,9 @@
 .my-list-empty {
   margin: 0 20px 40px;
   padding: 24px;
-  border: 1px solid rgba(65, 105, 225, 0.2);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(65, 105, 225, 0.1), rgba(30, 64, 175, 0.05));
+  border: 1px solid rgba(167, 139, 250, .2);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, .12), rgba(37, 99, 235, .05));
 }
 
 .my-list-empty h2 {
@@ -43,9 +45,9 @@
   padding: 0 20px;
   margin-bottom: 40px;
   position: sticky;
-  top: 60px;
+  top: 54px;
   z-index: 50;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.8) 100%);
+  background: linear-gradient(180deg, rgba(5, 6, 17, .97), rgba(5, 6, 17, .84));
   backdrop-filter: blur(10px);
   padding-top: 20px;
   padding-bottom: 20px;
@@ -93,10 +95,10 @@
 
 .filter-btn {
   padding: 10px 20px;
-  background: rgba(65, 105, 225, 0.1);
-  border: 2px solid rgba(65, 105, 225, 0.2);
-  color: #a0a0a0;
-  border-radius: 20px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: #9ca3b8;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.9rem;
@@ -112,8 +114,8 @@
 }
 
 .filter-btn.active {
-  background: linear-gradient(135deg, #4169E1, #1E40AF);
-  border-color: #4169E1;
+  background: linear-gradient(100deg, #7c3aed, #2563eb);
+  border-color: #a78bfa;
   color: white;
   box-shadow: 0 0 20px rgba(65, 105, 225, 0.6);
 }

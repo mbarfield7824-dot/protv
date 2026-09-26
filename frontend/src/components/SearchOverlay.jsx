@@ -36,6 +36,7 @@ function normalizeApiVideo(raw) {
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('');
   const [apiVideos, setApiVideos] = useState([]);
+  const [contentFilter, setContentFilter] = useState('ALL');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,6 +54,14 @@ export default function SearchOverlay({ onClose }) {
     fetchApiVideos();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -60,14 +69,33 @@ export default function SearchOverlay({ onClose }) {
     const primaryCatalog = apiVideos.length > 0 ? apiVideos : mockVideoData;
     const SEARCH_CATALOG = [...primaryCatalog, ...blackCinemaData, ...independentData, ...animeData];
 
-    return SEARCH_CATALOG.filter(
+    const matches = SEARCH_CATALOG.filter(
       (v) =>
         v.title.toLowerCase().includes(q) ||
         v.category?.toLowerCase().includes(q) ||
         v.subgenre?.toLowerCase().includes(q) ||
         v.genres?.some((g) => g.toLowerCase().includes(q))
-    ).slice(0, 12);
-  }, [query, apiVideos]);
+    );
+    if (contentFilter === 'ALL') return matches.slice(0, 12);
+    return matches.filter((video) => {
+      const type = String(video.contentType || '').toUpperCase();
+      const category = String(video.category || '').toLowerCase();
+      if (contentFilter === 'SERIES') return type === 'SERIES' || type === 'EPISODE';
+      if (contentFilter === 'DOCUMENTARIES') return category === 'documentary';
+      if (contentFilter === 'SHORTS') return type === 'SHORT' || type === 'SHORT FILM';
+      return type !== 'SERIES' && type !== 'EPISODE';
+    }).slice(0, 12);
+  }, [query, apiVideos, contentFilter]);
+
+  const availableFilters = useMemo(() => {
+    const catalog = [...apiVideos, ...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
+    const filters = ['ALL'];
+    if (catalog.some((video) => !['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('MOVIES');
+    if (catalog.some((video) => ['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SERIES');
+    if (catalog.some((video) => String(video.category || '').toLowerCase() === 'documentary')) filters.push('DOCUMENTARIES');
+    if (catalog.some((video) => ['SHORT', 'SHORT FILM'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SHORTS');
+    return filters;
+  }, [apiVideos]);
 
   const handleSelect = (video) => {
     onClose();
@@ -93,8 +121,23 @@ export default function SearchOverlay({ onClose }) {
 
         {query.trim() && (
           <div className="search-overlay-results">
+            <div className="search-filter-tabs" aria-label="Filter search results">
+              {availableFilters.map((filter) => (
+                <button
+                  type="button"
+                  key={filter}
+                  className={contentFilter === filter ? 'active' : ''}
+                  onClick={() => setContentFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
             {results.length === 0 ? (
-              <p className="search-overlay-empty">No matches for "{query}"</p>
+              <div className="search-overlay-empty">
+                <strong>No results found.</strong>
+                <span>Try another title, creator or genre.</span>
+              </div>
             ) : (
               <div className="search-overlay-grid">
                 {results.map((video) => (
@@ -106,6 +149,8 @@ export default function SearchOverlay({ onClose }) {
                     <img
                       src={video.thumbnailUrl}
                       alt={video.title}
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = FALLBACK_POSTER;

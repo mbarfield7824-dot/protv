@@ -1,4 +1,5 @@
 import { useCreatorPortal } from '../hooks/useCreatorPortal';
+import { Link } from 'react-router-dom';
 
 const benefits = [
   {
@@ -117,10 +118,17 @@ export function CreatorInvitation() {
     <section className="creator-invitation" aria-labelledby="creator-invitation-title">
       <div className="creator-invitation-glow" />
       <div className="creator-section-inner">
-        <p className="creator-eyebrow">Stories belong on screen</p>
-        <h2 id="creator-invitation-title">Are you a filmmaker? Join PROtv.</h2>
-        <p className="creator-lead">Upload your project, sign your contract, earn revenue.</p>
-        <CreatorPortalButton className="creator-primary-button">Creator Portal</CreatorPortalButton>
+        <p className="creator-eyebrow">Independent voices welcome</p>
+        <h2 id="creator-invitation-title">GET YOUR STORY ON PROtv</h2>
+        <p className="creator-lead">
+          Are you an independent filmmaker, producer, artist, or content creator?
+          <br />
+          PROtv is looking for independent content to showcase to a growing audience.
+        </p>
+        <div className="creator-invitation-actions">
+          <CreatorPortalButton className="creator-primary-button">SUBMIT YOUR FILM</CreatorPortalButton>
+          <Link className="creator-secondary-button" to="/creators">LEARN MORE</Link>
+        </div>
         <div className="creator-subsection-heading">
           <p>Creator Benefits</p>
           <h3>Built for the business behind your story.</h3>

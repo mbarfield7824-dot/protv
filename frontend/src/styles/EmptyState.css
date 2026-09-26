@@ -1,0 +1,40 @@
+.premium-empty-state {
+  max-width: 1384px;
+  margin: 0 auto 36px;
+  padding: 34px 24px;
+  border: 1px dashed rgba(167, 139, 250, .3);
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(124, 58, 237, .1), rgba(37, 99, 235, .04));
+  text-align: center;
+}
+
+.empty-state-mark {
+  display: block;
+  margin-bottom: 8px;
+  color: #a78bfa;
+  font-size: 1.3rem;
+}
+
+.premium-empty-state h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.premium-empty-state p {
+  max-width: 480px;
+  margin: 8px auto 18px;
+  color: #aeb5ca;
+  line-height: 1.55;
+}
+
+.premium-empty-state button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  background: linear-gradient(100deg, #7c3aed, #2563eb);
+  color: #fff;
+  cursor: pointer;
+  font-size: .75rem;
+  font-weight: 800;
+}

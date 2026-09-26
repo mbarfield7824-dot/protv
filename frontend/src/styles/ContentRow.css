@@ -290,3 +290,80 @@
     50% { transform: translateX(3px); opacity: 1; }
   }
 }
+
+/* PROtv 2.0 rails */
+.content-row {
+  max-width: 1440px;
+  margin: 0 auto 42px;
+}
+
+.row-header {
+  margin-bottom: 16px;
+  padding: 0 28px;
+}
+
+.row-title {
+  font-size: 1.25rem;
+  letter-spacing: -.02em;
+}
+
+.row-subtitle {
+  color: #8790aa;
+  font-size: .76rem;
+  font-weight: 500;
+}
+
+.view-all {
+  color: #b794f6;
+  font-size: .72rem;
+}
+
+.row-container {
+  padding: 0 28px;
+}
+
+.content-carousel {
+  gap: 14px;
+  padding-bottom: 6px;
+}
+
+.carousel-item {
+  flex: 0 0 calc(16.666% - 12px);
+  min-width: 174px;
+  max-width: 218px;
+}
+
+.scroll-btn {
+  width: 36px;
+  height: 36px;
+  background: rgba(12, 14, 32, .88);
+  border: 1px solid rgba(167, 139, 250, .4);
+  font-size: 1.2rem;
+}
+
+.scroll-left {
+  left: 10px;
+}
+
+.scroll-right {
+  right: 10px;
+}
+
+@media (max-width: 640px) {
+  .content-row {
+    margin-bottom: 32px;
+  }
+
+  .row-header {
+    padding: 0 16px;
+  }
+
+  .row-container {
+    padding: 0 16px;
+  }
+
+  .carousel-item {
+    flex-basis: 42%;
+    min-width: 132px;
+  }
+}

@@ -4,6 +4,7 @@ import '../styles/ContinueWatching.css';
 
 export default function ContinueWatching({ id, items }) {
   const navigate = useNavigate();
+  if (!items || items.length === 0) return null;
 
   return (
     <div id={id} className="continue-row">
@@ -13,7 +14,7 @@ export default function ContinueWatching({ id, items }) {
         </div>
       </div>
 
-      {items && items.length > 0 ? (
+      {items.length > 0 ? (
         <div className="continue-carousel">
           {items.map((item) => (
             <div
@@ -25,6 +26,8 @@ export default function ContinueWatching({ id, items }) {
                 <img
                   src={item.thumbnailUrl}
                   alt={item.title}
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = FALLBACK_POSTER;
@@ -52,12 +55,7 @@ export default function ContinueWatching({ id, items }) {
             </div>
           ))}
         </div>
-      ) : (
-        <div className="continue-empty">
-          <p>Start watching a title and pick up where you left off here.</p>
-          <button onClick={() => navigate('/#trending')}>Browse Trending</button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

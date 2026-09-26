@@ -1,20 +1,22 @@
 /* Player Page — Black & Royal/Electric Blue Theme */
 .player-page {
-  background: #000000;
+  background:
+    radial-gradient(circle at 75% 5%, rgba(76, 29, 149, .16), transparent 32rem),
+    #050611;
   color: white;
   min-height: 100vh;
 }
 
 .player-container {
-  padding: 30px 20px 0;
-  max-width: 1400px;
+  padding: 28px 28px 0;
+  max-width: 1440px;
   margin: 0 auto;
 }
 
 .back-btn {
-  background: rgba(65, 105, 225, 0.12);
+  background: rgba(255, 255, 255, .05);
   color: #d0d6ee;
-  border: 1px solid rgba(65, 105, 225, 0.35);
+  border: 1px solid rgba(255, 255, 255, .16);
   padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
@@ -32,8 +34,25 @@
 }
 
 .player-main {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
+  position: relative;
+}
+
+.player-main::before {
+  position: absolute;
+  z-index: -1;
+  top: -12rem;
+  right: -18rem;
+  width: 70%;
+  height: 42rem;
+  content: '';
+  background:
+    linear-gradient(90deg, #050611 0%, rgba(5, 6, 17, .52) 48%, rgba(5, 6, 17, .86)),
+    var(--detail-backdrop) center / cover;
+  filter: blur(32px);
+  opacity: .2;
+  pointer-events: none;
 }
 
 /* Video surface */
@@ -41,10 +60,10 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #05070d;
-  border-radius: 12px;
+  border-radius: 14px;
   margin-bottom: 30px;
   overflow: hidden;
-  border: 1px solid rgba(65, 105, 225, 0.25);
+  border: 1px solid rgba(167, 139, 250, .22);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(65, 105, 225, 0.08);
 }
 
@@ -157,10 +176,10 @@
 
 /* Details panel */
 .video-details {
-  background: linear-gradient(135deg, rgba(10, 14, 30, 0.7), rgba(0, 0, 0, 0.9));
-  padding: 30px;
-  border-radius: 12px;
-  border: 1px solid rgba(65, 105, 225, 0.2);
+  background: linear-gradient(135deg, rgba(12, 14, 32, .88), rgba(5, 6, 17, .94));
+  padding: 34px;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, .18);
 }
 
 .video-details h1 {
@@ -180,7 +199,7 @@
 }
 
 .category-badge {
-  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  background: linear-gradient(100deg, #7c3aed, #2563eb);
   padding: 6px 14px;
   border-radius: 20px;
   font-weight: 700;
@@ -275,7 +294,7 @@
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #4169E1, #1E40AF);
+  background: linear-gradient(100deg, #7c3aed, #2563eb);
   border: none;
   box-shadow: 0 6px 18px rgba(65, 105, 225, 0.4);
 }

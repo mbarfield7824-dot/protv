@@ -1,0 +1,43 @@
+.hero-skeleton {
+  height: min(680px, 72vh);
+  margin-bottom: 34px;
+  background: linear-gradient(100deg, #0b0d1d 25%, #171a32 37%, #0b0d1d 50%) 0 0 / 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-rail {
+  max-width: 1384px;
+  margin: 0 auto 38px;
+}
+
+.skeleton-line {
+  width: 180px;
+  height: 20px;
+  margin: 0 0 16px 28px;
+  border-radius: 5px;
+}
+
+.skeleton-cards {
+  display: flex;
+  gap: 14px;
+  overflow: hidden;
+  padding: 0 28px;
+}
+
+.skeleton-card {
+  flex: 0 0 174px;
+  height: 252px;
+  border-radius: 8px;
+  background: linear-gradient(100deg, #0b0d1d 25%, #171a32 37%, #0b0d1d 50%) 0 0 / 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-card,
+  .hero-skeleton { animation: none; }
+}

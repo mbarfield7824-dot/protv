@@ -1,51 +1,38 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import Hero from '../components/Hero';
-import ContentRow from '../components/ContentRow';
-import ContinueWatching from '../components/ContinueWatching';
-import DiscoverPanel from '../components/DiscoverPanel';
-import Footer from '../components/Footer';
-import Header from '../components/Header';
+import { useLocation } from 'react-router-dom';
+import ProTVShell from '../components/ProTVShell';
+import ProTVHeader from '../components/ProTVHeader';
+import CinematicHero from '../components/CinematicHero';
+import ContinueWatchingRail from '../components/ContinueWatchingRail';
+import CategoryShowcase from '../components/CategoryShowcase';
+import StreamingRail from '../components/StreamingRail';
+import StreamingCard from '../components/StreamingCard';
+import SpotlightFeature from '../components/SpotlightFeature';
+import CreatorBanner from '../components/CreatorBanner';
+import ProTVFooter from '../components/ProTVFooter';
 import MoviePreview from '../components/MoviePreview';
-import { CreatorInvitation } from '../components/CreatorExperience';
+import EmptyState from '../components/EmptyState';
 import { api } from '../api';
-import {
-  mockVideoData,
-  blackCinemaData,
-  independentData,
-  animeData,
-  FALLBACK_POSTER,
-} from '../data/mockData';
+import { mockVideoData, FALLBACK_POSTER, FALLBACK_HERO } from '../data/mockData';
+import { BROWSE_CATEGORIES, EXTRA_BROWSE_CATEGORIES, matchesCategory } from '../data/browseCategories';
+import { BRAND_ART, STILL_TIMES } from '../data/brandArt';
 import { useAuth } from '../hooks/useAuth';
 import { isTvEpisode } from '../utils/shows';
-import { useHorizontalScrollState } from '../hooks/useHorizontalScrollState';
-import '../styles/Home.css';
+import { muxStillUrl } from '../utils/artwork';
 import '../styles/Creators.css';
-
-const DEFAULT_CATEGORIES = [
-  { id: 'comedy', name: 'Comedy' },
-  { id: 'action', name: 'Action' },
-  { id: 'documentary', name: 'Documentary' },
-  { id: 'horror', name: 'Horror' },
-  { id: 'drama', name: 'Drama' },
-  { id: 'ai-cinema', name: 'AI Cinema' },
-  { id: 'food', name: 'Food' },
-  { id: 'sports', name: 'Sports' },
-  { id: 'podcast', name: 'Podcast' },
-  { id: 'sci-fi', name: 'Sci-Fi' },
-  { id: 'espanol', name: 'Espanol' },
-  { id: 'international', name: 'International' },
-  { id: 'black-cinema', name: 'Black Cinema' },
-  { id: 'anime', name: 'Anime' },
-  { id: 'music', name: 'Music' },
-  { id: 'cartoons', name: 'Cartoons' },
-];
 
 const FEATURED_PROTV_TITLE_IDS = [
   '3NAU6BldsmCNs9wjM08a',
   'WIVB9NPQQzvtvjTBsiKw',
   'B2MDEH2b25NknMQMEhoM',
   'zGpbFWvSaup6ioUaoqsN',
+];
+
+const RAILS_AFTER_SPOTLIGHT = [
+  { id: 'black-cinema', title: 'Black Cinema', matches: ['Black Cinema'] },
+  { id: 'independent', title: 'Independent Films', matches: ['Independent'] },
+  { id: 'documentary', title: 'Documentaries', matches: ['Documentary'] },
+  { id: 'music', title: 'Music & Hip-Hop', matches: ['Music', 'Hip-Hop'], viewAll: { to: '/music' } },
 ];
 
 // Normalizes a raw Firestore video record (from the live backend) into the
@@ -60,17 +47,24 @@ function normalizeApiVideo(raw) {
     description: raw.description || '',
     category,
     subgenre,
+    genreLabel: category,
     thumbnailUrl: raw.thumbnailUrl || FALLBACK_POSTER,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
     ratingCount: raw.ratingCount || 0,
     year: raw.year || null,
     duration: raw.duration ? Math.round(raw.duration / 60) : 0,
+    durationSeconds: raw.duration || 0,
     contentType: raw.contentType || 'MOVIE',
     genres: [...new Set([...(raw.genres || []), category, subgenre].filter(Boolean))],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
+    seasonNumber: raw.seasonNumber,
+    episodeNumber: raw.episodeNumber,
     views: raw.views || 0,
+    approvedAt: raw.approvedAt,
+    createdAt: raw.createdAt,
+    submittedAt: raw.submittedAt,
   };
 }
 
@@ -84,44 +78,52 @@ function catalogTimestamp(video) {
   return 0;
 }
 
+function still(video, width, height, time) {
+  return muxStillUrl(video, { width, height, time: time ?? STILL_TIMES[video.id] });
+}
+
+// Adds landscape artwork used by the hero and Spotlight.
+function withBackdrop(video) {
+  const poster = video.heroImageUrl || video.thumbnailUrl || FALLBACK_HERO;
+  return {
+    ...video,
+    genreLabel: video.genreLabel || video.category,
+    backdrop: still(video, 1920, 1080) || poster,
+    backdropFallback: poster,
+  };
+}
+
+function isOriginal(video) {
+  return String(video.category || '').toLowerCase() === 'originals'
+    || String(video.contentType || '').toLowerCase() === 'original';
+}
+
+function HomeSkeleton() {
+  return (
+    <ProTVShell>
+      <ProTVHeader />
+      <div className="ptv-skel ptv-skel--hero" aria-label="Loading PROtv" role="status" />
+      {[0, 1].map((row) => (
+        <div className="ptv-skel-rail" key={row} aria-hidden="true">
+          <span className="ptv-skel ptv-skel--heading" />
+          <div className="ptv-skel-rail__track">
+            {Array.from({ length: 6 }, (_, index) => <span className="ptv-skel ptv-skel--poster" key={index} />)}
+          </div>
+        </div>
+      ))}
+    </ProTVShell>
+  );
+}
+
 export default function Home() {
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [apiVideos, setApiVideos] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [loading, setLoading] = useState(false);
-  const [activeMood, setActiveMood] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
   const { hash } = useLocation();
-  const navigate = useNavigate();
-  const {
-    scrollRef: categoryScrollRef,
-    canScrollLeft: categoryCanScrollLeft,
-    canScrollRight: categoryCanScrollRight,
-    hasOverflow: categoriesOverflow,
-    progress: categoryProgress,
-  } = useHorizontalScrollState();
 
-  async function fetchCategories() {
-    try {
-      const data = await api.getCategories();
-      const apiCategories = Array.isArray(data) ? data : [];
-      const existingNames = new Set(DEFAULT_CATEGORIES.map((category) => category.name));
-      setCategories([
-        ...DEFAULT_CATEGORIES,
-        ...apiCategories.filter((category) => !existingNames.has(category.name)),
-      ]);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-      setCategories(DEFAULT_CATEGORIES);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Fetch real backend videos so newly added titles show up on the
-  // homepage alongside the curated mock rails. Fails silently (mock
-  // content still renders) if the backend is offline.
+  // Fetch the live catalog. Fails silently (the development fallback
+  // catalog still renders) if the backend is offline.
   async function fetchApiVideos() {
     try {
       const data = await api.getVideos();
@@ -138,17 +140,15 @@ export default function Home() {
             .map(normalizeApiVideo)
         );
       }
-
     } catch (error) {
       console.error('Failed to load live videos:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    const loadTimer = window.setTimeout(() => {
-      void fetchCategories();
-      void fetchApiVideos();
-    }, 0);
+    const loadTimer = window.setTimeout(() => { void fetchApiVideos(); }, 0);
     const refreshCatalog = () => {
       if (document.visibilityState === 'visible') void fetchApiVideos();
     };
@@ -163,45 +163,59 @@ export default function Home() {
 
   useEffect(() => {
     if (loading || !hash) return undefined;
-
     const sectionId = decodeURIComponent(hash.slice(1));
     const scrollTimer = window.setTimeout(() => {
       document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
-
     return () => window.clearTimeout(scrollTimer);
   }, [hash, loading]);
 
-  if (loading) {
-    return <div className="loading">Loading PROtv...</div>;
-  }
+  if (loading) return <HomeSkeleton />;
 
-  const combinedCatalog = apiVideos.length > 0 ? apiVideos : mockVideoData;
-  const movieCatalog = combinedCatalog.filter((video) => !isTvEpisode(video));
-  const showCatalog = combinedCatalog.filter(isTvEpisode);
-  const featured = movieCatalog.find((video) => video.title === 'The Bundy Chronicles') || movieCatalog[0];
-  const myListVideos = combinedCatalog.filter((video) => favorites.includes(video.id));
-  const featuredProtvVideos = FEATURED_PROTV_TITLE_IDS
-    .map((id) => apiVideos.find((video) => video.id === id))
-    .filter(Boolean);
+  const isLive = apiVideos.length > 0;
+  const catalog = (isLive ? apiVideos : mockVideoData).map((video) => ({
+    ...video,
+    genreLabel: video.genreLabel || video.category,
+  }));
+  const movieCatalog = catalog.filter((video) => !isTvEpisode(video));
+  const byId = (id) => catalog.find((video) => video.id === id);
+  const selection = hash ? decodeURIComponent(hash.slice(1)) : '';
 
+  // ---- Hero -------------------------------------------------------------
+  const featuredTitles = FEATURED_PROTV_TITLE_IDS.map(byId).filter(Boolean);
+  const heroTitles = (featuredTitles.length ? featuredTitles : movieCatalog.slice(0, 3)).map(withBackdrop);
+  const brandSource = byId(BRAND_ART.hero.catalogId) || heroTitles[0];
+  const brandSlide = {
+    imageUrl: BRAND_ART.hero.imageUrl
+      || (brandSource && (BRAND_ART.hero.portrait
+        ? still(brandSource, 1080, null, BRAND_ART.hero.stillTime)
+        : still(brandSource, 1920, 1080, BRAND_ART.hero.stillTime)))
+      || FALLBACK_HERO,
+    portrait: Boolean(BRAND_ART.hero.portrait && !BRAND_ART.hero.imageUrl),
+    fallbackUrl: brandSource?.heroImageUrl || FALLBACK_HERO,
+    watchId: brandSource?.id,
+  };
+
+  // ---- Continue Watching ------------------------------------------------
   // Show a title after five seconds, rather than a percentage threshold that
   // can hide early progress on long movies. Finished titles remain in history.
   const continueWatchingItems = Object.entries(progress || {})
     .filter(([, entry]) => (
-      Number.isFinite(entry?.positionSeconds) &&
-      Number.isFinite(entry?.durationSeconds) &&
-      entry.positionSeconds >= 5 &&
-      entry.positionSeconds < entry.durationSeconds * 0.95
+      Number.isFinite(entry?.positionSeconds)
+      && Number.isFinite(entry?.durationSeconds)
+      && entry.positionSeconds >= 5
+      && entry.positionSeconds < entry.durationSeconds * 0.95
     ))
     .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
     .map(([videoId, entry]) => {
-      const source = combinedCatalog.find((video) => video.id === videoId);
+      const source = byId(videoId);
       if (!source) return null;
       return {
         id: videoId,
         title: source.title,
+        genreLabel: source.genreLabel,
         thumbnailUrl: source.thumbnailUrl,
+        still: still(source, 640, 360, Math.floor(entry.positionSeconds)),
         season: source.seasonNumber,
         episode: source.episodeNumber,
         minutesLeft: Math.max(1, Math.round((entry.durationSeconds - entry.positionSeconds) / 60)),
@@ -210,355 +224,131 @@ export default function Home() {
     })
     .filter(Boolean);
 
-  // Filter videos based on selected category
-  const getTrendingVideos = () => {
-    const nonFeaturedMovies = movieCatalog.filter((video) => video.id !== featured?.id);
-    if (selectedCategory === 'All') return nonFeaturedMovies;
-    return nonFeaturedMovies.filter((video) => video.category === selectedCategory);
-  };
+  // ---- Browse by Category -----------------------------------------------
+  const usedArtwork = new Set();
+  const categoryTiles = [...BROWSE_CATEGORIES, ...EXTRA_BROWSE_CATEGORIES]
+    .map((category) => {
+      const matches = catalog.filter((video) => matchesCategory(video, category));
+      if (!matches.length) return null;
+      const art = BRAND_ART.categories[category.id];
+      const curated = art?.catalogId && matches.find((video) => video.id === art.catalogId);
+      const pick = curated
+        || matches.find((video) => video.muxPlaybackId && !usedArtwork.has(video.id))
+        || matches[0];
+      usedArtwork.add(pick.id);
+      return {
+        category,
+        count: matches.length,
+        artwork: art?.imageUrl || still(pick, 480, 560, curated ? art.stillTime : undefined) || pick.thumbnailUrl,
+        fallback: pick.thumbnailUrl || FALLBACK_POSTER,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 8);
 
-  const selectCategory = (category) => {
-    setSelectedCategory(category);
-    window.requestAnimationFrame(() => {
-      const sectionId = category === 'All' ? 'trending' : 'category-results';
-      const section = document.getElementById(sectionId);
-      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
+  // ---- New on PROtv / Spotlight -----------------------------------------
+  const newOnProtv = isLive
+    ? [...movieCatalog].sort((left, right) => catalogTimestamp(right) - catalogTimestamp(left)).slice(0, 12)
+    : [];
+  const spotlightSource = byId(BRAND_ART.spotlight.catalogId)
+    || movieCatalog.find((video) => !FEATURED_PROTV_TITLE_IDS.includes(video.id))
+    || movieCatalog[0];
+  const spotlight = spotlightSource
+    ? {
+      ...withBackdrop(spotlightSource),
+      ...(BRAND_ART.spotlight.imageUrl ? { backdrop: BRAND_ART.spotlight.imageUrl } : {}),
+    }
+    : null;
 
-  // Get videos recommended based on first video
-  const getRecommendedVideos = () => {
-    if (!featured) return [];
-    return movieCatalog.filter((v) => v.category === featured.category && v.id !== featured.id);
-  };
+  // ---- Editorial rails --------------------------------------------------
+  const originals = movieCatalog.filter(isOriginal);
+  const editorialRails = RAILS_AFTER_SPOTLIGHT
+    .map((rail) => ({ ...rail, items: movieCatalog.filter((video) => matchesCategory(video, rail)).slice(0, 12) }))
+    .filter((rail) => rail.items.length > 0);
+  const renderedIds = new Set([
+    'continue-watching', 'categories', 'new-on-protv', 'submit',
+    ...editorialRails.map((rail) => rail.id),
+    ...(originals.length ? ['originals'] : []),
+  ]);
 
-  // Discover mood-based recommendations
-  const getMoodVideos = () => {
-    if (!activeMood) return [];
-    const all = [...combinedCatalog, ...blackCinemaData, ...independentData, ...animeData];
-    return all.filter((v) => v.genres?.some((g) => activeMood.genres.includes(g)));
-  };
-  const selectedCategoryVideos = selectedCategory === 'All'
-    ? []
-    : movieCatalog.filter((video) => video.category === selectedCategory);
+  // ---- Hash-driven destination (nav, category tiles, footer links) -------
+  const allCategories = [...BROWSE_CATEGORIES, ...EXTRA_BROWSE_CATEGORIES];
+  const myListVideos = catalog.filter((video) => favorites.includes(video.id));
+  let destination = null;
+  if (selection && !renderedIds.has(selection)) {
+    const category = allCategories.find((item) => item.id === selection);
+    if (selection === 'my-list') {
+      destination = user && myListVideos.length
+        ? { id: 'my-list', title: 'My List', items: myListVideos, removable: true }
+        : { id: 'my-list', empty: { title: 'Your list is waiting.', body: 'Browse PROtv and add movies, documentaries and shows you want to watch later.' } };
+    } else if (selection === 'movies') {
+      destination = { id: 'movies', title: 'Movies', items: movieCatalog };
+    } else if (selection === 'originals') {
+      destination = { id: 'originals', empty: { title: 'PROtv Originals are coming soon.', body: 'Distinctive stories made for PROtv will premiere here.' } };
+    } else if (category) {
+      const items = catalog.filter((video) => matchesCategory(video, category));
+      destination = items.length
+        ? { id: category.id, title: category.name, items }
+        : { id: category.id, empty: { title: `${category.name} is coming soon.`, body: 'Check back soon for the first titles in this collection.' } };
+    }
+  }
+
+  const stats = isLive
+    ? [
+      { label: 'Titles', value: catalog.length },
+      { label: 'Genres', value: new Set(catalog.map((video) => video.category).filter(Boolean)).size },
+    ]
+    : [];
+  const creatorArtSource = byId(BRAND_ART.creatorBanner.catalogId);
+  const creatorArt = BRAND_ART.creatorBanner.imageUrl
+    || (creatorArtSource && still(creatorArtSource, 1280, 720, BRAND_ART.creatorBanner.stillTime))
+    || '';
+
+  const renderRail = ({ id, title, items, viewAll, removable }) => (
+    <StreamingRail key={id} id={id} title={title} viewAll={viewAll}>
+      {items.map((video) => (
+        <StreamingCard key={video.id} video={video} onInfo={setPreviewVideo} showRemove={removable} />
+      ))}
+    </StreamingRail>
+  );
 
   return (
-    <div className="home-premium">
-      <Header />
+    <ProTVShell>
+      <ProTVHeader />
+      <main>
+        <CinematicHero brand={brandSlide} titles={heroTitles} />
 
-      {/* Hero Section */}
-      {featured ? (
-        <Hero featured={featured} />
-      ) : (
-        <div className="hero-loading">No content available. Add videos to get started!</div>
-      )}
+        <div className="ptv-stack ptv-stack--lead">
+          <ContinueWatchingRail items={continueWatchingItems} />
+          <CategoryShowcase tiles={categoryTiles} activeId={selection} />
 
-      {/* Continue Watching — cinematic rail with progress bars */}
-      <ContinueWatching id="continue-watching" items={continueWatchingItems} />
-
-      {featuredProtvVideos.length > 0 && (
-        <ContentRow
-          id="featured-on-protv"
-          title="Featured on PROtv"
-          subtitle="Four classic favorites, ready to watch"
-          content={featuredProtvVideos}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      <section id="my-list" className="my-list-section">
-        {user && myListVideos.length > 0 ? (
-          <ContentRow
-            title="My List"
-            subtitle="Your saved favorites"
-            content={myListVideos}
-            onInfo={setPreviewVideo}
-            showListRemoval
-          />
-        ) : (
-          <div className="my-list-empty">
-            <h2>My List</h2>
-            <p>{user ? 'Save movies and shows with the + My List button to find them here.' : 'Sign in to save favorites and access them on any device.'}</p>
-          </div>
-        )}
-      </section>
-
-      {/* PROtv Discover — signature mood-based discovery feature */}
-      <div id="discover">
-        <DiscoverPanel onMoodSelect={setActiveMood} />
-      </div>
-
-      {activeMood && (
-        <ContentRow
-          title={`${activeMood.icon} ${activeMood.label}`}
-          subtitle="Picked for your mood"
-          content={getMoodVideos().slice(0, 8)}
-        onInfo={setPreviewVideo}
-        />
-      )}
-
-      {/* Category Filter */}
-      <div id="categories" className="category-filter-section">
-        <div className="category-filter-heading">
-          <strong>Browse categories</strong>
-          {categoriesOverflow && (
-            <span aria-hidden="true">
-              {categoryCanScrollLeft ? '← ' : ''}Swipe for more{categoryCanScrollRight ? ' →' : ''}
-            </span>
+          {destination && (
+            destination.empty ? (
+              <section id={destination.id} className="ptv-destination">
+                <EmptyState title={destination.empty.title}>
+                  {destination.empty.body}
+                </EmptyState>
+              </section>
+            ) : renderRail(destination)
           )}
+
+          {newOnProtv.length > 0 && renderRail({ id: 'new-on-protv', title: 'New on PROtv', items: newOnProtv, viewAll: { to: '/#movies' } })}
         </div>
-        <div className={`category-filter-shell ${categoryCanScrollLeft ? 'has-more-left' : ''} ${categoryCanScrollRight ? 'has-more-right' : ''}`}>
-        <div className="filter-wrapper" ref={categoryScrollRef} aria-label="Browse content categories">
-          <button
-            className={`filter-btn ${selectedCategory === 'All' ? 'active' : ''}`}
-            onClick={() => selectCategory('All')}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              className={`filter-btn ${['ai-cinema', 'food', 'sports', 'podcast', 'sci-fi', 'espanol', 'international', 'music', 'cartoons'].includes(cat.id) ? 'featured' : ''} ${selectedCategory === cat.name ? 'active' : ''}`}
-              onClick={() => (
-                cat.name === 'Music' || cat.name === 'Cartoons'
-                  ? navigate(`/${cat.name.toLowerCase()}`)
-                  : selectCategory(cat.name)
-              )}
-            >
-              {cat.name}
-            </button>
-          ))}
-          <button
-            className={`filter-btn special ${selectedCategory === 'Independent' ? 'active' : ''}`}
-            onClick={() => selectCategory('Independent')}
-          >
-            Independent
-          </button>
+
+        <SpotlightFeature video={spotlight} />
+
+        <div className="ptv-stack">
+          {editorialRails.map(renderRail)}
+          {originals.length > 0 && renderRail({ id: 'originals', title: 'PROtv Originals', items: originals })}
         </div>
-        </div>
-        {categoriesOverflow && (
-          <div className="category-scroll-progress" aria-hidden="true">
-            <span style={{ left: `${categoryProgress * 0.72}%` }} />
-          </div>
-        )}
-      </div>
 
-      {selectedCategory !== 'All' && (
-        <section id="category-results" className="category-results">
-          <div className="category-results-heading">
-            <p>Explore PROtv</p>
-            <h2>{selectedCategory}</h2>
-          </div>
-          {selectedCategoryVideos.length > 0 ? (
-            <ContentRow
-              title={`Featured in ${selectedCategory}`}
-              content={selectedCategoryVideos}
-              onInfo={setPreviewVideo}
-            />
-          ) : (
-            <div className="category-empty-state">
-              <span>{selectedCategory === 'AI Cinema' ? '✦' : selectedCategory === 'Food' ? '🍽' : selectedCategory === 'Sports' ? '🏆' : selectedCategory === 'Podcast' ? '🎙' : selectedCategory === 'Espanol' ? '🎞' : selectedCategory === 'International' ? '🌍' : '🛸'}</span>
-              <div>
-                <h3>{selectedCategory} is coming soon</h3>
-                <p>Check back soon for the first titles in this collection.</p>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
+        <CreatorBanner imageUrl={creatorArt} stats={stats} />
+      </main>
+      <ProTVFooter />
 
-      {/* Content Rows */}
-      <ContentRow
-        id="trending"
-        title="🔥 Trending Now"
-        content={getTrendingVideos().slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      {showCatalog.length > 0 && (
-        <ContentRow
-          id="tv-shows"
-          title="TV Shows"
-          subtitle="Episodes ready to watch"
-          content={showCatalog.slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      <ContentRow
-        id="because-you-watched"
-        title="Because You Watched"
-        subtitle={featured ? `${featured.title}` : ''}
-        content={getRecommendedVideos().slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="black-cinema"
-        title="BLACK CINEMA"
-        subtitle="Stories. Culture. Icons."
-        content={[...blackCinemaData, ...movieCatalog.filter((video) => video.category === 'Black Cinema')].slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="independent"
-        title="INDEPENDENT SPOTLIGHT"
-        subtitle="Discover the stories Hollywood missed."
-        content={independentData}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="anime"
-        title="ANIME UNIVERSE"
-        subtitle="Explore. Adventure. Beyond Imagination."
-        content={[...animeData, ...movieCatalog.filter((video) => video.category === 'Anime')].slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      {/* More Rows */}
-      <ContentRow
-        id="comedy"
-        title="😂 Comedy"
-        content={movieCatalog.filter((v) => v.category === 'Comedy').slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="action"
-        title="💥 Action"
-        content={movieCatalog.filter((v) => v.category === 'Action').slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="drama"
-        title="🎭 Drama"
-        content={movieCatalog.filter((v) => v.category === 'Drama').slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="horror"
-        title="😱 Horror"
-        content={movieCatalog.filter((v) => v.category === 'Horror').slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      <ContentRow
-        id="documentary"
-        title="🎬 Documentary"
-        content={movieCatalog.filter((v) => v.category === 'Documentary').slice(0, 8)}
-        onInfo={setPreviewVideo}
-      />
-
-      {combinedCatalog.some((video) => video.category === 'AI Cinema') && (
-        <ContentRow
-          id="ai-cinema"
-          title="✦ AI CINEMA"
-          subtitle="Stories created at the edge of imagination."
-          content={combinedCatalog.filter((video) => video.category === 'AI Cinema').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {combinedCatalog.some((video) => video.category === 'Food') && (
-        <ContentRow
-          id="food"
-          title="🍽 FOOD & FLAVOR"
-          subtitle="Recipes, culture, and the stories behind every bite."
-          content={combinedCatalog.filter((video) => video.category === 'Food').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {combinedCatalog.some((video) => video.category === 'Sports') && (
-        <ContentRow
-          id="sports"
-          title="🏆 SPORTS CENTRAL"
-          subtitle="The athletes, moments, and games that move us."
-          content={combinedCatalog.filter((video) => video.category === 'Sports').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'Podcast') && (
-        <ContentRow
-          id="podcast"
-          title="🎙 PODCASTS"
-          subtitle="Conversations, culture, and voices worth hearing."
-          content={movieCatalog.filter((video) => video.category === 'Podcast').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'Sci-Fi') && (
-        <ContentRow
-          id="sci-fi"
-          title="🛸 SCI-FI EXPLORATIONS"
-          subtitle="Future worlds, distant planets, and the unknown."
-          content={movieCatalog.filter((video) => video.category === 'Sci-Fi').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'Espanol') && (
-        <ContentRow
-          id="espanol"
-          title="🎞 ESPANOL CINEMA"
-          subtitle="Stories and voices from the Spanish-speaking world."
-          content={movieCatalog.filter((video) => video.category === 'Espanol').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'International') && (
-        <ContentRow
-          id="international"
-          title="🌍 INTERNATIONAL CINEMA"
-          subtitle="Great stories from around the world."
-          content={movieCatalog.filter((video) => video.category === 'International').slice(0, 8)}
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'Music') && (
-        <ContentRow
-          id="music"
-          title="MUSIC"
-          subtitle="Performances, videos, and sounds for every mood."
-          content={movieCatalog.filter((video) => video.category === 'Music').slice(0, 8)}
-          viewAllLink="/music"
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {movieCatalog.some((video) => video.category === 'Cartoons') && (
-        <ContentRow
-          id="cartoons"
-          title="CARTOONS"
-          subtitle="Classic animation, family favorites, and animated adventures."
-          content={movieCatalog.filter((video) => video.category === 'Cartoons').slice(0, 8)}
-          viewAllLink="/cartoons"
-          onInfo={setPreviewVideo}
-        />
-      )}
-
-      {apiVideos.length > 0 && (
-        <ContentRow
-          title="🆕 Fresh From PROtv"
-          subtitle="Newly added to the library"
-          content={apiVideos.slice(0, 8)}
-        onInfo={setPreviewVideo}
-        />
-      )}
-
-      <CreatorInvitation />
-      <Footer />
       {previewVideo && (
         <MoviePreview video={previewVideo} onClose={() => setPreviewVideo(null)} />
       )}
-    </div>
+    </ProTVShell>
   );
 }
