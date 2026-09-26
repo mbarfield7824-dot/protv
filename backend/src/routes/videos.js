@@ -16,6 +16,7 @@ const {
   grantAdminRole,
 } = require('../firebase');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { validateEpisodeMetadata } = require('./episodeMetadata');
 const {
   createDirectUpload,
   getUpload,
@@ -299,6 +300,8 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
   if (typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'A title is required.' });
   }
+  const episodeError = validateEpisodeMetadata(req.body);
+  if (episodeError) return res.status(400).json({ error: episodeError });
 
   try {
     const isEpisode = contentType === 'EPISODE';
@@ -322,12 +325,8 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       trailerUrl: optionalHttpUrl(trailerUrl),
       contentType: isEpisode ? 'EPISODE' : 'MOVIE',
       seriesTitle: isEpisode && typeof seriesTitle === 'string' ? seriesTitle.trim() : '',
-      seasonNumber: isEpisode && Number.isInteger(Number(seasonNumber)) && Number(seasonNumber) > 0
-        ? Number(seasonNumber)
-        : null,
-      episodeNumber: isEpisode && Number.isInteger(Number(episodeNumber)) && Number(episodeNumber) > 0
-        ? Number(episodeNumber)
-        : null,
+      seasonNumber: isEpisode ? Number(seasonNumber) : null,
+      episodeNumber: isEpisode ? Number(episodeNumber) : null,
       episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
     res.json(await getVideoById(req.params.id));
@@ -491,12 +490,11 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
         error: 'title and category are required',
       });
     }
+    const episodeError = validateEpisodeMetadata(req.body);
+    if (episodeError) return res.status(400).json({ error: episodeError });
 
     const upload = await createDirectUpload(process.env.FRONTEND_URL);
     const isEpisode = contentType === 'EPISODE';
-    if (isEpisode && (!seriesTitle?.trim() || !Number.isInteger(Number(seasonNumber)) || !Number.isInteger(Number(episodeNumber)))) {
-      return res.status(400).json({ error: 'TV episodes require a series title, season number, and episode number.' });
-    }
 
     const videoId = await addVideo({
       title,
@@ -565,12 +563,11 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
         error: 'title, category, and sourceUrl are required',
       });
     }
+    const episodeError = validateEpisodeMetadata(req.body);
+    if (episodeError) return res.status(400).json({ error: episodeError });
 
     const asset = await createAssetFromUrl(sourceUrl);
     const isEpisode = contentType === 'EPISODE';
-    if (isEpisode && (!seriesTitle?.trim() || !Number.isInteger(Number(seasonNumber)) || !Number.isInteger(Number(episodeNumber)))) {
-      return res.status(400).json({ error: 'TV episodes require a series title, season number, and episode number.' });
-    }
 
     const videoId = await addVideo({
       title,
