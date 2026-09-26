@@ -1,7 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
 import { api } from '../api';
@@ -21,12 +19,31 @@ const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentDat
 export default function Player() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadedVideoId, setLoadedVideoId] = useState(null);
   const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
   const playerRef = useRef(null);
   const resumeAppliedRef = useRef(null);
+  const goBack = () => {
+    if (location.key !== 'default') {
+      navigate(-1);
+      return;
+    }
+    navigate('/');
+  };
+  const playerChrome = (
+    <div className="player-chrome">
+      <button className="player-back" type="button" onClick={goBack}>
+        <span aria-hidden="true">←</span> Back
+      </button>
+      <Link className="player-brand" to="/" aria-label="PROtv home">
+        PRO<span>tv</span>
+      </Link>
+      <span className="player-chrome__spacer" aria-hidden="true" />
+    </div>
+  );
 
   const fetchVideo = useCallback(async () => {
     // First check the curated mock catalog (covers Trending/Black Cinema/
@@ -115,20 +132,26 @@ export default function Player() {
 
   if (loading || loadedVideoId !== id) {
     return (
-      <div className="player-loading">
-        <div className="player-loading-spinner" />
-        <p>Loading PROtv...</p>
+      <div className="player-page player-page--state">
+        {playerChrome}
+        <main className="player-loading" role="status">
+          <div className="player-loading-spinner" />
+          <p>Loading PROtv...</p>
+        </main>
       </div>
     );
   }
 
   if (!video) {
     return (
-      <div className="player-loading">
-        <p>Video not found.</p>
-        <button className="back-btn" onClick={() => navigate('/')}>
-          ← Back to Home
-        </button>
+      <div className="player-page player-page--state">
+        {playerChrome}
+        <main className="player-loading player-not-found">
+          <p>Video not found.</p>
+          <button className="player-back player-back--state" onClick={goBack}>
+            ← Back
+          </button>
+        </main>
       </div>
     );
   }
@@ -139,6 +162,15 @@ export default function Player() {
   const duration = video.runtime || (video.duration ? Math.round(video.duration / 60) : 0);
   const genres = [...new Set([...(video.genres || []), category, video.subgenre].filter(Boolean))];
   const maturityRating = video.maturityRating || video.ageRating;
+  const isEpisode = video.contentType === 'EPISODE';
+  const episodePosition = [
+    video.seasonNumber !== undefined && video.seasonNumber !== null && video.seasonNumber !== ''
+      ? `S${video.seasonNumber}`
+      : '',
+    video.episodeNumber !== undefined && video.episodeNumber !== null && video.episodeNumber !== ''
+      ? `E${video.episodeNumber}`
+      : '',
+  ].filter(Boolean).join(' · ');
 
   const related = ALL_MOCK_VIDEOS.filter(
     (v) => v.id !== video.id && v.genres?.some((g) => genres.includes(g))
@@ -146,13 +178,9 @@ export default function Player() {
 
   return (
     <div className="player-page">
-      <Header />
+      {playerChrome}
 
       <div className="player-container">
-        <button className="back-btn" onClick={() => navigate('/')}>
-          ← Back to Home
-        </button>
-
         <div
           className="player-main"
           style={{
@@ -182,7 +210,12 @@ export default function Player() {
           </div>
 
           <div className="video-details">
-            <h1>{video.title}</h1>
+            {isEpisode && video.seriesTitle && <p className="episode-series">{video.seriesTitle}</p>}
+            {isEpisode && episodePosition && <p className="episode-position">{episodePosition}</p>}
+            <h1>{isEpisode && video.episodeTitle ? video.episodeTitle : video.title}</h1>
+            {isEpisode && video.episodeTitle && video.episodeTitle !== video.title && (
+              <p className="episode-video-title">{video.title}</p>
+            )}
 
             <div className="meta">
               {category && <span className="category-badge">{category}</span>}
@@ -213,7 +246,7 @@ export default function Player() {
               </div>
             )}
 
-            <p className="description">{video.description}</p>
+            {video.description && <p className="description">{video.description}</p>}
 
             {(video.cast || video.creator || video.language || video.subtitles) && (
               <dl className="metadata-details">
@@ -251,7 +284,6 @@ export default function Player() {
         )}
       </div>
 
-      <Footer />
     </div>
   );
 }
