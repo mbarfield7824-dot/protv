@@ -1,23 +1,17 @@
 import { useEffect, useState } from 'react';
+import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
 import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
-import { episodeDetailsFor, seriesTitleFor } from '../utils/shows';
 
 function catalogCategory(video) {
   return video.category || video.genre || video.categories?.[0] || 'General';
 }
 
 function normalizeCatalogVideo(video) {
-  const isEpisode = video.contentType === 'EPISODE' || Boolean(seriesTitleFor(video));
-  const details = episodeDetailsFor(video);
   return {
     ...video,
     category: catalogCategory(video),
-    contentType: isEpisode ? 'EPISODE' : 'MOVIE',
-    seriesTitle: video.seriesTitle || seriesTitleFor(video),
-    seasonNumber: video.seasonNumber || (isEpisode ? details.seasonNumber : ''),
-    episodeNumber: video.episodeNumber || (isEpisode ? details.episodeNumber : ''),
-    episodeTitle: video.episodeTitle || '',
+    contentType: video.contentType || 'MOVIE',
   };
 }
 
@@ -29,6 +23,7 @@ export default function AdminCatalogEditor() {
   const [refreshingRatings, setRefreshingRatings] = useState(false);
   const [ratingStatus, setRatingStatus] = useState('');
   const [savedId, setSavedId] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
   const loadVideos = async () => {
     setLoading(true);
@@ -63,12 +58,22 @@ export default function AdminCatalogEditor() {
   }, []);
 
   const updateDraft = (id, field, value) => {
-    setVideos((items) =>
-      items.map((video) => (video.id === id ? { ...video, [field]: value } : video))
-    );
+    const currentVideo = videos.find((video) => video.id === id);
+    const updatedVideo = { ...currentVideo, [field]: value };
+    setVideos((items) => items.map((video) => (
+      video.id === id ? updatedVideo : video
+    )));
+    setValidationErrors((current) => ({
+      ...current,
+      [id]: validateEpisodeMetadata(updatedVideo),
+    }));
   };
 
   const saveVideo = async (video) => {
+    const errors = validateEpisodeMetadata(video);
+    setValidationErrors((current) => ({ ...current, [video.id]: errors }));
+    if (Object.keys(errors).length > 0) return;
+
     setSavingId(video.id);
     setSavedId(null);
     setError('');
@@ -87,7 +92,7 @@ export default function AdminCatalogEditor() {
         subtitles: video.subtitles || video.subtitleInfo || '',
         trailerUrl: video.trailerUrl || '',
         contentType: video.contentType,
-        seriesTitle: video.seriesTitle || '',
+        seriesTitle: video.seriesTitle?.trim() || '',
         seasonNumber: video.seasonNumber || '',
         episodeNumber: video.episodeNumber || '',
         episodeTitle: video.episodeTitle || '',
@@ -258,15 +263,42 @@ export default function AdminCatalogEditor() {
             <>
               <label>
                 Series title
-                <input value={video.seriesTitle || ''} onChange={(event) => updateDraft(video.id, 'seriesTitle', event.target.value)} />
+                <input
+                  value={video.seriesTitle || ''}
+                  onChange={(event) => updateDraft(video.id, 'seriesTitle', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.seriesTitle)}
+                />
+                {validationErrors[video.id]?.seriesTitle && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].seriesTitle}</span>
+                )}
               </label>
               <label>
                 Season
-                <input min="1" type="number" value={video.seasonNumber || ''} onChange={(event) => updateDraft(video.id, 'seasonNumber', event.target.value)} />
+                <input
+                  min="1"
+                  step="1"
+                  type="number"
+                  value={video.seasonNumber ?? ''}
+                  onChange={(event) => updateDraft(video.id, 'seasonNumber', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.seasonNumber)}
+                />
+                {validationErrors[video.id]?.seasonNumber && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].seasonNumber}</span>
+                )}
               </label>
               <label>
                 Episode
-                <input min="1" type="number" value={video.episodeNumber || ''} onChange={(event) => updateDraft(video.id, 'episodeNumber', event.target.value)} />
+                <input
+                  min="1"
+                  step="1"
+                  type="number"
+                  value={video.episodeNumber ?? ''}
+                  onChange={(event) => updateDraft(video.id, 'episodeNumber', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.episodeNumber)}
+                />
+                {validationErrors[video.id]?.episodeNumber && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].episodeNumber}</span>
+                )}
               </label>
               <label>
                 Episode title <span className="optional">(optional)</span>

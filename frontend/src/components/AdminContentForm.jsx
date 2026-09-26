@@ -154,7 +154,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
     <form className="admin-content-form" onSubmit={handleSubmit}>
       {/* BASIC METADATA SECTION */}
       <fieldset className="form-section">
-        <legend>📽️ Basic Content Information</legend>
+        <legend>📽️ Basic Movie Information</legend>
 
         <div className="form-row">
           <label>
@@ -164,7 +164,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
               name="title"
               value={formData.title}
               onChange={handleChange}
-              placeholder="Enter movie/show title"
+              placeholder="Enter movie title"
               required
             />
           </label>

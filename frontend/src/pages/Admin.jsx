@@ -7,6 +7,7 @@ import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import AdminBotPanel from '../components/AdminBotPanel';
 import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
 import AdminAssistantPanel from '../admin/AdminAssistantPanel';
+import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
 import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
@@ -14,10 +15,6 @@ import '../styles/Admin.css';
 import '../styles/AdminContent.css';
 
 const BULK_UPLOAD_CONCURRENCY = 3;
-
-function titleFromFileName(name) {
-  return name.replace(/\.[^/.]+$/, '');
-}
 
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
@@ -127,11 +124,17 @@ export default function Admin() {
     );
   }
 
-  const updateField = (field) => (e) => setForm((current) => ({
-    ...current,
-    [field]: e.target.value,
-    ...(field === 'category' ? { subgenre: '' } : {}),
-  }));
+  const updateField = (field) => (e) => {
+    if (['seriesTitle', 'seasonNumber', 'episodeNumber'].includes(field)) setError('');
+    setForm((current) => ({
+      ...current,
+      [field]: e.target.value,
+      ...(field === 'contentType'
+        ? { seasonNumber: e.target.value === 'EPISODE' ? '' : 1, episodeNumber: e.target.value === 'EPISODE' ? '' : 1 }
+        : {}),
+      ...(field === 'category' ? { subgenre: '' } : {}),
+    }));
+  };
 
   const selectBulkFiles = (files) => {
     const selectedFiles = Array.from(files || []);
@@ -139,8 +142,8 @@ export default function Admin() {
     setBulkMetadata(
       selectedFiles.map((selectedFile, index) => ({
         id: `${index}-${selectedFile.name}`,
-        title: titleFromFileName(selectedFile.name),
-        episodeNumber: index + 1,
+        title: '',
+        episodeNumber: '',
       }))
     );
   };
@@ -152,6 +155,7 @@ export default function Admin() {
   };
 
   const updateBulkEpisodeNumber = (id, episodeNumber) => {
+    setError('');
     setBulkMetadata((items) =>
       items.map((item) => (item.id === id ? { ...item, episodeNumber } : item))
     );
@@ -179,13 +183,21 @@ export default function Admin() {
   const handleFileSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const episodeErrors = validateEpisodeMetadata(form);
+    if (Object.keys(episodeErrors).length > 0) {
+      setError(Object.values(episodeErrors).join(' '));
+      return;
+    }
     if (!file) {
       setError('Please choose a video file.');
       return;
     }
     try {
       setStatus('uploading');
-      const { videoId: id, uploadUrl, error: apiError } = await api.getUploadUrl(form);
+      const metadata = form.contentType === 'EPISODE'
+        ? { ...form, seriesTitle: form.seriesTitle.trim() }
+        : form;
+      const { videoId: id, uploadUrl, error: apiError } = await api.getUploadUrl(metadata);
       if (apiError) throw new Error(apiError);
 
       await api.uploadFileToMux(uploadUrl, file, setProgress);
@@ -199,13 +211,21 @@ export default function Admin() {
   const handleUrlSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const episodeErrors = validateEpisodeMetadata(form);
+    if (Object.keys(episodeErrors).length > 0) {
+      setError(Object.values(episodeErrors).join(' '));
+      return;
+    }
     if (!form.sourceUrl.trim()) {
       setError('Please paste a video file URL.');
       return;
     }
     try {
       setStatus('uploading');
-      const { videoId: id, error: apiError } = await api.addVideoFromUrl(form);
+      const metadata = form.contentType === 'EPISODE'
+        ? { ...form, seriesTitle: form.seriesTitle.trim() }
+        : form;
+      const { videoId: id, error: apiError } = await api.addVideoFromUrl(metadata);
       if (apiError) throw new Error(apiError);
       startPolling(id);
     } catch (err) {
@@ -263,8 +283,30 @@ export default function Admin() {
       setError('Please choose one or more video files.');
       return;
     }
+    const seriesErrors = validateEpisodeMetadata({
+      contentType: 'EPISODE',
+      seriesTitle: form.seriesTitle,
+      seasonNumber: form.seasonNumber,
+      episodeNumber: 1,
+    });
+    if (Object.keys(seriesErrors).length > 0) {
+      setError(Object.values(seriesErrors).slice(0, 2).join(' '));
+      return;
+    }
     if (bulkMetadata.some((item) => !item.title.trim())) {
       setError('Every episode needs a title before uploading.');
+      return;
+    }
+    const invalidEpisodeIndex = bulkMetadata.findIndex((item) => (
+      Object.keys(validateEpisodeMetadata({
+        contentType: 'EPISODE',
+        seriesTitle: form.seriesTitle,
+        seasonNumber: form.seasonNumber,
+        episodeNumber: item.episodeNumber,
+      })).length > 0
+    ));
+    if (invalidEpisodeIndex >= 0) {
+      setError(`Episode ${invalidEpisodeIndex + 1} needs a positive whole episode number.`);
       return;
     }
 
@@ -447,6 +489,7 @@ export default function Admin() {
             onClick={() => {
               reset();
               setMode('bulk');
+              setForm((current) => ({ ...current, seasonNumber: '' }));
             }}
           >
             🗂️ Upload Season
@@ -607,15 +650,36 @@ export default function Admin() {
               <>
                 <label>
                   Series Title
-                  <input value={form.seriesTitle} onChange={updateField('seriesTitle')} required />
+                  <input
+                    value={form.seriesTitle}
+                    onChange={updateField('seriesTitle')}
+                    onInvalid={() => setError('Series title is required for an episode.')}
+                    required
+                  />
                 </label>
                 <label>
                   Season Number
-                  <input min="1" type="number" value={form.seasonNumber} onChange={updateField('seasonNumber')} required />
+                  <input
+                    min="1"
+                    step="1"
+                    type="number"
+                    value={form.seasonNumber}
+                    onChange={updateField('seasonNumber')}
+                    onInvalid={() => setError('Season number must be a positive whole number.')}
+                    required
+                  />
                 </label>
                 <label>
                   Episode Number
-                  <input min="1" type="number" value={form.episodeNumber} onChange={updateField('episodeNumber')} required />
+                  <input
+                    min="1"
+                    step="1"
+                    type="number"
+                    value={form.episodeNumber}
+                    onChange={updateField('episodeNumber')}
+                    onInvalid={() => setError('Episode number must be a positive whole number.')}
+                    required
+                  />
                 </label>
               </>
             )}
@@ -654,11 +718,24 @@ export default function Admin() {
          <form className="admin-form" onSubmit={handleBulkSubmit}>
            <label>
              Series Title
-             <input value={form.seriesTitle} onChange={updateField('seriesTitle')} required />
+             <input
+               value={form.seriesTitle}
+               onChange={updateField('seriesTitle')}
+               onInvalid={() => setError('Series title is required for an episode.')}
+               required
+             />
            </label>
            <label>
              Season Number
-             <input min="1" type="number" value={form.seasonNumber} onChange={updateField('seasonNumber')} required />
+             <input
+               min="1"
+               step="1"
+               type="number"
+               value={form.seasonNumber}
+               onChange={updateField('seasonNumber')}
+               onInvalid={() => setError('Season number must be a positive whole number.')}
+               required
+             />
            </label>
            <label>
              Shared Description <span className="optional">(optional)</span>
@@ -751,7 +828,15 @@ export default function Admin() {
                    </label>
                    <label>
                      Episode Number
-                     <input min="1" type="number" value={item.episodeNumber} onChange={(event) => updateBulkEpisodeNumber(item.id, event.target.value)} required />
+                     <input
+                       min="1"
+                       step="1"
+                       type="number"
+                       value={item.episodeNumber}
+                       onChange={(event) => updateBulkEpisodeNumber(item.id, event.target.value)}
+                       onInvalid={() => setError(`Episode ${index + 1} number must be a positive whole number.`)}
+                       required
+                     />
                    </label>
                  </div>
                ))}
