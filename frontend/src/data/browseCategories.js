@@ -1,7 +1,9 @@
 export const BROWSE_CATEGORIES = [
   { id: 'black-cinema', name: 'Black Cinema', matches: ['Black Cinema'] },
   { id: 'independent', name: 'Independent', matches: ['Independent'] },
-  { id: 'anime', name: 'Anime & Animation', matches: ['Anime', 'Animation'] },
+  // Broad discovery grouping: matches any of these tags without changing a
+  // title's own genre (classic cartoons stay "Cartoons" on their cards).
+  { id: 'anime', name: 'Animation & Anime', matches: ['Anime', 'Animation', 'Animated', 'Cartoons'] },
   { id: 'horror', name: 'Horror', matches: ['Horror'] },
   { id: 'action', name: 'Action', matches: ['Action'] },
   { id: 'comedy', name: 'Comedy', matches: ['Comedy'] },

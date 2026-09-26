@@ -25,15 +25,22 @@ export const BRAND_ART = {
     stillTime: 327,
   },
   // Per-category artwork. `imageUrl` wins; otherwise the still of the listed
-  // catalog title is used (only when that title belongs to the category).
+  // catalog title is used when that title belongs to the category.
+  // `mood: true` marks categories PROtv is building toward: until real titles
+  // or custom key art exist, the tile uses a graded mood still from a
+  // rights-held PROtv title. It is artwork only and never implies content.
   categories: {
     'black-cinema': { imageUrl: null, catalogId: 'biitnhJJnBvHGFx8TJZC', stillTime: 2861 },
+    // The Bundy Chronicles — PROtv exclusive.
+    independent: { imageUrl: null, catalogId: 'sqKR6c5Cq7MD9lg1GDxG', stillTime: 200, mood: true },
+    // Looney Tunes Classics — vetted character frame.
+    anime: { imageUrl: null, catalogId: 'lussNXvK08RN9xtfq4wN', stillTime: 250 },
     horror: { imageUrl: null, catalogId: 'WIVB9NPQQzvtvjTBsiKw', stillTime: 1174 },
     action: { imageUrl: null, catalogId: 'sCWQqVE5WIoNNN5wAGQ2', stillTime: 178 },
     comedy: { imageUrl: null, catalogId: 'hKPU3JNJ4faWLgWE6ZSq', stillTime: 298 },
     documentary: { imageUrl: null, catalogId: 'vmsxoXY005wf3SwsfF7F', stillTime: 960 },
-    'sci-fi': { imageUrl: null, catalogId: 'gbcxmtl6mAHQeBxx8Dgs', stillTime: 440 },
-    cartoons: { imageUrl: null, catalogId: 'lussNXvK08RN9xtfq4wN', stillTime: 250 },
+    // The Bundy Chronicles — PROtv exclusive.
+    music: { imageUrl: null, catalogId: 'sqKR6c5Cq7MD9lg1GDxG', stillTime: 120, mood: true },
   },
 };
 

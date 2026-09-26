@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import CinematicHero from '../components/CinematicHero';
@@ -226,25 +226,31 @@ export default function Home() {
 
   // ---- Browse by Category -----------------------------------------------
   const usedArtwork = new Set();
-  const categoryTiles = [...BROWSE_CATEGORIES, ...EXTRA_BROWSE_CATEGORIES]
-    .map((category) => {
-      const matches = catalog.filter((video) => matchesCategory(video, category));
-      if (!matches.length) return null;
-      const art = BRAND_ART.categories[category.id];
-      const curated = art?.catalogId && matches.find((video) => video.id === art.catalogId);
-      const pick = curated
-        || matches.find((video) => video.muxPlaybackId && !usedArtwork.has(video.id))
-        || matches[0];
-      usedArtwork.add(pick.id);
+  const categoryTiles = BROWSE_CATEGORIES.map((category) => {
+    const matches = catalog.filter((video) => matchesCategory(video, category));
+    const art = BRAND_ART.categories[category.id];
+    if (!matches.length) {
+      const moodSource = art?.mood && byId(art.catalogId);
       return {
         category,
-        count: matches.length,
-        artwork: art?.imageUrl || still(pick, 480, 560, curated ? art.stillTime : undefined) || pick.thumbnailUrl,
-        fallback: pick.thumbnailUrl || FALLBACK_POSTER,
+        count: 0,
+        comingSoon: true,
+        artwork: art?.imageUrl || (moodSource && still(moodSource, 480, 560, art.stillTime)) || '',
+        fallback: '',
       };
-    })
-    .filter(Boolean)
-    .slice(0, 8);
+    }
+    const curated = art?.catalogId && matches.find((video) => video.id === art.catalogId);
+    const pick = curated
+      || matches.find((video) => video.muxPlaybackId && !usedArtwork.has(video.id))
+      || matches[0];
+    usedArtwork.add(pick.id);
+    return {
+      category,
+      count: matches.length,
+      artwork: art?.imageUrl || still(pick, 480, 560, curated ? art.stillTime : undefined) || pick.thumbnailUrl,
+      fallback: pick.thumbnailUrl || FALLBACK_POSTER,
+    };
+  });
 
   // ---- New on PROtv / Spotlight -----------------------------------------
   const newOnProtv = isLive
@@ -289,7 +295,7 @@ export default function Home() {
       const items = catalog.filter((video) => matchesCategory(video, category));
       destination = items.length
         ? { id: category.id, title: category.name, items }
-        : { id: category.id, empty: { title: `${category.name} is coming soon.`, body: 'Check back soon for the first titles in this collection.' } };
+        : { id: category.id, comingSoon: category.name };
     }
   }
 
@@ -323,7 +329,19 @@ export default function Home() {
           <CategoryShowcase tiles={categoryTiles} activeId={selection} />
 
           {destination && (
-            destination.empty ? (
+            destination.comingSoon ? (
+              <section id={destination.id} className="ptv-coming" aria-live="polite">
+                <p className="ptv-coming__eyebrow">Coming to PRO<span>tv</span></p>
+                <h2>{destination.comingSoon}</h2>
+                <p className="ptv-coming__body">
+                  We&apos;re building this collection now. The first {destination.comingSoon} titles will premiere here soon.
+                </p>
+                <div className="ptv-coming__actions">
+                  <Link className="ptv-btn ptv-btn--primary" to="/#new-on-protv">Browse New on PROtv</Link>
+                  <Link className="ptv-btn ptv-btn--ghost" to="/creators">Submit Your Film</Link>
+                </div>
+              </section>
+            ) : destination.empty ? (
               <section id={destination.id} className="ptv-destination">
                 <EmptyState title={destination.empty.title}>
                   {destination.empty.body}
