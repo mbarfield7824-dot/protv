@@ -18,8 +18,8 @@ import Privacy from './pages/Privacy';
 import AcceptableUsePolicy from './pages/AcceptableUsePolicy';
 import DmcaPolicy from './pages/DmcaPolicy';
 import WatchHistory from './pages/WatchHistory';
-import Shows from './pages/Shows';
-import ShowDetail from './pages/ShowDetail';
+import Series from './pages/Series';
+import SeriesDetail from './pages/SeriesDetail';
 import Creators from './pages/Creators';
 import CollectionPage from './pages/CollectionPage';
 import { AuthProvider } from './context/AuthContext';
@@ -61,8 +61,10 @@ function App() {
           <Route path="/acceptable-use-policy" element={<AcceptableUsePolicy />} />
           <Route path="/dmca-policy" element={<DmcaPolicy />} />
           <Route path="/history" element={<WatchHistory />} />
-          <Route path="/shows" element={<Shows />} />
-          <Route path="/shows/:slug" element={<ShowDetail />} />
+          <Route path="/series" element={<Series />} />
+          <Route path="/series/:seriesKey" element={<SeriesDetail />} />
+          <Route path="/shows" element={<Navigate to="/series" replace />} />
+          <Route path="/shows/:slug" element={<Navigate to="/series" replace />} />
           <Route path="/creators" element={<Creators />} />
           <Route path="/music" element={<CollectionPage category="Music" />} />
           <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />

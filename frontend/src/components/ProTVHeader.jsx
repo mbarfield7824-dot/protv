@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/movies', label: 'Movies' },
-  { to: '/shows', label: 'Series' },
+  { to: '/series', label: 'Series' },
   { to: '/documentaries', label: 'Documentaries' },
   { to: '/#originals', label: 'Originals' },
   { to: '/creators', label: 'Submit Your Film' },
