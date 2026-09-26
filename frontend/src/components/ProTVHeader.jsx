@@ -132,7 +132,7 @@ export default function ProTVHeader() {
                 <div className="ptv-account__menu" role="menu">
                   <p className="ptv-account__name">{user.displayName || user.email}</p>
                   <Link role="menuitem" to="/profile" onClick={closeAll}>Profile</Link>
-                  <Link role="menuitem" to="/#my-list" onClick={closeAll}>My List</Link>
+                  <Link role="menuitem" to="/my-list" onClick={closeAll}>My List</Link>
                   <Link role="menuitem" to="/history" onClick={closeAll}>Watch History</Link>
                   {isAdmin && <Link role="menuitem" to="/admin" onClick={closeAll}>Admin</Link>}
                   <button
@@ -163,7 +163,7 @@ export default function ProTVHeader() {
             {link.label}
           </Link>
         ))}
-        <Link to="/#my-list" onClick={closeAll}>My List</Link>
+        <Link to="/my-list" onClick={closeAll}>My List</Link>
         {user && <Link to="/profile" onClick={closeAll}>Profile</Link>}
         {isAdmin && <Link to="/admin" onClick={closeAll}>Admin</Link>}
       </nav>

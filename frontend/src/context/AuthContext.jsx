@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(isFirebaseConfigured);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [favorites, setFavorites] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(isFirebaseConfigured);
   const [progress, setProgress] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(isFirebaseConfigured);
@@ -30,10 +31,12 @@ export function AuthProvider({ children }) {
       setUser(nextUser);
       if (!nextUser) {
         setFavorites([]);
+        setFavoritesLoading(false);
         setProgress({});
         setIsAdmin(false);
         setAdminLoading(false);
       } else {
+        setFavoritesLoading(true);
         setAdminLoading(true);
         nextUser.getIdTokenResult()
           .then((tokenResult) => setIsAdmin(tokenResult.claims.admin === true))
@@ -56,7 +59,10 @@ export function AuthProvider({ children }) {
       .then((favoriteIds) => {
         if (!cancelled) setFavorites(favoriteIds);
       })
-      .catch((error) => console.error('Failed to load favorites:', error));
+      .catch((error) => console.error('Failed to load favorites:', error))
+      .finally(() => {
+        if (!cancelled) setFavoritesLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -161,6 +167,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     favorites,
+    favoritesLoading,
     progress,
     isAdmin,
     adminLoading,

@@ -1,0 +1,36 @@
+.my-list-page__empty {
+  min-height: 220px;
+  align-content: center;
+}
+
+.my-list-page__empty .movies-state__action,
+.my-list-page__signed-out .movies-state__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  text-decoration: none;
+}
+
+.my-list-page__signed-out {
+  min-height: 300px;
+  align-content: center;
+  margin: clamp(32px, 7vh, 80px) auto 0;
+}
+
+.my-list-page__signed-out .movies-page__eyebrow {
+  margin-bottom: 0 !important;
+}
+
+.my-list-page__signed-out h1 {
+  font-size: clamp(30px, 4.6vw, 48px);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.my-list-page__signed-out > p:not(.movies-page__eyebrow) {
+  max-width: 520px;
+  color: var(--ptv-ink-2);
+  font-size: 15px;
+}

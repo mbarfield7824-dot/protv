@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Movies from './pages/Movies';
 import Documentaries from './pages/Documentaries';
 import Search from './pages/Search';
+import MyList from './pages/MyList';
 import Player from './pages/Player';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
@@ -46,6 +47,7 @@ function App() {
           <Route path="/movies" element={<Movies />} />
           <Route path="/documentaries" element={<Documentaries />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/my-list" element={<MyList />} />
           <Route path="/player/:id" element={<Player />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/profile" element={<Profile />} />
