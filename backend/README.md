@@ -121,6 +121,33 @@ included.
 
 The versioned catalog remains read-only; it does not add login or write endpoints.
 
+### PROtv Live discovery (phase 1)
+
+Live events are separate from on-demand `videos`, in Firestore `liveEvents`
+documents keyed by stable event ID. A document has `title`, `description`,
+`artworkUrl`, `scheduledStartAt` and `scheduledEndAt` (Firestore timestamps),
+`status` (`draft`, `scheduled`, `live`, `ended`, or `cancelled`),
+`accessPolicy` (`free` or `paid`), `published` (boolean), and optional
+`createdAt`/`updatedAt` timestamps. `priceMinor` and `currency` may be reserved
+for future paid events; neither purchases nor pricing are part of phase 1.
+Internal stream/provider, payment, entitlement, and admin fields must stay
+server-only.
+
+- `GET /v1/live/events` returns `{ "items": [...] }` without authentication.
+  Only explicitly published, **free, scheduled** events are discoverable.
+  Draft, cancelled, live, ended, paid, and unpublished events are deliberately
+  excluded until their later-phase behavior is defined. Results sort by
+  scheduled start ascending, then event ID.
+- `GET /v1/live/events/:id` returns the same viewer-safe projection, or 404
+  for an unknown or non-public event.
+
+The public fields are `id`, `title`, `description`, `artworkUrl`,
+`scheduledStartAt`, `scheduledEndAt` (ISO 8601 UTC), `status`, and
+`accessPolicy`. Invalid discoverable records or unavailable Firestore reads
+fail closed with 503; there is no local-file fallback. These routes are
+read-only and do **not** provide access checks, playback, or checkout. Prefix
+the paths with `/api` on Vercel.
+
 ### Mux webhook
 
 Set `MUX_WEBHOOK_SECRET` to the signing secret for the configured Mux webhook
