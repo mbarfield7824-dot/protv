@@ -44,6 +44,14 @@ fun nextFeaturedIndex(current: Int, size: Int): Int =
 fun previousFeaturedIndex(current: Int, size: Int): Int =
     if (size <= 1) 0 else (current - 1).mod(size)
 
+fun sanitizeDescription(description: String?): String? {
+    val cleaned = description
+        ?.replace(Regex("(?i)\\b(?:rights|license|source|credit|internal rights notes)\\s*:\\s*[^.\\n]*(?:\\.\\s*|$)"), " ")
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+    return cleaned?.takeIf { it.isNotEmpty() }
+}
+
 /** Formats a runtime in seconds as "1h 13m", "45m" or "2h"; null when unknown. */
 fun formatRuntime(seconds: Int?): String? {
     if (seconds == null || seconds <= 0) return null

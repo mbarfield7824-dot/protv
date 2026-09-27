@@ -99,33 +99,50 @@ fun ContentCard(
 
 @Composable
 private fun CardArtwork(tile: HomeTile) {
-    val context = LocalContext.current
     var failed by remember(tile.id) { mutableStateOf(false) }
+    var usingFallback by remember(tile.id) { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (tile.artwork == null || failed) {
+        if ((tile.artwork == null && tile.fallbackArtwork == null) || (failed && usingFallback)) {
             Text(
-                text = stringResource(R.string.artwork_unavailable),
-                color = ProTvColors.Muted,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 12.dp),
+                text = "PROtv\n${tile.title}",
+                color = ProTvColors.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(16.dp),
             )
+        } else if (tile.artwork == null || usingFallback) {
+            ArtworkImage(tile, tile.fallbackArtwork, onError = {
+                usingFallback = true
+                failed = true
+            })
         } else {
-            val request = remember(tile.id) {
-                ImageRequest.Builder(context)
-                    .data(tile.artwork)
-                    .apply { tile.artworkCacheKey?.let { memoryCacheKey(it) } }
-                    .allowRgb565(true)
-                    .crossfade(false)
-                    .build()
-            }
-            // Fit preserves portrait and square catalog artwork inside the 16:9 card surface.
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-                onError = { failed = true },
-            )
+            ArtworkImage(tile, tile.artwork, onError = {
+                if (tile.fallbackArtwork != null) usingFallback = true else failed = true
+            })
         }
     }
+}
+
+@Composable
+private fun ArtworkImage(tile: HomeTile, source: Any?, onError: () -> Unit) {
+    val context = LocalContext.current
+    val request = remember(tile.id, source) {
+        ImageRequest.Builder(context)
+            .data(source)
+            .apply {
+                if (source === tile.artwork) {
+                    tile.artworkCacheKey?.let { memoryCacheKey(it) }
+                }
+            }
+            .allowRgb565(true)
+            .crossfade(false)
+            .build()
+    }
+    AsyncImage(
+        model = request,
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxSize(),
+        onError = { onError() },
+    )
 }

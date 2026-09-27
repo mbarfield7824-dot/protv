@@ -22,3 +22,8 @@ fun CatalogItem.artworkModel(baseUrl: String): Any? {
     }
     return artworkUrl(baseUrl)
 }
+
+fun CatalogItem.muxStillArtwork(): String? {
+    val playbackId = publicMuxPlaybackId ?: return null
+    return "https://image.mux.com/$playbackId/thumbnail.jpg?time=30&width=640&height=360&fit_mode=smartcrop"
+}

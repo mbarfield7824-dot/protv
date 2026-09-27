@@ -2,6 +2,7 @@ package com.protv.firetv.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +25,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -66,8 +71,11 @@ private val RowFocusPivot = 96.dp
 private val RowEdgeMargin = 56.dp
 
 @Composable
-fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
+fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit, onExit: () -> Unit) {
     LaunchedEffect(controller) { controller.onHomeShown() }
+    var showExitDialog by remember { mutableStateOf(false) }
+    BackHandler(enabled = !showExitDialog) { showExitDialog = true }
+    BackHandler(enabled = showExitDialog) { showExitDialog = false }
 
     ProTvTheme {
         Box(modifier = Modifier.fillMaxSize().background(ProTvColors.Black)) {
@@ -81,6 +89,9 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
                     } else {
                         HomeRails(controller, state.rails, state.featuredTitles, onSelect)
                     }
+            }
+            if (showExitDialog) {
+                ExitConfirmation(onStay = { showExitDialog = false }, onExit = onExit)
             }
         }
     }
@@ -99,6 +110,8 @@ private fun HomeRails(
         HomeBringIntoViewSpec(with(density) { RowFocusPivot.toPx() }, controller.listState) { controller.heroFocused }
     }
     val horizontalSpec = remember(density) { EdgeBringIntoViewSpec(with(density) { RowEdgeMargin.toPx() }) }
+    val heroFocusRequester = remember { FocusRequester() }
+    val firstCardRequesters = remember(rails) { rails.associate { it.key to FocusRequester() } }
 
     CompositionLocalProvider(LocalBringIntoViewSpec provides verticalSpec) {
         LazyColumn(
@@ -113,13 +126,19 @@ private fun HomeRails(
                     ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
                     if (featuredTitles.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        HeroSlot(controller, featuredTitles, onSelect)
+                        HeroSlot(controller, featuredTitles, heroFocusRequester, onSelect)
                     }
+                    CategoryNavigation(
+                        controller = controller,
+                        rails = rails,
+                        heroFocusRequester = heroFocusRequester,
+                        firstCardRequesters = firstCardRequesters,
+                    )
                 }
             }
             items(rails, key = { it.key }, contentType = { "rail" }) { rail ->
                 CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
-                    CategoryRailRow(controller, rail, onSelect)
+                    CategoryRailRow(controller, rail, firstCardRequesters.getValue(rail.key), onSelect)
                 }
             }
         }
@@ -130,14 +149,14 @@ private fun HomeRails(
 private fun HeroSlot(
     controller: HomeController,
     featuredTitles: List<HomeFeatured>,
+    focusRequester: FocusRequester,
     onSelect: (HomeTile) -> Unit,
 ) {
-    val focusRequester = remember { FocusRequester() }
     val featured = featuredTitles[controller.featuredIndex.coerceIn(0, featuredTitles.lastIndex)]
-    LaunchedEffect(featuredTitles) {
+    LaunchedEffect(featuredTitles, controller.rotationResetToken) {
         while (true) {
             delay(8_000)
-            if (!controller.heroFocused) controller.rotateFeatured(featuredTitles.size)
+            controller.rotateFeatured(featuredTitles.size)
         }
     }
     if (controller.restorePending && controller.heroFocused) {
@@ -153,11 +172,18 @@ private fun HeroSlot(
         onPlay = { onSelect(featured.tile) },
         featuredPosition = controller.featuredIndex,
         featuredCount = featuredTitles.size,
+        onPrevious = { controller.browseFeaturedBackward(featuredTitles.size) },
+        onNext = { controller.browseFeaturedForward(featuredTitles.size) },
     )
 }
 
 @Composable
-private fun CategoryRailRow(controller: HomeController, rail: HomeRail, onSelect: (HomeTile) -> Unit) {
+private fun CategoryRailRow(
+    controller: HomeController,
+    rail: HomeRail,
+    firstCardFocusRequester: FocusRequester,
+    onSelect: (HomeTile) -> Unit,
+) {
     Column {
         Text(
             text = rail.title,
@@ -173,7 +199,7 @@ private fun CategoryRailRow(controller: HomeController, rail: HomeRail, onSelect
             horizontalArrangement = Arrangement.spacedBy(CardSpacing),
         ) {
             items(rail.tiles, key = { it.id }, contentType = { "tile" }) { tile ->
-                val focusRequester = remember { FocusRequester() }
+                val focusRequester = if (tile == rail.tiles.firstOrNull()) firstCardFocusRequester else remember { FocusRequester() }
                 if (controller.restorePending && controller.focusedTileId == tile.id) {
                     LaunchedEffect(Unit) {
                         withFrameNanos { }
@@ -186,6 +212,101 @@ private fun CategoryRailRow(controller: HomeController, rail: HomeRail, onSelect
                     onFocused = { controller.onTileFocused(tile.id) },
                     onClick = { onSelect(tile) },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryNavigation(
+    controller: HomeController,
+    rails: List<HomeRail>,
+    heroFocusRequester: FocusRequester,
+    firstCardRequesters: Map<String, FocusRequester>,
+) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LazyRow(
+        modifier = Modifier.padding(
+            top = 4.dp,
+        ),
+        contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item(key = "category-home") {
+            Button(
+                onClick = {
+                    scope.launch {
+                        controller.listState.animateScrollToItem(0)
+                        withFrameNanos { }
+                        runCatching { heroFocusRequester.requestFocus() }
+                    }
+                },
+                colors = ButtonDefaults.colors(
+                    containerColor = ProTvColors.Navy,
+                    focusedContainerColor = ProTvColors.ElectricBlue,
+                ),
+            ) {
+                Text("Home", fontSize = 15.sp)
+            }
+        }
+        items(rails, key = { "category-${it.key}" }) { rail ->
+            Button(
+                onClick = {
+                    scope.launch {
+                        val index = rails.indexOfFirst { it.key == rail.key }
+                        controller.listState.animateScrollToItem(index + 1)
+                        withFrameNanos { }
+                        runCatching { firstCardRequesters.getValue(rail.key).requestFocus() }
+                    }
+                },
+                colors = ButtonDefaults.colors(
+                    containerColor = ProTvColors.Midnight,
+                    focusedContainerColor = ProTvColors.ElectricBlue,
+                ),
+            ) {
+                Text(rail.title, fontSize = 15.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExitConfirmation(onStay: () -> Unit, onExit: () -> Unit) {
+    val stayRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { stayRequester.requestFocus() }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ProTvColors.Black.copy(alpha = 0.76f)),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(420.dp)
+                .background(ProTvColors.Midnight, RoundedCornerShape(14.dp))
+                .padding(32.dp),
+        ) {
+            Text("Exit PROtv?", color = ProTvColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Button(
+                    onClick = onStay,
+                    modifier = Modifier.focusRequester(stayRequester),
+                    colors = ButtonDefaults.colors(
+                        containerColor = ProTvColors.Blue,
+                        focusedContainerColor = ProTvColors.ElectricBlue,
+                    ),
+                ) { Text("Stay", fontSize = 18.sp) }
+                Button(
+                    onClick = onExit,
+                    colors = ButtonDefaults.colors(
+                        containerColor = ProTvColors.Navy,
+                        focusedContainerColor = ProTvColors.ElectricBlue,
+                    ),
+                ) { Text("Exit", fontSize = 18.sp) }
             }
         }
     }

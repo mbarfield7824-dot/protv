@@ -27,6 +27,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -58,6 +63,8 @@ fun FeaturedHero(
     onPlay: () -> Unit,
     featuredPosition: Int,
     featuredCount: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxWidth().height(HeroHeight)) {
         HeroArtwork(featured, Modifier.align(Alignment.CenterEnd))
@@ -112,10 +119,15 @@ fun FeaturedHero(
                 modifier = Modifier
                     .focusRequester(playFocusRequester)
                     .focusProperties {
-                        // The hero has a single action; keep Left/Right/Up from jumping into the rails.
-                        left = FocusRequester.Cancel
-                        right = FocusRequester.Cancel
                         up = FocusRequester.Cancel
+                    }
+                    .onPreviewKeyEvent {
+                        if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (it.key) {
+                            Key.DirectionLeft -> onPrevious().let { true }
+                            Key.DirectionRight -> onNext().let { true }
+                            else -> false
+                        }
                     }
                     .onFocusChanged { if (it.hasFocus) onPlayFocused() },
                 colors = ButtonDefaults.colors(

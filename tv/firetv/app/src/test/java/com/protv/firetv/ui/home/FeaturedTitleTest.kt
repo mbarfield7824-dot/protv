@@ -41,6 +41,19 @@ class FeaturedTitleTest {
     }
 
     @Test
+    fun sanitizesRightsNotesWithoutRemovingSynopsis() {
+        assertEquals(
+            "A strange story unfolds.",
+            sanitizeDescription("A strange story unfolds. Rights: Public domain."),
+        )
+        assertEquals(
+            "A strange story unfolds.",
+            sanitizeDescription("A strange story unfolds.\nLicense: CC0"),
+        )
+        assertNull(sanitizeDescription("Rights: Public domain."))
+    }
+
+    @Test
     fun fallsBackDeterministicallyWhenNoCuratedTitleIsPresent() {
         val episodeFirst = listOf(item("ep", contentType = "EPISODE"), item("movie-1"), item("movie-2"))
         assertEquals("movie-1", selectFeaturedTitle(episodeFirst)?.id)

@@ -12,6 +12,7 @@ import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogRepository
 import com.protv.firetv.data.api.artworkModel
 import com.protv.firetv.data.api.descriptionText
+import com.protv.firetv.data.api.muxStillArtwork
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,6 +27,7 @@ class HomeTile(
     /** A URL string, decoded JPEG bytes, or null when the title has no usable artwork. */
     val artwork: Any?,
     val artworkCacheKey: String?,
+    val fallbackArtwork: Any?,
 )
 
 @Immutable
@@ -70,6 +72,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
         private set
     var featuredIndex by mutableIntStateOf(0)
         private set
+    var rotationResetToken by mutableIntStateOf(0)
+        private set
 
     val listState = LazyListState()
     private val rowStates = HashMap<String, LazyListState>()
@@ -97,6 +101,16 @@ class HomeController(private val repository: CatalogRepository?, private val api
 
     fun rotateFeatured(featuredCount: Int) {
         featuredIndex = nextFeaturedIndex(featuredIndex, featuredCount)
+    }
+
+    fun browseFeaturedForward(featuredCount: Int) {
+        featuredIndex = nextFeaturedIndex(featuredIndex, featuredCount)
+        rotationResetToken++
+    }
+
+    fun browseFeaturedBackward(featuredCount: Int) {
+        featuredIndex = previousFeaturedIndex(featuredIndex, featuredCount)
+        rotationResetToken++
     }
 
     suspend fun load() {
@@ -136,7 +150,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         val featuredTitles = selectFeaturedTitles(items).map { item ->
             HomeFeatured(
                 tile = tile(item, showCategory = false),
-                description = item.descriptionText,
+                description = sanitizeDescription(item.descriptionText),
                 metadata = featuredMetadata(item),
                 stillUrl = heroStillUrl(item),
             )
@@ -162,6 +176,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
             artwork = artwork,
             artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
+            fallbackArtwork = item.muxStillArtwork(),
         )
     }
 

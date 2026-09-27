@@ -33,9 +33,11 @@ class MainActivity : ComponentActivity() {
                     onExit = { selectedTitle = null },
                 )
             } else {
-                ProTvScreen(home) { tile ->
-                    selectedTitle = tile.id to tile.title
-                }
+                ProTvScreen(
+                    controller = home,
+                    onSelect = { tile -> selectedTitle = tile.id to tile.title },
+                    onExit = { finish() },
+                )
             }
         }
     }
