@@ -29,16 +29,20 @@ interface CatalogApi {
 
 object CatalogApiClient {
     fun create(baseUrl: String): CatalogRepository {
+        return CatalogRepository(ApiClient.create(baseUrl).create(CatalogApi::class.java))
+    }
+}
+
+object ApiClient {
+    fun create(baseUrl: String): Retrofit {
         val client = OkHttpClient.Builder()
             .callTimeout(15, TimeUnit.SECONDS)
             .build()
         val json = Json { ignoreUnknownKeys = true }
-        val service = Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-            .create(CatalogApi::class.java)
-        return CatalogRepository(service)
     }
 }

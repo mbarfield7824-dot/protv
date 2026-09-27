@@ -5,9 +5,12 @@ run `.\gradlew.bat :app:clean :app:assembleDebug` with the Android SDK configure
 supported by the included Gradle wrapper (Android Studio's bundled JDK is suitable).
 
 `com.protv.firetv.data.api` loads the public, viewer-safe `GET /v1/catalog?view=all` response;
-`com.protv.firetv.ui` renders its title rail. Future authentication and playback code belongs
-under `com.protv.firetv.auth` and `com.protv.firetv.playback`. The app has no dependency on
-the web frontend and contains no Firebase credentials.
+`com.protv.firetv.ui` renders its title rail. Selecting a title calls the public
+`GET /v1/catalog/titles/{id}/playback` endpoint via `com.protv.firetv.playback`, validates
+the on-demand response, and plays its public Mux HLS stream with Media3. The native
+`PlayerView` supplies D-pad play/pause and seeking controls; Back exits and releases
+the player. Authentication remains a future `com.protv.firetv.auth` concern. The app
+has no dependency on the web frontend and contains no Firebase credentials.
 
 Set the public backend base URL at build time with the Gradle property `protvApiBaseUrl` or
 environment variable `PROTV_TV_API_BASE_URL`. Include the backend route prefix if there is
@@ -23,7 +26,8 @@ Run `.\gradlew.bat :app:testDebugUnitTest` and then
 `.\gradlew.bat :app:clean :app:assembleDebug` to test and clean-build.
 Titles use the backend's stable `id` and viewer-safe title, category, and artwork fields.
 Coil loads HTTP(S) artwork and decoded base64 JPEG artwork returned by the existing catalog.
-Catalog cards are D-pad focusable but do not open detail or playback screens yet.
+Catalog cards are D-pad selectable. Neither title details nor authentication, progress,
+ads or signed playback is implemented.
 
 `minSdk 23` establishes a modern Android TV baseline without claiming compatibility with
 older Fire OS devices before device testing. `compileSdk 37` uses the installed Android SDK

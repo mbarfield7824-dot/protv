@@ -10,4 +10,7 @@
     <string name="catalog_retry">Retry</string>
     <string name="artwork_unavailable">Artwork unavailable</string>
     <string name="title_unavailable">Title unavailable</string>
+    <string name="playback_loading">Loading playback…</string>
+    <string name="playback_buffering">Buffering…</string>
+    <string name="playback_error">Playback is unavailable. Try again or press Back.</string>
 </resources>

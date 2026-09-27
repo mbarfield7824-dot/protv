@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +39,8 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
 import coil.compose.SubcomposeAsyncImage
 import com.protv.firetv.R
 import com.protv.firetv.data.api.CatalogItem
@@ -62,7 +63,7 @@ private sealed interface CatalogState {
 }
 
 @Composable
-fun ProTvScreen(repository: CatalogRepository?, apiBaseUrl: String) {
+fun ProTvScreen(repository: CatalogRepository?, apiBaseUrl: String, onSelect: (CatalogItem) -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
     val state by produceState<CatalogState>(
         initialValue = if (repository == null) CatalogState.Unconfigured else CatalogState.Loading,
@@ -130,7 +131,7 @@ fun ProTvScreen(repository: CatalogRepository?, apiBaseUrl: String) {
                             ),
                         ) {
                             items(current.items, key = { it.id }) { item ->
-                                CatalogCard(item, apiBaseUrl)
+                                CatalogCard(item, apiBaseUrl, onSelect)
                             }
                         }
                     }
@@ -166,55 +167,56 @@ private fun RetryButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun CatalogCard(item: CatalogItem, apiBaseUrl: String) {
+private fun CatalogCard(item: CatalogItem, apiBaseUrl: String, onSelect: (CatalogItem) -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
-    Column(
+    Card(
+        onClick = { onSelect(item) },
         modifier = Modifier
             .width(280.dp)
             .onFocusChanged { focused = it.isFocused }
             .border(BorderStroke(if (focused) 4.dp else 1.dp, if (focused) ElectricBlue else RoyalBlue), shape)
-            .clip(shape)
-            .background(Color(0xFF131C38))
-            .focusable()
-            .padding(10.dp),
+            .clip(shape),
+        colors = CardDefaults.colors(containerColor = Color(0xFF131C38)),
     ) {
-        val imageModel = try {
-            item.artworkModel(apiBaseUrl)
-        } catch (error: IllegalArgumentException) {
-            Log.w("PROtvCatalog", "Invalid embedded artwork for catalog ID ${item.id}", error)
-            null
-        }
-        if (imageModel != null) {
-            SubcomposeAsyncImage(
-                model = imageModel,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(6.dp)),
-                loading = { ArtworkFallback() },
-                error = { ArtworkFallback() },
-            )
-        } else {
-            ArtworkFallback()
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = item.title.ifBlank { stringResource(R.string.title_unavailable) },
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            minLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (item.category.isNotBlank()) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            val imageModel = try {
+                item.artworkModel(apiBaseUrl)
+            } catch (error: IllegalArgumentException) {
+                Log.w("PROtvCatalog", "Invalid embedded artwork for catalog ID ${item.id}", error)
+                null
+            }
+            if (imageModel != null) {
+                SubcomposeAsyncImage(
+                    model = imageModel,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(6.dp)),
+                    loading = { ArtworkFallback() },
+                    error = { ArtworkFallback() },
+                )
+            } else {
+                ArtworkFallback()
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = item.category,
-                color = Silver,
-                fontSize = 16.sp,
-                maxLines = 1,
+                text = item.title.ifBlank { stringResource(R.string.title_unavailable) },
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                minLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (item.category.isNotBlank()) {
+                Text(
+                    text = item.category,
+                    color = Silver,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
