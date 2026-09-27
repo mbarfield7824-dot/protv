@@ -2,7 +2,14 @@ const express = require('express');
 const { createUser, getUserById } = require('../firebase');
 const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { createCreatorSsoToken } = require('../auth/creatorSso');
+const { createDeviceSessionService, createDeviceSessionRouter } = require('../auth/deviceSessions');
 const router = express.Router();
+
+router.use('/device-sessions', createDeviceSessionRouter({
+  service: createDeviceSessionService(),
+  verifyToken,
+  requireInteractiveUserSession,
+}));
 
 // POST /auth/signup - Create a new account
 router.post('/signup', async (req, res) => {
