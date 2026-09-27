@@ -135,7 +135,6 @@ private fun VideoPlayer(url: String, title: String, onRetry: () -> Unit) {
                     isFocusable = true
                     post {
                         requestFocus()
-                        showController()
                     }
                 }
             },
