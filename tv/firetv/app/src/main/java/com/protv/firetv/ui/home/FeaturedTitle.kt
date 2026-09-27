@@ -22,16 +22,27 @@ private val curatedStillTimes = mapOf("WIVB9NPQQzvtvjTBsiKw" to 1174)
 private const val HERO_STILL_WIDTH = 1280
 private const val HERO_STILL_HEIGHT = 720
 
-/**
- * Picks the one featured title: the first curated ID present in the catalog, otherwise the
- * first titled non-episode, otherwise the first titled item. No rotation or ranking.
- */
-fun selectFeaturedTitle(items: List<CatalogItem>): CatalogItem? {
+/** Returns the usable curated titles in curated order, with one deterministic fallback if needed. */
+fun selectFeaturedTitles(items: List<CatalogItem>): List<CatalogItem> {
     val titled = items.filter { it.title.isNotBlank() }
-    return FEATURED_TITLE_IDS.firstNotNullOfOrNull { id -> titled.firstOrNull { it.id == id } }
-        ?: titled.firstOrNull { !it.contentTypeText.equals("EPISODE", ignoreCase = true) }
-        ?: titled.firstOrNull()
+    val curated = FEATURED_TITLE_IDS.mapNotNull { id -> titled.firstOrNull { it.id == id } }
+    if (curated.isNotEmpty()) return curated
+    return listOf(titled.firstOrNull { !it.contentTypeText.equals("EPISODE", ignoreCase = true) }
+        ?: titled.firstOrNull() ?: return emptyList())
 }
+
+/** Returns the first usable featured title for callers that only need one title. */
+fun selectFeaturedTitle(items: List<CatalogItem>): CatalogItem? {
+    return selectFeaturedTitles(items).firstOrNull()
+}
+
+/** Advances a featured position, wrapping safely for empty and single-title sets. */
+fun nextFeaturedIndex(current: Int, size: Int): Int =
+    if (size <= 1) 0 else (current + 1).mod(size)
+
+/** Moves a featured position backward, wrapping safely for empty and single-title sets. */
+fun previousFeaturedIndex(current: Int, size: Int): Int =
+    if (size <= 1) 0 else (current - 1).mod(size)
 
 /** Formats a runtime in seconds as "1h 13m", "45m" or "2h"; null when unknown. */
 fun formatRuntime(seconds: Int?): String? {

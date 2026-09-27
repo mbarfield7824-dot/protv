@@ -44,7 +44,11 @@ sealed interface HomeState {
     data object Loading : HomeState
     data object Unconfigured : HomeState
     data object Failed : HomeState
-    data class Loaded(val rails: List<HomeRail>, val featured: HomeFeatured? = null) : HomeState
+    data class Loaded(
+        val rails: List<HomeRail>,
+        val featured: HomeFeatured? = null,
+        val featuredTitles: List<HomeFeatured> = featured?.let(::listOf).orEmpty(),
+    ) : HomeState
 }
 
 /**
@@ -63,6 +67,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
 
     /** True when the hero Play button, rather than a rail card, is the focus to restore. */
     var heroFocused: Boolean = false
+        private set
+    var featuredIndex by mutableIntStateOf(0)
         private set
 
     val listState = LazyListState()
@@ -87,6 +93,10 @@ class HomeController(private val repository: CatalogRepository?, private val api
     fun onHeroFocused() {
         heroFocused = true
         restorePending = false
+    }
+
+    fun rotateFeatured(featuredCount: Int) {
+        featuredIndex = nextFeaturedIndex(featuredIndex, featuredCount)
     }
 
     suspend fun load() {
@@ -116,13 +126,14 @@ class HomeController(private val repository: CatalogRepository?, private val api
             listState.requestScrollToItem(0)
             focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
             heroFocused = next.featured != null
+            featuredIndex = 0
             restorePending = true
         }
         state = next
     }
 
     private fun buildLoadedState(items: List<CatalogItem>): HomeState.Loaded {
-        val featured = selectFeaturedTitle(items)?.let { item ->
+        val featuredTitles = selectFeaturedTitles(items).map { item ->
             HomeFeatured(
                 tile = tile(item, showCategory = false),
                 description = item.descriptionText,
@@ -130,7 +141,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
                 stillUrl = heroStillUrl(item),
             )
         }
-        return HomeState.Loaded(buildHomeRails(items), featured)
+        return HomeState.Loaded(buildHomeRails(items), featuredTitles.firstOrNull(), featuredTitles)
     }
 
     private fun buildHomeRails(items: List<CatalogItem>): List<HomeRail> =

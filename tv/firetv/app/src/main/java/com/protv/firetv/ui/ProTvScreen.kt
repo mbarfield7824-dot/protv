@@ -26,6 +26,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -78,7 +79,7 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
                     if (state.rails.isEmpty()) {
                         StatusHome(stringResource(R.string.catalog_empty), onRetry = controller::retry)
                     } else {
-                        HomeRails(controller, state.rails, state.featured, onSelect)
+                        HomeRails(controller, state.rails, state.featuredTitles, onSelect)
                     }
             }
         }
@@ -90,7 +91,7 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
 private fun HomeRails(
     controller: HomeController,
     rails: List<HomeRail>,
-    featured: HomeFeatured?,
+    featuredTitles: List<HomeFeatured>,
     onSelect: (HomeTile) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -110,9 +111,9 @@ private fun HomeRails(
             item(key = "top", contentType = "top") {
                 Column {
                     ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
-                    if (featured != null) {
+                    if (featuredTitles.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        HeroSlot(controller, featured, onSelect)
+                        HeroSlot(controller, featuredTitles, onSelect)
                     }
                 }
             }
@@ -126,8 +127,19 @@ private fun HomeRails(
 }
 
 @Composable
-private fun HeroSlot(controller: HomeController, featured: HomeFeatured, onSelect: (HomeTile) -> Unit) {
+private fun HeroSlot(
+    controller: HomeController,
+    featuredTitles: List<HomeFeatured>,
+    onSelect: (HomeTile) -> Unit,
+) {
     val focusRequester = remember { FocusRequester() }
+    val featured = featuredTitles[controller.featuredIndex.coerceIn(0, featuredTitles.lastIndex)]
+    LaunchedEffect(featuredTitles) {
+        while (true) {
+            delay(8_000)
+            if (!controller.heroFocused) controller.rotateFeatured(featuredTitles.size)
+        }
+    }
     if (controller.restorePending && controller.heroFocused) {
         LaunchedEffect(Unit) {
             withFrameNanos { }
@@ -139,6 +151,8 @@ private fun HeroSlot(controller: HomeController, featured: HomeFeatured, onSelec
         playFocusRequester = focusRequester,
         onPlayFocused = controller::onHeroFocused,
         onPlay = { onSelect(featured.tile) },
+        featuredPosition = controller.featuredIndex,
+        featuredCount = featuredTitles.size,
     )
 }
 
@@ -148,8 +162,8 @@ private fun CategoryRailRow(controller: HomeController, rail: HomeRail, onSelect
         Text(
             text = rail.title,
             color = ProTvColors.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal),
         )
         Spacer(modifier = Modifier.height(10.dp))

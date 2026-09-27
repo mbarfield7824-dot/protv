@@ -22,6 +22,25 @@ class FeaturedTitleTest {
     }
 
     @Test
+    fun selectsAllAvailableCuratedTitlesInCuratedOrder() {
+        val items = listOf(item(FEATURED_TITLE_IDS[2]), item(FEATURED_TITLE_IDS[0]), item("other"))
+        assertEquals(
+            listOf(FEATURED_TITLE_IDS[0], FEATURED_TITLE_IDS[2]),
+            selectFeaturedTitles(items).map { it.id },
+        )
+    }
+
+    @Test
+    fun featuredIndexWrapsForNextAndPrevious() {
+        assertEquals(1, nextFeaturedIndex(0, 3))
+        assertEquals(0, nextFeaturedIndex(2, 3))
+        assertEquals(2, previousFeaturedIndex(0, 3))
+        assertEquals(0, previousFeaturedIndex(1, 3))
+        assertEquals(0, nextFeaturedIndex(0, 0))
+        assertEquals(0, previousFeaturedIndex(0, 1))
+    }
+
+    @Test
     fun fallsBackDeterministicallyWhenNoCuratedTitleIsPresent() {
         val episodeFirst = listOf(item("ep", contentType = "EPISODE"), item("movie-1"), item("movie-2"))
         assertEquals("movie-1", selectFeaturedTitle(episodeFirst)?.id)

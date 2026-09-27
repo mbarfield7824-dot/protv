@@ -2,6 +2,7 @@ package com.protv.firetv.ui.home
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,7 +47,7 @@ import com.protv.firetv.R
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvSpacing
 
-val HeroHeight = 300.dp
+val HeroHeight = 330.dp
 private val HeroTextWidth = 440.dp
 
 @Composable
@@ -54,6 +56,8 @@ fun FeaturedHero(
     playFocusRequester: FocusRequester,
     onPlayFocused: () -> Unit,
     onPlay: () -> Unit,
+    featuredPosition: Int,
+    featuredCount: Int,
 ) {
     Box(modifier = Modifier.fillMaxWidth().height(HeroHeight)) {
         HeroArtwork(featured, Modifier.align(Alignment.CenterEnd))
@@ -127,6 +131,22 @@ fun FeaturedHero(
                     PlayGlyph(LocalContentColor.current)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(stringResource(R.string.hero_play), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (featuredCount > 1) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    repeat(featuredCount) { index ->
+                        Box(
+                            modifier = Modifier
+                                .size(width = if (index == featuredPosition) 22.dp else 7.dp, height = 5.dp)
+                                .background(
+                                    if (index == featuredPosition) ProTvColors.Cyan
+                                    else ProTvColors.Muted.copy(alpha = 0.55f),
+                                    RoundedCornerShape(3.dp),
+                                ),
+                        )
+                    }
                 }
             }
         }
