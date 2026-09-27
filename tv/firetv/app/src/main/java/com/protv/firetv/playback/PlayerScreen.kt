@@ -40,13 +40,14 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.protv.firetv.R
+import com.protv.firetv.ui.theme.ProTvColors
 import java.io.IOException
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
-private val Midnight = Color(0xFF080C1B)
-private val RoyalBlue = Color(0xFF2343A9)
-private val ElectricBlue = Color(0xFF328BFF)
+private val Midnight = ProTvColors.Midnight
+private val RoyalBlue = ProTvColors.Blue
+private val ElectricBlue = ProTvColors.ElectricBlue
 
 private sealed interface PlaybackState {
     data object Loading : PlaybackState
@@ -157,7 +158,7 @@ private fun PlaybackMessage(title: String, message: String, onRetry: (() -> Unit
     ) {
         Text(title, color = Color.White, fontSize = 25.sp)
         Spacer(Modifier.height(16.dp))
-        Text(message, color = Color(0xFFBEC8DD), fontSize = 20.sp)
+        Text(message, color = ProTvColors.Silver, fontSize = 20.sp)
         if (onRetry != null) {
             Spacer(Modifier.height(20.dp))
             Button(

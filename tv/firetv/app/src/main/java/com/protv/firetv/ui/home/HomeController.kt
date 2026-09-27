@@ -1,0 +1,127 @@
+package com.protv.firetv.ui.home
+
+import android.util.Log
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.protv.firetv.data.api.CatalogItem
+import com.protv.firetv.data.api.CatalogRepository
+import com.protv.firetv.data.api.artworkModel
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
+import retrofit2.HttpException
+
+@Immutable
+class HomeTile(
+    val id: String,
+    val title: String,
+    val meta: String?,
+    /** A URL string, decoded JPEG bytes, or null when the title has no usable artwork. */
+    val artwork: Any?,
+    val artworkCacheKey: String?,
+)
+
+@Immutable
+data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
+
+sealed interface HomeState {
+    data object Loading : HomeState
+    data object Unconfigured : HomeState
+    data object Failed : HomeState
+    data class Loaded(val rails: List<HomeRail>) : HomeState
+}
+
+/**
+ * Owns the home catalog, scroll positions and last-focused title above the home/player swap,
+ * so returning from playback restores the same screen without reloading.
+ */
+@Stable
+class HomeController(private val repository: CatalogRepository?, private val apiBaseUrl: String) {
+    var state by mutableStateOf<HomeState>(if (repository == null) HomeState.Unconfigured else HomeState.Loading)
+        private set
+    var reloadToken by mutableIntStateOf(0)
+        private set
+    var restorePending by mutableStateOf(false)
+    var focusedTileId: String? = null
+        private set
+
+    val listState = LazyListState()
+    private val rowStates = HashMap<String, LazyListState>()
+
+    fun rowState(railKey: String): LazyListState = rowStates.getOrPut(railKey) { LazyListState() }
+
+    fun retry() {
+        reloadToken++
+    }
+
+    fun onHomeShown() {
+        restorePending = true
+    }
+
+    fun onTileFocused(id: String) {
+        focusedTileId = id
+        restorePending = false
+    }
+
+    suspend fun load() {
+        val repository = repository ?: run {
+            state = HomeState.Unconfigured
+            return
+        }
+        state = HomeState.Loading
+        val next = try {
+            val items = repository.browse()
+            HomeState.Loaded(withContext(Dispatchers.Default) { buildHomeRails(items) })
+        } catch (error: IOException) {
+            Log.e(TAG, "Network error loading catalog", error)
+            HomeState.Failed
+        } catch (error: HttpException) {
+            Log.e(TAG, "HTTP error loading catalog", error)
+            HomeState.Failed
+        } catch (error: SerializationException) {
+            Log.e(TAG, "Invalid catalog response", error)
+            HomeState.Failed
+        } catch (error: IllegalArgumentException) {
+            Log.e(TAG, "Invalid catalog data", error)
+            HomeState.Failed
+        }
+        if (next is HomeState.Loaded) {
+            rowStates.clear()
+            listState.requestScrollToItem(0)
+            focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
+            restorePending = true
+        }
+        state = next
+    }
+
+    private fun buildHomeRails(items: List<CatalogItem>): List<HomeRail> =
+        buildCategoryRails(items).map { rail ->
+            HomeRail(rail.key, rail.title, rail.items.map { item -> tile(item, rail.showItemCategory) })
+        }
+
+    private fun tile(item: CatalogItem, showCategory: Boolean): HomeTile {
+        val artwork = try {
+            item.artworkModel(apiBaseUrl)
+        } catch (error: IllegalArgumentException) {
+            Log.w(TAG, "Invalid embedded artwork for catalog ID ${item.id}", error)
+            null
+        }
+        return HomeTile(
+            id = item.id,
+            title = item.title,
+            meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
+            artwork = artwork,
+            artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
+        )
+    }
+
+    private companion object {
+        const val TAG = "PROtvCatalog"
+    }
+}

@@ -1,232 +1,279 @@
 package com.protv.firetv.ui
 
-import android.util.Log
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import androidx.tv.material3.Card
-import androidx.tv.material3.CardDefaults
-import coil.compose.SubcomposeAsyncImage
 import com.protv.firetv.R
-import com.protv.firetv.data.api.CatalogItem
-import com.protv.firetv.data.api.CatalogRepository
-import com.protv.firetv.data.api.artworkModel
-import java.io.IOException
-import kotlinx.serialization.SerializationException
-import retrofit2.HttpException
+import com.protv.firetv.ui.home.CardWidth
+import com.protv.firetv.ui.home.ContentCard
+import com.protv.firetv.ui.home.HomeController
+import com.protv.firetv.ui.home.HomeRail
+import com.protv.firetv.ui.home.HomeState
+import com.protv.firetv.ui.home.HomeTile
+import com.protv.firetv.ui.theme.ProTvColors
+import com.protv.firetv.ui.theme.ProTvSpacing
+import com.protv.firetv.ui.theme.ProTvTheme
 
-private val Midnight = Color(0xFF080C1B)
-private val RoyalBlue = Color(0xFF2343A9)
-private val ElectricBlue = Color(0xFF328BFF)
-private val Silver = Color(0xFFBEC8DD)
+private val RailSpacing = 28.dp
+private val CardSpacing = 18.dp
 
-private sealed interface CatalogState {
-    data object Loading : CatalogState
-    data object Unconfigured : CatalogState
-    data object Failed : CatalogState
-    data class Loaded(val items: List<CatalogItem>) : CatalogState
-}
+/** Where a focused card's top edge settles vertically, so each row lands in the same place. */
+private val RowFocusPivot = 96.dp
+
+/** Minimum distance kept between a focused card and the left/right screen edge. */
+private val RowEdgeMargin = 56.dp
 
 @Composable
-fun ProTvScreen(repository: CatalogRepository?, apiBaseUrl: String, onSelect: (CatalogItem) -> Unit) {
-    var retry by remember { mutableIntStateOf(0) }
-    val state by produceState<CatalogState>(
-        initialValue = if (repository == null) CatalogState.Unconfigured else CatalogState.Loading,
-        repository,
-        retry,
-    ) {
-        if (repository == null) {
-            value = CatalogState.Unconfigured
-        } else {
-            value = CatalogState.Loading
-            try {
-                value = CatalogState.Loaded(repository.browse())
-            } catch (error: IOException) {
-                Log.e("PROtvCatalog", "Network error loading catalog", error)
-                value = CatalogState.Failed
-            } catch (error: HttpException) {
-                Log.e("PROtvCatalog", "HTTP error loading catalog", error)
-                value = CatalogState.Failed
-            } catch (error: SerializationException) {
-                Log.e("PROtvCatalog", "Invalid catalog response", error)
-                value = CatalogState.Failed
-            } catch (error: IllegalArgumentException) {
-                Log.e("PROtvCatalog", "Invalid catalog data", error)
-                value = CatalogState.Failed
+fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
+    LaunchedEffect(controller) { controller.onHomeShown() }
+
+    ProTvTheme {
+        Box(modifier = Modifier.fillMaxSize().background(ProTvColors.Black)) {
+            when (val state = controller.state) {
+                HomeState.Loading -> LoadingHome()
+                HomeState.Unconfigured -> StatusHome(stringResource(R.string.catalog_unconfigured), onRetry = null)
+                HomeState.Failed -> StatusHome(stringResource(R.string.catalog_error), onRetry = controller::retry)
+                is HomeState.Loaded ->
+                    if (state.rails.isEmpty()) {
+                        StatusHome(stringResource(R.string.catalog_empty), onRetry = controller::retry)
+                    } else {
+                        HomeRails(controller, state.rails, onSelect)
+                    }
             }
         }
     }
+}
 
-    MaterialTheme {
-        Column(
-            modifier = Modifier.fillMaxSize().background(Midnight).padding(vertical = 64.dp),
-            verticalArrangement = Arrangement.Center,
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HomeRails(controller: HomeController, rails: List<HomeRail>, onSelect: (HomeTile) -> Unit) {
+    val density = LocalDensity.current
+    val verticalSpec = remember(density) { PivotBringIntoViewSpec(with(density) { RowFocusPivot.toPx() }) }
+    val horizontalSpec = remember(density) { EdgeBringIntoViewSpec(with(density) { RowEdgeMargin.toPx() }) }
+
+    CompositionLocalProvider(LocalBringIntoViewSpec provides verticalSpec) {
+        LazyColumn(
+            state = controller.listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = ProTvSpacing.SafeVertical, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(RailSpacing),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 80.dp)) {
-                Box(modifier = Modifier.size(width = 64.dp, height = 4.dp).background(RoyalBlue))
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(stringResource(R.string.app_name), color = Color.White, fontSize = 52.sp)
-                Text(stringResource(R.string.tagline), color = Silver, fontSize = 24.sp)
-                Spacer(modifier = Modifier.height(48.dp))
-                Text(
-                    stringResource(R.string.catalog_heading),
-                    color = Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            item(key = "header", contentType = "header") {
+                ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
             }
-            Spacer(modifier = Modifier.height(24.dp))
-            when (val current = state) {
-                CatalogState.Loading -> StatusMessage(stringResource(R.string.catalog_loading))
-                CatalogState.Unconfigured -> StatusMessage(stringResource(R.string.catalog_unconfigured))
-                CatalogState.Failed -> {
-                    StatusMessage(stringResource(R.string.catalog_error))
-                    RetryButton { retry++ }
+            items(rails, key = { it.key }, contentType = { "rail" }) { rail ->
+                CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
+                    CategoryRailRow(controller, rail, onSelect)
                 }
-                is CatalogState.Loaded -> {
-                    if (current.items.isEmpty()) {
-                        StatusMessage(stringResource(R.string.catalog_empty))
-                        RetryButton { retry++ }
-                    } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                start = 80.dp, end = 80.dp, top = 8.dp, bottom = 12.dp,
-                            ),
-                        ) {
-                            items(current.items, key = { it.id }) { item ->
-                                CatalogCard(item, apiBaseUrl, onSelect)
-                            }
-                        }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryRailRow(controller: HomeController, rail: HomeRail, onSelect: (HomeTile) -> Unit) {
+    Column {
+        Text(
+            text = rail.title,
+            color = ProTvColors.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal),
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        LazyRow(
+            state = controller.rowState(rail.key),
+            contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(CardSpacing),
+        ) {
+            items(rail.tiles, key = { it.id }, contentType = { "tile" }) { tile ->
+                val focusRequester = remember { FocusRequester() }
+                if (controller.restorePending && controller.focusedTileId == tile.id) {
+                    LaunchedEffect(Unit) {
+                        withFrameNanos { }
+                        runCatching { focusRequester.requestFocus() }
                     }
                 }
+                ContentCard(
+                    tile = tile,
+                    focusRequester = focusRequester,
+                    onFocused = { controller.onTileFocused(tile.id) },
+                    onClick = { onSelect(tile) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StatusMessage(message: String) {
-    Text(
-        text = message,
-        color = Silver,
-        fontSize = 21.sp,
-        modifier = Modifier.padding(horizontal = 80.dp),
+private fun ProTvHeader(modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .size(width = 56.dp, height = 3.dp)
+                .background(Brush.horizontalGradient(listOf(ProTvColors.Blue, ProTvColors.Cyan))),
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = ProTvColors.White)) { append(stringResource(R.string.wordmark_pro)) }
+                withStyle(SpanStyle(color = ProTvColors.ElectricBlue)) { append(stringResource(R.string.wordmark_tv)) }
+            },
+            fontSize = 40.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = ProTvColors.Silver)) { append(stringResource(R.string.tagline_lead)) }
+                append(" ")
+                withStyle(SpanStyle(color = ProTvColors.White, fontWeight = FontWeight.SemiBold)) {
+                    append(stringResource(R.string.tagline_emphasis))
+                }
+            },
+            fontSize = 18.sp,
+        )
+    }
+}
+
+@Composable
+private fun LoadingHome() {
+    Column(
+        modifier = Modifier.padding(
+            horizontal = ProTvSpacing.SafeHorizontal,
+            vertical = ProTvSpacing.SafeVertical,
+        ),
+    ) {
+        ProTvHeader()
+        Spacer(modifier = Modifier.height(RailSpacing))
+        Text(stringResource(R.string.catalog_loading), color = ProTvColors.Muted, fontSize = 16.sp)
+        repeat(2) {
+            Spacer(modifier = Modifier.height(RailSpacing))
+            SkeletonBlock(width = 180.dp, height = 22.dp)
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(CardSpacing)) {
+                repeat(4) {
+                    Box(
+                        modifier = Modifier
+                            .width(CardWidth)
+                            .aspectRatio(16f / 9f)
+                            .background(ProTvColors.Midnight, RoundedCornerShape(10.dp)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkeletonBlock(width: Dp, height: Dp) {
+    Box(
+        modifier = Modifier
+            .size(width = width, height = height)
+            .background(ProTvColors.Navy, RoundedCornerShape(6.dp)),
     )
 }
 
 @Composable
+private fun StatusHome(message: String, onRetry: (() -> Unit)?) {
+    Column(
+        modifier = Modifier.padding(
+            horizontal = ProTvSpacing.SafeHorizontal,
+            vertical = ProTvSpacing.SafeVertical,
+        ),
+    ) {
+        ProTvHeader()
+        Spacer(modifier = Modifier.height(64.dp))
+        Box(
+            modifier = Modifier
+                .width(560.dp)
+                .background(ProTvColors.Midnight, RoundedCornerShape(12.dp))
+                .padding(28.dp),
+        ) {
+            Column {
+                Text(message, color = ProTvColors.Silver, fontSize = 20.sp)
+                if (onRetry != null) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    RetryButton(onRetry)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun RetryButton(onClick: () -> Unit) {
-    Spacer(modifier = Modifier.height(20.dp))
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { focusRequester.requestFocus() }
+    }
     Button(
         onClick = onClick,
-        modifier = Modifier.padding(horizontal = 80.dp),
+        modifier = Modifier.focusRequester(focusRequester),
         colors = ButtonDefaults.colors(
-            containerColor = RoyalBlue,
-            focusedContainerColor = ElectricBlue,
+            containerColor = ProTvColors.Blue,
+            contentColor = ProTvColors.White,
+            focusedContainerColor = ProTvColors.ElectricBlue,
+            focusedContentColor = ProTvColors.Black,
         ),
     ) {
         Text(stringResource(R.string.catalog_retry))
     }
 }
 
-@Composable
-private fun CatalogCard(item: CatalogItem, apiBaseUrl: String, onSelect: (CatalogItem) -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(12.dp)
-    Card(
-        onClick = { onSelect(item) },
-        modifier = Modifier
-            .width(280.dp)
-            .onFocusChanged { focused = it.isFocused }
-            .border(BorderStroke(if (focused) 4.dp else 1.dp, if (focused) ElectricBlue else RoyalBlue), shape)
-            .clip(shape),
-        colors = CardDefaults.colors(containerColor = Color(0xFF131C38)),
-    ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            val imageModel = try {
-                item.artworkModel(apiBaseUrl)
-            } catch (error: IllegalArgumentException) {
-                Log.w("PROtvCatalog", "Invalid embedded artwork for catalog ID ${item.id}", error)
-                null
-            }
-            if (imageModel != null) {
-                SubcomposeAsyncImage(
-                    model = imageModel,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(6.dp)),
-                    loading = { ArtworkFallback() },
-                    error = { ArtworkFallback() },
-                )
-            } else {
-                ArtworkFallback()
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = item.title.ifBlank { stringResource(R.string.title_unavailable) },
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                minLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (item.category.isNotBlank()) {
-                Text(
-                    text = item.category,
-                    color = Silver,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
+@OptIn(ExperimentalFoundationApi::class)
+private class PivotBringIntoViewSpec(private val pivotPx: Float) : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        offset - pivotPx
 }
 
-@Composable
-private fun ArtworkFallback() {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(158.dp).background(RoyalBlue.copy(alpha = 0.25f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(stringResource(R.string.artwork_unavailable), color = Silver, fontSize = 16.sp)
+@OptIn(ExperimentalFoundationApi::class)
+private class EdgeBringIntoViewSpec(private val marginPx: Float) : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val start = marginPx
+        val end = containerSize - marginPx
+        return when {
+            offset < start -> offset - start
+            offset + size > end -> offset + size - end
+            else -> 0f
+        }
     }
 }

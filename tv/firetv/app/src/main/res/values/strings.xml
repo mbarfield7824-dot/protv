@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PROtv</string>
-    <string name="tagline">Independent stories. Big screen.</string>
-    <string name="catalog_heading">Explore PROtv</string>
+    <string name="wordmark_pro" translatable="false">PRO</string>
+    <string name="wordmark_tv" translatable="false">tv</string>
+    <string name="tagline_lead">Independent Stories.</string>
+    <string name="tagline_emphasis">Unlimited Possibilities.</string>
     <string name="catalog_loading">Loading catalog…</string>
     <string name="catalog_empty">No titles are available right now.</string>
     <string name="catalog_error">Unable to load the catalog. Check your connection and try again.</string>

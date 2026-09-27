@@ -5,7 +5,8 @@ run `.\gradlew.bat :app:clean :app:assembleDebug` with the Android SDK configure
 supported by the included Gradle wrapper (Android Studio's bundled JDK is suitable).
 
 `com.protv.firetv.data.api` loads the public, viewer-safe `GET /v1/catalog?view=all` response;
-`com.protv.firetv.ui` renders its title rail. Selecting a title calls the public
+`com.protv.firetv.ui` groups it into PROtv category rails (`ui.home.buildCategoryRails`) on a
+single TV home screen themed with the locked PROtv palette (`ui.theme`). Selecting a title calls the public
 `GET /v1/catalog/titles/{id}/playback` endpoint via `com.protv.firetv.playback`, validates
 the on-demand response, and plays its public Mux HLS stream with Media3. The native
 `PlayerView` supplies D-pad play/pause and seeking controls; Back exits and releases
@@ -26,8 +27,9 @@ Run `.\gradlew.bat :app:testDebugUnitTest` and then
 `.\gradlew.bat :app:clean :app:assembleDebug` to test and clean-build.
 Titles use the backend's stable `id` and viewer-safe title, category, and artwork fields.
 Coil loads HTTP(S) artwork and decoded base64 JPEG artwork returned by the existing catalog.
-Catalog cards are D-pad selectable. Neither title details nor authentication, progress,
-ads or signed playback is implemented.
+Catalog cards are D-pad selectable; the catalog, scroll positions and last-focused title are held
+above the home/player swap, so Back from playback returns to the same focused title without
+reloading. Neither title details nor authentication, progress, ads or signed playback is implemented.
 
 `minSdk 23` establishes a modern Android TV baseline without claiming compatibility with
 older Fire OS devices before device testing. `compileSdk 37` uses the installed Android SDK
