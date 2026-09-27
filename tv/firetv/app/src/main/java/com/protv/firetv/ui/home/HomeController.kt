@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogRepository
 import com.protv.firetv.data.api.artworkModel
+import com.protv.firetv.data.api.descriptionText
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,11 +31,20 @@ class HomeTile(
 @Immutable
 data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
 
+@Immutable
+class HomeFeatured(
+    val tile: HomeTile,
+    val description: String?,
+    val metadata: List<String>,
+    /** Landscape Mux still; [HomeTile.artwork] is the fallback when it is missing or fails. */
+    val stillUrl: String?,
+)
+
 sealed interface HomeState {
     data object Loading : HomeState
     data object Unconfigured : HomeState
     data object Failed : HomeState
-    data class Loaded(val rails: List<HomeRail>) : HomeState
+    data class Loaded(val rails: List<HomeRail>, val featured: HomeFeatured? = null) : HomeState
 }
 
 /**
@@ -49,6 +59,10 @@ class HomeController(private val repository: CatalogRepository?, private val api
         private set
     var restorePending by mutableStateOf(false)
     var focusedTileId: String? = null
+        private set
+
+    /** True when the hero Play button, rather than a rail card, is the focus to restore. */
+    var heroFocused: Boolean = false
         private set
 
     val listState = LazyListState()
@@ -66,6 +80,12 @@ class HomeController(private val repository: CatalogRepository?, private val api
 
     fun onTileFocused(id: String) {
         focusedTileId = id
+        heroFocused = false
+        restorePending = false
+    }
+
+    fun onHeroFocused() {
+        heroFocused = true
         restorePending = false
     }
 
@@ -77,7 +97,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         state = HomeState.Loading
         val next = try {
             val items = repository.browse()
-            HomeState.Loaded(withContext(Dispatchers.Default) { buildHomeRails(items) })
+            withContext(Dispatchers.Default) { buildLoadedState(items) }
         } catch (error: IOException) {
             Log.e(TAG, "Network error loading catalog", error)
             HomeState.Failed
@@ -95,9 +115,22 @@ class HomeController(private val repository: CatalogRepository?, private val api
             rowStates.clear()
             listState.requestScrollToItem(0)
             focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
+            heroFocused = next.featured != null
             restorePending = true
         }
         state = next
+    }
+
+    private fun buildLoadedState(items: List<CatalogItem>): HomeState.Loaded {
+        val featured = selectFeaturedTitle(items)?.let { item ->
+            HomeFeatured(
+                tile = tile(item, showCategory = false),
+                description = item.descriptionText,
+                metadata = featuredMetadata(item),
+                stillUrl = heroStillUrl(item),
+            )
+        }
+        return HomeState.Loaded(buildHomeRails(items), featured)
     }
 
     private fun buildHomeRails(items: List<CatalogItem>): List<HomeRail> =

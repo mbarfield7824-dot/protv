@@ -27,9 +27,15 @@ Run `.\gradlew.bat :app:testDebugUnitTest` and then
 `.\gradlew.bat :app:clean :app:assembleDebug` to test and clean-build.
 Titles use the backend's stable `id` and viewer-safe title, category, and artwork fields.
 Coil loads HTTP(S) artwork and decoded base64 JPEG artwork returned by the existing catalog.
-Catalog cards are D-pad selectable; the catalog, scroll positions and last-focused title are held
-above the home/player swap, so Back from playback returns to the same focused title without
-reloading. Neither title details nor authentication, progress, ads or signed playback is implemented.
+Above the rails, a single featured hero (`ui.home.FeaturedHero`) shows the first of the web
+home's curated title IDs present in the catalog (falling back to the first titled non-episode),
+with only the description, year, runtime and rating the catalog provides. Its landscape artwork
+is a 1280x720 still from the title's public `muxPlaybackId` (catalog artwork is the fallback),
+and its one Play action uses the same playback path as the rails. There is no rotation.
+Hero Play and catalog cards are D-pad selectable; the catalog, scroll positions and last-focused
+control are held above the home/player swap, so Back from playback returns to the same focused
+hero or title without reloading. Neither title details nor authentication, progress, ads or signed
+playback is implemented.
 
 `minSdk 23` establishes a modern Android TV baseline without claiming compatibility with
 older Fire OS devices before device testing. `compileSdk 37` uses the installed Android SDK

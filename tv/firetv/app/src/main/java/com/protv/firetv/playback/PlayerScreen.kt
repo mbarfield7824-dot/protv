@@ -130,6 +130,7 @@ private fun VideoPlayer(url: String, title: String, onRetry: () -> Unit) {
                 PlayerView(viewContext).apply {
                     useController = true
                     controllerAutoShow = true
+                    controllerShowTimeoutMs = 3_000
                     this.player = player
                     isFocusable = true
                     post {

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,7 +45,9 @@ import androidx.tv.material3.Text
 import com.protv.firetv.R
 import com.protv.firetv.ui.home.CardWidth
 import com.protv.firetv.ui.home.ContentCard
+import com.protv.firetv.ui.home.FeaturedHero
 import com.protv.firetv.ui.home.HomeController
+import com.protv.firetv.ui.home.HomeFeatured
 import com.protv.firetv.ui.home.HomeRail
 import com.protv.firetv.ui.home.HomeState
 import com.protv.firetv.ui.home.HomeTile
@@ -75,7 +78,7 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
                     if (state.rails.isEmpty()) {
                         StatusHome(stringResource(R.string.catalog_empty), onRetry = controller::retry)
                     } else {
-                        HomeRails(controller, state.rails, onSelect)
+                        HomeRails(controller, state.rails, state.featured, onSelect)
                     }
             }
         }
@@ -84,9 +87,16 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeRails(controller: HomeController, rails: List<HomeRail>, onSelect: (HomeTile) -> Unit) {
+private fun HomeRails(
+    controller: HomeController,
+    rails: List<HomeRail>,
+    featured: HomeFeatured?,
+    onSelect: (HomeTile) -> Unit,
+) {
     val density = LocalDensity.current
-    val verticalSpec = remember(density) { PivotBringIntoViewSpec(with(density) { RowFocusPivot.toPx() }) }
+    val verticalSpec = remember(density, controller) {
+        HomeBringIntoViewSpec(with(density) { RowFocusPivot.toPx() }, controller.listState) { controller.heroFocused }
+    }
     val horizontalSpec = remember(density) { EdgeBringIntoViewSpec(with(density) { RowEdgeMargin.toPx() }) }
 
     CompositionLocalProvider(LocalBringIntoViewSpec provides verticalSpec) {
@@ -96,8 +106,15 @@ private fun HomeRails(controller: HomeController, rails: List<HomeRail>, onSelec
             contentPadding = PaddingValues(top = ProTvSpacing.SafeVertical, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(RailSpacing),
         ) {
-            item(key = "header", contentType = "header") {
-                ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
+            // Header and hero share the first item so hero focus can always return the list to the top.
+            item(key = "top", contentType = "top") {
+                Column {
+                    ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
+                    if (featured != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HeroSlot(controller, featured, onSelect)
+                    }
+                }
             }
             items(rails, key = { it.key }, contentType = { "rail" }) { rail ->
                 CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
@@ -106,6 +123,23 @@ private fun HomeRails(controller: HomeController, rails: List<HomeRail>, onSelec
             }
         }
     }
+}
+
+@Composable
+private fun HeroSlot(controller: HomeController, featured: HomeFeatured, onSelect: (HomeTile) -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    if (controller.restorePending && controller.heroFocused) {
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
+    FeaturedHero(
+        featured = featured,
+        playFocusRequester = focusRequester,
+        onPlayFocused = controller::onHeroFocused,
+        onPlay = { onSelect(featured.tile) },
+    )
 }
 
 @Composable
@@ -259,10 +293,22 @@ private fun RetryButton(onClick: () -> Unit) {
     }
 }
 
+/**
+ * Rail cards settle at a fixed pivot so every row lands in the same place; while the hero is
+ * focused the list returns to the very top so the header and hero are shown together.
+ */
 @OptIn(ExperimentalFoundationApi::class)
-private class PivotBringIntoViewSpec(private val pivotPx: Float) : BringIntoViewSpec {
+private class HomeBringIntoViewSpec(
+    private val pivotPx: Float,
+    private val listState: LazyListState,
+    private val heroFocused: () -> Boolean,
+) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-        offset - pivotPx
+        if (heroFocused() && listState.firstVisibleItemIndex == 0) {
+            -listState.firstVisibleItemScrollOffset.toFloat()
+        } else {
+            offset - pivotPx
+        }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
