@@ -52,8 +52,11 @@ import com.protv.firetv.R
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvSpacing
 
-val HeroHeight = 330.dp
-private val HeroTextWidth = 440.dp
+// Sized well under a full screen height on purpose: the box gives the hero its cinematic
+// artwork field, but the vertical budget is kept tight so the first rail's cards still land
+// inside the 1080p first viewport underneath the compacted header/nav above.
+val HeroHeight = 300.dp
+private val HeroTextWidth = 460.dp
 
 @Composable
 fun FeaturedHero(
@@ -81,18 +84,18 @@ fun FeaturedHero(
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.sp,
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = featured.tile.title,
                 color = ProTvColors.White,
-                fontSize = 34.sp,
-                lineHeight = 40.sp,
+                fontSize = 42.sp,
+                lineHeight = 46.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (featured.metadata.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = featured.metadata.joinToString("  •  "),
                     color = ProTvColors.Silver,
@@ -103,17 +106,17 @@ fun FeaturedHero(
                 )
             }
             if (featured.description != null) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = featured.description,
                     color = ProTvColors.Silver,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    maxLines = 3,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             Button(
                 onClick = onPlay,
                 modifier = Modifier
@@ -146,7 +149,7 @@ fun FeaturedHero(
                 }
             }
             if (featuredCount > 1) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     repeat(featuredCount) { index ->
                         Box(

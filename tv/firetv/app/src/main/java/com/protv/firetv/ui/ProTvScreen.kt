@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -36,10 +39,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -66,6 +71,9 @@ import com.protv.firetv.ui.theme.ProTvSpacing
 import com.protv.firetv.ui.theme.ProTvTheme
 
 private val RailSpacing = 28.dp
+
+/** Tighter gap than [RailSpacing] so the first rail visually rides into the hero's bottom fade. */
+private val HeroToRailSpacing = 10.dp
 private val CardSpacing = 18.dp
 
 /** Where a focused card's top edge settles vertically, so each row lands in the same place. */
@@ -122,27 +130,32 @@ private fun HomeRails(
             state = controller.listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = ProTvSpacing.SafeVertical, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(RailSpacing),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            // Header and hero share the first item so hero focus can always return the list to the top.
+            // Header, navigation and hero share the first item so hero focus can always return
+            // the list to the top, and so the brand/nav/hero read as one cinematic field rather
+            // than stacked panels.
             item(key = "top", contentType = "top") {
                 Column {
                     ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
-                    if (featuredTitles.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HeroSlot(controller, featuredTitles, heroFocusRequester, onSelect)
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     CategoryNavigation(
                         controller = controller,
                         rails = rails,
                         heroFocusRequester = heroFocusRequester,
                         firstCardRequesters = firstCardRequesters,
                     )
+                    if (featuredTitles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        HeroSlot(controller, featuredTitles, heroFocusRequester, onSelect)
+                    }
                 }
             }
-            items(rails, key = { it.key }, contentType = { "rail" }) { rail ->
+            itemsIndexed(rails, key = { _, rail -> rail.key }, contentType = { _, _ -> "rail" }) { index, rail ->
                 CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
-                    CategoryRailRow(controller, rail, firstCardRequesters.getValue(rail.key), onSelect)
+                    Box(modifier = Modifier.padding(top = if (index == 0) HeroToRailSpacing else RailSpacing)) {
+                        CategoryRailRow(controller, rail, firstCardRequesters.getValue(rail.key), onSelect)
+                    }
                 }
             }
         }
@@ -230,11 +243,8 @@ private fun CategoryNavigation(
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     LazyRow(
-        modifier = Modifier.padding(
-            top = 4.dp,
-        ),
         contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         item(key = "category-home") {
             CategoryButton(
@@ -266,6 +276,10 @@ private fun CategoryNavigation(
     }
 }
 
+/**
+ * Text-first nav item: no permanent filled pill. Focus is shown with brighter text and a short
+ * cyan underline so blue/cyan stays an accent instead of dominating the row.
+ */
 @Composable
 private fun CategoryButton(
     label: String,
@@ -273,6 +287,8 @@ private fun CategoryButton(
     onClick: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
     Button(
         onClick = onClick,
         modifier = Modifier
@@ -282,12 +298,30 @@ private fun CategoryButton(
                     scope.launch { bringIntoViewRequester.bringIntoView() }
                 }
             },
+        interactionSource = interactionSource,
         colors = ButtonDefaults.colors(
-            containerColor = ProTvColors.Midnight,
-            focusedContainerColor = ProTvColors.ElectricBlue,
+            containerColor = Color.Transparent,
+            contentColor = ProTvColors.Silver,
+            focusedContainerColor = Color.Transparent,
+            focusedContentColor = ProTvColors.White,
+            pressedContainerColor = Color.Transparent,
+            pressedContentColor = ProTvColors.White,
         ),
     ) {
-        Text(label, fontSize = 15.sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                label,
+                fontSize = 15.sp,
+                fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .height(2.dp)
+                    .width(if (focused) 26.dp else 0.dp)
+                    .background(ProTvColors.Cyan, RoundedCornerShape(1.dp)),
+            )
+        }
     }
 }
 
@@ -335,36 +369,38 @@ private fun ExitConfirmation(onStay: () -> Unit, onExit: () -> Unit) {
 
 @Composable
 private fun ProTvHeader(modifier: Modifier = Modifier) {
+    // Single compact row (accent mark, wordmark, inline tagline) instead of a two-line stacked
+    // block, so the brand identity reads as a slim strip over the hero field rather than a
+    // separate opaque header band that eats first-viewport height.
     Row(
-        modifier = modifier,
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        modifier = modifier.padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(width = 56.dp, height = 3.dp)
+                .size(width = 32.dp, height = 3.dp)
                 .background(Brush.horizontalGradient(listOf(ProTvColors.Blue, ProTvColors.Cyan))),
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = ProTvColors.White)) { append(stringResource(R.string.wordmark_pro)) }
-                    withStyle(SpanStyle(color = ProTvColors.ElectricBlue)) { append(stringResource(R.string.wordmark_tv)) }
-                },
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = ProTvColors.Silver)) { append(stringResource(R.string.tagline_lead)) }
-                    append(" ")
-                    withStyle(SpanStyle(color = ProTvColors.White, fontWeight = FontWeight.SemiBold)) {
-                        append(stringResource(R.string.tagline_emphasis))
-                    }
-                },
-                fontSize = 15.sp,
-            )
-        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = ProTvColors.White)) { append(stringResource(R.string.wordmark_pro)) }
+                withStyle(SpanStyle(color = ProTvColors.ElectricBlue)) { append(stringResource(R.string.wordmark_tv)) }
+            },
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = ProTvColors.Silver)) { append(stringResource(R.string.tagline_lead)) }
+                append(" ")
+                withStyle(SpanStyle(color = ProTvColors.White, fontWeight = FontWeight.SemiBold)) {
+                    append(stringResource(R.string.tagline_emphasis))
+                }
+            },
+            fontSize = 13.sp,
+        )
     }
 }
 

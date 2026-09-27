@@ -170,14 +170,16 @@ class HomeController(private val repository: CatalogRepository?, private val api
             Log.w(TAG, "Invalid embedded artwork for catalog ID ${item.id}", error)
             null
         }
+        // Verified catalog art (poster/thumbnail) is primary; an unreviewed Mux still is only a
+        // fallback for titles whose catalog artwork is missing or fails to load.
         val landscapeArtwork = item.muxStillArtwork()
         return HomeTile(
             id = item.id,
             title = item.title,
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
-            artwork = landscapeArtwork ?: artwork,
+            artwork = artwork,
             artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
-            fallbackArtwork = artwork,
+            fallbackArtwork = landscapeArtwork,
         )
     }
 
