@@ -9,6 +9,12 @@ let db = null;
 let auth = null;
 let firebaseError = null;
 
+class VideoNotFoundError extends Error {}
+function localVideoStorage(error) {
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') throw new Error('Video storage is temporarily unavailable.');
+  if (error) console.warn('Firebase operation failed; using local video storage:', error.message);
+  return require('./storage');
+}
 try {
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
     ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
@@ -31,7 +37,8 @@ try {
 } catch (err) {
   firebaseError = err;
   console.warn('⚠ Firebase initialization failed:', err.message);
-  console.warn('⚠ Falling back to file-based storage');
+  console.warn(process.env.VERCEL || process.env.NODE_ENV === 'production'
+    ? '⚠ Local video storage disabled in production.' : '⚠ Falling back to file-based storage');
 }
 
 // Helper function to create a new user
@@ -74,9 +81,7 @@ async function grantAdminRole(email) {
 // Helper function to add video to Firestore
 async function addVideo(videoData) {
   if (!db) {
-    // Fall back to file-based storage
-    const fileStorage = require('./storage');
-    return fileStorage.addVideo(videoData);
+    return localVideoStorage().addVideo(videoData);
   }
 
   try {
@@ -100,15 +105,13 @@ async function addVideo(videoData) {
     });
     return docRef.id;
   } catch (error) {
-    console.warn('⚠ Firebase write failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.addVideo(videoData);
+    return localVideoStorage(error).addVideo(videoData);
   }
 }
 
 async function createCreatorVideo(creatorProjectId, videoData) {
   if (!db) {
-    return require('./storage').createCreatorVideo(creatorProjectId, videoData);
+    return localVideoStorage().createCreatorVideo(creatorProjectId, videoData);
   }
   const id = `creator_${creatorProjectId}`;
   const document = db.collection('videos').doc(id);
@@ -135,8 +138,7 @@ async function createCreatorVideo(creatorProjectId, videoData) {
 // Helper function to get all videos
 async function getAllVideos() {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getAllVideos();
+    return localVideoStorage().getAllVideos();
   }
 
   try {
@@ -147,54 +149,44 @@ async function getAllVideos() {
     });
     return videos;
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getAllVideos();
+    return localVideoStorage(error).getAllVideos();
   }
 }
 
 // Helper function to get video by ID
 async function getVideoById(videoId) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoById(videoId);
+    return localVideoStorage().getVideoById(videoId);
   }
 
+  let doc;
   try {
-    const doc = await db.collection('videos').doc(videoId).get();
-    if (!doc.exists) {
-      throw new Error('Video not found');
-    }
-    return { id: doc.id, ...doc.data() };
+    doc = await db.collection('videos').doc(videoId).get();
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoById(videoId);
+    return localVideoStorage(error).getVideoById(videoId);
   }
+  if (!doc.exists) throw new VideoNotFoundError('Video not found');
+  return { id: doc.id, ...doc.data() };
 }
 
 // Helper function to update an existing video (e.g. once Mux finishes
 // transcoding and we can fill in the real playback ID/duration/status)
 async function updateVideo(videoId, updates) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.updateVideo(videoId, updates);
+    return localVideoStorage().updateVideo(videoId, updates);
   }
 
   try {
     await db.collection('videos').doc(videoId).update(updates);
     return true;
   } catch (error) {
-    console.warn('⚠ Firebase write failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.updateVideo(videoId, updates);
+    return localVideoStorage(error).updateVideo(videoId, updates);
   }
 }
 
 async function deleteVideo(videoId) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.deleteVideo(videoId);
+    return localVideoStorage().deleteVideo(videoId);
   }
 
   await db.collection('videos').doc(videoId).delete();
@@ -204,8 +196,7 @@ async function deleteVideo(videoId) {
 // Helper function to find a video by its associated Mux direct-upload ID
 async function getVideoByUploadId(uploadId) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoByUploadId(uploadId);
+    return localVideoStorage().getVideoByUploadId(uploadId);
   }
 
   try {
@@ -218,17 +209,14 @@ async function getVideoByUploadId(uploadId) {
     const doc = snapshot.docs[0];
     return { id: doc.id, ...doc.data() };
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoByUploadId(uploadId);
+    return localVideoStorage(error).getVideoByUploadId(uploadId);
   }
 }
 
 // Helper function to find a video by its associated Mux asset ID
 async function getVideoByAssetId(assetId) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoByAssetId(assetId);
+    return localVideoStorage().getVideoByAssetId(assetId);
   }
 
   try {
@@ -241,16 +229,13 @@ async function getVideoByAssetId(assetId) {
     const doc = snapshot.docs[0];
     return { id: doc.id, ...doc.data() };
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoByAssetId(assetId);
+    return localVideoStorage(error).getVideoByAssetId(assetId);
   }
 }
 
 async function getVideoByCreatorProjectId(creatorProjectId) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getVideoByCreatorProjectId(creatorProjectId);
+    return localVideoStorage().getVideoByCreatorProjectId(creatorProjectId);
   }
 
   try {
@@ -270,8 +255,7 @@ async function getVideoByCreatorProjectId(creatorProjectId) {
 // Helper function to get all categories
 async function getCategories() {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getCategories();
+    return localVideoStorage().getCategories();
   }
 
   try {
@@ -282,17 +266,14 @@ async function getCategories() {
     });
     return categories;
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getCategories();
+    return localVideoStorage(error).getCategories();
   }
 }
 
 // Helper function to get ONLY approved videos (public facing)
 async function getApprovedVideos() {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getApprovedVideos();
+    return localVideoStorage().getApprovedVideos();
   }
 
   try {
@@ -313,8 +294,7 @@ async function getApprovedVideos() {
 // Helper function to get all videos (admin only)
 async function getAllVideosAdmin() {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.getAllVideosAdmin();
+    return localVideoStorage().getAllVideosAdmin();
   }
 
   try {
@@ -325,17 +305,14 @@ async function getAllVideosAdmin() {
     });
     return videos;
   } catch (error) {
-    console.warn('⚠ Firebase read failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.getAllVideosAdmin();
+    return localVideoStorage(error).getAllVideosAdmin();
   }
 }
 
 // Helper function to update video approval status
 async function updateVideoApproval(videoId, approvalData) {
   if (!db) {
-    const fileStorage = require('./storage');
-    return fileStorage.updateVideoApproval(videoId, approvalData);
+    return localVideoStorage().updateVideoApproval(videoId, approvalData);
   }
 
   try {
@@ -350,15 +327,14 @@ async function updateVideoApproval(videoId, approvalData) {
     await db.collection('videos').doc(videoId).update(updates);
     return true;
   } catch (error) {
-    console.warn('⚠ Firebase write failed, falling back to file-based storage:', error.message);
-    const fileStorage = require('./storage');
-    return fileStorage.updateVideoApproval(videoId, approvalData);
+    return localVideoStorage(error).updateVideoApproval(videoId, approvalData);
   }
 }
 
 module.exports = {
   db,
   auth,
+  VideoNotFoundError,
   createUser,
   getUserById,
   grantAdminRole,

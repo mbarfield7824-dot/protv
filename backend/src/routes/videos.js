@@ -14,6 +14,7 @@ const {
   getVideoByUploadId,
   getVideoByAssetId,
   grantAdminRole,
+  VideoNotFoundError,
 } = require('../firebase');
 const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { validateEpisodeMetadata } = require('./episodeMetadata');
@@ -277,7 +278,9 @@ router.get('/:id', async (req, res) => {
     const video = await getVideoById(req.params.id);
     res.json(publicVideo(video));
   } catch (error) {
-    res.status(404).json({ error: error.message });
+    if (error instanceof VideoNotFoundError || error.message === 'Video not found') return res.status(404).json({ error: 'Video not found' });
+    console.error('Failed to load video.');
+    return res.status(503).json({ error: 'Video is temporarily unavailable.' });
   }
 });
 

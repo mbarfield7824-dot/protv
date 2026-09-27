@@ -60,6 +60,10 @@ npm start
    - `GET http://localhost:5000/health` → Should return `{ status: "Backend is running!" }`
    - `GET http://localhost:5000/videos` → Should return empty array `[]`
 
+Video filesystem storage is a local-development fallback only. On Vercel or
+with `NODE_ENV=production`, unavailable Firestore fails explicitly rather than
+reading or writing `backend/.data`; a missing Firestore video returns 404.
+
 ### Owner access
 
 Content uploads, catalog edits, reviews, and Mux ingestion require a Firebase
