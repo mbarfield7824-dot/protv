@@ -4,16 +4,16 @@
    ========================================================================== */
 
 .ptv {
-  --ptv-bg: #05060f;
-  --ptv-bg-2: #080a1c;
-  --ptv-ink: #ffffff;
-  --ptv-ink-2: rgba(226, 230, 255, 0.78);
-  --ptv-ink-3: rgba(178, 186, 220, 0.62);
-  --ptv-violet: #7c3aed;
-  --ptv-violet-2: #8b5cf6;
-  --ptv-violet-3: #a78bfa;
-  --ptv-blue: #3b82f6;
-  --ptv-line: rgba(255, 255, 255, 0.08);
+  --ptv-bg: var(--protv-black);
+  --ptv-bg-2: var(--protv-midnight);
+  --ptv-ink: var(--protv-white);
+  --ptv-ink-2: var(--protv-silver);
+  --ptv-ink-3: var(--protv-muted);
+  --ptv-violet: var(--protv-blue);
+  --ptv-violet-2: var(--protv-electric-blue);
+  --ptv-violet-3: var(--protv-electric-blue);
+  --ptv-blue: var(--protv-blue);
+  --ptv-line: var(--protv-border);
   --ptv-pad: clamp(18px, 4.4vw, 72px);
   --ptv-gap: 16px;
   --ptv-section: clamp(44px, 5.2vw, 76px);
