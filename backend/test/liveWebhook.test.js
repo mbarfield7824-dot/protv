@@ -55,6 +55,12 @@ function fakeDb() {
 
 test('signed Mux Live signals record private evidence without changing PROtv events', async (context) => {
   const firebase = require('../src/firebase');
+  const candidateStore = require('../src/adminBot/candidateStore');
+  const adminBot = require('../src/adminBot/router');
+  context.mock.method(candidateStore, 'createCandidateStore', () => ({
+    get: async () => null,
+  }));
+  context.mock.method(adminBot, 'createAdminBotRouter', () => express.Router());
   const previousDb = firebase.db;
   const previousSecret = process.env.MUX_WEBHOOK_SECRET;
   const secret = 'test-only-live-webhook-secret';
@@ -77,10 +83,10 @@ test('signed Mux Live signals record private evidence without changing PROtv eve
   });
 
   const routePath = require.resolve('../src/routes/videos');
+  const appPath = require.resolve('../src/app');
   delete require.cache[routePath];
-  const app = express();
-  app.use(express.json({ verify: (req, res, raw) => { req.rawBody = Buffer.from(raw); } }));
-  app.use('/videos', require(routePath));
+  delete require.cache[appPath];
+  const app = require(appPath);
   const server = app.listen(0, '127.0.0.1');
   context.after(() => {
     server.close();
@@ -88,16 +94,18 @@ test('signed Mux Live signals record private evidence without changing PROtv eve
     if (previousSecret === undefined) delete process.env.MUX_WEBHOOK_SECRET;
     else process.env.MUX_WEBHOOK_SECRET = previousSecret;
     delete require.cache[routePath];
+    delete require.cache[appPath];
   });
   await new Promise((resolve) => server.once('listening', resolve));
-  const url = `http://127.0.0.1:${server.address().port}/videos/webhook`;
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const prefix = process.env.VERCEL ? '/api' : '';
 
-  async function send(event, signed = true) {
+  async function send(event, signed = true, path = '/videos/webhook') {
     const body = JSON.stringify(event);
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = crypto.createHmac('sha256', secret)
       .update(`${timestamp}.${body}`).digest('hex');
-    return fetch(url, {
+    return fetch(`${origin}${prefix}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,11 +127,13 @@ test('signed Mux Live signals record private evidence without changing PROtv eve
 
   const active = signal('active', 'webhook-1');
   assert.equal((await send(active, false)).status, 401);
+  assert.equal((await send(active, false, '/mux/webhook')).status, 401);
   assert.equal(store.writes(), 0);
   for (const [index, type] of [
     'active', 'disconnected', 'idle', 'disabled', 'enabled', 'deleted',
   ].entries()) {
-    assert.equal((await send(signal(type, `webhook-${index + 1}`))).status, 200);
+    assert.equal((await send(signal(type, `webhook-${index + 1}`),
+      true, index === 0 ? '/mux/webhook' : '/videos/webhook')).status, 200);
     assert.equal(store.events.get('event-1').muxOperationalSignal.type,
       `video.live_stream.${type}`);
   }

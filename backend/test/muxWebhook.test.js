@@ -7,6 +7,8 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   const firebase = require('../src/firebase');
   const omdb = require('../src/omdb');
   const candidateStore = require('../src/adminBot/candidateStore');
+  const adminBot = require('../src/adminBot/router');
+  context.mock.method(adminBot, 'createAdminBotRouter', () => express.Router());
   const secret = 'isolated-mux-webhook-secret';
   const previousSecret = process.env.MUX_WEBHOOK_SECRET;
   process.env.MUX_WEBHOOK_SECRET = secret;
@@ -50,27 +52,28 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   context.mock.method(omdb, 'getImdbRating', async () => null);
 
   const routePath = require.resolve('../src/routes/videos');
+  const appPath = require.resolve('../src/app');
   delete require.cache[routePath];
-  const app = express();
-  app.use(express.json({
-    verify: (req, res, buffer) => { req.rawBody = Buffer.from(buffer); },
-  }));
-  app.use('/videos', require(routePath));
+  delete require.cache[appPath];
+  const app = require(appPath);
   const server = app.listen(0, '127.0.0.1');
   context.after(() => {
     server.close();
     delete require.cache[routePath];
+    delete require.cache[appPath];
   });
   await new Promise((resolve) => server.once('listening', resolve));
-  const url = `http://127.0.0.1:${server.address().port}/videos/webhook`;
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const prefix = process.env.VERCEL ? '/api' : '';
 
   async function send(event, {
     signed = true, timestamp = Math.floor(Date.now() / 1000), body, signedBody,
+    path = '/videos/webhook',
   } = {}) {
     const raw = body || JSON.stringify(event);
     const signature = crypto.createHmac('sha256', secret)
       .update(`${timestamp}.${signedBody || raw}`).digest('hex');
-    return fetch(url, {
+    return fetch(`${origin}${prefix}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,6 +91,12 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
     },
   };
   assert.equal((await send(ready, { signed: false })).status, 401);
+  assert.equal((await send(ready, { signed: false, path: '/mux/webhook' })).status, 401);
+  assert.equal((await send(ready, { path: '/mux/webhook',
+    body: `${JSON.stringify(ready)} `, signedBody: JSON.stringify(ready) })).status, 401);
+  assert.equal((await fetch(`${origin}${prefix}/mux/webhook`)).status, 404);
+  assert.equal((await fetch(`${origin}${prefix}/mux/categories/list`)).status, 404);
+  assert.equal((await fetch(`${origin}${prefix}/mux/upload-url`, { method: 'POST' })).status, 404);
   assert.equal((await send(ready, {
     body: `${JSON.stringify(ready)} `, signedBody: JSON.stringify(ready),
   })).status, 401);
@@ -104,6 +113,8 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   assert.equal((await send(ready)).status, 200);
   assert.equal(videos.get('upload-1').muxPlaybackId, 'playback-1');
   assert.equal(videos.get('upload-1').duration, 91);
+  assert.equal((await send(ready, { path: '/mux/webhook' })).status, 200);
+  assert.equal(videos.get('upload-1').muxPlaybackId, 'playback-1');
   const firstDeliveryWrites = updates.length;
   assert.equal((await send(ready)).status, 200);
   assert.equal(updates.length, firstDeliveryWrites, 'duplicate event must not write again');
@@ -139,7 +150,7 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   videos.get('pd-1').publicDomainConfirmedBy = '';
   assert.equal((await send(pdReady)).status, 409);
   videos.get('pd-1').publicDomainConfirmedBy = 'admin-1';
-  assert.equal((await send(pdReady)).status, 200);
+  assert.equal((await send(pdReady, { path: '/mux/webhook' })).status, 200);
   assert.equal(approvals.length, 1);
   assert.deepEqual(decisions, [{ id: 'candidate-1', decision: 'approved' }]);
   assert.equal((await send(pdReady)).status, 200);

@@ -210,7 +210,10 @@ Public-policy playback is only for this free test, not future paid events.
 Set `MUX_WEBHOOK_SECRET` to the signing secret for the configured Mux webhook
 endpoint (separate from the Mux API token secret). `/videos/webhook` refuses
 requests without a configured secret or a valid signature over the exact raw
-request body. The Admin upload screen can still poll `/videos/:id/status` with
+request body. The compatibility route `/api/mux/webhook` preserves the
+existing Mux dashboard destination and delegates to the same signed handler
+as `/api/videos/webhook` (locally, `/mux/webhook` and `/videos/webhook`).
+The Admin upload screen can still poll `/videos/:id/status` with
 an authenticated interactive Admin session to reconcile Mux processing when
 a webhook is unavailable.
 

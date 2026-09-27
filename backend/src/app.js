@@ -36,6 +36,10 @@ app.get(`${apiPrefix}/health`, (req, res) => {
 
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/videos`, videoRoutes);
+app.use(`${apiPrefix}/mux`, (req, res, next) => {
+  if (req.method === 'POST' && req.path === '/webhook') return videoRoutes(req, res, next);
+  return next();
+});
 app.use(`${apiPrefix}/v1/catalog`, createCatalogRouter());
 app.use(`${apiPrefix}/v1/live`, createLiveRouter());
 app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
