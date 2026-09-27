@@ -2,7 +2,12 @@
 <resources>
     <string name="app_name">PROtv</string>
     <string name="tagline">Independent stories. Big screen.</string>
-    <string name="foundation_status">TV application foundation is running</string>
-    <string name="foundation_button">Test remote select</string>
-    <string name="foundation_confirmed">D-pad selection confirmed</string>
+    <string name="catalog_heading">Explore PROtv</string>
+    <string name="catalog_loading">Loading catalog…</string>
+    <string name="catalog_empty">No titles are available right now.</string>
+    <string name="catalog_error">Unable to load the catalog. Check your connection and try again.</string>
+    <string name="catalog_unconfigured">Catalog API origin is not configured. Set protvApiBaseUrl or PROTV_TV_API_BASE_URL when building.</string>
+    <string name="catalog_retry">Retry</string>
+    <string name="artwork_unavailable">Artwork unavailable</string>
+    <string name="title_unavailable">Title unavailable</string>
 </resources>
