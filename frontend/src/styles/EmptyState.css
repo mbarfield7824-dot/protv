@@ -2,16 +2,16 @@
   max-width: 1384px;
   margin: 0 auto 36px;
   padding: 34px 24px;
-  border: 1px dashed rgba(167, 139, 250, .3);
+  border: 1px dashed var(--protv-border);
   border-radius: 12px;
-  background: linear-gradient(120deg, rgba(124, 58, 237, .1), rgba(37, 99, 235, .04));
+  background: linear-gradient(120deg, var(--protv-blue-glow), color-mix(in srgb, var(--protv-blue) 4%, transparent));
   text-align: center;
 }
 
 .empty-state-mark {
   display: block;
   margin-bottom: 8px;
-  color: #a78bfa;
+  color: var(--protv-electric-blue);
   font-size: 1.3rem;
 }
 
@@ -32,7 +32,7 @@
   padding: 0 16px;
   border: 0;
   border-radius: 6px;
-  background: linear-gradient(100deg, #7c3aed, #2563eb);
+  background: var(--protv-primary-gradient);
   color: #fff;
   cursor: pointer;
   font-size: .75rem;

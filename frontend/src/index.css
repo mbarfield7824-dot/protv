@@ -2,7 +2,7 @@
   --protv-black: #05070B;
   --protv-midnight: #080D18;
   --protv-navy: #0F1B32;
-  --protv-blue: #1D5FC7;
+  --protv-blue: #174FA6;
   --protv-electric-blue: #4D9BFF;
   --protv-cyan: #4BC8D6;
   --protv-white: #FFFFFF;
@@ -11,7 +11,7 @@
   --protv-border: rgba(148, 163, 184, 0.22);
   --protv-control-border: #53657F;
   --protv-blue-glow: rgba(34, 106, 216, 0.24);
-  --protv-primary-gradient: linear-gradient(135deg, #1B5ABF, #226AD8);
+  --protv-primary-gradient: linear-gradient(135deg, #174FA6, #1D5FC7);
 
   --text: #6b6375;
   --text-h: #08060d;

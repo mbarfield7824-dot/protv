@@ -184,16 +184,15 @@ export default function Home() {
   // ---- Hero -------------------------------------------------------------
   const featuredTitles = FEATURED_PROTV_TITLE_IDS.map(byId).filter(Boolean);
   const heroTitles = (featuredTitles.length ? featuredTitles : movieCatalog.slice(0, 3)).map(withBackdrop);
-  const brandSource = byId(BRAND_ART.hero.catalogId) || heroTitles[0];
+  const brandSource = byId(BRAND_ART.hero.catalogId);
+  const brandImage = BRAND_ART.hero.imageUrl
+    || (brandSource && still(brandSource, 1080, null, BRAND_ART.hero.stillTime))
+    || brandSource?.heroImageUrl
+    || FALLBACK_HERO;
   const brandSlide = {
-    imageUrl: BRAND_ART.hero.imageUrl
-      || (brandSource && (BRAND_ART.hero.portrait
-        ? still(brandSource, 1080, null, BRAND_ART.hero.stillTime)
-        : still(brandSource, 1920, 1080, BRAND_ART.hero.stillTime)))
-      || FALLBACK_HERO,
-    portrait: Boolean(BRAND_ART.hero.portrait && !BRAND_ART.hero.imageUrl),
+    imageUrl: brandImage,
+    portrait: Boolean(BRAND_ART.hero.portrait && !BRAND_ART.hero.imageUrl && brandSource?.muxPlaybackId),
     fallbackUrl: brandSource?.heroImageUrl || FALLBACK_HERO,
-    watchId: brandSource?.id,
   };
 
   // ---- Continue Watching ------------------------------------------------
@@ -325,8 +324,8 @@ export default function Home() {
         <CinematicHero brand={brandSlide} titles={heroTitles} />
 
         <div className="ptv-stack ptv-stack--lead">
-          <ContinueWatchingRail items={continueWatchingItems} />
-          <CategoryShowcase tiles={categoryTiles} activeId={selection} />
+        <CategoryShowcase tiles={categoryTiles} activeId={selection} />
+        <ContinueWatchingRail items={continueWatchingItems} />
 
           {destination && (
             destination.comingSoon ? (

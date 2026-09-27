@@ -39,36 +39,39 @@ export default function CinematicHero({ brand, titles = [] }) {
   const { isFavorite, toggleFavorite } = useAuth();
   const slides = [{ kind: 'brand', ...brand }, ...titles.map((video) => ({ kind: 'title', video }))];
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const paused = hovered || focused;
   const count = slides.length;
-
   const go = useCallback((next) => setIndex((next + count) % count), [count]);
+  const activeIndex = index % count;
 
   useEffect(() => {
-    if (count < 2 || paused) return undefined;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    if (count < 2 || paused || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
     const timer = window.setTimeout(() => go(index + 1), ROTATE_MS);
     return () => window.clearTimeout(timer);
   }, [index, count, paused, go]);
 
-  const current = slides[index] || slides[0];
+  const current = slides[activeIndex] || slides[0];
 
   return (
     <section
       className="ptv-hero"
       aria-roledescription="carousel"
       aria-label="Featured on PROtv"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
     >
       {slides.map((slide, slideIndex) => (
         <Backdrop
           key={slide.kind === 'brand' ? 'brand' : slide.video.id}
           src={slide.kind === 'brand' ? slide.imageUrl : slide.video.backdrop}
           fallback={slide.kind === 'brand' ? slide.fallbackUrl : slide.video.backdropFallback}
-          active={slideIndex === index}
+          active={slideIndex === activeIndex}
           isTitle={slide.kind === 'title'}
           portrait={slide.kind === 'brand' && slide.portrait}
         />
@@ -90,9 +93,7 @@ export default function CinematicHero({ brand, titles = [] }) {
             <button
               type="button"
               className="ptv-btn ptv-btn--primary ptv-btn--lg"
-              onClick={() => (current.watchId
-                ? navigate(`/player/${current.watchId}`)
-                : document.getElementById('new-on-protv')?.scrollIntoView({ behavior: 'smooth' }))}
+              onClick={() => document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' })}
             >
               <span aria-hidden="true">▶</span> Start Watching
             </button>
@@ -102,7 +103,7 @@ export default function CinematicHero({ brand, titles = [] }) {
           </div>
         </div>
       ) : (
-        <div className="ptv-hero__content" key={current.video.id}>
+        <div className="ptv-hero__content is-title" key={current.video.id}>
           <p className="ptv-hero__kicker">Featured on <strong>PROtv</strong></p>
           <h1 className="ptv-hero__title">{current.video.title}</h1>
           <div className="ptv-meta">
@@ -117,7 +118,7 @@ export default function CinematicHero({ brand, titles = [] }) {
               <span aria-hidden="true">{isFavorite(current.video.id) ? '✓' : '＋'}</span>
               {isFavorite(current.video.id) ? 'In My List' : 'My List'}
             </button>
-            <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/player/${current.video.id}`)}>
+            <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/title/${current.video.id}`)}>
               <span aria-hidden="true">ⓘ</span> More Info
             </button>
           </div>
@@ -130,17 +131,17 @@ export default function CinematicHero({ brand, titles = [] }) {
 
       {count > 1 && (
         <>
-          <button type="button" className="ptv-hero__arrow ptv-hero__arrow--prev" aria-label="Previous slide" onClick={() => go(index - 1)}>‹</button>
-          <button type="button" className="ptv-hero__arrow ptv-hero__arrow--next" aria-label="Next slide" onClick={() => go(index + 1)}>›</button>
-          <div className="ptv-hero__dots" role="tablist" aria-label="Choose slide">
+          <button type="button" className="ptv-hero__arrow ptv-hero__arrow--prev" aria-label="Previous featured slide" onClick={() => go(index - 1)}>‹</button>
+          <button type="button" className="ptv-hero__arrow ptv-hero__arrow--next" aria-label="Next featured slide" onClick={() => go(index + 1)}>›</button>
+          <div className="ptv-hero__dots" role="tablist" aria-label="Choose featured slide">
             {slides.map((slide, slideIndex) => (
               <button
                 key={slide.kind === 'brand' ? 'brand' : slide.video.id}
                 type="button"
                 role="tab"
-                aria-selected={slideIndex === index}
-                aria-label={slide.kind === 'brand' ? 'PROtv' : slide.video.title}
-                className={slideIndex === index ? 'is-active' : ''}
+                aria-selected={slideIndex === activeIndex}
+                aria-label={slide.kind === 'brand' ? 'PROtv brand hero' : slide.video.title}
+                className={slideIndex === activeIndex ? 'is-active' : ''}
                 onClick={() => go(slideIndex)}
               />
             ))}

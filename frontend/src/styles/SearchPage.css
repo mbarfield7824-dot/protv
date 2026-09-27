@@ -6,7 +6,7 @@
 .search-page__label {
   display: block;
   margin-bottom: 10px;
-  color: #c4b5fd;
+  color: var(--protv-electric-blue);
   font-size: 13px;
   font-weight: 700;
 }
@@ -15,15 +15,15 @@
   display: flex;
   gap: 10px;
   padding: 6px;
-  border: 1px solid rgba(110, 130, 255, 0.42);
+  border: 1px solid var(--protv-control-border);
   border-radius: 12px;
   background: rgba(8, 10, 28, 0.92);
-  box-shadow: 0 0 22px rgba(91, 108, 255, 0.12);
+  box-shadow: 0 0 22px var(--protv-blue-glow);
 }
 
 .search-page__input-wrap:focus-within {
-  border-color: rgba(167, 139, 250, 0.85);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.16), 0 0 24px rgba(91, 108, 255, 0.16);
+  border-color: var(--protv-electric-blue);
+  box-shadow: 0 0 0 3px var(--protv-blue-glow), 0 0 24px var(--protv-blue-glow);
 }
 
 .search-page__input-wrap input {
@@ -45,9 +45,9 @@
 .search-page__input-wrap button {
   flex: 0 0 auto;
   padding: 0 20px;
-  border: 1px solid rgba(167, 139, 250, 0.55);
+  border: 1px solid var(--protv-blue);
   border-radius: 8px;
-  background: linear-gradient(135deg, #6d3be8, #3d55c7);
+  background: var(--protv-primary-gradient);
   color: #fff;
   font: inherit;
   font-weight: 700;
@@ -69,11 +69,11 @@
   max-width: 720px;
   margin: clamp(56px, 10vh, 120px) auto 0;
   padding: clamp(32px, 5vw, 64px) 24px;
-  border: 1px solid rgba(110, 130, 255, 0.22);
+  border: 1px solid var(--protv-border);
   border-radius: 16px;
   background:
-    radial-gradient(70% 100% at 50% 0%, rgba(91, 108, 255, 0.14), transparent 75%),
-    rgba(8, 10, 28, 0.7);
+    radial-gradient(70% 100% at 50% 0%, var(--protv-blue-glow), transparent 75%),
+    var(--protv-midnight);
   text-align: center;
 }
 
