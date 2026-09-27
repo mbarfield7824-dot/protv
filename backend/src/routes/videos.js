@@ -26,6 +26,7 @@ const {
   verifyWebhook,
 } = require('../mux');
 const { createCandidateStore } = require('../adminBot/candidateStore');
+const { createLiveWebhookHandler } = require('../live/webhookService');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { getImdbRating } = require('../omdb');
 const {
@@ -33,6 +34,7 @@ const {
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
 const router = express.Router();
+const handleLiveWebhook = createLiveWebhookHandler();
 const publicDomainCandidates = createCandidateStore({
   db,
   filePath: path.resolve(
@@ -666,6 +668,15 @@ router.post('/webhook', async (req, res) => {
 
   try {
     const event = req.body;
+    if (event?.type?.startsWith('video.live_stream.')) {
+      try {
+        await handleLiveWebhook(event);
+      } catch {
+        console.error('Live webhook processing failed.');
+        return res.status(503).json({ error: 'Live webhook processing is temporarily unavailable.' });
+      }
+      return res.status(200).json({ received: true });
+    }
 
     if (event.type === 'video.asset.ready') {
       const asset = event.data;

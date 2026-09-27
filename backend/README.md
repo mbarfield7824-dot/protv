@@ -214,6 +214,21 @@ request body. The Admin upload screen can still poll `/videos/:id/status` with
 an authenticated interactive Admin session to reconcile Mux processing when
 a webhook is unavailable.
 
+The same verified endpoint records `active`, `idle`, `disconnected`, `disabled`,
+`enabled`, and `deleted` Live stream webhooks as private operational signals
+for a provisioned event whose stored stream ID matches the signed webhook.
+The event ID supplied at provisioning is used as passthrough to locate it.
+Each webhook ID is recorded in a private `muxWebhookEvents` subcollection for
+durable duplicate protection. These receipts are retained indefinitely for
+now; define retention and cleanup as a future operational task.
+`muxOperationalSignal` on the event is the
+**last received** signal, not authoritative current stream state: Mux delivery
+order and event timestamps do not establish the current state. Unknown streams
+and unhandled Live signals are acknowledged without modifying an event.
+Webhooks never publish events, change PROtv lifecycle or access policy, expose
+playback, or trigger stream provisioning. Confirm the deployed signing secret
+and Mux dashboard endpoint/subscriptions before real webhook acceptance.
+
 ## Next Steps
 1. Set up Firebase project ✓
 2. Test backend with Postman
