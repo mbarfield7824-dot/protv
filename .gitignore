@@ -11,3 +11,11 @@ serviceAccountKey.json
 protv-2f48e-*.json
 .vercel
 .env*
+!.env.example
+mux-access-token-*.env
+*service-account*.json
+*serviceAccount*.json
+*.pem
+*.key
+*.p8
+*.p12
