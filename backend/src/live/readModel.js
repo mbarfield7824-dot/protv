@@ -45,4 +45,4 @@ function discoverableEvents(events) {
       || left.id.localeCompare(right.id));
 }
 
-module.exports = { isDiscoverable, publicEvent, discoverableEvents };
+module.exports = { isDiscoverable, publicDate, publicEvent, discoverableEvents };

@@ -148,6 +148,38 @@ fail closed with 503; there is no local-file fallback. These routes are
 read-only and do **not** provide access checks, playback, or checkout. Prefix
 the paths with `/api` on Vercel.
 
+### PROtv Live administration (phase 2)
+
+The backend mounts the following Firestore-only routes under `/admin/live`
+(`/api/admin/live` on Vercel). Every request requires the existing verified
+Firebase ID token with the `admin` custom claim and an interactive
+email/password or Google session. Responses use `Cache-Control: no-store`.
+
+- `GET /admin/live/events` returns `{ "items": [...] }` across all lifecycle
+  states; `GET /admin/live/events/:id` returns one event or 404.
+- `POST /admin/live/events` creates a server-generated ID and returns 201.
+  `PATCH /admin/live/events/:id` updates the named event or returns 404.
+  There is no hard delete.
+
+Create requires `title` (1–200 characters), `description` (up to 5000
+characters), an HTTPS `artworkUrl` (up to 2048 characters), ISO 8601
+`scheduledStartAt` and `scheduledEndAt` with timezones (end after start),
+`status` (`draft` or `scheduled` on creation), `accessPolicy` (`free` or
+`paid`), and boolean `published`. PATCH accepts a nonempty subset and
+validates the resulting event. Unknown fields, including IDs, timestamps,
+pricing, stream credentials, and payment/entitlement data, return 400.
+The server owns `createdAt` and `updatedAt`. Admin responses expose only
+the public event fields plus publication state and these timestamps.
+
+Lifecycle transitions: draft may remain draft or move to scheduled/cancelled;
+scheduled may remain scheduled or move to draft/live/ended/cancelled; live
+may remain live or move to ended/cancelled; ended and cancelled are terminal.
+Publishing is allowed only for scheduled, free, complete events. Leaving that
+state requires explicitly setting `published: false` in the same PATCH.
+Firestore transactions validate and apply updates together. Storage failures
+return a sanitized 503; no local JSON fallback, payment, or Live playback is
+provided.
+
 ### Mux webhook
 
 Set `MUX_WEBHOOK_SECRET` to the signing secret for the configured Mux webhook
