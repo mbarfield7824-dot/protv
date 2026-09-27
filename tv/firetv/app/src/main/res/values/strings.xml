@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PROtv</string>
+    <string name="tagline">Independent stories. Big screen.</string>
+    <string name="foundation_status">TV application foundation is running</string>
+    <string name="foundation_button">Test remote select</string>
+    <string name="foundation_confirmed">D-pad selection confirmed</string>
+</resources>
