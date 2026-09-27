@@ -67,10 +67,19 @@ export default function AuthModal({ open, onClose }) {
     <div className="auth-modal-overlay" role="presentation" onMouseDown={onClose}>
       <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="auth-close" onClick={onClose} aria-label="Close sign in">x</button>
-        <p className="auth-eyebrow">PROtv</p>
+        <p className="auth-wordmark" aria-label="PROtv">
+          PRO<span>tv</span>
+        </p>
         <h2 id="auth-title">
           {mode === REGISTER ? 'Create your account' : mode === RESET ? 'Reset your password' : 'Welcome back'}
         </h2>
+        <p className="auth-description">
+          {mode === REGISTER
+            ? 'Create an account to start watching on PROtv.'
+            : mode === RESET
+              ? 'Enter your email to receive password-reset instructions.'
+              : 'Sign in to continue watching PROtv.'}
+        </p>
         {!isFirebaseConfigured ? (
           <p className="auth-error">Sign-in is not configured yet. Add the Firebase web configuration to the frontend environment first.</p>
         ) : (
