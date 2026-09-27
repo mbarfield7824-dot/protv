@@ -131,7 +131,9 @@ export const api = {
 
   // Poll a video's processing status until Mux finishes transcoding
   async getVideoStatus(id) {
-    const res = await fetch(`${API_URL}/videos/${id}/status`);
+    const res = await fetch(`${API_URL}/videos/${id}/status`, {
+      headers: await authenticatedHeaders(),
+    });
     return res.json();
   },
 

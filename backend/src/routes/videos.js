@@ -608,7 +608,7 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
 
 // GET /videos/:id/status - Poll processing status (fallback for when
 // webhooks aren't reachable, e.g. local dev without a public URL).
-router.get('/:id/status', async (req, res) => {
+router.get('/:id/status', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
 
