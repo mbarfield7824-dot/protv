@@ -15,7 +15,7 @@ const {
   getVideoByAssetId,
   grantAdminRole,
 } = require('../firebase');
-const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { validateEpisodeMetadata } = require('./episodeMetadata');
 const {
   createDirectUpload,
@@ -125,12 +125,13 @@ router.get('/admin/all', verifyAdmin, async (req, res) => {
 
 // Bootstrap is restricted to the exact owner identity configured on Vercel.
 // After success, subsequent management requests require the durable admin claim.
-router.post('/admin/claim-owner', verifyToken, async (req, res) => {
+router.post('/admin/claim-owner', verifyToken, requireInteractiveUserSession, async (req, res) => {
   const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
   if (!ownerEmail) {
     return res.status(503).json({ error: 'Owner access has not been configured.' });
   }
-  if (req.user.email?.toLowerCase() !== ownerEmail) {
+  if (!req.user.uid || req.user.email_verified !== true
+    || req.user.email?.toLowerCase() !== ownerEmail) {
     return res.status(403).json({ error: 'This account is not the configured owner.' });
   }
 

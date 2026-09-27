@@ -16,13 +16,23 @@ async function verifyToken(req, res, next) {
   }
 }
 
+function requireInteractiveUserSession(req, res, next) {
+  const provider = req.user?.firebase?.sign_in_provider;
+  if (provider !== 'password' && provider !== 'google.com') {
+    return res.status(403).json({ error: 'An interactive PROtv sign-in is required.' });
+  }
+  return next();
+}
+
 async function verifyAdmin(req, res, next) {
   await verifyToken(req, res, () => {
-    if (req.user.admin !== true) {
-      return res.status(403).json({ error: 'Admin access is required.' });
-    }
-    next();
+    requireInteractiveUserSession(req, res, () => {
+      if (req.user.admin !== true) {
+        return res.status(403).json({ error: 'Admin access is required.' });
+      }
+      next();
+    });
   });
 }
 
-module.exports = { verifyToken, verifyAdmin };
+module.exports = { verifyToken, requireInteractiveUserSession, verifyAdmin };

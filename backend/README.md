@@ -65,9 +65,10 @@ npm start
 Content uploads, catalog edits, reviews, and Mux ingestion require a Firebase
 custom claim. In Vercel, add a protected `OWNER_EMAIL` environment variable
 containing the email address of the PROtv owner account. Deploy it, then sign in
-to `/admin` with that account and select **Activate Owner Access** once. Sign
-out and back in afterward so Firebase issues the account a token with the admin
-claim.
+to `/admin` with that verified account using email/password or Google and select
+**Activate Owner Access** once. Custom-auth sessions cannot claim owner or
+access privileged Admin and Creator SSO endpoints. Sign out and back in
+afterward so Firebase issues the account a token with the admin claim.
 
 For a local backend with valid Firebase Admin credentials, the equivalent is:
 ```bash

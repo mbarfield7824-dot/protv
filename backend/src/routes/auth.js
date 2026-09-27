@@ -1,6 +1,6 @@
 const express = require('express');
 const { createUser, getUserById } = require('../firebase');
-const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { createCreatorSsoToken } = require('../auth/creatorSso');
 const router = express.Router();
 
@@ -44,7 +44,7 @@ router.post('/verify-token', async (req, res) => {
   }
 });
 
-router.post('/creator-sso', verifyToken, (req, res) => {
+router.post('/creator-sso', verifyToken, requireInteractiveUserSession, (req, res) => {
   const portalUrl = String(process.env.CREATOR_PORTAL_URL || '').trim().replace(/\/+$/, '');
   const secret = String(process.env.CREATOR_SSO_SECRET || '').trim();
   if (!portalUrl || !secret) {
