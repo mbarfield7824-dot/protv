@@ -180,6 +180,31 @@ Firestore transactions validate and apply updates together. Storage failures
 return a sanitized 503; no local JSON fallback, payment, or Live playback is
 provided.
 
+### Mux Live provisioning (phase 3A)
+
+`POST /admin/live/events/:id/provision-stream` reserves and provisions exactly
+one public-policy Mux Live stream for an **unpublished, scheduled, free** event.
+It returns `201` with `state: "provisioned"`, `muxLiveStreamId`, and
+`muxPlaybackId`; a retry returns the existing IDs without calling Mux.
+`GET /admin/live/events/:id/stream` returns the sanitized provisioning state
+(`unprovisioned`, `reserved`, `recovery_required`, or `provisioned`) and, only
+when provisioned, the two IDs. Both routes require the existing interactive
+Firebase Admin claim. Unknown events return 404, incompatible or uncertain
+provisioning returns 409, and storage failures return 503. Neither endpoint
+returns a stream key or ingest credentials.
+
+The reservation is committed to `liveEvents` before contacting Mux. An
+unresolved reservation or `recovery_required` state blocks all subsequent
+creation attempts: Mux creation may have succeeded even if its response was
+lost. A failed attach similarly requires manual reconciliation using the
+event ID supplied as Mux passthrough before any future retry. There is no
+automatic lease expiry, stream deletion, or reset route in this phase.
+Only the Live stream and public playback IDs are stored; the Mux stream key
+is never stored in Firestore or exposed by PROtv. An event with a public-policy
+stream cannot be switched to paid access. Provisioning does not publish the
+event, change its lifecycle status, enable public playback, or process webhooks.
+Public-policy playback is only for this free test, not future paid events.
+
 ### Mux webhook
 
 Set `MUX_WEBHOOK_SECRET` to the signing secret for the configured Mux webhook
