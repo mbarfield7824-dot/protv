@@ -170,13 +170,14 @@ class HomeController(private val repository: CatalogRepository?, private val api
             Log.w(TAG, "Invalid embedded artwork for catalog ID ${item.id}", error)
             null
         }
+        val landscapeArtwork = item.muxStillArtwork()
         return HomeTile(
             id = item.id,
             title = item.title,
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
-            artwork = artwork,
+            artwork = landscapeArtwork ?: artwork,
             artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
-            fallbackArtwork = item.muxStillArtwork(),
+            fallbackArtwork = artwork,
         )
     }
 

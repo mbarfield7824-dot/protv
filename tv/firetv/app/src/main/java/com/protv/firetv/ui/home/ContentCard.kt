@@ -141,7 +141,7 @@ private fun ArtworkImage(tile: HomeTile, source: Any?, onError: () -> Unit) {
     AsyncImage(
         model = request,
         contentDescription = null,
-        contentScale = ContentScale.Fit,
+        contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
         onError = { onError() },
     )

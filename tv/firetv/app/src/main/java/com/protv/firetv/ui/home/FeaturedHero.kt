@@ -67,7 +67,7 @@ fun FeaturedHero(
     onNext: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxWidth().height(HeroHeight)) {
-        HeroArtwork(featured, Modifier.align(Alignment.CenterEnd))
+        HeroArtwork(featured, Modifier.fillMaxSize())
         Column(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -177,12 +177,7 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
     val source = sources.getOrNull(sourceIndex)
     val isStill = source != null && source == featured.stillUrl
 
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .aspectRatio(16f / 9f)
-            .background(Brush.horizontalGradient(listOf(ProTvColors.Black, ProTvColors.Navy))),
-    ) {
+    Box(modifier = modifier.background(ProTvColors.Navy)) {
         if (source != null) {
             val request = remember(featured.tile.id, sourceIndex) {
                 ImageRequest.Builder(context)
@@ -194,8 +189,7 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
             AsyncImage(
                 model = request,
                 contentDescription = null,
-                // Landscape stills fill the frame; portrait catalog fallbacks are fitted to the right edge.
-                contentScale = if (isStill) ContentScale.Crop else ContentScale.Fit,
+                contentScale = ContentScale.Crop,
                 alignment = Alignment.CenterEnd,
                 modifier = Modifier.fillMaxSize(),
                 onError = { sourceIndex++ },

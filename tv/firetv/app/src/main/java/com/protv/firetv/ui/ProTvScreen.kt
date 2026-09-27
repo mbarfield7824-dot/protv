@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,11 +32,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -233,7 +237,9 @@ private fun CategoryNavigation(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "category-home") {
-            Button(
+            CategoryButton(
+                label = "Home",
+                bringIntoViewRequester = remember { BringIntoViewRequester() },
                 onClick = {
                     scope.launch {
                         controller.listState.animateScrollToItem(0)
@@ -241,16 +247,12 @@ private fun CategoryNavigation(
                         runCatching { heroFocusRequester.requestFocus() }
                     }
                 },
-                colors = ButtonDefaults.colors(
-                    containerColor = ProTvColors.Navy,
-                    focusedContainerColor = ProTvColors.ElectricBlue,
-                ),
-            ) {
-                Text("Home", fontSize = 15.sp)
-            }
+            )
         }
         items(rails, key = { "category-${it.key}" }) { rail ->
-            Button(
+            CategoryButton(
+                label = rail.title,
+                bringIntoViewRequester = remember { BringIntoViewRequester() },
                 onClick = {
                     scope.launch {
                         val index = rails.indexOfFirst { it.key == rail.key }
@@ -259,14 +261,33 @@ private fun CategoryNavigation(
                         runCatching { firstCardRequesters.getValue(rail.key).requestFocus() }
                     }
                 },
-                colors = ButtonDefaults.colors(
-                    containerColor = ProTvColors.Midnight,
-                    focusedContainerColor = ProTvColors.ElectricBlue,
-                ),
-            ) {
-                Text(rail.title, fontSize = 15.sp)
-            }
+            )
         }
+    }
+}
+
+@Composable
+private fun CategoryButton(
+    label: String,
+    bringIntoViewRequester: BringIntoViewRequester,
+    onClick: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .onFocusChanged {
+                if (it.hasFocus) {
+                    scope.launch { bringIntoViewRequester.bringIntoView() }
+                }
+            },
+        colors = ButtonDefaults.colors(
+            containerColor = ProTvColors.Midnight,
+            focusedContainerColor = ProTvColors.ElectricBlue,
+        ),
+    ) {
+        Text(label, fontSize = 15.sp)
     }
 }
 
@@ -314,31 +335,36 @@ private fun ExitConfirmation(onStay: () -> Unit, onExit: () -> Unit) {
 
 @Composable
 private fun ProTvHeader(modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
         Box(
             modifier = Modifier
                 .size(width = 56.dp, height = 3.dp)
                 .background(Brush.horizontalGradient(listOf(ProTvColors.Blue, ProTvColors.Cyan))),
         )
-        Spacer(modifier = Modifier.height(14.dp))
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = ProTvColors.White)) { append(stringResource(R.string.wordmark_pro)) }
-                withStyle(SpanStyle(color = ProTvColors.ElectricBlue)) { append(stringResource(R.string.wordmark_tv)) }
-            },
-            fontSize = 40.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = ProTvColors.Silver)) { append(stringResource(R.string.tagline_lead)) }
-                append(" ")
-                withStyle(SpanStyle(color = ProTvColors.White, fontWeight = FontWeight.SemiBold)) {
-                    append(stringResource(R.string.tagline_emphasis))
-                }
-            },
-            fontSize = 18.sp,
-        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = ProTvColors.White)) { append(stringResource(R.string.wordmark_pro)) }
+                    withStyle(SpanStyle(color = ProTvColors.ElectricBlue)) { append(stringResource(R.string.wordmark_tv)) }
+                },
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = ProTvColors.Silver)) { append(stringResource(R.string.tagline_lead)) }
+                    append(" ")
+                    withStyle(SpanStyle(color = ProTvColors.White, fontWeight = FontWeight.SemiBold)) {
+                        append(stringResource(R.string.tagline_emphasis))
+                    }
+                },
+                fontSize = 15.sp,
+            )
+        }
     }
 }
 
