@@ -22,6 +22,7 @@ import Series from './pages/Series';
 import SeriesDetail from './pages/SeriesDetail';
 import Creators from './pages/Creators';
 import CollectionPage from './pages/CollectionPage';
+import Activate from './pages/Activate';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import './App.css';
@@ -66,6 +67,7 @@ function App() {
           <Route path="/shows" element={<Navigate to="/series" replace />} />
           <Route path="/shows/:slug" element={<Navigate to="/series" replace />} />
           <Route path="/creators" element={<Creators />} />
+          <Route path="/activate" element={<Activate />} />
           <Route path="/music" element={<CollectionPage category="Music" />} />
           <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />
           <Route path="*" element={<Navigate to="/" replace />} />

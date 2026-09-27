@@ -12,6 +12,23 @@ async function authenticatedHeaders() {
 }
 
 export const api = {
+  async approveDeviceSession(code) {
+    const res = await fetch(`${API_URL}/auth/device-sessions/approve`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) {
+      const error = new Error('Unable to activate TV.');
+      error.status = res.status;
+      throw error;
+    }
+    if (res.status !== 200 || (await res.json())?.status !== 'approved') {
+      throw new Error('Unexpected activation response.');
+    }
+    return { status: 'approved' };
+  },
+
   async createCreatorSso() {
     const res = await fetch(`${API_URL}/auth/creator-sso`, {
       method: 'POST',
