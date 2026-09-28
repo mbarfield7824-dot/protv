@@ -36,6 +36,8 @@ data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile
 @Immutable
 class HomeFeatured(
     val tile: HomeTile,
+    /** Hero title with any trailing year removed; the year moves into [metadata]. */
+    val displayTitle: String,
     val description: String?,
     val metadata: List<String>,
     /** Landscape Mux still; [HomeTile.artwork] is the fallback when it is missing or fails. */
@@ -150,6 +152,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         val featuredTitles = selectFeaturedTitles(items).map { item ->
             HomeFeatured(
                 tile = tile(item, showCategory = false),
+                displayTitle = heroTitle(item),
                 description = sanitizeDescription(item.descriptionText),
                 metadata = featuredMetadata(item),
                 stillUrl = heroStillUrl(item),

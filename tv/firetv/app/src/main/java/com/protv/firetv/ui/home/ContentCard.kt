@@ -1,6 +1,7 @@
 package com.protv.firetv.ui.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
@@ -39,8 +40,9 @@ import coil.request.ImageRequest
 import com.protv.firetv.R
 import com.protv.firetv.ui.theme.ProTvColors
 
-val CardWidth = 208.dp
-private val CardShape = RoundedCornerShape(10.dp)
+/** Mockup card footprint: a tighter 16:9 tile so several rail cards share the first viewport. */
+val CardWidth = 150.dp
+private val CardShape = RoundedCornerShape(6.dp)
 
 @Composable
 fun ContentCard(
@@ -48,11 +50,12 @@ fun ContentCard(
     focusRequester: FocusRequester,
     onFocused: () -> Unit,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
 
-    Column(modifier = Modifier.width(CardWidth)) {
+    Column(modifier = modifier.width(CardWidth)) {
         Card(
             onClick = onClick,
             modifier = Modifier
@@ -66,21 +69,21 @@ fun ContentCard(
                 focusedContainerColor = ProTvColors.Navy,
                 pressedContainerColor = ProTvColors.Navy,
             ),
-            scale = CardDefaults.scale(focusedScale = 1.07f, pressedScale = 1.03f),
+            scale = CardDefaults.scale(focusedScale = 1.05f, pressedScale = 1.02f),
             border = CardDefaults.border(
                 border = Border(BorderStroke(1.dp, ProTvColors.Line), shape = CardShape),
-                focusedBorder = Border(BorderStroke(3.dp, ProTvColors.ElectricBlue), shape = CardShape),
-                pressedBorder = Border(BorderStroke(3.dp, ProTvColors.Cyan), shape = CardShape),
+                focusedBorder = Border(BorderStroke(2.dp, ProTvColors.Cyan), shape = CardShape),
+                pressedBorder = Border(BorderStroke(2.dp, ProTvColors.ElectricBlue), shape = CardShape),
             ),
             interactionSource = interactionSource,
         ) {
             CardArtwork(tile)
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = tile.title.ifBlank { stringResource(R.string.title_unavailable) },
             color = if (focused) ProTvColors.White else ProTvColors.Silver,
-            fontSize = 16.sp,
+            fontSize = 13.sp,
             fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -89,7 +92,7 @@ fun ContentCard(
             Text(
                 text = tile.meta,
                 color = ProTvColors.Muted,
-                fontSize = 13.sp,
+                fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -123,6 +126,12 @@ private fun CardArtwork(tile: HomeTile) {
     }
 }
 
+/**
+ * Landscape artwork is cropped full-bleed. Strongly portrait artwork (posters) would lose its
+ * title block under a crop, so it is presented adaptively: the same image cropped and darkened
+ * behind, and the whole image fitted on top. No blur — API 25 renders both layers cheaply from
+ * one cached bitmap.
+ */
 @Composable
 private fun ArtworkImage(tile: HomeTile, source: Any?, onError: () -> Unit) {
     val context = LocalContext.current
@@ -138,11 +147,31 @@ private fun ArtworkImage(tile: HomeTile, source: Any?, onError: () -> Unit) {
             .crossfade(false)
             .build()
     }
-    AsyncImage(
-        model = request,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-        onError = { onError() },
-    )
+    var portrait by remember(tile.id, source) { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = request,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+            onSuccess = { state ->
+                val drawable = state.result.drawable
+                portrait = drawable.intrinsicWidth > 0 &&
+                    drawable.intrinsicHeight > drawable.intrinsicWidth * PortraitRatio
+            },
+            onError = { onError() },
+        )
+        if (portrait) {
+            Box(modifier = Modifier.fillMaxSize().background(ProTvColors.Black.copy(alpha = 0.62f)))
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
 }
+
+/** Above this height:width ratio a crop would cut a poster's title block, so fit it instead. */
+private const val PortraitRatio = 1.15f

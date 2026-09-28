@@ -3,12 +3,13 @@ package com.protv.firetv.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,10 +43,12 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -60,7 +64,8 @@ import androidx.tv.material3.Text
 import com.protv.firetv.R
 import com.protv.firetv.ui.home.CardWidth
 import com.protv.firetv.ui.home.ContentCard
-import com.protv.firetv.ui.home.FeaturedHero
+import com.protv.firetv.ui.home.HeroBackdrop
+import com.protv.firetv.ui.home.HeroContent
 import com.protv.firetv.ui.home.HomeController
 import com.protv.firetv.ui.home.HomeFeatured
 import com.protv.firetv.ui.home.HomeRail
@@ -70,17 +75,23 @@ import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvSpacing
 import com.protv.firetv.ui.theme.ProTvTheme
 
-private val RailSpacing = 28.dp
+private val RailSpacing = 26.dp
 
-/** Tighter gap than [RailSpacing] so the first rail visually rides into the hero's bottom fade. */
-private val HeroToRailSpacing = 10.dp
-private val CardSpacing = 18.dp
+/** Tighter gap than [RailSpacing] so the first rail visually rides inside the hero's lower field. */
+private val HeroToRailSpacing = 20.dp
+private val CardSpacing = 14.dp
 
-/** Where a focused card's top edge settles vertically, so each row lands in the same place. */
-private val RowFocusPivot = 96.dp
+/** A focused row is only scrolled when it would sit above this margin. */
+private val RowFocusPivot = 120.dp
+
+/** A focused row is only scrolled when it would sit below this margin. */
+private val RowBottomMargin = 36.dp
 
 /** Minimum distance kept between a focused card and the left/right screen edge. */
 private val RowEdgeMargin = 56.dp
+
+/** How far the list scrolls before the cinematic backdrop has faded fully into black. */
+private val BackdropFadeDistance = 240.dp
 
 @Composable
 fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit, onExit: () -> Unit) {
@@ -109,6 +120,11 @@ fun ProTvScreen(controller: HomeController, onSelect: (HomeTile) -> Unit, onExit
     }
 }
 
+/**
+ * One layered screen, as in the approved mockup: the featured artwork is the screen's background,
+ * and the brand, navigation, hero copy and rails are drawn over it. Nothing here is a panel — the
+ * artwork is never bounded by a hero rectangle and there is no opaque header or navigation band.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeRails(
@@ -119,42 +135,92 @@ private fun HomeRails(
 ) {
     val density = LocalDensity.current
     val verticalSpec = remember(density, controller) {
-        HomeBringIntoViewSpec(with(density) { RowFocusPivot.toPx() }, controller.listState) { controller.heroFocused }
+        HomeBringIntoViewSpec(
+            topMarginPx = with(density) { RowFocusPivot.toPx() },
+            bottomMarginPx = with(density) { RowBottomMargin.toPx() },
+            listState = controller.listState,
+        ) { controller.heroFocused }
     }
     val horizontalSpec = remember(density) { EdgeBringIntoViewSpec(with(density) { RowEdgeMargin.toPx() }) }
-    val heroFocusRequester = remember { FocusRequester() }
+    val fadePx = with(density) { BackdropFadeDistance.toPx() }
+    val playFocusRequester = remember { FocusRequester() }
     val firstCardRequesters = remember(rails) { rails.associate { it.key to FocusRequester() } }
+    val navRequesters = remember(rails) { List(rails.size + 1) { FocusRequester() } }
+    var selectedNavIndex by remember(rails) { mutableIntStateOf(0) }
 
-    CompositionLocalProvider(LocalBringIntoViewSpec provides verticalSpec) {
-        LazyColumn(
-            state = controller.listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = ProTvSpacing.SafeVertical, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-        ) {
-            // Header, navigation and hero share the first item so hero focus can always return
-            // the list to the top, and so the brand/nav/hero read as one cinematic field rather
-            // than stacked panels.
-            item(key = "top", contentType = "top") {
-                Column {
-                    ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    CategoryNavigation(
-                        controller = controller,
-                        rails = rails,
-                        heroFocusRequester = heroFocusRequester,
-                        firstCardRequesters = firstCardRequesters,
-                    )
-                    if (featuredTitles.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        HeroSlot(controller, featuredTitles, heroFocusRequester, onSelect)
+    val featured = featuredTitles.getOrNull(
+        controller.featuredIndex.coerceIn(0, featuredTitles.lastIndex.coerceAtLeast(0)),
+    )
+    val firstRailRequester = rails.firstOrNull()?.let { firstCardRequesters.getValue(it.key) }
+    val heroPlayRequester = playFocusRequester.takeIf { featured != null }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (featured != null) {
+            HeroBackdrop(
+                featured = featured,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        // Deferred read: the backdrop dims as the viewer leaves the first viewport
+                        // without recomposing the list.
+                        alpha = if (controller.listState.firstVisibleItemIndex > 0) {
+                            0f
+                        } else {
+                            (1f - controller.listState.firstVisibleItemScrollOffset / fadePx).coerceIn(0f, 1f)
+                        }
+                    },
+            )
+        }
+        CompositionLocalProvider(LocalBringIntoViewSpec provides verticalSpec) {
+            LazyColumn(
+                state = controller.listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = ProTvSpacing.SafeVertical, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                // Brand, navigation and hero copy share the first item so hero focus can always
+                // return the list to the top and so they read as one cinematic field.
+                item(key = "top", contentType = "top") {
+                    Column {
+                        ProTvHeader(Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
+                            CategoryNavigation(
+                                controller = controller,
+                                rails = rails,
+                                requesters = navRequesters,
+                                selectedIndex = selectedNavIndex,
+                                onSelectedIndexChange = { selectedNavIndex = it },
+                                downFocusRequester = heroPlayRequester ?: firstRailRequester,
+                                heroFocusRequester = heroPlayRequester,
+                                firstCardRequesters = firstCardRequesters,
+                            )
+                        }
+                        if (featured != null) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HeroSlot(
+                                controller = controller,
+                                featured = featured,
+                                featuredTitles = featuredTitles,
+                                focusRequester = playFocusRequester,
+                                upFocusRequester = navRequesters.getOrNull(selectedNavIndex),
+                                downFocusRequester = firstRailRequester,
+                                onSelect = onSelect,
+                            )
+                        }
                     }
                 }
-            }
-            itemsIndexed(rails, key = { _, rail -> rail.key }, contentType = { _, _ -> "rail" }) { index, rail ->
-                CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
-                    Box(modifier = Modifier.padding(top = if (index == 0) HeroToRailSpacing else RailSpacing)) {
-                        CategoryRailRow(controller, rail, firstCardRequesters.getValue(rail.key), onSelect)
+                itemsIndexed(rails, key = { _, rail -> rail.key }, contentType = { _, _ -> "rail" }) { index, rail ->
+                    CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
+                        Box(modifier = Modifier.padding(top = if (index == 0) HeroToRailSpacing else RailSpacing)) {
+                            CategoryRailRow(
+                                controller = controller,
+                                rail = rail,
+                                firstCardFocusRequester = firstCardRequesters.getValue(rail.key),
+                                upFocusRequester = if (index == 0) heroPlayRequester else null,
+                                onSelect = onSelect,
+                            )
+                        }
                     }
                 }
             }
@@ -165,11 +231,13 @@ private fun HomeRails(
 @Composable
 private fun HeroSlot(
     controller: HomeController,
+    featured: HomeFeatured,
     featuredTitles: List<HomeFeatured>,
     focusRequester: FocusRequester,
+    upFocusRequester: FocusRequester?,
+    downFocusRequester: FocusRequester?,
     onSelect: (HomeTile) -> Unit,
 ) {
-    val featured = featuredTitles[controller.featuredIndex.coerceIn(0, featuredTitles.lastIndex)]
     LaunchedEffect(featuredTitles, controller.rotationResetToken) {
         while (true) {
             delay(8_000)
@@ -182,9 +250,11 @@ private fun HeroSlot(
             runCatching { focusRequester.requestFocus() }
         }
     }
-    FeaturedHero(
+    HeroContent(
         featured = featured,
         playFocusRequester = focusRequester,
+        upFocusRequester = upFocusRequester,
+        downFocusRequester = downFocusRequester,
         onPlayFocused = controller::onHeroFocused,
         onPlay = { onSelect(featured.tile) },
         featuredPosition = controller.featuredIndex,
@@ -199,20 +269,21 @@ private fun CategoryRailRow(
     controller: HomeController,
     rail: HomeRail,
     firstCardFocusRequester: FocusRequester,
+    upFocusRequester: FocusRequester?,
     onSelect: (HomeTile) -> Unit,
 ) {
     Column {
         Text(
             text = rail.title,
             color = ProTvColors.White,
-            fontSize = 24.sp,
+            fontSize = 21.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = ProTvSpacing.SafeHorizontal),
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         LazyRow(
             state = controller.rowState(rail.key),
-            contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal, vertical = 10.dp),
+            contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(CardSpacing),
         ) {
             items(rail.tiles, key = { it.id }, contentType = { "tile" }) { tile ->
@@ -228,44 +299,69 @@ private fun CategoryRailRow(
                     focusRequester = focusRequester,
                     onFocused = { controller.onTileFocused(tile.id) },
                     onClick = { onSelect(tile) },
+                    // The first rail returns to Play rather than searching geometrically past the
+                    // hero copy.
+                    modifier = if (upFocusRequester != null) {
+                        Modifier.focusProperties { up = upFocusRequester }
+                    } else {
+                        Modifier
+                    },
                 )
             }
         }
     }
 }
 
+/**
+ * Text-first navigation over the artwork: no band, no giant pills. The current category keeps a
+ * restrained blue pill as in the mockup, and focus is shown with brighter text and a cyan
+ * underline.
+ */
 @Composable
 private fun CategoryNavigation(
     controller: HomeController,
     rails: List<HomeRail>,
-    heroFocusRequester: FocusRequester,
+    requesters: List<FocusRequester>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    downFocusRequester: FocusRequester?,
+    heroFocusRequester: FocusRequester?,
     firstCardRequesters: Map<String, FocusRequester>,
 ) {
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = ProTvSpacing.SafeHorizontal),
-        horizontalArrangement = Arrangement.spacedBy(22.dp),
+    val scope = rememberCoroutineScope()
+    // A plain scrollable Row, not a LazyRow: every category stays composed so its focus requester
+    // is always valid and every category remains reachable with LEFT/RIGHT.
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = ProTvSpacing.SafeHorizontal - 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        item(key = "category-home") {
-            CategoryButton(
-                label = "Home",
-                bringIntoViewRequester = remember { BringIntoViewRequester() },
-                onClick = {
-                    scope.launch {
-                        controller.listState.animateScrollToItem(0)
-                        withFrameNanos { }
-                        runCatching { heroFocusRequester.requestFocus() }
-                    }
-                },
-            )
-        }
-        items(rails, key = { "category-${it.key}" }) { rail ->
+        CategoryButton(
+            label = stringResource(R.string.category_home),
+            selected = selectedIndex == 0,
+            focusRequester = requesters[0],
+            downFocusRequester = downFocusRequester,
+            onClick = {
+                onSelectedIndexChange(0)
+                scope.launch {
+                    controller.listState.animateScrollToItem(0)
+                    withFrameNanos { }
+                    val target = heroFocusRequester ?: firstCardRequesters.values.firstOrNull()
+                    runCatching { target?.requestFocus() }
+                }
+            },
+        )
+        rails.forEachIndexed { index, rail ->
             CategoryButton(
                 label = rail.title,
-                bringIntoViewRequester = remember { BringIntoViewRequester() },
+                selected = selectedIndex == index + 1,
+                focusRequester = requesters[index + 1],
+                downFocusRequester = downFocusRequester,
                 onClick = {
+                    onSelectedIndexChange(index + 1)
                     scope.launch {
-                        val index = rails.indexOfFirst { it.key == rail.key }
                         controller.listState.animateScrollToItem(index + 1)
                         withFrameNanos { }
                         runCatching { firstCardRequesters.getValue(rail.key).requestFocus() }
@@ -276,52 +372,44 @@ private fun CategoryNavigation(
     }
 }
 
-/**
- * Text-first nav item: no permanent filled pill. Focus is shown with brighter text and a short
- * cyan underline so blue/cyan stays an accent instead of dominating the row.
- */
 @Composable
 private fun CategoryButton(
     label: String,
-    bringIntoViewRequester: BringIntoViewRequester,
+    selected: Boolean,
+    focusRequester: FocusRequester,
+    downFocusRequester: FocusRequester?,
     onClick: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    Button(
-        onClick = onClick,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .bringIntoViewRequester(bringIntoViewRequester)
-            .onFocusChanged {
-                if (it.hasFocus) {
-                    scope.launch { bringIntoViewRequester.bringIntoView() }
-                }
-            },
-        interactionSource = interactionSource,
-        colors = ButtonDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = ProTvColors.Silver,
-            focusedContainerColor = Color.Transparent,
-            focusedContentColor = ProTvColors.White,
-            pressedContainerColor = Color.Transparent,
-            pressedContentColor = ProTvColors.White,
-        ),
+            .focusRequester(focusRequester)
+            .focusProperties {
+                up = FocusRequester.Cancel
+                down = downFocusRequester ?: FocusRequester.Cancel
+            }
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .background(
+                color = if (selected) ProTvColors.Blue else Color.Transparent,
+                shape = RoundedCornerShape(14.dp),
+            )
+            .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                label,
-                fontSize = 15.sp,
-                fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .height(2.dp)
-                    .width(if (focused) 26.dp else 0.dp)
-                    .background(ProTvColors.Cyan, RoundedCornerShape(1.dp)),
-            )
-        }
+        Text(
+            label,
+            color = if (focused || selected) ProTvColors.White else ProTvColors.Silver,
+            fontSize = 14.sp,
+            fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .width(if (focused) 22.dp else 0.dp)
+                .background(ProTvColors.Cyan, RoundedCornerShape(1.dp)),
+        )
     }
 }
 
@@ -491,21 +579,28 @@ private fun RetryButton(onClick: () -> Unit) {
 }
 
 /**
- * Rail cards settle at a fixed pivot so every row lands in the same place; while the hero is
- * focused the list returns to the very top so the header and hero are shown together.
+ * Rows are left where they are while they remain comfortably inside the viewport, so focusing the
+ * first rail does not scroll the hero composition away; rows outside the viewport are brought to
+ * the nearest margin. While the hero is focused the list returns to the very top.
  */
 @OptIn(ExperimentalFoundationApi::class)
 private class HomeBringIntoViewSpec(
-    private val pivotPx: Float,
+    private val topMarginPx: Float,
+    private val bottomMarginPx: Float,
     private val listState: LazyListState,
     private val heroFocused: () -> Boolean,
 ) : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         if (heroFocused() && listState.firstVisibleItemIndex == 0) {
-            -listState.firstVisibleItemScrollOffset.toFloat()
-        } else {
-            offset - pivotPx
+            return -listState.firstVisibleItemScrollOffset.toFloat()
         }
+        val bottom = containerSize - bottomMarginPx
+        return when {
+            offset < topMarginPx -> offset - topMarginPx
+            offset + size > bottom -> offset + size - bottom
+            else -> 0f
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

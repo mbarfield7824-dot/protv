@@ -67,11 +67,26 @@ fun formatRuntime(seconds: Int?): String? {
 
 /** Category, year, runtime and rating — only the values the catalog actually provides. */
 fun featuredMetadata(item: CatalogItem): List<String> = listOfNotNull(
-    item.category.trim().takeIf { it.isNotEmpty() },
-    item.releaseYear?.toString(),
-    formatRuntime(item.durationSeconds),
+    featuredYear(item),
     item.maturityRatingText,
+    item.category.trim().takeIf { it.isNotEmpty() },
+    formatRuntime(item.durationSeconds),
 )
+
+private val TrailingYear = Regex("""\s*[(\[]\s*(1[89]\d{2}|20\d{2})\s*[)\]]\s*$""")
+
+/**
+ * The hero title without a trailing "(1962)". The year is carried by the metadata line instead,
+ * which keeps the title to one large line and saves first-viewport height.
+ */
+fun heroTitle(item: CatalogItem): String {
+    val stripped = item.title.replace(TrailingYear, "").trim()
+    return stripped.ifEmpty { item.title.trim() }
+}
+
+/** The release year, falling back to a year the title itself carries. */
+fun featuredYear(item: CatalogItem): String? =
+    item.releaseYear?.toString() ?: TrailingYear.find(item.title.trim())?.groupValues?.get(1)
 
 /**
  * A landscape Mux still for the hero, sampled inside the runtime (the same rule as the web's

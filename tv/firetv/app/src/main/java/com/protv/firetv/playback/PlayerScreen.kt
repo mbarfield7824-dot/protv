@@ -1,6 +1,7 @@
 package com.protv.firetv.playback
 
 import android.util.Log
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -138,7 +139,23 @@ private fun VideoPlayer(url: String, title: String, onRetry: () -> Unit) {
                     }
                 }
             },
-            update = { it.player = player },
+            update = { view ->
+                view.player = player
+                // While the controls are hidden, CENTER/SELECT toggles playback directly instead
+                // of only revealing the controller. With the controls visible the event is left
+                // to the controller so normal navigation is unaffected.
+                view.setOnKeyListener { _, keyCode, event ->
+                    val isSelect = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                        keyCode == KeyEvent.KEYCODE_ENTER ||
+                        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+                    if (isSelect && event.action == KeyEvent.ACTION_UP && !view.isControllerFullyVisible) {
+                        player.playWhenReady = !player.playWhenReady
+                        true
+                    } else {
+                        isSelect && event.action == KeyEvent.ACTION_DOWN && !view.isControllerFullyVisible
+                    }
+                }
+            },
             modifier = Modifier.fillMaxSize(),
         )
         if (failed) {

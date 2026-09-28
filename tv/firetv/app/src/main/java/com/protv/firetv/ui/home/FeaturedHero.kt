@@ -52,31 +52,42 @@ import com.protv.firetv.R
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvSpacing
 
-// Sized well under a full screen height on purpose: the box gives the hero its cinematic
-// artwork field, but the vertical budget is kept tight so the first rail's cards still land
-// inside the 1080p first viewport underneath the compacted header/nav above.
-val HeroHeight = 300.dp
-private val HeroTextWidth = 460.dp
+/** Copy column width, matching the mockup's left-hand readability block. */
+private val HeroTextWidth = 470.dp
 
+/**
+ * Screen-level cinematic artwork for the featured title. This is deliberately unbounded: the
+ * caller stretches it across the whole home surface so the brand, navigation, hero copy and the
+ * first rail all sit inside one continuous image field rather than on top of a hero rectangle.
+ */
 @Composable
-fun FeaturedHero(
+fun HeroBackdrop(featured: HomeFeatured, modifier: Modifier = Modifier) {
+    HeroArtwork(featured, modifier)
+}
+
+/**
+ * The hero's text block: kicker, title, metadata, synopsis, Play and the featured indicator.
+ * It carries no artwork and no fixed height so it can be laid over [HeroBackdrop].
+ */
+@Composable
+fun HeroContent(
     featured: HomeFeatured,
     playFocusRequester: FocusRequester,
+    upFocusRequester: FocusRequester?,
+    downFocusRequester: FocusRequester?,
     onPlayFocused: () -> Unit,
     onPlay: () -> Unit,
     featuredPosition: Int,
     featuredCount: Int,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Box(modifier = Modifier.fillMaxWidth().height(HeroHeight)) {
-        HeroArtwork(featured, Modifier.fillMaxSize())
-        Column(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = ProTvSpacing.SafeHorizontal)
-                .width(HeroTextWidth),
-        ) {
+    Column(
+        modifier = modifier
+            .padding(start = ProTvSpacing.SafeHorizontal)
+            .width(HeroTextWidth),
+    ) {
             Text(
                 text = stringResource(R.string.hero_kicker),
                 color = ProTvColors.Cyan,
@@ -86,7 +97,7 @@ fun FeaturedHero(
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = featured.tile.title,
+                text = featured.displayTitle,
                 color = ProTvColors.White,
                 fontSize = 42.sp,
                 lineHeight = 46.sp,
@@ -116,13 +127,29 @@ fun FeaturedHero(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onPlay,
                 modifier = Modifier
                     .focusRequester(playFocusRequester)
+                    // Explicit remote paths: UP returns to the current navigation item (composed
+                    // alongside this button) and DOWN enters the first rail, instead of relying on
+                    // geometric focus search across the layered composition.
                     .focusProperties {
-                        up = FocusRequester.Cancel
+                        up = upFocusRequester ?: FocusRequester.Cancel
+                    }
+                    .onPreviewKeyEvent {
+                        if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        when (it.key) {
+                            Key.DirectionLeft -> onPrevious().let { true }
+                            Key.DirectionRight -> onNext().let { true }
+                            // Requested rather than declared so a not-yet-composed rail falls back
+                            // to the default focus search instead of failing.
+                            Key.DirectionDown ->
+                                downFocusRequester != null &&
+                                    runCatching { downFocusRequester.requestFocus() }.isSuccess
+                            else -> false
+                        }
                     }
                     .onPreviewKeyEvent {
                         if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -149,7 +176,7 @@ fun FeaturedHero(
                 }
             }
             if (featuredCount > 1) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     repeat(featuredCount) { index ->
                         Box(
@@ -164,13 +191,13 @@ fun FeaturedHero(
                     }
                 }
             }
-        }
     }
 }
 
 /**
- * Right-anchored 16:9 artwork faded into the PROtv black on the left and bottom, and dimmed, so
- * low-resolution Mux stills stay behind the text rather than filling the screen.
+ * Full-surface cinematic artwork: anchored to the image's right/centre focal region, dimmed on the
+ * left for copy legibility and faded into PROtv black at the bottom so the rails read as part of
+ * the same field.
  */
 @Composable
 private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
@@ -180,7 +207,7 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
     val source = sources.getOrNull(sourceIndex)
     val isStill = source != null && source == featured.stillUrl
 
-    Box(modifier = modifier.background(ProTvColors.Navy)) {
+    Box(modifier = modifier.background(ProTvColors.Black)) {
         if (source != null) {
             val request = remember(featured.tile.id, sourceIndex) {
                 ImageRequest.Builder(context)
@@ -198,22 +225,24 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
                 onError = { sourceIndex++ },
             )
         }
-        Box(modifier = Modifier.fillMaxSize().background(ProTvColors.Black.copy(alpha = 0.22f)))
+        Box(modifier = Modifier.fillMaxSize().background(ProTvColors.Black.copy(alpha = 0.18f)))
         Box(
             modifier = Modifier.fillMaxSize().background(
                 Brush.horizontalGradient(
-                    0f to ProTvColors.Black,
-                    0.45f to ProTvColors.Black.copy(alpha = 0.55f),
-                    1f to Color.Transparent,
+                    0f to ProTvColors.Black.copy(alpha = 0.95f),
+                    0.30f to ProTvColors.Black.copy(alpha = 0.74f),
+                    0.62f to Color.Transparent,
                 ),
             ),
         )
         Box(
             modifier = Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
-                    0f to ProTvColors.Black.copy(alpha = 0.35f),
-                    0.2f to Color.Transparent,
-                    0.7f to Color.Transparent,
+                    0f to ProTvColors.Black.copy(alpha = 0.58f),
+                    0.16f to ProTvColors.Black.copy(alpha = 0.14f),
+                    0.45f to ProTvColors.Black.copy(alpha = 0.30f),
+                    0.66f to ProTvColors.Black.copy(alpha = 0.82f),
+                    0.82f to ProTvColors.Black.copy(alpha = 0.96f),
                     1f to ProTvColors.Black,
                 ),
             ),

@@ -2,6 +2,7 @@ package com.protv.firetv.data.api
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okio.ByteString.Companion.decodeBase64
+import kotlin.math.roundToInt
 
 fun CatalogItem.artworkUrl(baseUrl: String): String? {
     val raw = sequenceOf(thumbnailUrl, posterUrl, heroImageUrl)
@@ -23,7 +24,17 @@ fun CatalogItem.artworkModel(baseUrl: String): Any? {
     return artworkUrl(baseUrl)
 }
 
+/**
+ * A rail-sized still sampled inside the title's runtime rather than at a universal 30 seconds,
+ * so fallbacks land on representative frames instead of opening credits and title cards.
+ */
 fun CatalogItem.muxStillArtwork(): String? {
     val playbackId = publicMuxPlaybackId ?: return null
-    return "https://image.mux.com/$playbackId/thumbnail.jpg?time=30&width=640&height=360&fit_mode=smartcrop"
+    val duration = durationSeconds ?: 0
+    val time = if (duration > 0) {
+        minOf(maxOf(1, (duration * 0.42).roundToInt()), maxOf(1, duration - 5))
+    } else {
+        30
+    }
+    return "https://image.mux.com/$playbackId/thumbnail.jpg?time=$time&width=640&height=360&fit_mode=smartcrop"
 }

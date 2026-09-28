@@ -3,6 +3,7 @@ package com.protv.firetv.ui.home
 import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogResponse
 import com.protv.firetv.data.api.descriptionText
+import com.protv.firetv.data.api.muxStillArtwork
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -78,7 +79,7 @@ class FeaturedTitleTest {
             """{"items":[{"id":"a","title":"A","category":"Horror","thumbnailUrl":"","posterUrl":"","heroImageUrl":"",
                "description":"  A story.  ","duration":4694,"year":1962,"maturityRating":"PG","muxPlaybackId":"Abc123"}]}"""
         ).items.single()
-        assertEquals(listOf("Horror", "1962", "1h 18m", "PG"), featuredMetadata(full))
+        assertEquals(listOf("1962", "PG", "Horror", "1h 18m"), featuredMetadata(full))
         assertEquals("A story.", full.descriptionText)
 
         val sparse = json.decodeFromString<CatalogResponse>(
@@ -88,6 +89,33 @@ class FeaturedTitleTest {
         assertEquals(emptyList<String>(), featuredMetadata(sparse))
         assertNull(sparse.descriptionText)
         assertNull(heroStillUrl(sparse))
+    }
+
+    @Test
+    fun heroTitleDropsATrailingYearAndMetadataKeepsIt() {
+        val withYearInTitle = item("a", title = "Carnival of Souls (1962)")
+        assertEquals("Carnival of Souls", heroTitle(withYearInTitle))
+        assertEquals("1962", featuredYear(withYearInTitle))
+        assertEquals(listOf("1962", "Drama"), featuredMetadata(withYearInTitle))
+
+        assertEquals("Juice", heroTitle(item("b", title = "Juice")))
+        assertEquals("Blade Runner 2049", heroTitle(item("c", title = "Blade Runner 2049")))
+        assertEquals("(1962)", heroTitle(item("d", title = "(1962)")))
+        assertNull(featuredYear(item("e", title = "Juice")))
+    }
+
+    @Test
+    fun railStillIsSampledInsideTheRuntimeRatherThanAtAFixedThirtySeconds() {
+        val sampled = item("x").copy(duration = JsonPrimitive(1000), muxPlaybackId = JsonPrimitive("Abc123"))
+        assertEquals(
+            "https://image.mux.com/Abc123/thumbnail.jpg?time=420&width=640&height=360&fit_mode=smartcrop",
+            sampled.muxStillArtwork(),
+        )
+        val short = sampled.copy(duration = JsonPrimitive(20))
+        assertEquals(true, short.muxStillArtwork()?.contains("time=8&"))
+        val unknownDuration = sampled.copy(duration = null)
+        assertEquals(true, unknownDuration.muxStillArtwork()?.contains("time=30&"))
+        assertNull(sampled.copy(muxPlaybackId = null).muxStillArtwork())
     }
 
     @Test
