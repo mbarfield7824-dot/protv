@@ -34,6 +34,7 @@ const {
   CreatorPublishingService,
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
+const { isViewerEligible } = require('../catalog/readModel');
 const router = express.Router();
 const handleLiveWebhook = createLiveWebhookHandler();
 const publicDomainCandidates = createCandidateStore({
@@ -276,6 +277,7 @@ router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if (!isViewerEligible(video)) return res.status(404).json({ error: 'Video not found' });
     res.json(publicVideo(video));
   } catch (error) {
     if (error instanceof VideoNotFoundError || error.message === 'Video not found') return res.status(404).json({ error: 'Video not found' });

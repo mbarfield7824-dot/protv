@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const express = require('express');
 const { browse, seriesCatalog, seriesKey } = require('../src/catalog/readModel');
+const { MUSIC_FORMATS, validateMusicFormat } = require('../src/catalog/music');
 const { createCatalogRouter } = require('../src/catalog/router');
 
 function title(id, overrides = {}) {
@@ -74,6 +75,71 @@ test('movies and documentary views preserve current web filtering', () => {
   ]);
 });
 
+test('Music formats are explicit, validated values', () => {
+  assert.deepEqual(MUSIC_FORMATS, [
+    'music_video',
+    'live_performance',
+    'artist_showcase',
+    'interview',
+    'music_documentary',
+    'premiere_special',
+  ]);
+  for (const format of MUSIC_FORMATS) {
+    assert.equal(validateMusicFormat(format), format);
+  }
+  for (const invalid of ['', 'Music Video', 'music-video', 'podcast', null, 42]) {
+    assert.throws(() => validateMusicFormat(invalid), /musicFormat must be one of/);
+  }
+});
+
+test('Music browse safely projects typed records and preserves legacy Music categories', () => {
+  const music = MUSIC_FORMATS.map((musicFormat) => title(`music-${musicFormat}`, {
+    contentType: 'MUSIC',
+    musicFormat,
+    category: musicFormat === 'music_documentary' ? 'Documentary' : 'Music',
+    subgenre: 'Hip-Hop',
+    genres: musicFormat === 'music_documentary' ? ['Documentary', 'Hip-Hop'] : ['Hip-Hop'],
+  }));
+  const legacyCategory = title('legacy-category-music', { category: 'Music' });
+  const legacyGenre = title('legacy-genre-music', { category: '', genre: 'Music' });
+  const invalidFormat = title('music-invalid-format', { contentType: 'MUSIC', musicFormat: 'podcast' });
+  const missingFormat = title('music-missing-format', { contentType: 'MUSIC' });
+  const draftMusic = title('music-draft', {
+    contentType: 'MUSIC', musicFormat: 'music_video', approvalStatus: 'draft',
+  });
+  const processingMusic = title('music-processing', {
+    contentType: 'MUSIC', musicFormat: 'music_video', status: 'processing',
+  });
+  const fixture = [
+    ...music, legacyCategory, legacyGenre, invalidFormat, missingFormat, draftMusic, processingMusic,
+  ];
+
+  const projected = browse(fixture);
+  const typedMusic = projected.filter((item) => item.contentType === 'MUSIC');
+  assert.deepEqual(typedMusic.map((item) => item.musicFormat).sort(), [...MUSIC_FORMATS].sort());
+  assert.equal(projected.some((item) => ['music-invalid-format', 'music-missing-format'].includes(item.id)), false);
+  assert.equal(projected.some((item) => ['music-draft', 'music-processing'].includes(item.id)), false);
+  assert.equal(projected.find((item) => item.id === 'music-music_documentary').category, 'Documentary');
+  assert.equal(projected.find((item) => item.id === 'music-music_video').subgenre, 'Hip-Hop');
+  assert.equal(projected.find((item) => item.id === 'music-music_video').contentType, 'MUSIC');
+
+  const musicView = browse(fixture, { view: 'music' });
+  assert.deepEqual(musicView.map((item) => item.id), [
+    'legacy-category-music',
+    'legacy-genre-music',
+    ...MUSIC_FORMATS.map((format) => `music-${format}`).sort(),
+  ].sort());
+  assert.equal(musicView.some((item) => ['music-invalid-format', 'music-missing-format', 'music-draft', 'music-processing'].includes(item.id)), false);
+
+  const movies = browse(fixture, { view: 'movies' });
+  assert.equal(movies.some((item) => item.contentType === 'MUSIC'), false);
+  assert.ok(movies.some((item) => item.id === 'legacy-category-music'));
+  const documentaries = browse(fixture, { view: 'documentaries' });
+  assert.ok(documentaries.some((item) => item.id === 'music-music_documentary'));
+  assert.equal(documentaries.find((item) => item.id === 'music-music_documentary').contentType, 'MUSIC');
+  assert.deepEqual(seriesCatalog(fixture), []);
+});
+
 test('search matches every whitespace term across title, category, subgenre and genres', () => {
   assert.deepEqual(browse(records, { q: '  CLASSIC   black  ' }).map((item) => item.id), ['movie']);
   assert.deepEqual(browse(records, { q: 'docuMENtary DRAMA' }).map((item) => item.id), [
@@ -143,6 +209,56 @@ test('versioned router returns viewer-safe browse, summaries, details, errors an
   assert.equal((await get('?q=a&q=b')).status, 400);
   assert.equal((await get(`?q=${'a'.repeat(201)}`)).status, 400);
   assert.ok(reads >= 6);
+});
+
+test('versioned catalog adds a Music view without changing the default viewer contract', async (context) => {
+  const fixture = [
+    title('music-video', {
+      contentType: 'MUSIC',
+      musicFormat: 'music_video',
+      category: 'Music',
+      subgenre: 'Jazz',
+    }),
+    title('music-documentary', {
+      contentType: 'MUSIC',
+      musicFormat: 'music_documentary',
+      category: 'Documentary',
+      genres: ['Documentary'],
+    }),
+    title('legacy-music', { category: 'Music' }),
+    title('draft-music', {
+      contentType: 'MUSIC', musicFormat: 'live_performance', approvalStatus: 'draft',
+    }),
+    title('unready-music', {
+      contentType: 'MUSIC', musicFormat: 'live_performance', status: 'processing',
+    }),
+    title('invalid-music', { contentType: 'MUSIC', musicFormat: 'invalid' }),
+  ];
+  const app = express();
+  app.use('/v1/catalog', createCatalogRouter({ loadApproved: async () => fixture }));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/v1/catalog`;
+
+  const allResponse = await fetch(base);
+  assert.equal(allResponse.status, 200);
+  const all = await allResponse.json();
+  assert.deepEqual(all.items.map((item) => item.id), ['legacy-music', 'music-documentary', 'music-video']);
+  assert.equal(all.items.find((item) => item.id === 'music-video').musicFormat, 'music_video');
+  assert.equal(all.items.find((item) => item.id === 'legacy-music').musicFormat, undefined);
+
+  const musicResponse = await fetch(`${base}?view=music`);
+  assert.equal(musicResponse.status, 200);
+  assert.deepEqual((await musicResponse.json()).items.map((item) => item.id), [
+    'legacy-music', 'music-documentary', 'music-video',
+  ]);
+  const moviesResponse = await fetch(`${base}?view=movies`);
+  assert.deepEqual((await moviesResponse.json()).items.map((item) => item.id), ['legacy-music']);
+  const documentariesResponse = await fetch(`${base}?view=documentaries`);
+  const documentaries = (await documentariesResponse.json()).items;
+  assert.deepEqual(documentaries.map((item) => item.id), ['music-documentary']);
+  assert.equal(documentaries[0].contentType, 'MUSIC');
 });
 
 test('title detail and playback use the Phase 2A playable catalog projection', async (context) => {

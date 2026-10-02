@@ -1,12 +1,15 @@
-const VIEWS = new Set(['all', 'movies', 'documentaries']);
+const { isMusicFormat } = require('./music');
 
-function playable(video) {
+const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
+
+function isViewerEligible(video) {
   return video?.approvalStatus === 'approved'
     && video.status === 'ready'
     && typeof video.id === 'string'
     && Boolean(video.id.trim())
     && typeof video.muxPlaybackId === 'string'
-    && Boolean(video.muxPlaybackId.trim());
+    && Boolean(video.muxPlaybackId.trim())
+    && (video.contentType !== 'MUSIC' || isMusicFormat(video.musicFormat));
 }
 
 function publicTitle(video) {
@@ -32,11 +35,12 @@ function publicTitle(video) {
     seasonNumber: video.seasonNumber ?? null,
     episodeNumber: video.episodeNumber ?? null,
     episodeTitle: video.episodeTitle || '',
+    ...(video.contentType === 'MUSIC' ? { musicFormat: video.musicFormat } : {}),
   };
 }
 
 function playableCatalog(videos) {
-  return videos.filter(playable)
+  return videos.filter(isViewerEligible)
     .map(publicTitle)
     .sort((left, right) => left.id.localeCompare(right.id));
 }
@@ -46,13 +50,22 @@ function matchesDocumentary(video) {
     .some((value) => String(value || '').toLowerCase() === 'documentary');
 }
 
+function matchesMusic(video) {
+  if (video.contentType === 'MUSIC') return isMusicFormat(video.musicFormat);
+  return [video.category, video.genre].some(
+    (value) => typeof value === 'string' && value.trim().toLowerCase() === 'music'
+  );
+}
+
 function browse(videos, { view = 'all', q = '' } = {}) {
-  if (!VIEWS.has(view)) throw new RangeError('view must be all, movies, or documentaries.');
+  if (!VIEWS.has(view)) throw new RangeError('view must be all, movies, documentaries, or music.');
   if (typeof q !== 'string' || q.length > 200) {
     throw new RangeError('q must be a string of at most 200 characters.');
   }
   const terms = q.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const candidates = view === 'documentaries' ? videos.filter(matchesDocumentary) : videos;
+  const candidates = view === 'documentaries'
+    ? videos.filter(matchesDocumentary)
+    : view === 'music' ? videos.filter(matchesMusic) : videos;
   return playableCatalog(candidates).filter((video) => {
     if (view === 'movies' && String(video.contentType || '').toUpperCase() !== 'MOVIE') return false;
     const text = [
@@ -122,4 +135,4 @@ function seriesCatalog(videos) {
   }).sort((left, right) => left.title.localeCompare(right.title) || left.key.localeCompare(right.key));
 }
 
-module.exports = { browse, playableCatalog, seriesCatalog, seriesKey };
+module.exports = { browse, isViewerEligible, playableCatalog, seriesCatalog, seriesKey };
