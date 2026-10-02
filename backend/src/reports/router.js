@@ -3,6 +3,7 @@ const path = require('path');
 const { db } = require('../firebase');
 const { verifyAdmin } = require('../middleware/auth');
 const { ReportStore, ReportRateLimitError } = require('./store');
+const { reportingClientAddress } = require('./clientAddress');
 const { REPORT_ID, ReportInputError, submission, review, pagination } = require('./validation');
 
 function createReportRouters({
@@ -37,7 +38,7 @@ function createReportRouters({
 
   publicRouter.post('/', async (req, res, next) => {
     try {
-      await store.consumeRateLimit(req.ip || req.socket.remoteAddress || 'unknown');
+      await store.consumeRateLimit(reportingClientAddress(req));
       if (!req.is('application/json')) return res.status(415).json({ error: 'Reports require application/json; uploads are not accepted.' });
       return next();
     } catch (error) { return fail(res, error); }

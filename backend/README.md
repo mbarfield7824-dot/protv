@@ -170,9 +170,14 @@ Submission attempts (including invalid submissions) consume durable limits:
 minute. Counters reside in `safetyReportRateLimits` (or the development
 file); Firestore updates both counters transactionally. 429 includes
 `Retry-After`. Client addresses are hashed and not stored in report records.
-No forwarded-IP header is trusted and no Express trust-proxy behavior is
-changed. Verify proxy/client-address behavior before deployment: shared
-proxy addresses may share the conservative per-client quota. Firestore
+Only when `VERCEL=1`, reporting uses one validated, canonical IPv4/IPv6
+address from Vercel's `x-vercel-forwarded-for` header. Missing, malformed,
+comma-separated, or duplicate values share a conservative fallback quota.
+Outside Vercel, reporting uses the socket address and ignores forwarding
+headers. IPv4-mapped IPv6 addresses share the corresponding IPv4 bucket.
+No global Express trust-proxy behavior is changed. This relies on
+[Vercel's platform-controlled header contract](https://vercel.com/docs/headers/request-headers);
+verify deployed ingress behavior before release. Firestore
 counter keys are reused; optionally configure Firestore TTL on `expiresAt`
 to remove inactive client counters. Local expired counters are pruned on
 submission. Rate limits do not replace monitoring or a production abuse
