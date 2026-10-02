@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/InfoPages.css';
@@ -47,6 +48,13 @@ const policySections = [
       'Depictions of self-harm or suicide encouragement',
       'Weapons trafficking, drug sales, or criminal activity',
       'Fraudulent schemes or scams',
+    ],
+  },
+  {
+    title: '2.6 Child Sexual Abuse Material and Child Sexual Exploitation',
+    items: [
+      'Child sexual abuse material (CSAM) and child sexual exploitation',
+      'Creating, uploading, distributing, promoting, soliciting, or facilitating CSAM or child sexual exploitation through PROtv',
     ],
   },
 ];
@@ -108,14 +116,11 @@ export default function AcceptableUsePolicy() {
           <p>PROtv may suspend or terminate accounts that fail to comply.</p>
 
           <h2>5. Reporting Violations</h2>
-          <p>PROtv provides tools for users, rights holders, and other parties to report violations of this AUP.</p>
-          <p>Reports may be submitted through:</p>
-          <PolicyList items={[
-            'The “Report Content” button on video pages',
-            <span key="email">Email to <a href="mailto:support@watchprotv.com">support@watchprotv.com</a></span>,
-            <span key="dmca">DMCA takedown requests submitted through the Copyright Policy page</span>,
-          ]} />
-          <p>PROtv reviews all reports promptly and takes appropriate action.</p>
+          <p>Users, rights holders, and other parties can <Link to="/report">report content, accounts or creators, or general safety concerns</Link> through the PROtv reporting form.</p>
+          <p>The form accepts text descriptions and identifying references, such as a content or account ID, page URL, creator name, or a description of where the concern appears. A contact email is optional. Successful submissions receive a receipt ID, and reports are stored for authorized Admin review.</p>
+          <p>Do not upload, attach, email, or otherwise send suspected CSAM or child sexual exploitation files. Provide text descriptions and identifying references through the reporting form instead.</p>
+          <p>Submitting a report does not itself remove content or restrict accounts. A report does not guarantee a response or enforcement action.</p>
+          <p>For copyright takedown requests, see the <Link to="/dmca-policy">DMCA Copyright Policy and takedown instructions</Link>.</p>
 
           <h2>6. Enforcement and Repeat Violator Policy</h2>
           <p>PROtv enforces this AUP through the following measures:</p>
@@ -127,7 +132,7 @@ export default function AcceptableUsePolicy() {
           <PolicyList items={['Account suspension', 'Monetization disabled']} />
           <h3>6.4 Severe Violations</h3>
           <p>Immediate termination may occur for:</p>
-          <PolicyList items={['Copyright infringement', 'Hate speech', 'Violent extremism', 'Adult sexual content', 'Fraud or illegal activity']} />
+          <PolicyList items={['Copyright infringement', 'Hate speech', 'Violent extremism', 'Adult sexual content', 'Child sexual abuse material (CSAM) or child sexual exploitation', 'Fraud or illegal activity']} />
           <p>PROtv reserves the right to remove content or restrict accounts at its discretion.</p>
 
           <h2>7. Marketplace and Payment Compliance</h2>
@@ -139,7 +144,7 @@ export default function AcceptableUsePolicy() {
           <p>PROtv may update this AUP at any time. Continued use of the platform constitutes acceptance of the updated policy.</p>
 
           <h2>9. Contact Information</h2>
-          <p>For questions or reports related to this AUP:</p>
+          <p>For questions about this AUP or general support, use the contact information below. To report a safety concern, use the <Link to="/report">PROtv safety reporting form</Link>.</p>
           <p><strong>Email:</strong> <a href="mailto:support@watchprotv.com">support@watchprotv.com</a><br />
             <strong>Website:</strong> <a href="https://watchprotv.com/?utm_source=copilot.com">https://watchprotv.com</a></p>
         </article>

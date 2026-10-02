@@ -101,7 +101,9 @@ npm run grant-admin -- owner@example.com
 
 Prefix these paths with `/api` on Vercel. The S1 backend foundation is paired
 with the public frontend report form at `/report` (S2) and the authenticated
-Admin Safety Reports queue (S3). There is no AUP amendment or evidence of Stripe
+Admin Safety Reports queue (S3). The frontend Acceptable Use Policy (S4)
+explicitly prohibits CSAM and child sexual exploitation and directs safety
+concerns to the text-only reporting form. This is not evidence of Stripe
 compliance. Reports do not
 automatically remove content, ban accounts, contact anyone, or initiate legal
 reporting.
