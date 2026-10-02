@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import StreamingCard from '../components/StreamingCard';
 import ProTVFooter from '../components/ProTVFooter';
 import MoviePreview from '../components/MoviePreview';
-import { api } from '../api';
+import { useSearchCatalog } from '../hooks/useSearchCatalog';
+import { isPodcastSearchResult, podcastResultUrl } from '../data/podcastCatalog';
 import '../styles/Movies.css';
 import '../styles/SearchPage.css';
+import '../styles/Podcasts.css';
 
 function normalizeVideo(raw) {
   const category = raw.category || raw.genre || '';
@@ -18,13 +20,16 @@ function normalizeVideo(raw) {
     category,
     subgenre: raw.subgenre || '',
     genreLabel: category,
-    thumbnailUrl: raw.thumbnailUrl || raw.posterUrl,
+    thumbnailUrl: raw.artworkUrl || raw.thumbnailUrl || raw.posterUrl,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl || raw.posterUrl,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
     ratingCount: raw.ratingCount || 0,
     year: raw.year || null,
     duration: raw.runtime ? Math.round(raw.runtime) : raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: raw.contentType,
+    podcastShowId: raw.podcastShowId,
+    host: raw.host,
+    creator: raw.creator,
     genres: raw.genres || [],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
@@ -34,6 +39,8 @@ function normalizeVideo(raw) {
 function searchableText(video) {
   return [
     video.title,
+    video.host,
+    video.creator,
     video.category,
     video.subgenre,
     ...(Array.isArray(video.genres) ? video.genres : []),
@@ -72,29 +79,9 @@ function SearchForm({ query, onSearch }) {
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { catalog, retry } = useSearchCatalog(normalizeVideo);
+  const { items: videos, failures, status } = catalog;
   const [previewVideo, setPreviewVideo] = useState(null);
-
-  const loadVideos = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const data = await api.getVideos();
-      setVideos(Array.isArray(data) ? data.map(normalizeVideo) : []);
-    } catch (loadError) {
-      console.error('Failed to load videos for search:', loadError);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadTimer = window.setTimeout(() => { void loadVideos(); }, 0);
-    return () => window.clearTimeout(loadTimer);
-  }, [loadVideos]);
 
   const results = useMemo(() => {
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -123,7 +110,19 @@ export default function Search() {
               <p className="movies-page__description">Results for “{query}”</p>
             </header>
 
-            {loading ? (
+            {status === 'partial' && (
+              <section className="movies-state search-page__warning" role="alert">
+                <h2>Search results are incomplete.</h2>
+                <p>Showing results from available sources.</p>
+                {failures.map((failure) => (
+                  <p key={failure.source}>{failure.label}: {failure.message}</p>
+                ))}
+                <button type="button" className="movies-state__action" onClick={() => void retry()}>
+                  Try Again
+                </button>
+              </section>
+            )}
+            {status === 'loading' ? (
               <div className="movies-grid" aria-label="Loading search results" role="status">
                 {Array.from({ length: 12 }, (_, index) => (
                   <div className="movies-skeleton" key={index}>
@@ -133,24 +132,34 @@ export default function Search() {
                   </div>
                 ))}
               </div>
-            ) : error ? (
+            ) : status === 'unavailable' ? (
               <section className="movies-state" role="alert">
                 <h2>Search is unavailable right now.</h2>
-                <p>Please try again in a moment.</p>
-                <button type="button" className="movies-state__action" onClick={() => void loadVideos()}>
+                {failures.map((failure) => (
+                  <p key={failure.source}>{failure.label}: {failure.message}</p>
+                ))}
+                <button type="button" className="movies-state__action" onClick={() => void retry()}>
                   Try Again
                 </button>
               </section>
             ) : results.length ? (
               <div className="movies-grid">
-                {results.map((video) => (
+                {results.map((video) => isPodcastSearchResult(video) ? (
+                  <Link key={video.id} className="search-page__podcast" to={podcastResultUrl(video)}>
+                    {video.thumbnailUrl && <img src={video.thumbnailUrl} alt="" loading="lazy" />}
+                    <h2>{video.title}</h2>
+                    <p>{video.contentType === 'PODCAST_SHOW' ? 'Podcast Show' : 'Podcast Episode'} · {video.category}</p>
+                  </Link>
+                ) : (
                   <StreamingCard key={video.id} video={video} onInfo={setPreviewVideo} />
                 ))}
               </div>
             ) : (
               <section className="movies-state">
-                <h2>No results found</h2>
-                <p>Try another title, category, subgenre, or genre.</p>
+                <h2>{status === 'partial' ? 'No matches in available results' : 'No results found'}</h2>
+                <p>{status === 'partial'
+                  ? 'Some sources could not be searched. Retry to check the full catalog.'
+                  : 'Try another title, category, subgenre, or genre.'}</p>
               </section>
             )}
           </section>

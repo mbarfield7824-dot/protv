@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isPodcastSearchResult, podcastResultUrl } from '../data/podcastCatalog';
 import {
   mockVideoData,
   blackCinemaData,
@@ -7,7 +8,8 @@ import {
   animeData,
   FALLBACK_POSTER,
 } from '../data/mockData';
-import { api } from '../api';
+import { overlaySearchCatalog } from '../data/searchCatalog';
+import { useSearchCatalog } from '../hooks/useSearchCatalog';
 import { matchesDocumentaryClassification } from '../utils/documentary';
 import {
   isMovieSearchResult,
@@ -25,13 +27,16 @@ function normalizeApiVideo(raw) {
     description: raw.description || '',
     category,
     subgenre: raw.subgenre || '',
-    thumbnailUrl: raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
+    thumbnailUrl: raw.artworkUrl || raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
     heroImageUrl: raw.heroImageUrl || raw.thumbnailUrl || raw.posterUrl || FALLBACK_POSTER,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
     ratingCount: raw.ratingCount || 0,
     year: raw.year || null,
     duration: raw.runtime ? Math.round(raw.runtime) : raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: raw.contentType,
+    podcastShowId: raw.podcastShowId,
+    host: raw.host,
+    creator: raw.creator,
     musicFormat: raw.musicFormat,
     genre: raw.genre,
     genres: [...new Set([...(raw.genres || []), category, raw.subgenre].filter(Boolean))],
@@ -43,24 +48,14 @@ function normalizeApiVideo(raw) {
 
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('');
-  const [apiVideos, setApiVideos] = useState([]);
+  const { catalog, retry } = useSearchCatalog(normalizeApiVideo);
+  const { failures, status } = catalog;
   const [contentFilter, setContentFilter] = useState('ALL');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Fetch backend videos to include in search
-    async function fetchApiVideos() {
-      try {
-        const data = await api.getVideos();
-        if (Array.isArray(data) && data.length > 0) {
-          setApiVideos(data.map(normalizeApiVideo));
-        }
-      } catch (error) {
-        console.error('Failed to load videos for search:', error);
-      }
-    }
-    fetchApiVideos();
-  }, []);
+  const searchCatalog = useMemo(() => overlaySearchCatalog(catalog, {
+    primary: mockVideoData,
+    additional: [...blackCinemaData, ...independentData, ...animeData],
+  }), [catalog]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -74,19 +69,19 @@ export default function SearchOverlay({ onClose }) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
 
-    const primaryCatalog = apiVideos.length > 0 ? apiVideos : mockVideoData;
-    const SEARCH_CATALOG = [...primaryCatalog, ...blackCinemaData, ...independentData, ...animeData];
-
-    const matches = SEARCH_CATALOG.filter(
+    const matches = searchCatalog.filter(
       (v) =>
         v.title.toLowerCase().includes(q) ||
+        v.host?.toLowerCase().includes(q) ||
+        v.creator?.toLowerCase().includes(q) ||
         v.category?.toLowerCase().includes(q) ||
         v.subgenre?.toLowerCase().includes(q) ||
         v.genres?.some((g) => g.toLowerCase().includes(q))
     );
     if (contentFilter === 'ALL') return matches.slice(0, 12);
     return matches.filter((video) => {
-      if (contentFilter === 'MUSIC') return matchesMusicClassification(video);
+      if (contentFilter === 'PODCASTS') return isPodcastSearchResult(video);
+      if (contentFilter === 'MUSIC') return !isPodcastSearchResult(video) && matchesMusicClassification(video);
       if (contentFilter === 'MOVIES') return isMovieSearchResult(video);
       if (contentFilter === 'SERIES') return isSeriesSearchResult(video);
       if (contentFilter === 'DOCUMENTARIES') return matchesDocumentaryClassification(video);
@@ -94,22 +89,22 @@ export default function SearchOverlay({ onClose }) {
       if (contentFilter === 'SHORTS') return type === 'SHORT' || type === 'SHORT FILM';
       return true;
     }).slice(0, 12);
-  }, [query, apiVideos, contentFilter]);
+  }, [query, searchCatalog, contentFilter]);
 
   const availableFilters = useMemo(() => {
-    const catalog = [...apiVideos, ...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
     const filters = ['ALL'];
-    if (catalog.some(isMovieSearchResult)) filters.push('MOVIES');
-    if (catalog.some((video) => ['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SERIES');
-    if (catalog.some(matchesMusicClassification)) filters.push('MUSIC');
-    if (catalog.some(matchesDocumentaryClassification)) filters.push('DOCUMENTARIES');
-    if (catalog.some((video) => ['SHORT', 'SHORT FILM'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SHORTS');
+    if (searchCatalog.some(isMovieSearchResult)) filters.push('MOVIES');
+    if (searchCatalog.some((video) => ['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SERIES');
+    if (searchCatalog.some((video) => !isPodcastSearchResult(video) && matchesMusicClassification(video))) filters.push('MUSIC');
+    filters.push('PODCASTS');
+    if (searchCatalog.some(matchesDocumentaryClassification)) filters.push('DOCUMENTARIES');
+    if (searchCatalog.some((video) => ['SHORT', 'SHORT FILM'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SHORTS');
     return filters;
-  }, [apiVideos]);
+  }, [searchCatalog]);
 
   const handleSelect = (video) => {
     onClose();
-    navigate(`/player/${video.id}`);
+    navigate(isPodcastSearchResult(video) ? podcastResultUrl(video) : `/player/${video.id}`);
   };
 
   return (
@@ -131,6 +126,20 @@ export default function SearchOverlay({ onClose }) {
 
         {query.trim() && (
           <div className="search-overlay-results">
+            {status === 'loading' ? (
+              <div className="search-overlay-state" role="status">Loading search results...</div>
+            ) : failures.length > 0 && (
+              <div className="search-overlay-state" role="alert">
+                <strong>{status === 'unavailable'
+                  ? 'Search is unavailable right now.'
+                  : 'Search results are incomplete.'}</strong>
+                {status === 'partial' && <span>Showing results from available sources.</span>}
+                {failures.map((failure) => (
+                  <span key={failure.source}>{failure.label}: {failure.message}</span>
+                ))}
+                <button type="button" onClick={() => void retry()}>Try Again</button>
+              </div>
+            )}
             <div className="search-filter-tabs" aria-label="Filter search results">
               {availableFilters.map((filter) => (
                 <button
@@ -143,10 +152,12 @@ export default function SearchOverlay({ onClose }) {
                 </button>
               ))}
             </div>
-            {results.length === 0 ? (
+            {status !== 'loading' && status !== 'unavailable' && (results.length === 0 ? (
               <div className="search-overlay-empty">
-                <strong>No results found.</strong>
-                <span>Try another title, creator or genre.</span>
+                <strong>{status === 'partial' ? 'No matches in available results.' : 'No results found.'}</strong>
+                <span>{status === 'partial'
+                  ? 'Some sources could not be searched. Retry to check the full catalog.'
+                  : 'Try another title, creator or genre.'}</span>
               </div>
             ) : (
               <div className="search-overlay-grid">
@@ -154,7 +165,15 @@ export default function SearchOverlay({ onClose }) {
                   <div
                     key={video.id}
                     className="search-result-card"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelect(video)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleSelect(video);
+                      }
+                    }}
                   >
                     <img
                       src={video.thumbnailUrl}
@@ -175,7 +194,7 @@ export default function SearchOverlay({ onClose }) {
                   </div>
                 ))}
               </div>
-            )}
+            ))}
           </div>
         )}
       </div>

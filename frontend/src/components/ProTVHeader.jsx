@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { to: '/movies', label: 'Movies' },
   { to: '/series', label: 'Series' },
   { to: '/music', label: 'Music' },
+  { to: '/podcasts', label: 'Podcasts' },
   { to: '/documentaries', label: 'Documentaries' },
   { to: '/#originals', label: 'Originals' },
   { to: '/creators', label: 'Submit Your Film' },

@@ -135,7 +135,15 @@ Movies and Music are unchanged. P2a adds authenticated Admin backend authoring
 and video ingestion; P2b adds the Podcast tab to the authenticated website
 Admin experience. An interrupted Episode transfer can be checked again with
 the protected status endpoint from that tab without starting a new ingestion.
-Public Podcast pages are not enabled.
+P3a adds public website discovery at `/podcasts` and a stable-ID Show page at
+`/podcasts/:showId`. They use only `GET /v1/catalog/podcasts` and
+`GET /v1/catalog/podcasts/:id`; Podcast search also uses eligible Episodes
+from `GET /v1/catalog`. Episode playback remains deferred to P3b.
+Both search surfaces retain successful public-source results when another
+source fails, display incomplete/unavailable states, and offer retry.
+Failed Podcast requests never trigger mock-content substitution.
+Each search source has a 10-second deadline; timed-out sources report an
+error and are aborted. Retry and unmount cancel superseded search requests.
 Generic video create/edit/approval/ingestion routes still reject Podcast types.
 
 Podcast Admin routes (prefix with `/api` on Vercel) require an interactive

@@ -1,0 +1,129 @@
+.podcasts-page .movies-page__intro,
+.podcasts-show-hero {
+  padding: 34px 38px;
+  border: 1px solid rgba(96, 165, 250, .28);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #101b49, #070912 70%);
+}
+
+.podcasts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 24px;
+}
+
+.podcasts-card {
+  overflow: hidden;
+  border: 1px solid var(--protv-control-border);
+  border-radius: 14px;
+  background: var(--protv-midnight);
+  color: var(--protv-white);
+  text-decoration: none;
+}
+
+.podcasts-card:hover,
+.podcasts-card:focus-visible {
+  border-color: var(--protv-electric-blue);
+}
+
+.search-page__podcast {
+  padding: 14px;
+  border: 1px solid var(--protv-control-border);
+  border-radius: 12px;
+  color: var(--protv-white);
+  text-decoration: none;
+}
+
+.search-page__podcast img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.podcasts-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.podcasts-card__copy {
+  padding: 18px;
+}
+
+.podcasts-card__copy h2 {
+  margin: 0 0 10px;
+}
+
+.podcasts-card__copy p,
+.podcasts-show-hero p,
+.podcasts-episode p {
+  color: var(--protv-silver);
+  line-height: 1.5;
+}
+
+.podcasts-back {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--protv-white);
+}
+
+.podcasts-show-hero,
+.podcasts-episode {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.podcasts-show-hero > img {
+  width: min(32%, 280px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.podcasts-tags {
+  font-weight: 700;
+}
+
+.podcasts-episodes {
+  margin: 42px 0;
+}
+
+.podcasts-episodes ol {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.podcasts-episode {
+  padding: 18px;
+  border: 1px solid var(--protv-control-border);
+  border-radius: 12px;
+}
+
+.podcasts-episode img {
+  width: 150px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .podcasts-page .movies-page__intro,
+  .podcasts-show-hero {
+    padding: 26px 22px;
+  }
+
+  .podcasts-show-hero,
+  .podcasts-episode {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .podcasts-show-hero > img {
+    width: 100%;
+    max-width: 280px;
+  }
+}

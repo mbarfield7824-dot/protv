@@ -23,6 +23,8 @@ import SeriesDetail from './pages/SeriesDetail';
 import Creators from './pages/Creators';
 import CollectionPage from './pages/CollectionPage';
 import Music from './pages/Music';
+import Podcasts from './pages/Podcasts';
+import PodcastShow from './pages/PodcastShow';
 import Activate from './pages/Activate';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
@@ -70,6 +72,8 @@ function App() {
           <Route path="/creators" element={<Creators />} />
           <Route path="/activate" element={<Activate />} />
           <Route path="/music" element={<Music />} />
+          <Route path="/podcasts" element={<Podcasts />} />
+          <Route path="/podcasts/:showId" element={<PodcastShow />} />
           <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -78,6 +78,28 @@
   padding-right: 4px;
 }
 
+.search-overlay-state {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid rgba(167, 139, 250, .42);
+  border-radius: 10px;
+  color: #d0d6ee;
+  background: #0b0d1d;
+}
+
+.search-overlay-state button {
+  padding: 9px 16px;
+  border: 1px solid rgba(167, 139, 250, .42);
+  border-radius: 999px;
+  background: rgba(124, 58, 237, .22);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
 .search-filter-tabs {
   display: flex;
   gap: 8px;

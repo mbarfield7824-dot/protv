@@ -62,6 +62,10 @@
   margin-bottom: 28px;
 }
 
+.search-page__warning {
+  margin-bottom: 24px;
+}
+
 .search-page__invitation {
   display: grid;
   justify-items: center;

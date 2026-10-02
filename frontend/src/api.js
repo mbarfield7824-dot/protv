@@ -1,5 +1,7 @@
 import { firebaseAuth } from './firebase';
 import { musicCatalogItems, musicCatalogUrl } from './data/musicCatalog';
+import { podcastCatalogItems, podcastCatalogUrl, podcastSearchEpisodes, podcastShowDetail } from './data/podcastCatalog';
+import { fetchSearchVideos } from './data/searchCatalog';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -76,6 +78,10 @@ export const api = {
     }
   },
 
+  async getSearchVideos({ signal } = {}) {
+    return fetchSearchVideos(API_URL, fetch, { signal });
+  },
+
   async getMusicCatalog() {
     const res = await fetch(musicCatalogUrl(API_URL), { cache: 'no-store' });
     const payload = await res.json();
@@ -83,6 +89,28 @@ export const api = {
       throw new Error(payload.error || 'The Music catalog is temporarily unavailable.');
     }
     return musicCatalogItems(payload);
+  },
+
+  async getPodcastShows({ signal } = {}) {
+    const res = await fetch(podcastCatalogUrl(API_URL), { cache: 'no-store', ...(signal ? { signal } : {}) });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || 'The Podcast catalog is temporarily unavailable.');
+    return podcastCatalogItems(payload);
+  },
+
+  async getPodcastShow(id) {
+    const res = await fetch(podcastCatalogUrl(API_URL, id), { cache: 'no-store' });
+    if (res.status === 404) return null;
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || 'The Podcast Show is temporarily unavailable.');
+    return podcastShowDetail(payload);
+  },
+
+  async getPodcastEpisodes({ signal } = {}) {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/v1/catalog`, { cache: 'no-store', ...(signal ? { signal } : {}) });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || 'The Podcast catalog is temporarily unavailable.');
+    return podcastSearchEpisodes(payload);
   },
 
   async getVideo(id) {
