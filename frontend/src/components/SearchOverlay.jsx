@@ -8,6 +8,7 @@ import {
   FALLBACK_POSTER,
 } from '../data/mockData';
 import { api } from '../api';
+import { matchesDocumentaryClassification } from '../utils/documentary';
 import '../styles/SearchOverlay.css';
 
 // Normalizes backend video to match mock data shape
@@ -79,9 +80,8 @@ export default function SearchOverlay({ onClose }) {
     if (contentFilter === 'ALL') return matches.slice(0, 12);
     return matches.filter((video) => {
       const type = String(video.contentType || '').toUpperCase();
-      const category = String(video.category || '').toLowerCase();
       if (contentFilter === 'SERIES') return type === 'SERIES' || type === 'EPISODE';
-      if (contentFilter === 'DOCUMENTARIES') return category === 'documentary';
+      if (contentFilter === 'DOCUMENTARIES') return matchesDocumentaryClassification(video);
       if (contentFilter === 'SHORTS') return type === 'SHORT' || type === 'SHORT FILM';
       return type !== 'SERIES' && type !== 'EPISODE';
     }).slice(0, 12);
@@ -92,7 +92,7 @@ export default function SearchOverlay({ onClose }) {
     const filters = ['ALL'];
     if (catalog.some((video) => !['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('MOVIES');
     if (catalog.some((video) => ['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SERIES');
-    if (catalog.some((video) => String(video.category || '').toLowerCase() === 'documentary')) filters.push('DOCUMENTARIES');
+    if (catalog.some(matchesDocumentaryClassification)) filters.push('DOCUMENTARIES');
     if (catalog.some((video) => ['SHORT', 'SHORT FILM'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SHORTS');
     return filters;
   }, [apiVideos]);

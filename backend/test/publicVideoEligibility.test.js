@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const express = require('express');
 const firebase = require('../src/firebase');
+const auth = require('../src/middleware/auth');
 const { createCatalogRouter } = require('../src/catalog/router');
 
 const validMusic = {
@@ -158,4 +159,80 @@ test('versioned catalog title and playback reject invalid Music formats and acce
       assert.deepEqual(await response.json(), { error: 'Title not found.' });
     }
   }
+});
+
+test('legacy public video collection filters viewer-ineligible records and keeps eligible response shape', async (context) => {
+  const fixtures = [
+    {
+      ...validMusic,
+      id: 'eligible-music',
+      rightsHolder: 'Private Rights Holder',
+      rightsVerificationNotes: 'Private rights evidence',
+      submittedAt: '2026-01-01',
+    },
+    eligible('eligible-movie', {
+      contentType: 'MOVIE',
+      category: 'Drama',
+      posterUrl: 'movie-poster',
+    }),
+    eligible('eligible-episode', {
+      contentType: 'EPISODE',
+      seriesTitle: 'A Series',
+      seasonNumber: 1,
+      episodeNumber: 2,
+    }),
+    { ...validMusic, id: 'draft', approvalStatus: 'draft' },
+    { ...validMusic, id: 'unready', status: 'processing' },
+    { ...validMusic, id: 'no-playback', muxPlaybackId: '' },
+    { ...validMusic, id: 'invalid-format', musicFormat: 'podcast' },
+    { ...validMusic, id: 'missing-format', musicFormat: undefined },
+  ];
+  const adminFixtures = [{ ...fixtures[3] }, ...fixtures];
+  context.mock.method(firebase, 'getApprovedVideos', async () => fixtures);
+  context.mock.method(firebase, 'getAllVideosAdmin', async () => adminFixtures);
+  context.mock.method(auth, 'verifyAdmin', (req, res, next) => {
+    req.user = { uid: 'test-admin' };
+    next();
+  });
+
+  const routePath = require.resolve('../src/routes/videos');
+  delete require.cache[routePath];
+  const app = express();
+  app.use('/videos', require(routePath));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => {
+    server.close();
+    delete require.cache[routePath];
+  });
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/videos`;
+
+  const publicResponse = await fetch(base);
+  assert.equal(publicResponse.status, 200);
+  const publicItems = await publicResponse.json();
+  assert.deepEqual(publicItems.map((video) => video.id), [
+    'eligible-music',
+    'eligible-movie',
+    'eligible-episode',
+  ]);
+  const publicMusic = publicItems[0];
+  assert.equal(Object.hasOwn(publicMusic, 'rightsHolder'), false);
+  assert.equal(Object.hasOwn(publicMusic, 'rightsVerificationNotes'), false);
+  assert.equal(publicMusic.musicFormat, 'music_video');
+  assert.equal(publicMusic.submittedAt, '2026-01-01');
+  assert.deepEqual(publicMusic, {
+    ...validMusic,
+    id: 'eligible-music',
+    submittedAt: '2026-01-01',
+  });
+
+  const adminResponse = await fetch(`${base}/admin/all`);
+  assert.equal(adminResponse.status, 200);
+  const adminItems = await adminResponse.json();
+  assert.equal(adminItems.length, adminFixtures.length);
+  assert.equal(adminItems[0].approvalStatus, 'draft');
+
+  const queryResponse = await fetch(`${base}?category=Music`, { redirect: 'manual' });
+  assert.equal(queryResponse.status, 307);
+  assert.equal(queryResponse.headers.get('location'), '/api/videos');
 });

@@ -136,7 +136,7 @@ router.get('/', async (req, res) => {
       'CDN-Cache-Control': 'no-store',
       'Vercel-CDN-Cache-Control': 'no-store',
     });
-    res.json(videos.map(publicVideo));
+    res.json(videos.filter(isViewerEligible).map(publicVideo));
   } catch (error) {
     res.set('Cache-Control', 'no-store');
     res.status(500).json({ error: error.message });
