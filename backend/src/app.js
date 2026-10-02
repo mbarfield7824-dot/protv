@@ -13,11 +13,15 @@ const { createCatalogRouter } = require('./catalog/router');
 const { createAdminPodcastRouter } = require('./catalog/adminPodcastRouter');
 const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
+const { createReportRouters } = require('./reports/router');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
 
 app.use(cors());
+const reportRouters = createReportRouters();
+app.use(`${apiPrefix}/reports`, reportRouters.publicRouter);
+app.use(`${apiPrefix}/admin/reports`, reportRouters.adminRouter);
 app.use(express.json({
   verify: (request, response, buffer) => {
     request.rawBody = Buffer.from(buffer);

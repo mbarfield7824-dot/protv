@@ -19,3 +19,5 @@ mux-access-token-*.env
 *.key
 *.p8
 *.p12
+backend/.data/safety-reports.json
+backend/.data/safety-reports.json.*.tmp

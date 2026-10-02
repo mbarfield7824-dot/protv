@@ -97,6 +97,75 @@ npm run grant-admin -- owner@example.com
 - `GET /videos/categories/list` - Get all categories
 - `POST /videos` - Add new video (requires authentication token)
 
+### Safety reporting backend (S1)
+
+Prefix these paths with `/api` on Vercel. This foundation does not provide a
+public Report form, Admin queue UI, an AUP amendment, or evidence of Stripe
+compliance. Existing email-reporting links remain unchanged. Reports do not
+automatically remove content, ban accounts, contact anyone, or initiate legal
+reporting.
+
+- `POST /reports`: public, JSON only, maximum 16 KB. Required fields:
+  `type` (`content`, `account`, `general`), `reason`, and nonblank
+  `description` (maximum 5000 characters). Reasons:
+  `csam_child_sexual_exploitation`, `harassment_hate`, `violence_threats`,
+  `self_harm`, `sexual_content`, `copyright`, `fraud`, `privacy`, `other`.
+  Content/account reports need at least one text reference: `targetId`
+  (stable catalog/account/creator ID, maximum 200 characters, letters,
+  numbers, underscore, dot, colon, hyphen), `targetUrl` (HTTP(S), maximum
+  2048 characters, no embedded credentials), or `targetDescription`
+  (identifying text, maximum 1000 characters). No account page is required.
+  Optional `contactEmail` has basic email syntax validation, maximum 254
+  characters. URLs are stored as references, never fetched. Unknown fields,
+  evidence uploads, and client-supplied status/timestamps are rejected.
+  A persisted report returns 201 `{ "id": "<uuid>", "status": "received" }`.
+  The initial internal review status is `pending`. There is no public
+  report-detail/list endpoint; receipts contain no reporter/reviewer details.
+- `GET /admin/reports?limit=25&cursor=<report-id>`: newest-first private
+  listing, `{ "items": [...], "nextCursor": "<id-or-null>" }`. Limit is
+  1-100, cursor is optional, and unknown query fields are rejected.
+  Ordering uses creation time, not last review time. No status filter is
+  implemented; this avoids requiring a composite Firestore index.
+- `GET /admin/reports/:id`: private report details, or 404.
+- `PATCH /admin/reports/:id`: required `status` (`pending`, `in_review`,
+  `resolved`, `dismissed`) and nonblank `reviewNotes` (maximum 5000
+  characters). The latest review records authenticated Admin UID and server
+  time, preserving creation time and original submission. This is not an
+  append-only review history. Response contains only ID/status.
+
+All Admin endpoints reuse interactive Firebase Admin authentication
+(`password`/`google.com` session and strict Admin claim). Reporter contacts,
+submission text, and review notes are private. All report responses use
+`no-store`. Storage failures return 503, never a receipt or empty success.
+Validation returns 400, oversized JSON 413, non-JSON submissions 415.
+Error logging excludes submitted text, contact information, and review notes.
+
+Firestore stores records in `safetyReports`, separate from videos, using
+server timestamps and transactions for review updates. When Firestore is
+configured, its failures never fall back to local files. Production/Vercel
+without Firestore fails explicitly. Development without Firestore uses
+`backend/.data/safety-reports.json` (override with `SAFETY_REPORTS_FILE`):
+serialized updates, file sync and atomic rename persist across restarts.
+Use one local backend process per development file; this is not a
+multi-process file-locking implementation. Treat that file as private,
+keep it out of source control, and use appropriate host/Firestore access
+controls. The default file and its temporary writes are Git-ignored; an
+override outside that path needs equivalent protection. No public Firestore
+client access is needed.
+
+Submission attempts (including invalid submissions) consume durable limits:
+5 per client address per fixed 10-minute window, 120 globally per fixed
+minute. Counters reside in `safetyReportRateLimits` (or the development
+file); Firestore updates both counters transactionally. 429 includes
+`Retry-After`. Client addresses are hashed and not stored in report records.
+No forwarded-IP header is trusted and no Express trust-proxy behavior is
+changed. Verify proxy/client-address behavior before deployment: shared
+proxy addresses may share the conservative per-client quota. Firestore
+counter keys are reused; optionally configure Firestore TTL on `expiresAt`
+to remove inactive client counters. Local expired counters are pruned on
+submission. Rate limits do not replace monitoring or a production abuse
+review. No report retention/deletion automation is introduced.
+
 ### Shared viewer catalog (version 1)
 
 These public, read-only routes run alongside `/videos` (prefix paths with `/api`
