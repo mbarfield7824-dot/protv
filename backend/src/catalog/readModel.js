@@ -1,8 +1,20 @@
 const { isMusicFormat } = require('./music');
+const {
+  PODCAST_SHOW,
+  PODCAST_EPISODE,
+  isPublishedPodcastShow,
+  isPublishedPodcastEpisode,
+  publicPodcastShow,
+} = require('./podcasts');
 
 const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
 
-function isViewerEligible(video) {
+function isViewerEligible(video, videos = []) {
+  if (video?.contentType === PODCAST_SHOW) return false;
+  if (video?.contentType === PODCAST_EPISODE) {
+    const show = videos.find((candidate) => candidate.id === video.podcastShowId);
+    if (!isPublishedPodcastEpisode(video, show)) return false;
+  }
   return video?.approvalStatus === 'approved'
     && video.status === 'ready'
     && typeof video.id === 'string'
@@ -36,12 +48,24 @@ function publicTitle(video) {
     episodeNumber: video.episodeNumber ?? null,
     episodeTitle: video.episodeTitle || '',
     ...(video.contentType === 'MUSIC' ? { musicFormat: video.musicFormat } : {}),
+    ...(video.contentType === PODCAST_EPISODE ? { podcastShowId: video.podcastShowId } : {}),
   };
 }
 
-function playableCatalog(videos) {
-  return videos.filter(isViewerEligible)
+function playableCatalog(videos, parentContext = videos) {
+  return videos.filter((video) => isViewerEligible(video, parentContext))
     .map(publicTitle)
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function podcastCatalog(videos) {
+  const episodes = playableCatalog(videos).filter((item) => item.contentType === PODCAST_EPISODE);
+  return videos.filter(isPublishedPodcastShow)
+    .map((show) => ({
+      ...publicPodcastShow(show),
+      episodes: episodes.filter((episode) => episode.podcastShowId === show.id)
+        .sort((left, right) => left.episodeNumber - right.episodeNumber || left.id.localeCompare(right.id)),
+    }))
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
@@ -66,7 +90,7 @@ function browse(videos, { view = 'all', q = '' } = {}) {
   const candidates = view === 'documentaries'
     ? videos.filter(matchesDocumentary)
     : view === 'music' ? videos.filter(matchesMusic) : videos;
-  return playableCatalog(candidates).filter((video) => {
+  return playableCatalog(candidates, videos).filter((video) => {
     if (view === 'movies' && String(video.contentType || '').toUpperCase() !== 'MOVIE') return false;
     const text = [
       video.title, video.category, video.subgenre, ...video.genres,
@@ -135,4 +159,4 @@ function seriesCatalog(videos) {
   }).sort((left, right) => left.title.localeCompare(right.title) || left.key.localeCompare(right.key));
 }
 
-module.exports = { browse, isViewerEligible, playableCatalog, seriesCatalog, seriesKey };
+module.exports = { browse, isViewerEligible, playableCatalog, podcastCatalog, publicTitle, seriesCatalog, seriesKey };

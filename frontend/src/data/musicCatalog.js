@@ -45,7 +45,7 @@ export function matchesMusicFormat(video, selectedFormat) {
 
 export function isMovieSearchResult(video) {
   const type = String(video.contentType || '').toUpperCase();
-  return !['MUSIC', 'SERIES', 'EPISODE'].includes(type);
+  return !['MUSIC', 'SERIES', 'EPISODE', 'PODCAST_SHOW', 'PODCAST_EPISODE'].includes(type);
 }
 
 export function isSeriesSearchResult(video) {

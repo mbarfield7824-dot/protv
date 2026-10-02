@@ -34,8 +34,9 @@ const {
   CreatorPublishingService,
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
-const { isViewerEligible } = require('../catalog/readModel');
+const { isViewerEligible, publicTitle } = require('../catalog/readModel');
 const { documentaryGenres, validateMusicFormat } = require('../catalog/music');
+const { PODCAST_SHOW, PODCAST_EPISODE } = require('../catalog/podcasts');
 const router = express.Router();
 const handleLiveWebhook = createLiveWebhookHandler();
 const publicDomainCandidates = createCandidateStore({
@@ -136,7 +137,8 @@ router.get('/', async (req, res) => {
       'CDN-Cache-Control': 'no-store',
       'Vercel-CDN-Cache-Control': 'no-store',
     });
-    res.json(videos.filter(isViewerEligible).map(publicVideo));
+    res.json(videos.filter((video) => isViewerEligible(video, videos))
+      .map((video) => video.contentType === PODCAST_EPISODE ? publicTitle(video) : publicVideo(video)));
   } catch (error) {
     res.set('Cache-Control', 'no-store');
     res.status(500).json({ error: error.message });
@@ -222,6 +224,9 @@ router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
     const currentVideo = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(currentVideo.contentType)) {
+      return res.status(400).json({ error: 'Podcast approval is not enabled yet.' });
+    }
     validateMusicMetadata({
       contentType: currentVideo.contentType,
       musicFormat: currentVideo.musicFormat,
@@ -278,6 +283,9 @@ router.patch('/admin/:id/verify', verifyAdmin, async (req, res) => {
 router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(video.contentType)) {
+      return res.status(400).json({ error: 'Podcast ingestion is not enabled yet.' });
+    }
 
     if (!video.videoUrl) {
       return res.status(400).json({ error: 'This catalog entry has no source video URL.' });
@@ -310,8 +318,16 @@ router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
-    if (!isViewerEligible(video)) return res.status(404).json({ error: 'Video not found' });
-    res.json(publicVideo(video));
+    const records = video.contentType === PODCAST_EPISODE
+      && typeof video.podcastShowId === 'string'
+      && /^[A-Za-z0-9_-]{1,200}$/.test(video.podcastShowId)
+      ? [await getVideoById(video.podcastShowId).catch((error) => {
+        if (error instanceof VideoNotFoundError || error.message === 'Video not found') return null;
+        throw error;
+      })].filter(Boolean)
+      : [];
+    if (!isViewerEligible(video, records)) return res.status(404).json({ error: 'Video not found' });
+    res.json(video.contentType === PODCAST_EPISODE ? publicTitle(video) : publicVideo(video));
   } catch (error) {
     if (error instanceof VideoNotFoundError || error.message === 'Video not found') return res.status(404).json({ error: 'Video not found' });
     console.error('Failed to load video.');
@@ -322,6 +338,9 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id', verifyAdmin, async (req, res) => {
   try {
     const existing = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(existing.contentType)) {
+      return res.status(400).json({ error: 'Podcast editing is not enabled yet.' });
+    }
     const has = (key) => Object.hasOwn(req.body, key);
     const currentType = existing.contentType || 'MOVIE';
     const contentType = has('contentType')

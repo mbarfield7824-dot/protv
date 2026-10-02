@@ -65,15 +65,21 @@ test('Music classification and format filters include legacy records only in All
   assert.equal(matchesMusicFormat(documentary, 'music_video'), false);
 });
 
-test('typed MUSIC stays out of Movies and Series search classifications', () => {
+test('typed Music and Podcast records stay out of Movies and TV Series search classifications', () => {
   const music = { contentType: 'MUSIC' };
+  const podcastShow = { contentType: 'PODCAST_SHOW', category: 'Music' };
+  const podcastEpisode = { contentType: 'PODCAST_EPISODE', category: 'Drama' };
   const movie = { contentType: 'MOVIE' };
   const legacyMovie = { category: 'Drama' };
   const episode = { contentType: 'EPISODE' };
 
   assert.equal(isMovieSearchResult(music), false);
+  assert.equal(isMovieSearchResult(podcastShow), false);
+  assert.equal(isMovieSearchResult(podcastEpisode), false);
   assert.equal(isMovieSearchResult(movie), true);
   assert.equal(isMovieSearchResult(legacyMovie), true);
   assert.equal(isSeriesSearchResult(music), false);
+  assert.equal(isSeriesSearchResult(podcastShow), false);
+  assert.equal(isSeriesSearchResult(podcastEpisode), false);
   assert.equal(isSeriesSearchResult(episode), true);
 });

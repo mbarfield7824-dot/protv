@@ -123,6 +123,29 @@ included.
   for a playable title, or 404 otherwise. This is a public on-demand
   availability response, not a player, signed playback or an access entitlement.
 
+Podcast domain foundation (P1): `PODCAST_SHOW` and `PODCAST_EPISODE` live in
+the existing `videos` catalog. A Show's catalog `id` is stable across title
+edits; it has title, optional description, host/creator, category, genres, and
+`artworkUrl`. It is a nonplayable parent, even if playback fields are present.
+A Podcast Episode has `podcastShowId` referencing an existing Show record,
+a positive integer `episodeNumber`, its own title/artwork, and the existing
+video/Mux metadata. A title match is not a Show reference. Existing TV
+`EPISODE` records continue using `seriesTitle` and season/episode numbers;
+Movies and Music are unchanged. No Podcast create/upload, edit, approval, or
+ingestion route or Admin UI is enabled in P1; the generic Admin routes reject
+Podcast records until their validation and rights checks are implemented.
+
+The Show needs `approvalStatus: approved`, a valid ID, and a nonblank title;
+it does **not** need `status: ready` or a Mux ID. Its Episodes appear publicly
+only when the Show is published **and** each Episode is approved, ready,
+playable, and references that Show by ID. Invalid or unpublished parents
+make Episode browse, direct title, legacy video detail, and playback return
+no result. Show records never enter playable catalog or TV Series grouping.
+Public Show/Podcast Episode projections exclude private rights and approval
+metadata. `GET /v1/catalog/podcasts` returns `{ "items": [...] }` with published
+Show summaries; `GET /v1/catalog/podcasts/:id` returns one summary and its
+eligible Episodes in episode-number order (404 otherwise).
+
 The versioned catalog remains read-only; it does not add login or write endpoints.
 
 ### PROtv Live discovery (phase 1)

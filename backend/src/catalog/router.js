@@ -1,6 +1,6 @@
 const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
-const { browse, playableCatalog, seriesCatalog } = require('./readModel');
+const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 
 function createCatalogRouter({
   loadApproved = db
@@ -39,6 +39,27 @@ function createCatalogRouter({
       return res.json(series);
     } catch (error) {
       console.error('Failed to load viewer series detail:', error);
+      return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
+    }
+  });
+
+  router.get('/podcasts', async (req, res) => {
+    try {
+      const items = podcastCatalog(await load()).map(({ episodes, ...show }) => show);
+      res.json({ items });
+    } catch (error) {
+      console.error('Failed to load viewer podcasts:', error);
+      res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
+    }
+  });
+
+  router.get('/podcasts/:id', async (req, res) => {
+    try {
+      const show = podcastCatalog(await load()).find((item) => item.id === req.params.id);
+      if (!show) return res.status(404).json({ error: 'Podcast show not found.' });
+      return res.json(show);
+    } catch (error) {
+      console.error('Failed to load viewer podcast show:', error);
       return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });
     }
   });
