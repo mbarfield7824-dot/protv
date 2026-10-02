@@ -1,0 +1,102 @@
+.safety-queue {
+  color: #e4ecff;
+}
+
+.safety-queue__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.safety-queue__list {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.safety-queue__list li,
+.safety-queue__detail {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid rgba(65, 105, 225, .4);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .5);
+}
+
+.safety-queue__priority {
+  display: block;
+  padding: 10px;
+  border-left: 3px solid #ff9500;
+  background: rgba(255, 149, 0, .12);
+  color: #ffe2b8;
+}
+
+.safety-queue__text,
+.safety-queue__metadata dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.safety-queue a {
+  color: #93c5fd;
+}
+
+.safety-queue__metadata > div {
+  margin-top: 12px;
+}
+
+.safety-queue__metadata dt {
+  font-weight: 750;
+}
+
+.safety-queue__metadata dd {
+  margin: 4px 0;
+}
+
+.safety-queue fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid rgba(65, 105, 225, .4);
+}
+
+.safety-queue select,
+.safety-queue textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #4b66a8;
+  border-radius: 6px;
+  background: #080c1a;
+  color: #fff;
+  font: inherit;
+}
+
+.safety-queue textarea {
+  resize: vertical;
+}
+
+.safety-queue :is(button, a, select, textarea):focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+.safety-queue button {
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.safety-queue button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .safety-queue__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

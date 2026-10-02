@@ -5,6 +5,7 @@ import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import AdminPodcasts from '../components/AdminPodcasts';
+import AdminSafetyReports from '../components/AdminSafetyReports';
 import AdminBotPanel from '../components/AdminBotPanel';
 import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
 import AdminAssistantPanel from '../admin/AdminAssistantPanel';
@@ -485,6 +486,8 @@ export default function Admin() {
             ? 'Public Domain Admin Bot'
             : mode === 'podcasts'
               ? 'Manage Podcasts'
+            : mode === 'safety-reports'
+              ? 'Review private safety reports with your authenticated Admin session.'
             : mode === 'distributor-ingestion'
               ? 'Distributor Ingestion Adapter'
               : mode === 'assistant'
@@ -563,6 +566,12 @@ export default function Admin() {
             }}
           >
             ✏️ Edit Catalog
+          </button>
+          <button
+            className={`admin-tab ${mode === 'safety-reports' ? 'active' : ''}`}
+            onClick={() => { reset(); setMode('safety-reports'); }}
+          >
+            Safety Reports
           </button>
           <button
             className={`admin-tab ${mode === 'podcasts' ? 'active' : ''}`}
@@ -1024,6 +1033,7 @@ export default function Admin() {
         )}
         {mode === 'edit-catalog' && <AdminCatalogEditor />}
         {mode === 'podcasts' && <AdminPodcasts />}
+        {mode === 'safety-reports' && <AdminSafetyReports />}
         {mode === 'admin-bot' && <AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} />}
         {mode === 'distributor-ingestion' && <DistributorIngestionPanel />}
         {mode === 'assistant' && <AdminAssistantPanel />}

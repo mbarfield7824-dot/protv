@@ -4,6 +4,7 @@ import { podcastCatalogItems, podcastCatalogUrl, podcastSearchEpisodes, podcastS
 import { fetchSearchVideos } from './data/searchCatalog';
 import { fetchPlayerTitle } from './data/playerCatalog';
 import { submitSafetyReport } from './data/safetyReports';
+import { adminReportRequest } from './admin/safetyReports';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -32,6 +33,18 @@ async function authenticatedHeaders() {
 }
 
 export const api = {
+  async getAdminSafetyReports(options = {}) {
+    return adminReportRequest(API_URL, authenticatedHeaders, options);
+  },
+
+  async getAdminSafetyReport(id, options = {}) {
+    return adminReportRequest(API_URL, authenticatedHeaders, { ...options, id });
+  },
+
+  async reviewAdminSafetyReport(id, body, options = {}) {
+    return adminReportRequest(API_URL, authenticatedHeaders, { ...options, id, body });
+  },
+
   async approveDeviceSession(code) {
     const res = await fetch(`${API_URL}/auth/device-sessions/approve`, {
       method: 'POST',

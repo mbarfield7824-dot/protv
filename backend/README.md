@@ -100,8 +100,9 @@ npm run grant-admin -- owner@example.com
 ### Safety reporting backend (S1)
 
 Prefix these paths with `/api` on Vercel. The S1 backend foundation is paired
-with the public frontend report form at `/report` (S2). There is no Admin queue
-UI, AUP amendment, or evidence of Stripe compliance. Reports do not
+with the public frontend report form at `/report` (S2) and the authenticated
+Admin Safety Reports queue (S3). There is no AUP amendment or evidence of Stripe
+compliance. Reports do not
 automatically remove content, ban accounts, contact anyone, or initiate legal
 reporting.
 
@@ -132,6 +133,15 @@ reporting.
   characters). The latest review records authenticated Admin UID and server
   time, preserving creation time and original submission. This is not an
   append-only review history. Response contains only ID/status.
+
+  The Admin queue uses these protected endpoints with the existing interactive
+  Admin session. It shows server-ordered pages, text-only report details, and
+  saved versus draft review fields. Confirmed saves are not automatically
+  retried; failed reconciliation requires refreshing before further edits.
+  Interrupted saves retain notes, warn that the update may have arrived, and
+  disable further saves until report and queue data are successfully refreshed.
+  Refresh preserves unsaved notes for comparison against verified saved data.
+  Report data is held only in component memory, not client storage or analytics.
 
 All Admin endpoints reuse interactive Firebase Admin authentication
 (`password`/`google.com` session and strict Admin claim). Reporter contacts,
