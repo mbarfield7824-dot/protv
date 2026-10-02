@@ -9,6 +9,11 @@ import {
 } from '../data/mockData';
 import { api } from '../api';
 import { matchesDocumentaryClassification } from '../utils/documentary';
+import {
+  isMovieSearchResult,
+  isSeriesSearchResult,
+  matchesMusicClassification,
+} from '../data/musicCatalog';
 import '../styles/SearchOverlay.css';
 
 // Normalizes backend video to match mock data shape
@@ -26,7 +31,9 @@ function normalizeApiVideo(raw) {
     ratingCount: raw.ratingCount || 0,
     year: raw.year || null,
     duration: raw.runtime ? Math.round(raw.runtime) : raw.duration ? Math.round(raw.duration / 60) : 0,
-    contentType: 'MOVIE',
+    contentType: raw.contentType,
+    musicFormat: raw.musicFormat,
+    genre: raw.genre,
     genres: [...new Set([...(raw.genres || []), category, raw.subgenre].filter(Boolean))],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
@@ -79,19 +86,22 @@ export default function SearchOverlay({ onClose }) {
     );
     if (contentFilter === 'ALL') return matches.slice(0, 12);
     return matches.filter((video) => {
-      const type = String(video.contentType || '').toUpperCase();
-      if (contentFilter === 'SERIES') return type === 'SERIES' || type === 'EPISODE';
+      if (contentFilter === 'MUSIC') return matchesMusicClassification(video);
+      if (contentFilter === 'MOVIES') return isMovieSearchResult(video);
+      if (contentFilter === 'SERIES') return isSeriesSearchResult(video);
       if (contentFilter === 'DOCUMENTARIES') return matchesDocumentaryClassification(video);
+      const type = String(video.contentType || '').toUpperCase();
       if (contentFilter === 'SHORTS') return type === 'SHORT' || type === 'SHORT FILM';
-      return type !== 'SERIES' && type !== 'EPISODE';
+      return true;
     }).slice(0, 12);
   }, [query, apiVideos, contentFilter]);
 
   const availableFilters = useMemo(() => {
     const catalog = [...apiVideos, ...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
     const filters = ['ALL'];
-    if (catalog.some((video) => !['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('MOVIES');
+    if (catalog.some(isMovieSearchResult)) filters.push('MOVIES');
     if (catalog.some((video) => ['SERIES', 'EPISODE'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SERIES');
+    if (catalog.some(matchesMusicClassification)) filters.push('MUSIC');
     if (catalog.some(matchesDocumentaryClassification)) filters.push('DOCUMENTARIES');
     if (catalog.some((video) => ['SHORT', 'SHORT FILM'].includes(String(video.contentType || '').toUpperCase()))) filters.push('SHORTS');
     return filters;

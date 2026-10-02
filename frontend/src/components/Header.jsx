@@ -14,6 +14,7 @@ export default function Header() {
     { to: '/', label: 'Home' },
     { to: '/#trending', label: 'Movies' },
     { to: '/shows', label: 'Series' },
+    { to: '/music', label: 'Music' },
     { to: '/#documentary', label: 'Documentaries' },
     { to: '/#featured-on-protv', label: 'Originals' },
     { to: '/creators', label: 'Submit Your Film' },

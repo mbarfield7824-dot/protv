@@ -1,4 +1,5 @@
 import { firebaseAuth } from './firebase';
+import { musicCatalogItems, musicCatalogUrl } from './data/musicCatalog';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -58,6 +59,15 @@ export const api = {
     } catch {
       return [];
     }
+  },
+
+  async getMusicCatalog() {
+    const res = await fetch(musicCatalogUrl(API_URL), { cache: 'no-store' });
+    const payload = await res.json();
+    if (!res.ok) {
+      throw new Error(payload.error || 'The Music catalog is temporarily unavailable.');
+    }
+    return musicCatalogItems(payload);
   },
 
   async getVideo(id) {

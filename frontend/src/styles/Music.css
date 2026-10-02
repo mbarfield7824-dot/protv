@@ -1,0 +1,65 @@
+.music-page .movies-page__intro {
+  padding: 34px 38px;
+  border: 1px solid rgba(96, 165, 250, .28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 82% 35%, rgba(65, 105, 225, .34), transparent 35%),
+    linear-gradient(135deg, #101b49, #070912 70%);
+}
+
+.music-format-filters {
+  display: flex;
+  gap: 9px;
+  margin: 0 0 30px;
+  padding: 2px 1px 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.music-format-filters button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid var(--protv-control-border);
+  border-radius: 999px;
+  background: var(--protv-midnight);
+  color: var(--protv-silver);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.music-format-filters button:hover,
+.music-format-filters button.active {
+  border-color: var(--protv-electric-blue);
+  background: var(--protv-blue);
+  color: var(--protv-white);
+}
+
+.music-format-filters button span {
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .24);
+  font-size: 11px;
+  text-align: center;
+}
+
+.music-card .ptv-card__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .music-page .movies-page__intro {
+    padding: 26px 22px;
+  }
+
+  .music-format-filters {
+    margin-bottom: 22px;
+  }
+}
