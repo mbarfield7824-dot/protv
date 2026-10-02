@@ -131,9 +131,57 @@ A Podcast Episode has `podcastShowId` referencing an existing Show record,
 a positive integer `episodeNumber`, its own title/artwork, and the existing
 video/Mux metadata. A title match is not a Show reference. Existing TV
 `EPISODE` records continue using `seriesTitle` and season/episode numbers;
-Movies and Music are unchanged. No Podcast create/upload, edit, approval, or
-ingestion route or Admin UI is enabled in P1; the generic Admin routes reject
-Podcast records until their validation and rights checks are implemented.
+Movies and Music are unchanged. P2a adds authenticated Admin backend authoring
+and video ingestion; Podcast Admin UI and public Podcast pages are not enabled.
+Generic video create/edit/approval/ingestion routes still reject Podcast types.
+
+Podcast Admin routes (prefix with `/api` on Vercel) require an interactive
+Firebase Admin session with the admin claim:
+
+- `POST /admin/podcasts/shows`: create a draft Show. Accepts `title`
+  (required), `description`, `artworkUrl`, `host`, `creator`, `category`,
+  `genres` (string array). `contentType: PODCAST_SHOW` is optional. IDs are
+  generated independently of titles; media and Mux fields are rejected.
+- `PATCH /admin/podcasts/shows/:id`: edit those display fields; omissions
+  preserve existing fields. An approved Show must continue to satisfy all
+  publication metadata requirements on edit.
+- `POST /admin/podcasts/shows/:id/approve`: publish only if title, description,
+  artworkUrl, host or creator, and category or genres are present.
+- `POST /admin/podcasts/episodes`: create a draft video Episode with required
+  `title`, `podcastShowId` (existing Show ID), positive integer
+  `episodeNumber`, `rightsHolder`, and `rightsVerificationNotes`. Optional
+  display fields are `description`, `thumbnailUrl`, `posterUrl`, `category`,
+  and `genres`. `contentType: PODCAST_EPISODE` is optional. A draft Show may
+  have draft Episodes. Rights notes are required for review, not proof of
+  legal clearance.
+- `PATCH /admin/podcasts/episodes/:id`: edit the same metadata after checking
+  the effective merged record and parent. Actual parent or rights changes
+  on an approved Episode reset it to draft and clear approval metadata;
+  normalized unchanged values do not.
+- `POST /admin/podcasts/episodes/:id/upload-url` (empty JSON object): creates
+  a Mux direct-file upload URL, returning `videoId`, `uploadId`, `uploadUrl`.
+- `POST /admin/podcasts/episodes/:id/from-url` with an HTTP(S) `sourceUrl`:
+  starts Mux URL ingestion, returning `videoId`, `assetId`. Both ingestion
+  actions validate the existing draft Episode and parent before calling Mux.
+  Check readiness through the existing Admin `GET /videos/:id/status` or
+  authenticated Mux webhook; neither approves the Episode.
+  Retries of errored ingestion replace active Mux references and clear the
+  prior playback ID and duration. Attempt-conditional catalog writes reject
+  competing starts and stale status/webhook results; a Mux resource created
+  before a rejected claim may require manual cleanup.
+- `POST /admin/podcasts/episodes/:id/approve`: approves only a valid Episode
+  with `status: ready` and nonblank `muxPlaybackId`. An unpublished parent
+  still hides it from public discovery.
+- `POST /admin/podcasts/shows/:id/unpublish` and
+  `POST /admin/podcasts/episodes/:id/unpublish`: return to draft and clear
+  approval metadata. Show unpublish does not rewrite Episodes.
+
+The approval endpoints accept only optional `approvalNotes`; creation ignores
+client-supplied `approvalStatus` and always starts draft. Metadata edits reject
+client approval, playback, and ingestion fields. Show/Episode content types
+cannot change. Responses from these Admin routes are private Admin records;
+public catalog and title projections never include rights notes or approval
+metadata. No audio-only media is accepted.
 
 The Show needs `approvalStatus: approved`, a valid ID, and a nonblank title;
 it does **not** need `status: ready` or a Mux ID. Its Episodes appear publicly

@@ -10,6 +10,7 @@ const { createDistributorIngestionRouter } = require('./distributorIngestion/rou
 const { createAdminAssistantRouter } = require('./admin/router');
 const { createAdsRouter } = require('./ads/router');
 const { createCatalogRouter } = require('./catalog/router');
+const { createAdminPodcastRouter } = require('./catalog/adminPodcastRouter');
 const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
 
@@ -41,6 +42,7 @@ app.use(`${apiPrefix}/mux`, (req, res, next) => {
   return next();
 });
 app.use(`${apiPrefix}/v1/catalog`, createCatalogRouter());
+app.use(`${apiPrefix}/admin/podcasts`, createAdminPodcastRouter());
 app.use(`${apiPrefix}/v1/live`, createLiveRouter());
 app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
 app.use(`${apiPrefix}/users`, userRoutes);

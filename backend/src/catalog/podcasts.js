@@ -1,6 +1,11 @@
 const PODCAST_SHOW = 'PODCAST_SHOW';
 const PODCAST_EPISODE = 'PODCAST_EPISODE';
 
+function podcastIngestionMatches(record, expected) {
+  return record?.contentType === PODCAST_EPISODE
+    && Object.entries(expected).every(([key, value]) => (record[key] ?? null) === (value ?? null));
+}
+
 function isPublishedPodcastShow(show) {
   return show?.contentType === PODCAST_SHOW
     && typeof show.id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(show.id)
@@ -50,6 +55,7 @@ function publicPodcastShow(show) {
 module.exports = {
   PODCAST_SHOW,
   PODCAST_EPISODE,
+  podcastIngestionMatches,
   isPublishedPodcastShow,
   isPublishedPodcastEpisode,
   validatePodcastEpisodeReference,

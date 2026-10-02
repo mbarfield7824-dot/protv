@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { podcastIngestionMatches } = require('./catalog/podcasts');
 
 // Simple file-based storage for development when Firebase isn't available
 const STORAGE_DIR = path.join(__dirname, '../.data');
@@ -106,6 +107,14 @@ function updateVideo(id, updates) {
   saveVideos(videos);
 }
 
+function updatePodcastIngestion(id, expected, updates) {
+  const videos = loadVideos();
+  if (!podcastIngestionMatches(videos[id], expected)) return false;
+  videos[id] = { ...videos[id], ...updates };
+  saveVideos(videos);
+  return true;
+}
+
 function deleteVideo(id) {
   const videos = loadVideos();
   if (!videos[id]) {
@@ -186,6 +195,7 @@ module.exports = {
   addVideo,
   createCreatorVideo,
   updateVideo,
+  updatePodcastIngestion,
   deleteVideo,
   updateVideoApproval,
   getAllVideosAdmin,

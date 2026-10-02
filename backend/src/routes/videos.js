@@ -9,6 +9,7 @@ const {
   getCategories,
   addVideo,
   updateVideo,
+  updatePodcastIngestion,
   deleteVideo,
   updateVideoApproval,
   getVideoByUploadId,
@@ -249,6 +250,10 @@ router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
 router.patch('/admin/:id/reject', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
+    const currentVideo = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(currentVideo.contentType)) {
+      return res.status(400).json({ error: 'Use Podcast Admin routes for Podcast approval changes.' });
+    }
     await updateVideoApproval(req.params.id, {
       approvalStatus: 'rejected',
       approvalNotes: approvalNotes || '',
@@ -265,6 +270,10 @@ router.patch('/admin/:id/reject', verifyAdmin, async (req, res) => {
 router.patch('/admin/:id/verify', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
+    const currentVideo = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(currentVideo.contentType)) {
+      return res.status(400).json({ error: 'Use Podcast Admin routes for Podcast approval changes.' });
+    }
     await updateVideoApproval(req.params.id, {
       approvalStatus: 'rights-verification-required',
       approvalNotes: approvalNotes || '',
@@ -475,6 +484,9 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
 router.post('/admin/:id/imdb-rating', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(video.contentType)) {
+      return res.status(400).json({ error: 'Podcast IMDb updates are not supported.' });
+    }
     const rating = await getImdbRating(video);
     await updateVideo(req.params.id, rating);
     res.json({ id: req.params.id, ...rating });
@@ -486,6 +498,9 @@ router.post('/admin/:id/imdb-rating', verifyAdmin, async (req, res) => {
 router.delete('/:id', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if ([PODCAST_SHOW, PODCAST_EPISODE].includes(video.contentType)) {
+      return res.status(400).json({ error: 'Podcast deletion is not supported.' });
+    }
     if (video.status === 'ready' && video.muxPlaybackId) {
       return res.status(409).json({ error: 'Ready titles cannot be removed from this cleanup tool.' });
     }
@@ -809,9 +824,16 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
 router.get('/:id/status', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if (video.contentType === PODCAST_SHOW) {
+      return res.status(400).json({ error: 'Podcast Shows do not have playback status.' });
+    }
 
     if (video.status !== 'processing') {
-      return res.json(publicVideo(video));
+      return res.json(video.contentType === PODCAST_EPISODE
+        ? video.status === 'ready' && video.muxPlaybackId
+          ? { ...publicTitle(video), status: video.status }
+          : { id: video.id, status: video.status, contentType: PODCAST_EPISODE }
+        : publicVideo(video));
     }
 
     let asset = null;
@@ -827,23 +849,46 @@ router.get('/:id/status', verifyAdmin, async (req, res) => {
 
     if (asset && asset.status === 'ready') {
       const playbackId = getPlaybackId(asset);
+      if (video.contentType === PODCAST_EPISODE && !playbackId) {
+        return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
+      }
       const readyUpdates = {
         status: 'ready',
         muxPlaybackId: playbackId,
         muxAssetId: asset.id,
-        duration: asset.duration ? Math.round(asset.duration) : video.duration,
+        duration: asset.duration ? Math.round(asset.duration) : video.contentType === PODCAST_EPISODE ? 0 : video.duration,
       };
-      await updateVideo(req.params.id, readyUpdates);
-      const rating = await updateImdbRating({ ...video, ...readyUpdates });
-      return res.json(publicVideo({ ...video, ...readyUpdates, ...rating }));
+      if (video.contentType === PODCAST_EPISODE) {
+        const updated = await updatePodcastIngestion(video.id, {
+          status: 'processing', muxUploadId: video.muxUploadId, muxAssetId: video.muxAssetId,
+        }, readyUpdates);
+        if (!updated) return res.status(409).json({ error: 'Podcast ingestion attempt changed; poll again.' });
+      } else {
+        await updateVideo(req.params.id, readyUpdates);
+      }
+      const rating = video.contentType === PODCAST_EPISODE ? null : await updateImdbRating({ ...video, ...readyUpdates });
+      return res.json(video.contentType === PODCAST_EPISODE
+        ? { ...publicTitle({ ...video, ...readyUpdates }), status: 'ready' }
+        : publicVideo({ ...video, ...readyUpdates, ...rating }));
     }
 
     if (asset && asset.status === 'errored') {
-      await updateVideo(req.params.id, { status: 'errored' });
-      return res.json(publicVideo({ ...video, status: 'errored' }));
+      if (video.contentType === PODCAST_EPISODE) {
+        const updated = await updatePodcastIngestion(video.id, {
+          status: 'processing', muxUploadId: video.muxUploadId, muxAssetId: video.muxAssetId,
+        }, { status: 'errored' });
+        if (!updated) return res.status(409).json({ error: 'Podcast ingestion attempt changed; poll again.' });
+      } else {
+        await updateVideo(req.params.id, { status: 'errored' });
+      }
+      return res.json(video.contentType === PODCAST_EPISODE
+        ? { id: video.id, status: 'errored', contentType: PODCAST_EPISODE }
+        : publicVideo({ ...video, status: 'errored' }));
     }
 
-    res.json(publicVideo(video));
+    res.json(video.contentType === PODCAST_EPISODE
+      ? { id: video.id, status: video.status, contentType: PODCAST_EPISODE }
+      : publicVideo(video));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -885,6 +930,9 @@ router.post('/webhook', async (req, res) => {
 
       if (video && video.status === 'processing'
         && (!video.muxAssetId || video.muxAssetId === asset.id)) {
+        if (video.contentType === PODCAST_SHOW) {
+          return res.status(409).json({ error: 'Podcast Shows cannot be ingested.' });
+        }
         if (video.publicDomainCandidateId) {
           const candidate = await publicDomainCandidates.get(video.publicDomainCandidateId);
           if (video.approvalStatus !== 'draft' || !video.publicDomainConfirmedBy
@@ -899,9 +947,16 @@ router.post('/webhook', async (req, res) => {
           status: 'ready',
           muxPlaybackId: playbackId,
           muxAssetId: asset.id,
-          duration: asset.duration ? Math.round(asset.duration) : video.duration,
+          duration: asset.duration ? Math.round(asset.duration) : video.contentType === PODCAST_EPISODE ? 0 : video.duration,
         };
-        await updateVideo(video.id, readyUpdates);
+        if (video.contentType === PODCAST_EPISODE) {
+          const updated = await updatePodcastIngestion(video.id, {
+            status: 'processing', muxUploadId: video.muxUploadId, muxAssetId: video.muxAssetId,
+          }, readyUpdates);
+          if (!updated) return res.status(200).json({ received: true });
+        } else {
+          await updateVideo(video.id, readyUpdates);
+        }
         if (video.publicDomainCandidateId) {
           await updateVideoApproval(video.id, {
             approvalStatus: 'approved',
@@ -915,7 +970,7 @@ router.post('/webhook', async (req, res) => {
             stage: 'Published',
           });
         }
-        await updateImdbRating({ ...video, ...readyUpdates });
+        if (video.contentType !== PODCAST_EPISODE) await updateImdbRating({ ...video, ...readyUpdates });
       }
     }
 
@@ -927,7 +982,17 @@ router.post('/webhook', async (req, res) => {
 
       if (video && video.status === 'processing'
         && (!video.muxAssetId || video.muxAssetId === asset.id)) {
-        await updateVideo(video.id, { status: 'errored' });
+        if (video.contentType === PODCAST_SHOW) {
+          return res.status(409).json({ error: 'Podcast Shows cannot be ingested.' });
+        }
+        if (video.contentType === PODCAST_EPISODE) {
+          const updated = await updatePodcastIngestion(video.id, {
+            status: 'processing', muxUploadId: video.muxUploadId, muxAssetId: video.muxAssetId,
+          }, { status: 'errored' });
+          if (!updated) return res.status(200).json({ received: true });
+        } else {
+          await updateVideo(video.id, { status: 'errored' });
+        }
         if (video.publicDomainCandidateId) {
           await publicDomainCandidates.setDecision(video.publicDomainCandidateId, 'failed', {
             catalogId: video.id,
