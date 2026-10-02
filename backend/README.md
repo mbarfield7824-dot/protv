@@ -99,9 +99,9 @@ npm run grant-admin -- owner@example.com
 
 ### Safety reporting backend (S1)
 
-Prefix these paths with `/api` on Vercel. This foundation does not provide a
-public Report form, Admin queue UI, an AUP amendment, or evidence of Stripe
-compliance. Existing email-reporting links remain unchanged. Reports do not
+Prefix these paths with `/api` on Vercel. The S1 backend foundation is paired
+with the public frontend report form at `/report` (S2). There is no Admin queue
+UI, AUP amendment, or evidence of Stripe compliance. Reports do not
 automatically remove content, ban accounts, contact anyone, or initiate legal
 reporting.
 

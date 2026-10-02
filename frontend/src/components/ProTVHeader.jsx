@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { to: '/documentaries', label: 'Documentaries' },
   { to: '/#originals', label: 'Originals' },
   { to: '/creators', label: 'Submit Your Film' },
+  { to: '/report', label: 'Report Safety' },
 ];
 
 function SearchIcon() {

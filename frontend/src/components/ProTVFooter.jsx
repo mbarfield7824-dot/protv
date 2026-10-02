@@ -32,6 +32,7 @@ const COLUMNS = [
   {
     title: 'Support',
     links: [
+      { to: '/report', label: 'Report Safety' },
       { to: '/faq', label: 'FAQ' },
       { to: '/about', label: 'About Us' },
       { to: '/contact', label: 'Contact Us' },

@@ -13,6 +13,7 @@ import {
 } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
+import { safetyReportUrl } from '../data/safetyReports';
 import '../styles/Title.css';
 
 const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
@@ -179,6 +180,16 @@ export default function Title() {
               >
                 {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
               </button>
+              <Link
+                className="title-action title-action--secondary"
+                to={safetyReportUrl('content', {
+                  targetId: video.id,
+                  targetUrl: `${window.location.origin}${window.location.pathname}`,
+                  targetDescription: `Title: ${video.title}`,
+                })}
+              >
+                Report this title
+              </Link>
             </div>
           </div>
         </section>

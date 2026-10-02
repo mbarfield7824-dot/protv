@@ -1,0 +1,214 @@
+.safety-report-page {
+  box-sizing: border-box;
+  width: min(100% - 36px, 900px);
+  min-height: 64vh;
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 72px) 0 76px;
+}
+
+.safety-report__hero,
+.safety-report__form,
+.safety-report__receipt {
+  padding: clamp(22px, 5vw, 44px);
+  border: 1px solid rgba(96, 165, 250, .28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(65, 105, 225, .22), transparent 46%),
+    linear-gradient(135deg, rgba(16, 27, 73, .92), rgba(7, 9, 18, .96) 70%);
+}
+
+.safety-report__hero {
+  margin-bottom: 24px;
+}
+
+.safety-report__eyebrow {
+  margin-bottom: 10px !important;
+  color: var(--protv-electric-blue);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .14em !important;
+  text-transform: uppercase;
+}
+
+.safety-report__hero h1 {
+  margin-bottom: 14px !important;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  line-height: 1.08;
+}
+
+.safety-report__hero > p:last-child,
+.safety-report__receipt > p {
+  color: var(--protv-silver);
+  line-height: 1.65;
+}
+
+.safety-report__form {
+  display: grid;
+  gap: 22px;
+}
+
+.safety-report__fields {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.safety-report__field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.safety-report__field label,
+.safety-report__references legend {
+  color: var(--protv-white);
+  font-weight: 750;
+}
+
+.safety-report__field input,
+.safety-report__field select,
+.safety-report__field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 13px;
+  border: 1px solid var(--protv-control-border);
+  border-radius: 8px;
+  background: rgba(4, 6, 18, .86);
+  color: var(--protv-white);
+  font: inherit;
+}
+
+.safety-report__field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.safety-report__field input:focus-visible,
+.safety-report__field select:focus-visible,
+.safety-report__field textarea:focus-visible,
+.safety-report__button:focus-visible,
+.safety-report__errors a:focus-visible {
+  outline: 2px solid var(--protv-electric-blue);
+  outline-offset: 3px;
+}
+
+.safety-report__field [aria-invalid="true"] {
+  border-color: #fca5a5;
+}
+
+.safety-report__hint {
+  color: var(--protv-silver);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+.safety-report__field-error {
+  color: #fecaca;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+.safety-report__references {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid rgba(96, 165, 250, .24);
+  border-radius: 12px;
+}
+
+.safety-report__references legend {
+  padding: 0 8px;
+}
+
+.safety-report__notice,
+.safety-report__errors {
+  padding: 16px 18px;
+  border: 1px solid rgba(96, 165, 250, .28);
+  border-radius: 10px;
+  background: rgba(37, 99, 235, .12);
+  color: #e4ecff;
+  line-height: 1.55;
+}
+
+.safety-report__errors {
+  border-color: rgba(252, 165, 165, .5);
+  background: rgba(127, 29, 29, .24);
+}
+
+.safety-report__errors h2,
+.safety-report__receipt h2 {
+  margin-bottom: 8px !important;
+  font-size: 1.3rem;
+}
+
+.safety-report__errors p {
+  margin: 0;
+}
+
+.safety-report__errors ul {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.safety-report__errors a {
+  color: #fff;
+  text-underline-offset: 3px;
+}
+
+.safety-report__button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--protv-primary-gradient);
+  color: var(--protv-white);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.safety-report__button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+.safety-report__button--secondary {
+  margin-top: 18px;
+  border-color: var(--protv-control-border);
+  background: var(--protv-midnight);
+}
+
+.safety-report__receipt-id {
+  margin-top: 18px !important;
+  overflow-wrap: anywhere;
+  font-family: Consolas, monospace;
+}
+
+.safety-report__receipt-id span {
+  margin-right: 8px;
+  color: var(--protv-electric-blue);
+  font-family: inherit;
+  font-weight: 800;
+}
+
+@media (max-width: 520px) {
+  .safety-report-page {
+    width: min(100% - 24px, 900px);
+    padding-top: 24px;
+  }
+
+  .safety-report__references {
+    padding: 16px 12px;
+  }
+}

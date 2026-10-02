@@ -19,6 +19,7 @@ export default function Header() {
     { to: '/#documentary', label: 'Documentaries' },
     { to: '/#featured-on-protv', label: 'Originals' },
     { to: '/creators', label: 'Submit Your Film' },
+    { to: '/report', label: 'Report Safety' },
     { to: '/#my-list', label: 'My List' },
   ];
   const isActive = (to) => (

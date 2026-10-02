@@ -85,6 +85,14 @@
   font-weight: 700;
 }
 
+.podcasts-report-link {
+  display: inline-flex;
+  margin-top: 12px;
+  color: var(--protv-white);
+  font-weight: 750;
+  text-underline-offset: 4px;
+}
+
 .podcasts-episodes {
   margin: 42px 0;
 }

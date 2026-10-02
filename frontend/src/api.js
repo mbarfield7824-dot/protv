@@ -3,6 +3,7 @@ import { musicCatalogItems, musicCatalogUrl } from './data/musicCatalog';
 import { podcastCatalogItems, podcastCatalogUrl, podcastSearchEpisodes, podcastShowDetail } from './data/podcastCatalog';
 import { fetchSearchVideos } from './data/searchCatalog';
 import { fetchPlayerTitle } from './data/playerCatalog';
+import { submitSafetyReport } from './data/safetyReports';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -126,6 +127,10 @@ export const api = {
 
   async getPlayerTitle(id, options) {
     return fetchPlayerTitle(API_URL, id, options);
+  },
+
+  async submitSafetyReport(payload) {
+    return submitSafetyReport(API_URL, payload);
   },
 
   async getAdSession(videoId) {

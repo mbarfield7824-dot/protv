@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
+import { safetyReportUrl } from '../data/safetyReports';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
@@ -69,6 +70,16 @@ export default function PodcastShow() {
                 {[show.category, ...show.genres].filter(Boolean).length > 0 && (
                   <p className="podcasts-tags">{[...new Set([show.category, ...show.genres].filter(Boolean))].join(' · ')}</p>
                 )}
+                <Link
+                  className="podcasts-report-link"
+                  to={safetyReportUrl('content', {
+                    targetId: show.id,
+                    targetUrl: `${window.location.origin}${window.location.pathname}`,
+                    targetDescription: `Podcast Show: ${show.title}`,
+                  })}
+                >
+                  Report this Podcast Show
+                </Link>
               </div>
             </header>
             <section id="episodes" className="podcasts-episodes">
