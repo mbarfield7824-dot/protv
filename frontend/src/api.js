@@ -4,6 +4,21 @@ import { musicCatalogItems, musicCatalogUrl } from './data/musicCatalog';
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+async function podcastRequest(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`${API_URL}/admin/podcasts/${path}`, {
+    method,
+    headers: await authenticatedHeaders(),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const response = await res.json();
+  if (!res.ok) {
+    const error = new Error(response.error || 'Podcast operation failed.');
+    error.status = res.status;
+    throw error;
+  }
+  return response;
+}
+
 async function authenticatedHeaders() {
   const user = firebaseAuth?.currentUser;
   return {
@@ -161,8 +176,25 @@ export const api = {
     const res = await fetch(`${API_URL}/videos/${id}/status`, {
       headers: await authenticatedHeaders(),
     });
-    return res.json();
+    const response = await res.json();
+    if (!res.ok) {
+      const error = new Error(response.error || 'Unable to check video status.');
+      error.status = res.status;
+      throw error;
+    }
+    return response;
   },
+
+  createPodcastShow: (data) => podcastRequest('shows', { method: 'POST', body: data }),
+  editPodcastShow: (id, data) => podcastRequest(`shows/${encodeURIComponent(id)}`, { method: 'PATCH', body: data }),
+  approvePodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/approve`, { method: 'POST', body: {} }),
+  unpublishPodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),
+  createPodcastEpisode: (data) => podcastRequest('episodes', { method: 'POST', body: data }),
+  editPodcastEpisode: (id, data) => podcastRequest(`episodes/${encodeURIComponent(id)}`, { method: 'PATCH', body: data }),
+  approvePodcastEpisode: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/approve`, { method: 'POST', body: {} }),
+  unpublishPodcastEpisode: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),
+  podcastUploadUrl: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/upload-url`, { method: 'POST', body: {} }),
+  podcastFromUrl: (id, sourceUrl) => podcastRequest(`episodes/${encodeURIComponent(id)}/from-url`, { method: 'POST', body: { sourceUrl } }),
 
   async updateVideoMetadata(videoId, metadata) {
     const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {

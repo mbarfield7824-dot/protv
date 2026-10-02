@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
+import AdminPodcasts from '../components/AdminPodcasts';
 import AdminBotPanel from '../components/AdminBotPanel';
 import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
 import AdminAssistantPanel from '../admin/AdminAssistantPanel';
@@ -478,10 +479,12 @@ export default function Admin() {
     <div className="admin-page">
       <Header />
 
-      <div className={`admin-content ${['admin-bot', 'distributor-ingestion', 'assistant'].includes(mode) ? 'admin-content-wide' : ''}`}>
+      <div className={`admin-content ${['admin-bot', 'distributor-ingestion', 'assistant', 'podcasts'].includes(mode) ? 'admin-content-wide' : ''}`}>
         <h1 className="admin-title">
           {mode === 'admin-bot'
             ? 'Public Domain Admin Bot'
+            : mode === 'podcasts'
+              ? 'Manage Podcasts'
             : mode === 'distributor-ingestion'
               ? 'Distributor Ingestion Adapter'
               : mode === 'assistant'
@@ -491,6 +494,8 @@ export default function Admin() {
         <p className="admin-subtitle">
           {mode === 'admin-bot'
             ? 'Safely prepare and publish new Public Domain movies from your approved content folder.'
+            : mode === 'podcasts'
+              ? 'Manage Podcast Shows and their video Episodes with separate draft, ingestion, and approval steps.'
             : mode === 'distributor-ingestion'
               ? 'Import licensed titles from a secure distributor feed with rights and playback checks.'
               : mode === 'assistant'
@@ -558,6 +563,12 @@ export default function Admin() {
             }}
           >
             ✏️ Edit Catalog
+          </button>
+          <button
+            className={`admin-tab ${mode === 'podcasts' ? 'active' : ''}`}
+            onClick={() => { reset(); setMode('podcasts'); }}
+          >
+            Podcasts
           </button>
           <button
             className={`admin-tab ${mode === 'admin-bot' ? 'active' : ''}`}
@@ -1012,6 +1023,7 @@ export default function Admin() {
           <AdminContentReview />
         )}
         {mode === 'edit-catalog' && <AdminCatalogEditor />}
+        {mode === 'podcasts' && <AdminPodcasts />}
         {mode === 'admin-bot' && <AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} />}
         {mode === 'distributor-ingestion' && <DistributorIngestionPanel />}
         {mode === 'assistant' && <AdminAssistantPanel />}

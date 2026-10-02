@@ -18,6 +18,82 @@
   max-width: 1040px;
 }
 
+.podcast-admin h2,
+.podcast-admin h3,
+.podcast-admin h4 {
+  color: #fff;
+}
+
+.podcast-admin-heading,
+.podcast-admin-layout {
+  display: flex;
+  gap: 24px;
+}
+
+.podcast-admin-heading {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.podcast-admin-list {
+  width: 280px;
+  flex: none;
+}
+
+.podcast-admin-forms {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 24px;
+}
+
+.podcast-admin-forms .admin-form {
+  display: grid;
+  gap: 16px;
+}
+
+.podcast-admin-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.podcast-admin-select {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 10px 0;
+  padding: 12px;
+  background: rgba(65, 105, 225, 0.08);
+  color: #d0d6ee;
+  border: 1px solid rgba(65, 105, 225, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.podcast-admin-select.active {
+  border-color: #60a5fa;
+  background: rgba(65, 105, 225, 0.25);
+}
+
+.podcast-admin-episodes {
+  padding-left: 16px;
+  border-left: 2px solid #4169e1;
+}
+
+@media (max-width: 720px) {
+  .podcast-admin-layout {
+    flex-direction: column;
+  }
+
+  .podcast-admin-list {
+    width: 100%;
+  }
+}
+
 .admin-title {
   font-size: 2rem;
   font-weight: 900;

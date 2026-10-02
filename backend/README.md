@@ -132,7 +132,10 @@ a positive integer `episodeNumber`, its own title/artwork, and the existing
 video/Mux metadata. A title match is not a Show reference. Existing TV
 `EPISODE` records continue using `seriesTitle` and season/episode numbers;
 Movies and Music are unchanged. P2a adds authenticated Admin backend authoring
-and video ingestion; Podcast Admin UI and public Podcast pages are not enabled.
+and video ingestion; P2b adds the Podcast tab to the authenticated website
+Admin experience. An interrupted Episode transfer can be checked again with
+the protected status endpoint from that tab without starting a new ingestion.
+Public Podcast pages are not enabled.
 Generic video create/edit/approval/ingestion routes still reject Podcast types.
 
 Podcast Admin routes (prefix with `/api` on Vercel) require an interactive

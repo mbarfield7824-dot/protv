@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
 import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { isPodcast } from '../admin/podcastAdmin';
 
 function catalogCategory(video) {
   return video.category || video.genre || video.categories?.[0] || 'General';
@@ -46,7 +47,7 @@ export default function AdminCatalogEditor() {
     try {
       const response = await api.getAdminAllVideos();
       if (!Array.isArray(response)) throw new Error(response.error || 'Unable to load catalog.');
-      setVideos(response.map(normalizeCatalogVideo));
+      setVideos(response.filter((video) => !isPodcast(video)).map(normalizeCatalogVideo));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -59,7 +60,7 @@ export default function AdminCatalogEditor() {
     api.getAdminAllVideos()
       .then((response) => {
         if (!Array.isArray(response)) throw new Error(response.error || 'Unable to load catalog.');
-        if (active) setVideos(response.map(normalizeCatalogVideo));
+        if (active) setVideos(response.filter((video) => !isPodcast(video)).map(normalizeCatalogVideo));
       })
       .catch((requestError) => {
         if (active) setError(requestError.message);
@@ -191,6 +192,7 @@ export default function AdminCatalogEditor() {
         <div>
           <h2>Edit Catalog Metadata</h2>
           <p>Rename uploaded videos without re-uploading or changing their Mux playback.</p>
+          <p>Podcast Shows and Episodes are managed in the Podcasts tab.</p>
         </div>
         <div className="catalog-editor-heading-actions">
           <button

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+import { isPodcast } from '../admin/podcastAdmin';
 
 const APPROVAL_STATUSES = {
   draft: { label: '📝 Draft', color: '#707070', bg: '#1a1a1a' },
@@ -31,7 +32,8 @@ export default function AdminContentReview() {
       setLoading(true);
       setError('');
       const data = await api.getAdminAllVideos();
-      setVideos(Array.isArray(data) ? data : []);
+      if (!Array.isArray(data)) throw new Error(data.error || 'Unable to load content.');
+      setVideos(data.filter((video) => !isPodcast(video)));
     } catch (err) {
       setError(err.message || 'Failed to load content');
     } finally {
@@ -162,6 +164,7 @@ export default function AdminContentReview() {
 
       {/* CONTENT LIST */}
       <div className="admin-review-list">
+        <p className="admin-subtitle">Manage Podcast Shows and Episodes in the Podcasts tab.</p>
         <div className="admin-review-header">
           <span>{filteredVideos.length} items</span>
         </div>
