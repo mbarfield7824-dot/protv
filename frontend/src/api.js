@@ -2,6 +2,7 @@ import { firebaseAuth } from './firebase';
 import { musicCatalogItems, musicCatalogUrl } from './data/musicCatalog';
 import { podcastCatalogItems, podcastCatalogUrl, podcastSearchEpisodes, podcastShowDetail } from './data/podcastCatalog';
 import { fetchSearchVideos } from './data/searchCatalog';
+import { fetchPlayerTitle } from './data/playerCatalog';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -121,6 +122,10 @@ export const api = {
     } catch {
       return null;
     }
+  },
+
+  async getPlayerTitle(id, options) {
+    return fetchPlayerTitle(API_URL, id, options);
   },
 
   async getAdSession(videoId) {

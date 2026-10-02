@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
 import { api } from '../api';
+import { podcastParentUrl } from '../data/playerCatalog';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import {
@@ -23,9 +24,16 @@ export default function Player() {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadedVideoId, setLoadedVideoId] = useState(null);
+  const [error, setError] = useState('');
   const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
   const playerRef = useRef(null);
   const resumeAppliedRef = useRef(null);
+  const request = useRef(0);
+  const activeRequest = useRef(null);
+  const podcastHandoff = Boolean(location.state?.podcastShowId);
+  const isPodcast = video?.contentType === 'PODCAST_EPISODE';
+  const parentShowId = loadedVideoId === id && isPodcast
+    ? video.podcastShowId : location.state?.podcastShowId;
   const goBack = () => {
     if (location.key !== 'default') {
       navigate(-1);
@@ -46,31 +54,51 @@ export default function Player() {
   );
 
   const fetchVideo = useCallback(async () => {
+    const current = ++request.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     // First check the curated mock catalog (covers Trending/Black Cinema/
     // Independent/Anime rails), then fall back to the live backend API.
-    const mockMatch = ALL_MOCK_VIDEOS.find((v) => v.id === id);
+    const mockMatch = !podcastHandoff && ALL_MOCK_VIDEOS.find((v) => v.id === id
+      && !['PODCAST_SHOW', 'PODCAST_EPISODE'].includes(v.contentType));
     if (mockMatch) {
       setVideo(mockMatch);
       setLoadedVideoId(id);
       setLoading(false);
+      setError('');
       return;
     }
 
     try {
-      const data = await api.getVideo(id);
-      setVideo(data);
+      const data = await api.getPlayerTitle(id, { signal: controller.signal });
+      if (request.current === current) {
+        setVideo(data);
+        setError('');
+      }
     } catch (error) {
-      console.error('Failed to load video:', error);
-      setVideo(null);
+      if (request.current === current) {
+        console.error('Failed to load video:', error);
+        setError(error.message);
+        setVideo(null);
+      }
     } finally {
-      setLoadedVideoId(id);
-      setLoading(false);
+      if (request.current === current) {
+        setLoadedVideoId(id);
+        setLoading(false);
+      }
     }
-  }, [id]);
+  }, [id, podcastHandoff]);
 
   useEffect(() => {
-    void Promise.resolve().then(fetchVideo);
+    let disposed = false;
+    void Promise.resolve().then(() => { if (!disposed) void fetchVideo(); });
     window.scrollTo(0, 0);
+    return () => {
+      disposed = true;
+      request.current += 1;
+      activeRequest.current?.abort();
+    };
   }, [fetchVideo]);
 
   useEffect(() => {
@@ -146,8 +174,18 @@ export default function Player() {
     return (
       <div className="player-page player-page--state">
         {playerChrome}
-        <main className="player-loading player-not-found">
-          <p>Video not found.</p>
+        <main className="player-loading player-not-found" role={error ? 'alert' : undefined}>
+          <h1>{error ? 'Playback is unavailable right now.' : 'Video unavailable'}</h1>
+          <p>{error || 'This Episode or title, or its parent Show, may no longer be available.'}</p>
+          {error && (
+            <button className="player-back player-back--state" type="button" onClick={() => {
+              setLoading(true);
+              void fetchVideo();
+            }}>Try Again</button>
+          )}
+          <Link className="player-back" to={podcastParentUrl(parentShowId)}>
+            {parentShowId ? 'Return to Show' : 'Browse Podcasts'}
+          </Link>
           <button className="player-back player-back--state" onClick={goBack}>
             ← Back
           </button>
@@ -172,7 +210,7 @@ export default function Player() {
       : '',
   ].filter(Boolean).join(' · ');
 
-  const related = ALL_MOCK_VIDEOS.filter(
+  const related = isPodcast ? [] : ALL_MOCK_VIDEOS.filter(
     (v) => v.id !== video.id && v.genres?.some((g) => genres.includes(g))
   ).slice(0, 10);
 
@@ -210,6 +248,12 @@ export default function Player() {
           </div>
 
           <div className="video-details">
+            {isPodcast && (
+              <>
+                <Link className="player-back" to={podcastParentUrl(video.podcastShowId)}>Return to Show</Link>
+                <p className="episode-position">Podcast Episode {video.episodeNumber}</p>
+              </>
+            )}
             {isEpisode && video.seriesTitle && <p className="episode-series">{video.seriesTitle}</p>}
             {isEpisode && episodePosition && <p className="episode-position">{episodePosition}</p>}
             <h1>{isEpisode && video.episodeTitle ? video.episodeTitle : video.title}</h1>

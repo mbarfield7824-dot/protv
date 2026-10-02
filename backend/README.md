@@ -138,12 +138,18 @@ the protected status endpoint from that tab without starting a new ingestion.
 P3a adds public website discovery at `/podcasts` and a stable-ID Show page at
 `/podcasts/:showId`. They use only `GET /v1/catalog/podcasts` and
 `GET /v1/catalog/podcasts/:id`; Podcast search also uses eligible Episodes
-from `GET /v1/catalog`. Episode playback remains deferred to P3b.
+from `GET /v1/catalog`.
 Both search surfaces retain successful public-source results when another
 source fails, display incomplete/unavailable states, and offer retry.
 Failed Podcast requests never trigger mock-content substitution.
 Each search source has a 10-second deadline; timed-out sources report an
 error and are aborted. Retry and unmount cancel superseded search requests.
+P3b adds Watch Episode links using stable Episode IDs and the existing
+website player/Mux path. Podcast player loads revalidate the public video
+response with title and playback endpoints, with a 10-second combined
+deadline, explicit unavailable/retry
+states, and a return link to the Podcast Show. Shows remain nonplayable;
+the existing public parent/approval/readiness checks are unchanged.
 Generic video create/edit/approval/ingestion routes still reject Podcast types.
 
 Podcast Admin routes (prefix with `/api` on Vercel) require an interactive

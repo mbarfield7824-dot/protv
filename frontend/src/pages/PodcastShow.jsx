@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
@@ -81,6 +82,10 @@ export default function PodcastShow() {
                         <p className="movies-page__eyebrow">Episode {episode.episodeNumber}</p>
                         <h3>{episode.title}</h3>
                         {episode.description && <p>{episode.description}</p>}
+                        <Link className="movies-state__action" to={podcastEpisodePlayerUrl(episode)}
+                          state={{ podcastShowId: show.id }}>
+                          Watch Episode
+                        </Link>
                       </div>
                     </li>
                   ))}

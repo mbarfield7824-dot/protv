@@ -1,4 +1,5 @@
 import { isPodcastSearchResult } from './podcastCatalog.js';
+import { loadWithinDeadline } from '../utils/requestDeadline.js';
 
 export const SEARCH_SOURCE_TIMEOUT_MS = 10_000;
 
@@ -10,37 +11,6 @@ export async function fetchSearchVideos(apiBaseUrl, fetchImpl = fetch, { signal 
   const items = await response.json();
   if (!Array.isArray(items)) throw new Error('The Movie/Music catalog response is invalid.');
   return items;
-}
-
-async function loadWithinDeadline(load, label, timeoutMs, signal) {
-  const controller = new AbortController();
-  let timer;
-  let onAbort;
-  const unavailable = new Promise((resolve, reject) => {
-    const stop = (reason) => {
-      reject(reason);
-      controller.abort(reason);
-    };
-    onAbort = () => stop(signal.reason || new Error('Search request was cancelled.'));
-    if (signal?.aborted) {
-      onAbort();
-    } else {
-      signal?.addEventListener('abort', onAbort, { once: true });
-      timer = setTimeout(() => stop(new Error(`${label} timed out. Please try again.`)), timeoutMs);
-    }
-  });
-  try {
-    return await Promise.race([
-      unavailable,
-      Promise.resolve().then(() => {
-        controller.signal.throwIfAborted();
-        return load(controller.signal);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener('abort', onAbort);
-  }
 }
 
 export async function loadSearchCatalog(apiClient, normalizeVideo = (video) => video, {
