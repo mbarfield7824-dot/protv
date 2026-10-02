@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 
 const GENRES = [
   ...UPLOAD_CATEGORY_OPTIONS,
@@ -40,10 +40,18 @@ const LICENSE_TYPES = [
 ];
 
 export default function AdminContentForm({ onSubmit, initialData = null }) {
-  const [formData, setFormData] = useState(initialData || {
+  const [formData, setFormData] = useState(initialData ? {
+    ...initialData,
+    contentType: initialData.contentType || 'MOVIE',
+    musicFormat: initialData.musicFormat || '',
+    rightsHolder: initialData.rightsHolder || '',
+    rightsVerificationNotes: initialData.rightsVerificationNotes || '',
+  } : {
     // Basic metadata
     title: '',
     year: new Date().getFullYear(),
+    contentType: 'MOVIE',
+    musicFormat: '',
     genre: GENRES[0],
     subgenre: '',
     description: '',
@@ -86,6 +94,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
       ...(name === 'genre' ? { subgenre: '' } : {}),
+      ...(name === 'contentType' && value !== 'MUSIC' ? { musicFormat: '' } : {}),
     }));
   };
 
@@ -109,6 +118,9 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
       if (!formData.rightsVerificationNotes.trim()) {
         throw new Error('Rights verification notes are required');
       }
+      if (formData.contentType === 'MUSIC' && !MUSIC_FORMAT_OPTIONS.some((option) => option.value === formData.musicFormat)) {
+        throw new Error('Select a valid Music format.');
+      }
 
       await onSubmit(formData);
 
@@ -118,6 +130,8 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
       setFormData({
         title: '',
         year: new Date().getFullYear(),
+        contentType: 'MOVIE',
+        musicFormat: '',
         genre: GENRES[0],
         subgenre: '',
         description: '',
@@ -179,6 +193,24 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
               max={new Date().getFullYear()}
             />
           </label>
+          <label>
+            Content Type *
+            <select name="contentType" value={formData.contentType} onChange={handleChange}>
+              <option value="MOVIE">Movie</option>
+              <option value="MUSIC">Music</option>
+            </select>
+          </label>
+          {formData.contentType === 'MUSIC' && (
+            <label>
+              Music Format *
+              <select name="musicFormat" value={formData.musicFormat} onChange={handleChange} required>
+                <option value="">Select a music format</option>
+                {MUSIC_FORMAT_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         <div className="form-row">

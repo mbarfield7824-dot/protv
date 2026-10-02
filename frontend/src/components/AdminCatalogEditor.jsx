@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
-import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 
 function catalogCategory(video) {
   return video.category || video.genre || video.categories?.[0] || 'General';
@@ -11,8 +11,23 @@ function normalizeCatalogVideo(video) {
   return {
     ...video,
     category: catalogCategory(video),
-    contentType: video.contentType || 'MOVIE',
   };
+}
+
+function validateCatalogVideo(video) {
+  const errors = validateEpisodeMetadata(video);
+  if (video.contentType === 'MUSIC') {
+    if (!MUSIC_FORMAT_OPTIONS.some((option) => option.value === video.musicFormat)) {
+      errors.musicFormat = 'Select a valid Music format.';
+    }
+    if (typeof video.rightsHolder !== 'string' || !video.rightsHolder.trim()) {
+      errors.rightsHolder = 'Rights holder is required for Music.';
+    }
+    if (typeof video.rightsVerificationNotes !== 'string' || !video.rightsVerificationNotes.trim()) {
+      errors.rightsVerificationNotes = 'Rights verification notes are required for Music.';
+    }
+  }
+  return errors;
 }
 
 export default function AdminCatalogEditor() {
@@ -59,18 +74,28 @@ export default function AdminCatalogEditor() {
 
   const updateDraft = (id, field, value) => {
     const currentVideo = videos.find((video) => video.id === id);
-    const updatedVideo = { ...currentVideo, [field]: value };
+    const updatedVideo = {
+      ...currentVideo,
+      [field]: value,
+      ...(field === 'contentType' ? {
+        musicFormat: '',
+        seriesTitle: '',
+        seasonNumber: value === 'EPISODE' ? '' : null,
+        episodeNumber: value === 'EPISODE' ? '' : null,
+        episodeTitle: '',
+      } : {}),
+    };
     setVideos((items) => items.map((video) => (
       video.id === id ? updatedVideo : video
     )));
     setValidationErrors((current) => ({
       ...current,
-      [id]: validateEpisodeMetadata(updatedVideo),
+      [id]: validateCatalogVideo(updatedVideo),
     }));
   };
 
   const saveVideo = async (video) => {
-    const errors = validateEpisodeMetadata(video);
+    const errors = validateCatalogVideo(video);
     setValidationErrors((current) => ({ ...current, [video.id]: errors }));
     if (Object.keys(errors).length > 0) return;
 
@@ -91,11 +116,18 @@ export default function AdminCatalogEditor() {
         language: video.language || '',
         subtitles: video.subtitles || video.subtitleInfo || '',
         trailerUrl: video.trailerUrl || '',
-        contentType: video.contentType,
-        seriesTitle: video.seriesTitle?.trim() || '',
-        seasonNumber: video.seasonNumber || '',
-        episodeNumber: video.episodeNumber || '',
-        episodeTitle: video.episodeTitle || '',
+        ...(video.contentType ? { contentType: video.contentType } : {}),
+        ...(video.contentType === 'MUSIC' ? {
+          musicFormat: video.musicFormat,
+          rightsHolder: video.rightsHolder,
+          rightsVerificationNotes: video.rightsVerificationNotes,
+        } : {}),
+        ...(video.contentType === 'EPISODE' ? {
+          seriesTitle: video.seriesTitle?.trim() || '',
+          seasonNumber: video.seasonNumber || '',
+          episodeNumber: video.episodeNumber || '',
+          episodeTitle: video.episodeTitle || '',
+        } : {}),
       });
       setVideos((items) => items.map((item) => (
         item.id === video.id ? normalizeCatalogVideo(savedVideo) : item
@@ -257,8 +289,52 @@ export default function AdminCatalogEditor() {
             <select value={video.contentType || 'MOVIE'} onChange={(event) => updateDraft(video.id, 'contentType', event.target.value)}>
               <option value="MOVIE">Movie</option>
               <option value="EPISODE">TV Episode</option>
+              <option value="MUSIC">Music</option>
             </select>
           </label>
+          {video.contentType === 'MUSIC' && (
+            <>
+              <label>
+                Music format
+                <select
+                  value={video.musicFormat || ''}
+                  onChange={(event) => updateDraft(video.id, 'musicFormat', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.musicFormat)}
+                >
+                  <option value="">Select a music format</option>
+                  {MUSIC_FORMAT_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                {validationErrors[video.id]?.musicFormat && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].musicFormat}</span>
+                )}
+              </label>
+              <label>
+                Rights holder
+                <input
+                  value={video.rightsHolder || ''}
+                  onChange={(event) => updateDraft(video.id, 'rightsHolder', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.rightsHolder)}
+                />
+                {validationErrors[video.id]?.rightsHolder && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].rightsHolder}</span>
+                )}
+              </label>
+              <label>
+                Rights verification notes
+                <textarea
+                  rows={3}
+                  value={video.rightsVerificationNotes || ''}
+                  onChange={(event) => updateDraft(video.id, 'rightsVerificationNotes', event.target.value)}
+                  aria-invalid={Boolean(validationErrors[video.id]?.rightsVerificationNotes)}
+                />
+                {validationErrors[video.id]?.rightsVerificationNotes && (
+                  <span className="admin-error" role="alert">{validationErrors[video.id].rightsVerificationNotes}</span>
+                )}
+              </label>
+            </>
+          )}
           {video.contentType === 'EPISODE' && (
             <>
               <label>

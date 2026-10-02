@@ -17,6 +17,15 @@ export const UPLOAD_CATEGORY_OPTIONS = [
   'Cartoons',
 ];
 
+export const MUSIC_FORMAT_OPTIONS = [
+  { value: 'music_video', label: 'Music Video' },
+  { value: 'live_performance', label: 'Live Performance' },
+  { value: 'artist_showcase', label: 'Artist Showcase' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'music_documentary', label: 'Music Documentary' },
+  { value: 'premiere_special', label: 'Premiere / Special' },
+];
+
 export const CATEGORY_SUBGENRES = {
   Music: [
     'Hip-Hop',

@@ -35,6 +35,7 @@ const {
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
 const { isViewerEligible } = require('../catalog/readModel');
+const { documentaryGenres, validateMusicFormat } = require('../catalog/music');
 const router = express.Router();
 const handleLiveWebhook = createLiveWebhookHandler();
 const publicDomainCandidates = createCandidateStore({
@@ -77,6 +78,29 @@ function optionalHttpUrl(value) {
   return url.toString();
 }
 
+function normalizeContentType(value, fallback = 'MOVIE') {
+  const contentType = value === undefined ? fallback : value;
+  if (!['MOVIE', 'EPISODE', 'MUSIC'].includes(contentType)) {
+    throw new Error('Content type must be MOVIE, EPISODE, or MUSIC.');
+  }
+  return contentType;
+}
+
+function validateMusicMetadata(metadata) {
+  if (metadata.contentType !== 'MUSIC') return;
+  validateMusicFormat(metadata.musicFormat);
+  if (typeof metadata.rightsHolder !== 'string' || !metadata.rightsHolder.trim()
+    || typeof metadata.rightsVerificationNotes !== 'string' || !metadata.rightsVerificationNotes.trim()) {
+    throw new Error('Music content requires rightsHolder and rightsVerificationNotes.');
+  }
+}
+
+function withDocumentaryClassification(metadata) {
+  return metadata.contentType === 'MUSIC' && metadata.musicFormat === 'music_documentary'
+    ? { ...metadata, genres: documentaryGenres(metadata.genres) }
+    : metadata;
+}
+
 function publicVideo(video) {
   const sanitized = { ...video };
   delete sanitized.adminSourceFilePath;
@@ -93,6 +117,8 @@ function publicVideo(video) {
   delete sanitized.publicDomainConfirmedBy;
   delete sanitized.publicDomainConfirmedAt;
   delete sanitized.creatorProjectId;
+  delete sanitized.rightsHolder;
+  delete sanitized.rightsVerificationNotes;
   return sanitized;
 }
 
@@ -195,6 +221,13 @@ router.post('/integrations/creator-actions', async (req, res) => {
 router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
   try {
     const { approvalNotes } = req.body;
+    const currentVideo = await getVideoById(req.params.id);
+    validateMusicMetadata({
+      contentType: currentVideo.contentType,
+      musicFormat: currentVideo.musicFormat,
+      rightsHolder: currentVideo.rightsHolder,
+      rightsVerificationNotes: currentVideo.rightsVerificationNotes,
+    });
     await updateVideoApproval(req.params.id, {
       approvalStatus: 'approved',
       approvalNotes: approvalNotes || '',
@@ -287,57 +320,132 @@ router.get('/:id', async (req, res) => {
 });
 
 router.patch('/:id', verifyAdmin, async (req, res) => {
-  const {
-    title,
-    description,
-    category,
-    subgenre,
-    thumbnailUrl,
-    year,
-    maturityRating,
-    cast,
-    creator,
-    language,
-    subtitles,
-    trailerUrl,
-    contentType,
-    seriesTitle,
-    seasonNumber,
-    episodeNumber,
-    episodeTitle,
-  } = req.body;
-  if (typeof title !== 'string' || !title.trim()) {
-    return res.status(400).json({ error: 'A title is required.' });
-  }
-  const episodeError = validateEpisodeMetadata(req.body);
-  if (episodeError) return res.status(400).json({ error: episodeError });
-
   try {
+    const existing = await getVideoById(req.params.id);
+    const has = (key) => Object.hasOwn(req.body, key);
+    const currentType = existing.contentType || 'MOVIE';
+    const contentType = has('contentType')
+      ? normalizeContentType(req.body.contentType)
+      : currentType;
+    const typeChanged = has('contentType') && contentType !== currentType;
     const isEpisode = contentType === 'EPISODE';
-    const normalizedCategory = typeof category === 'string' && category.trim()
-      ? category.trim()
-      : 'General';
-    await updateVideo(req.params.id, {
-      title: title.trim(),
-      description: typeof description === 'string' ? description : '',
-      category: normalizedCategory,
-      genre: normalizedCategory,
-      categories: [normalizedCategory],
-      subgenre: typeof subgenre === 'string' ? subgenre.trim() : '',
-      thumbnailUrl: typeof thumbnailUrl === 'string' ? thumbnailUrl : '',
-      year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
-      maturityRating: typeof maturityRating === 'string' ? maturityRating.trim() : '',
-      cast: typeof cast === 'string' ? cast.trim() : '',
-      creator: typeof creator === 'string' ? creator.trim() : '',
-      language: typeof language === 'string' ? language.trim() : '',
-      subtitles: typeof subtitles === 'string' ? subtitles.trim() : '',
-      trailerUrl: optionalHttpUrl(trailerUrl),
-      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
-      seriesTitle: isEpisode && typeof seriesTitle === 'string' ? seriesTitle.trim() : '',
-      seasonNumber: isEpisode ? Number(seasonNumber) : null,
-      episodeNumber: isEpisode ? Number(episodeNumber) : null,
-      episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
+    const isMusic = contentType === 'MUSIC';
+    const effectiveMusicFormat = has('musicFormat')
+      ? req.body.musicFormat
+      : typeChanged ? undefined : existing.musicFormat;
+    const effectiveRightsHolder = has('rightsHolder') ? req.body.rightsHolder : existing.rightsHolder;
+    const effectiveRightsNotes = has('rightsVerificationNotes')
+      ? req.body.rightsVerificationNotes
+      : existing.rightsVerificationNotes;
+    validateMusicMetadata({
+      contentType,
+      musicFormat: effectiveMusicFormat,
+      rightsHolder: effectiveRightsHolder,
+      rightsVerificationNotes: effectiveRightsNotes,
     });
+    const musicMetadataChanged = isMusic && currentType === 'MUSIC' && (
+      effectiveMusicFormat !== existing.musicFormat
+      || (typeof effectiveRightsHolder === 'string' ? effectiveRightsHolder.trim() : effectiveRightsHolder)
+        !== (typeof existing.rightsHolder === 'string' ? existing.rightsHolder.trim() : existing.rightsHolder)
+      || (typeof effectiveRightsNotes === 'string' ? effectiveRightsNotes.trim() : effectiveRightsNotes)
+        !== (typeof existing.rightsVerificationNotes === 'string'
+          ? existing.rightsVerificationNotes.trim()
+          : existing.rightsVerificationNotes)
+    );
+
+    const episodeMetadata = typeChanged
+      ? { ...req.body, contentType }
+      : {
+        seriesTitle: has('seriesTitle') ? req.body.seriesTitle : existing.seriesTitle,
+        seasonNumber: has('seasonNumber') ? req.body.seasonNumber : existing.seasonNumber,
+        episodeNumber: has('episodeNumber') ? req.body.episodeNumber : existing.episodeNumber,
+        contentType,
+      };
+    const episodeError = validateEpisodeMetadata(episodeMetadata);
+    if (episodeError) return res.status(400).json({ error: episodeError });
+
+    const updates = {};
+    if (has('title')) {
+      if (typeof req.body.title !== 'string' || !req.body.title.trim()) {
+        return res.status(400).json({ error: 'A title is required.' });
+      }
+      updates.title = req.body.title.trim();
+    }
+    if (has('description')) updates.description = typeof req.body.description === 'string' ? req.body.description : '';
+    if (has('category')) {
+      const normalizedCategory = typeof req.body.category === 'string' && req.body.category.trim()
+        ? req.body.category.trim()
+        : 'General';
+      updates.category = normalizedCategory;
+      updates.genre = normalizedCategory;
+      updates.categories = contentType === 'MUSIC'
+        ? [...new Set([
+          ...(Array.isArray(existing.categories) ? existing.categories : []),
+          normalizedCategory,
+        ])]
+        : [normalizedCategory];
+    }
+    if (has('subgenre')) updates.subgenre = typeof req.body.subgenre === 'string' ? req.body.subgenre.trim() : '';
+    if (has('thumbnailUrl')) updates.thumbnailUrl = typeof req.body.thumbnailUrl === 'string' ? req.body.thumbnailUrl : '';
+    if (has('year')) {
+      updates.year = Number.isInteger(Number(req.body.year)) && Number(req.body.year) >= 1888
+        ? Number(req.body.year)
+        : null;
+    }
+    if (has('maturityRating')) updates.maturityRating = typeof req.body.maturityRating === 'string' ? req.body.maturityRating.trim() : '';
+    if (has('cast')) updates.cast = typeof req.body.cast === 'string' ? req.body.cast.trim() : '';
+    if (has('creator')) updates.creator = typeof req.body.creator === 'string' ? req.body.creator.trim() : '';
+    if (has('language')) updates.language = typeof req.body.language === 'string' ? req.body.language.trim() : '';
+    if (has('subtitles')) updates.subtitles = typeof req.body.subtitles === 'string' ? req.body.subtitles.trim() : '';
+    if (has('trailerUrl')) updates.trailerUrl = optionalHttpUrl(req.body.trailerUrl);
+    if (has('genres') && Array.isArray(req.body.genres)) updates.genres = req.body.genres;
+
+    if (has('contentType')) updates.contentType = contentType;
+    if (contentType === 'MUSIC') {
+      updates.musicFormat = effectiveMusicFormat;
+      updates.rightsHolder = effectiveRightsHolder.trim();
+      updates.rightsVerificationNotes = effectiveRightsNotes.trim();
+      if (effectiveMusicFormat === 'music_documentary') {
+        updates.genres = documentaryGenres([
+          ...(Array.isArray(existing.genres) ? existing.genres : []),
+          ...(Array.isArray(updates.genres) ? updates.genres : []),
+        ]);
+      }
+    } else if ((has('contentType') && !isMusic) || has('musicFormat')) {
+      updates.musicFormat = null;
+    }
+
+    if ((typeChanged && (currentType === 'MUSIC' || isMusic))
+      || (musicMetadataChanged && existing.approvalStatus === 'approved')) {
+      updates.approvalStatus = 'draft';
+      updates.approvedAt = null;
+      updates.approvedBy = null;
+      updates.approvalNotes = '';
+    }
+
+    if (typeChanged || (has('contentType') && !isEpisode)) {
+      if (isEpisode) {
+        updates.seriesTitle = typeof req.body.seriesTitle === 'string' ? req.body.seriesTitle.trim() : '';
+        updates.seasonNumber = Number(req.body.seasonNumber);
+        updates.episodeNumber = Number(req.body.episodeNumber);
+        updates.episodeTitle = typeof req.body.episodeTitle === 'string' ? req.body.episodeTitle.trim() : '';
+      } else {
+        updates.seriesTitle = '';
+        updates.seasonNumber = null;
+        updates.episodeNumber = null;
+        updates.episodeTitle = '';
+      }
+    } else if (isEpisode) {
+      if (has('seriesTitle')) updates.seriesTitle = episodeMetadata.seriesTitle.trim();
+      if (has('seasonNumber')) updates.seasonNumber = Number(episodeMetadata.seasonNumber);
+      if (has('episodeNumber')) updates.episodeNumber = Number(episodeMetadata.episodeNumber);
+      if (has('episodeTitle')) updates.episodeTitle = typeof req.body.episodeTitle === 'string' ? req.body.episodeTitle.trim() : '';
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No metadata changes were supplied.' });
+    }
+    await updateVideo(req.params.id, updates);
     res.json(await getVideoById(req.params.id));
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -415,6 +523,12 @@ router.post('/', verifyAdmin, async (req, res) => {
       rightsVerificationNotes,
       sourceUrl,
       approvalStatus,
+      contentType,
+      musicFormat,
+      seriesTitle,
+      seasonNumber,
+      episodeNumber,
+      episodeTitle,
     } = req.body;
 
     // Validate required fields for comprehensive content submission
@@ -423,12 +537,22 @@ router.post('/', verifyAdmin, async (req, res) => {
         error: 'title, videoUrl, rightsHolder, and rightsVerificationNotes are required',
       });
     }
+    const normalizedContentType = normalizeContentType(contentType);
+    validateMusicMetadata({
+      contentType: normalizedContentType,
+      musicFormat,
+      rightsHolder,
+      rightsVerificationNotes,
+    });
+    const episodeError = validateEpisodeMetadata({ ...req.body, contentType: normalizedContentType });
+    if (episodeError) return res.status(400).json({ error: episodeError });
 
-    const videoData = {
+    const videoData = withDocumentaryClassification({
       title,
       year: year || new Date().getFullYear(),
       genre: genre || '',
       subgenre: subgenre || '',
+      ...(typeof genre === 'string' ? { category: genre } : {}),
       description: description || '',
       runtime: runtime || 0,
       country: country || '',
@@ -451,10 +575,22 @@ router.post('/', verifyAdmin, async (req, res) => {
       attributionText: attributionText || '',
       rightsVerificationNotes,
       sourceUrl: sourceUrl || '',
-      approvalStatus: approvalStatus || 'draft',
+      approvalStatus: normalizedContentType === 'MUSIC' ? 'draft' : approvalStatus || 'draft',
       views: 0,
       createdBy: req.user.uid,
-    };
+      contentType: normalizedContentType,
+      ...(normalizedContentType === 'MUSIC' ? {
+        musicFormat,
+        rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+      } : {}),
+      ...(normalizedContentType === 'EPISODE' ? {
+        seriesTitle: seriesTitle.trim(),
+        seasonNumber: Number(seasonNumber),
+        episodeNumber: Number(episodeNumber),
+        episodeTitle: typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
+      } : {}),
+    });
 
     const videoId = await addVideo(videoData);
     res.status(201).json({
@@ -492,6 +628,9 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       seasonNumber,
       episodeNumber,
       episodeTitle,
+      musicFormat,
+      rightsHolder,
+      rightsVerificationNotes,
     } = req.body;
 
     if (!title || !category) {
@@ -499,16 +638,25 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
         error: 'title and category are required',
       });
     }
-    const episodeError = validateEpisodeMetadata(req.body);
+    const normalizedContentType = normalizeContentType(contentType);
+    validateMusicMetadata({
+      contentType: normalizedContentType,
+      musicFormat,
+      rightsHolder,
+      rightsVerificationNotes,
+    });
+    const episodeError = validateEpisodeMetadata({ ...req.body, contentType: normalizedContentType });
     if (episodeError) return res.status(400).json({ error: episodeError });
 
     const upload = await createDirectUpload(process.env.FRONTEND_URL);
-    const isEpisode = contentType === 'EPISODE';
+    const isEpisode = normalizedContentType === 'EPISODE';
 
-    const videoId = await addVideo({
+    const videoData = withDocumentaryClassification({
       title,
       description: description || '',
       category,
+      genre: category,
+      categories: [category],
       subgenre: typeof subgenre === 'string' ? subgenre.trim() : '',
       thumbnailUrl: thumbnailUrl || '',
       year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
@@ -521,15 +669,21 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       duration: 0,
       views: 0,
       createdBy: req.user.uid,
-      approvalStatus: 'approved',
+      approvalStatus: normalizedContentType === 'MUSIC' ? 'draft' : 'approved',
       status: 'processing',
       muxUploadId: upload.id,
-      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+      contentType: normalizedContentType,
+      ...(normalizedContentType === 'MUSIC' ? {
+        musicFormat,
+        rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+      } : {}),
       seriesTitle: isEpisode ? seriesTitle.trim() : '',
       seasonNumber: isEpisode ? Number(seasonNumber) : null,
       episodeNumber: isEpisode ? Number(episodeNumber) : null,
       episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
+    const videoId = await addVideo(videoData);
 
     res.status(201).json({
       videoId,
@@ -565,6 +719,9 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       seasonNumber,
       episodeNumber,
       episodeTitle,
+      musicFormat,
+      rightsHolder,
+      rightsVerificationNotes,
     } = req.body;
 
     if (!title || !category || !sourceUrl) {
@@ -572,16 +729,25 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
         error: 'title, category, and sourceUrl are required',
       });
     }
-    const episodeError = validateEpisodeMetadata(req.body);
+    const normalizedContentType = normalizeContentType(contentType);
+    validateMusicMetadata({
+      contentType: normalizedContentType,
+      musicFormat,
+      rightsHolder,
+      rightsVerificationNotes,
+    });
+    const episodeError = validateEpisodeMetadata({ ...req.body, contentType: normalizedContentType });
     if (episodeError) return res.status(400).json({ error: episodeError });
 
     const asset = await createAssetFromUrl(sourceUrl);
-    const isEpisode = contentType === 'EPISODE';
+    const isEpisode = normalizedContentType === 'EPISODE';
 
-    const videoId = await addVideo({
+    const videoData = withDocumentaryClassification({
       title,
       description: description || '',
       category,
+      genre: category,
+      categories: [category],
       subgenre: typeof subgenre === 'string' ? subgenre.trim() : '',
       thumbnailUrl: thumbnailUrl || '',
       year: Number.isInteger(Number(year)) && Number(year) >= 1888 ? Number(year) : null,
@@ -594,15 +760,21 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       duration: duration || 0,
       views: 0,
       createdBy: req.user.uid,
-      approvalStatus: 'approved',
+      approvalStatus: normalizedContentType === 'MUSIC' ? 'draft' : 'approved',
       status: 'processing',
       muxAssetId: asset.id,
-      contentType: isEpisode ? 'EPISODE' : 'MOVIE',
+      contentType: normalizedContentType,
+      ...(normalizedContentType === 'MUSIC' ? {
+        musicFormat,
+        rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+      } : {}),
       seriesTitle: isEpisode ? seriesTitle.trim() : '',
       seasonNumber: isEpisode ? Number(seasonNumber) : null,
       episodeNumber: isEpisode ? Number(episodeNumber) : null,
       episodeTitle: isEpisode && typeof episodeTitle === 'string' ? episodeTitle.trim() : '',
     });
+    const videoId = await addVideo(videoData);
 
     res.status(201).json({
       videoId,

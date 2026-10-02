@@ -18,4 +18,11 @@ function validateMusicFormat(value) {
   return value;
 }
 
-module.exports = { MUSIC_FORMATS, isMusicFormat, validateMusicFormat };
+function documentaryGenres(genres) {
+  return [...new Set([
+    ...(Array.isArray(genres) ? genres.filter((genre) => typeof genre === 'string' && genre.trim()) : []),
+    'Documentary',
+  ])];
+}
+
+module.exports = { MUSIC_FORMATS, documentaryGenres, isMusicFormat, validateMusicFormat };

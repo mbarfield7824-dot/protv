@@ -9,7 +9,7 @@ import DistributorIngestionPanel from '../components/DistributorIngestionPanel';
 import AdminAssistantPanel from '../admin/AdminAssistantPanel';
 import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
-import { CATEGORY_SUBGENRES, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
+import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
@@ -34,9 +34,12 @@ export default function Admin() {
     subtitles: '',
     trailerUrl: '',
     contentType: 'MOVIE',
+    musicFormat: '',
     seriesTitle: '',
     seasonNumber: 1,
     episodeNumber: 1,
+    rightsHolder: '',
+    rightsVerificationNotes: '',
   });
   const [file, setFile] = useState(null);
   const [bulkFiles, setBulkFiles] = useState([]);
@@ -125,12 +128,17 @@ export default function Admin() {
   }
 
   const updateField = (field) => (e) => {
-    if (['seriesTitle', 'seasonNumber', 'episodeNumber'].includes(field)) setError('');
+    if (['seriesTitle', 'seasonNumber', 'episodeNumber', 'musicFormat'].includes(field)) setError('');
     setForm((current) => ({
       ...current,
       [field]: e.target.value,
       ...(field === 'contentType'
-        ? { seasonNumber: e.target.value === 'EPISODE' ? '' : 1, episodeNumber: e.target.value === 'EPISODE' ? '' : 1 }
+        ? {
+          musicFormat: '',
+          seriesTitle: e.target.value === 'EPISODE' ? current.seriesTitle : '',
+          seasonNumber: e.target.value === 'EPISODE' ? '' : 1,
+          episodeNumber: e.target.value === 'EPISODE' ? '' : 1,
+        }
         : {}),
       ...(field === 'category' ? { subgenre: '' } : {}),
     }));
@@ -188,6 +196,10 @@ export default function Admin() {
       setError(Object.values(episodeErrors).join(' '));
       return;
     }
+    if (form.contentType === 'MUSIC' && (!form.musicFormat || !form.rightsHolder.trim() || !form.rightsVerificationNotes.trim())) {
+      setError('Music format, rights holder, and rights verification notes are required.');
+      return;
+    }
     if (!file) {
       setError('Please choose a video file.');
       return;
@@ -214,6 +226,10 @@ export default function Admin() {
     const episodeErrors = validateEpisodeMetadata(form);
     if (Object.keys(episodeErrors).length > 0) {
       setError(Object.values(episodeErrors).join(' '));
+      return;
+    }
+    if (form.contentType === 'MUSIC' && (!form.musicFormat || !form.rightsHolder.trim() || !form.rightsVerificationNotes.trim())) {
+      setError('Music format, rights holder, and rights verification notes are required.');
       return;
     }
     if (!form.sourceUrl.trim()) {
@@ -377,7 +393,28 @@ export default function Admin() {
   const reset = () => {
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
-    setForm({ title: '', description: '', category: UPLOAD_CATEGORY_OPTIONS[0], subgenre: '', thumbnailUrl: '', sourceUrl: '', year: '', maturityRating: '', cast: '', creator: '', language: '', subtitles: '', trailerUrl: '', contentType: 'MOVIE', seriesTitle: '', seasonNumber: 1, episodeNumber: 1 });
+    setForm({
+      title: '',
+      description: '',
+      category: UPLOAD_CATEGORY_OPTIONS[0],
+      subgenre: '',
+      thumbnailUrl: '',
+      sourceUrl: '',
+      year: '',
+      maturityRating: '',
+      cast: '',
+      creator: '',
+      language: '',
+      subtitles: '',
+      trailerUrl: '',
+      contentType: 'MOVIE',
+      musicFormat: '',
+      seriesTitle: '',
+      seasonNumber: 1,
+      episodeNumber: 1,
+      rightsHolder: '',
+      rightsVerificationNotes: '',
+    });
     setFile(null);
     setBulkFiles([]);
     setBulkMetadata([]);
@@ -644,8 +681,31 @@ export default function Admin() {
               <select value={form.contentType} onChange={updateField('contentType')}>
                 <option value="MOVIE">Movie</option>
                 <option value="EPISODE">TV Episode</option>
+                <option value="MUSIC">Music</option>
               </select>
             </label>
+            {form.contentType === 'MUSIC' && (
+              <>
+                <label>
+                  Music format
+                  <select value={form.musicFormat} onChange={updateField('musicFormat')} required>
+                    <option value="">Select a music format</option>
+                    {MUSIC_FORMAT_OPTIONS.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Rights holder
+                  <input value={form.rightsHolder} onChange={updateField('rightsHolder')} required />
+                </label>
+                <label>
+                  Rights verification notes
+                  <textarea value={form.rightsVerificationNotes} onChange={updateField('rightsVerificationNotes')} rows={3} required />
+                </label>
+                <p className="admin-file-help">Music uploads remain drafts until explicitly reviewed and approved.</p>
+              </>
+            )}
             {form.contentType === 'EPISODE' && (
               <>
                 <label>
