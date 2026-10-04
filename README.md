@@ -175,14 +175,20 @@ return an explicit 503 rather than a successful but incomplete sitemap.
 
 Direct `/title/{id}` requests use the same eligible public catalog to insert
 escaped title, description, canonical, Open Graph, and Twitter metadata into the
-built React HTML. The existing React scripts, empty root, appearance, and playback
+built React HTML. Real title and description text also appear inside the React
+root before JavaScript loads, alongside safely escaped public JSON initial data.
+The existing React scripts, appearance, and playback
 remain unchanged. The Vercel function includes `frontend/dist/index.html`; build
 the frontend before serving this HTML endpoint locally. Only existing absolute
 HTTP(S) artwork without embedded credentials is included. Missing descriptions
 fall back to the real title, and absent artwork produces no image tags.
 Ineligible titles return 404 with `noindex`; catalog or template failures return
-503, never private metadata or a misleading successful page. Initial body text
-and metadata updates during client-side navigation are outside this phase.
+503, never private metadata or a misleading successful page. The existing title
+component takes over with route-matched initial data, removes the JSON element,
+and refreshes normally without clearing valid content during temporary failures.
+A confirmed API 404 still removes unavailable content; cancelled requests cannot
+overwrite another title. Metadata updates during client-side navigation remain
+outside this phase. Robots and sitemap behavior are unchanged.
 The static homepage has its canonical URL in a homepage-only HTTP `Link` header,
 so other SPA fallback pages do not inherit a homepage canonical from the shared
 HTML template.

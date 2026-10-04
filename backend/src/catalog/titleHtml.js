@@ -52,10 +52,15 @@ function titleHtml(template, title) {
   if (!/<title>[^]*?<\/title>/.test(template) || !template.includes('<div id="root"></div>')) {
     throw new Error('The built React HTML template is invalid.');
   }
+  const initialData = JSON.stringify(title).replace(/[<>&\u2028\u2029]/g, (character) =>
+    `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  const body = `<div id="root"><main class="title-page"><section class="title-hero"><div class="title-hero__content"><h1>${escapeHtml(name)}</h1><p class="title-description">${escapeHtml(typeof title.description === 'string' ? title.description : '')}</p></div></section></main></div>`
+    + `<script id="protv-initial-title" type="application/json">${initialData}</script>`;
   return template
     .replace(/<meta\s+name="description"[^>]*>\s*/g, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
-    .replace(/<title>[^]*?<\/title>/, () => metadata);
+    .replace(/<title>[^]*?<\/title>/, () => metadata)
+    .replace('<div id="root"></div>', () => body);
 }
 
 module.exports = { loadTitleTemplate, titleHtml };

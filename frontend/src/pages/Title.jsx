@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import { safetyReportUrl } from '../data/safetyReports';
+import { readInitialTitle } from '../data/initialTitle';
 import '../styles/Title.css';
 
 const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
@@ -25,40 +26,36 @@ function present(value) {
 export default function Title() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [video, setVideo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadedId, setLoadedId] = useState(null);
+  const [{ video, loading, loadedId }, setTitleState] = useState(() => {
+    const initial = readInitialTitle(id, document);
+    return { video: initial, loading: !initial, loadedId: initial ? id : null };
+  });
   const [failedArtworkId, setFailedArtworkId] = useState(null);
   const { isFavorite, toggleFavorite } = useAuth();
 
-  const loadTitle = useCallback(async () => {
-    setLoading(true);
-    setVideo(null);
-    setLoadedId(null);
-
-    const mockMatch = ALL_MOCK_VIDEOS.find((item) => item.id === id);
-    if (mockMatch) {
-      setVideo(mockMatch);
-      setLoadedId(id);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const result = await api.getVideo(id);
-      setVideo(result);
-    } catch (error) {
-      console.error('Failed to load title details:', error);
-      setVideo(null);
-    } finally {
-      setLoadedId(id);
-      setLoading(false);
-    }
-  }, [id]);
-
   useEffect(() => {
+    document.getElementById('protv-initial-title')?.remove();
+    let cancelled = false;
+    async function loadTitle() {
+      if (cancelled) return;
+      setTitleState((current) => current.loadedId === id && current.video
+        ? current : { video: null, loading: true, loadedId: null });
+      try {
+        const result = ALL_MOCK_VIDEOS.find((item) => item.id === id) || await api.getVideo(id);
+        if (!cancelled) setTitleState({ video: result, loading: false, loadedId: id });
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Failed to load title details:', error);
+        setTitleState((current) => ({
+          video: current.loadedId === id ? current.video : null,
+          loading: false,
+          loadedId: id,
+        }));
+      }
+    }
     void Promise.resolve().then(loadTitle);
-  }, [loadTitle]);
+    return () => { cancelled = true; };
+  }, [id]);
 
   if (loading || loadedId !== id) {
     return (

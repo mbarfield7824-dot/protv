@@ -28,12 +28,25 @@ test('title HTML provides exact metadata while preserving the React shell', () =
     '<meta name="twitter:description" content="Real description.">',
     '<meta property="og:image" content="https://images.example/poster.jpg?a=1&amp;b=2">',
     '<meta name="twitter:image" content="https://images.example/poster.jpg?a=1&amp;b=2">',
-    '<script src="/assets/app.js"></script>', '<div id="root"></div>',
+    '<script src="/assets/app.js"></script>', '<div id="root"><main',
+    '<h1>Real Title</h1>', '<p class="title-description">Real description.</p>',
   ]) assert.ok(html.includes(tag), tag);
   assert.equal((html.match(/<title>/g) || []).length, 1);
   assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
   assert.equal((html.match(/name="description"/g) || []).length, 1);
   assert.equal(html.includes('content="Home"'), false);
+});
+
+test('initial JSON cannot terminate its script or inject executable markup', () => {
+  const title = { ...record, title: '</script><script>alert("x")</script>',
+    description: '<!-- & > \u2028 \u2029', extra: '$& </script>' };
+  const html = titleHtml(template, title);
+  const json = html.match(/<script id="protv-initial-title" type="application\/json">([^]*?)<\/script>/)[1];
+  assert.deepEqual(JSON.parse(json), title);
+  assert.doesNotMatch(json, /[<>&\u2028\u2029]/);
+  assert.equal((html.match(/<script\b/g) || []).length, 2);
+  assert.ok(html.includes('<h1>&lt;/script&gt;&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</h1>'));
+  assert.equal((html.match(/<main\b/g) || []).length, 1);
 });
 
 test('catalog strings and URLs are escaped without replacement-string interpolation', () => {
@@ -81,7 +94,13 @@ test('eligible title requests serve initial HTML and keep JSON/playback routes i
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type'), /^text\/html/);
   assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.ok((await response.text()).includes('<title>Real Title | PROtv</title>'));
+  const html = await response.text();
+  assert.ok(html.includes('<title>Real Title | PROtv</title>'));
+  assert.ok(html.includes('<h1>Real Title</h1>'));
+  const initial = JSON.parse(html.match(/type="application\/json">([^]*?)<\/script>/)[1]);
+  assert.equal(initial.id, record.id);
+  assert.equal(initial.approvalStatus, undefined);
+  assert.equal(initial.status, undefined);
   assert.equal((await fetch(`${base}/public`)).status, 200);
   assert.equal((await (await fetch(`${base}/public/playback`)).json()).muxPlaybackId, 'ready');
 });
