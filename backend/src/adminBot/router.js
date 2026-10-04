@@ -1,8 +1,9 @@
 const express = require('express');
 const path = require('path');
-const { db } = require('../firebase');
+const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { verifyAdmin } = require('../middleware/auth');
 const { getTitleReference } = require('../omdb');
+const { isViewerEligible } = require('../catalog/readModel');
 const { AdminBotRunner } = require('./adminBotRunner');
 const { AdminBotJobManager } = require('./jobManager');
 const { AiMetadataService } = require('./aiMetadataService');
@@ -21,6 +22,10 @@ const { DailyDiscoveryScheduler } = require('./discoveryScheduler');
 const { PublicDomainMovieDiscoveryService } = require('./publicDomainMovieDiscoveryService');
 const { WikimediaVideoService } = require('./wikimediaVideoService');
 const { YouTubeDiscoveryService } = require('./youtubeDiscoveryService');
+const {
+  activeReviewCandidates,
+  filterExistingCatalogCandidates,
+} = require('./catalogDeduplication');
 
 let runtimeStatusProvider = null;
 
@@ -45,10 +50,25 @@ function getAdminBotRuntimeStatus() {
     };
 }
 
-function createAdminBotRouter() {
+function createAdminBotRouter({
+  loadPublicCatalog = async () => {
+    const approved = db
+      ? await getApprovedVideos()
+      : (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved');
+    return approved.filter((video) => isViewerEligible(video, approved));
+  },
+} = {}) {
   const dataDirectory = path.resolve(__dirname, '../../.data');
   const stateFile = path.resolve(process.env.PD_STATE_FILE || path.join(dataDirectory, 'pd-ingestion-state.json'));
   const posterDirectory = path.resolve(process.env.PD_POSTER_DIRECTORY || path.join(dataDirectory, 'posters'));
+  const paginationStore = createIngestionStateStore({
+    db,
+    filePath: path.resolve(
+      process.env.PD_DISCOVERY_PAGINATION_FILE
+        || path.join(dataDirectory, 'pd-discovery-pagination-state.json')
+    ),
+    collectionName: 'publicDomainDiscoveryPaginationState',
+  });
   const stateStore = createIngestionStateStore({
     db,
     filePath: stateFile,
@@ -85,8 +105,9 @@ function createAdminBotRouter() {
   const jobs = new AdminBotJobManager(runner);
   const archive = new InternetArchiveService({
     maximumFileBytes: Number(process.env.PD_WEB_MAX_FILE_BYTES || 20 * 1024 * 1024 * 1024),
+    paginationStore,
   });
-  const wikimedia = new WikimediaVideoService();
+  const wikimedia = new WikimediaVideoService({ paginationStore });
   const candidateStore = createCandidateStore({
     db,
     filePath: path.resolve(
@@ -125,11 +146,12 @@ function createAdminBotRouter() {
     providers: [
       archive,
       wikimedia,
-      new YouTubeDiscoveryService({ apiKey: process.env.YOUTUBE_API_KEY }),
-      new PublicDomainMovieDiscoveryService(),
+      new YouTubeDiscoveryService({ apiKey: process.env.YOUTUBE_API_KEY, paginationStore }),
+      new PublicDomainMovieDiscoveryService({ paginationStore }),
     ],
     candidateStore,
     audit: logAdminEvent,
+    loadPublicCatalog,
   });
   const discoveryJobs = new AdminBotJobManager(discoveryRunner, {
     name: 'Public Domain Discovery',
@@ -205,10 +227,22 @@ function createAdminBotRouter() {
           ? ''
           : 'Explicit Public Domain evidence is required before ingestion.',
       }));
-      await candidateStore.upsert(candidates);
-      res.json({ ...results, items: candidates });
+      const savedCandidates = await candidateStore.upsert(candidates);
+      const decisions = new Map(savedCandidates.map((candidate) => [candidate.id, candidate.decision]));
+      const activeCandidates = candidates.filter((candidate) => (
+        decisions.get(candidate.id) === 'pending'
+      ));
+      const catalogMatches = filterExistingCatalogCandidates(
+        activeCandidates,
+        await loadPublicCatalog()
+      );
+      res.json({
+        ...results,
+        items: catalogMatches.items,
+        catalogExcluded: catalogMatches.excluded,
+      });
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      res.status(/catalog/i.test(error.message) ? 503 : 400).json({ error: error.message });
     }
   });
 
@@ -240,10 +274,12 @@ function createAdminBotRouter() {
       const requestedDecision = req.query.decision || 'review';
       const allowedDecisions = ['pending', 'processing', 'approved', 'rejected', 'failed'];
       const snapshot = await candidateStore.snapshot();
+      const reviewItems = requestedDecision === 'review'
+        ? activeReviewCandidates(await candidateStore.all(), await loadPublicCatalog())
+        : null;
+      const reviewCandidates = reviewItems?.items || [];
       const items = requestedDecision === 'review'
-        ? snapshot.items
-          .filter((candidate) => ['pending', 'processing', 'failed'].includes(candidate.decision))
-          .slice(0, 100)
+        ? reviewCandidates.slice(0, 100)
         : snapshot.items
           .filter((candidate) => candidate.decision === (
             allowedDecisions.includes(requestedDecision) ? requestedDecision : 'pending'
@@ -251,7 +287,17 @@ function createAdminBotRouter() {
           .slice(0, 100);
       res.json({
         items,
-        status: snapshot.status,
+        status: requestedDecision === 'review'
+          ? {
+            ...snapshot.status,
+            pending: reviewCandidates.filter((candidate) => candidate.decision === 'pending').length,
+            processing: reviewCandidates.filter((candidate) => candidate.decision === 'processing').length,
+            failed: reviewCandidates.filter((candidate) => candidate.decision === 'failed').length,
+          }
+          : snapshot.status,
+        ...(requestedDecision === 'review'
+          ? { catalogExcluded: reviewItems.excluded }
+          : {}),
         discovery: {
           ...discoveryJobs.status(),
           schedule: {

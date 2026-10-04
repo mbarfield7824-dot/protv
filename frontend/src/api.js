@@ -385,8 +385,8 @@ export const api = {
     return response;
   },
 
-  async searchPublicDomainWeb(query, contentKind) {
-    const params = new URLSearchParams({ q: query, contentKind });
+  async searchPublicDomainWeb(query, contentKind, page = 1) {
+    const params = new URLSearchParams({ q: query, contentKind, page: String(page) });
     const res = await fetch(`${API_URL}/admin-bot/web-search?${params}`, {
       headers: await authenticatedHeaders(),
     });

@@ -1,5 +1,18 @@
 const { isPublicDomainLicense } = require('./posterService');
 
+function boundedContinuation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const entries = Object.entries(value).filter(([key, item]) => (
+    /^[A-Za-z][A-Za-z0-9_]*$/.test(key)
+    && (typeof item === 'string' || Number.isFinite(item))
+    && String(item).length <= 512
+  ));
+  const size = entries.reduce((length, [key, item]) => length + key.length + String(item).length, 0);
+  return entries.length > 0 && size <= 2048
+    ? Object.fromEntries(entries.map(([key, item]) => [key, String(item)]))
+    : null;
+}
+
 function metadataValue(metadata, name) {
   return String(metadata?.[name]?.value || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -48,8 +61,9 @@ function candidateFromPage(page) {
 }
 
 class WikimediaVideoService {
-  constructor() {
+  constructor({ paginationStore = null } = {}) {
     this.name = 'Wikimedia Commons';
+    this.paginationStore = paginationStore;
   }
 
   async request(params) {
@@ -71,12 +85,21 @@ class WikimediaVideoService {
   }
 
   async discover() {
+    const stateKey = 'wikimedia:discovery';
+    const saved = await this.paginationStore?.get(stateKey);
+    const continuation = boundedContinuation(saved?.continuation);
     const payload = await this.request({
       generator: 'search',
       gsrsearch: 'filetype:video (film OR movie OR television)',
       gsrnamespace: '6',
       gsrlimit: '30',
+      ...(continuation ? continuation : {}),
     });
+    if (this.paginationStore) {
+      await this.paginationStore.set(stateKey, {
+        continuation: boundedContinuation(payload.continue),
+      });
+    }
     const items = Object.values(payload.query?.pages || {})
       .map(candidateFromPage)
       .filter(Boolean);

@@ -1,6 +1,13 @@
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.mov']);
 const path = require('path');
 const PUBLIC_DOMAIN_LICENSE_PATHS = ['/publicdomain/zero/', '/publicdomain/mark/'];
+const MAX_SEARCH_PAGE = 1000;
+const DISCOVERY_SEARCHES = [
+  { query: 'night of the living dead', contentKind: 'movie' },
+  { query: 'his girl friday', contentKind: 'movie' },
+  { query: 'public domain cartoons', contentKind: 'movie' },
+  { query: 'classic television', contentKind: 'show' },
+];
 
 function scalar(value) {
   if (Array.isArray(value)) return value.find((entry) => typeof entry === 'string' && entry.trim()) || '';
@@ -56,6 +63,11 @@ function escapeSearchTerm(value) {
     .replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&');
 }
 
+function boundedPage(value) {
+  const page = Math.floor(Number(value));
+  return Number.isFinite(page) ? Math.min(MAX_SEARCH_PAGE, Math.max(1, page)) : 1;
+}
+
 function selectVideoFile(files, maximumBytes) {
   const candidates = (Array.isArray(files) ? files : [])
     .filter((file) => {
@@ -78,12 +90,14 @@ function selectVideoFile(files, maximumBytes) {
 }
 
 class InternetArchiveService {
-  constructor({ maximumFileBytes = 20 * 1024 * 1024 * 1024 } = {}) {
+  constructor({ maximumFileBytes = 20 * 1024 * 1024 * 1024, paginationStore = null } = {}) {
     this.name = 'Internet Archive';
     this.maximumFileBytes = maximumFileBytes;
+    this.paginationStore = paginationStore;
   }
 
   async search({ query, contentKind = 'movie', page = 1 }) {
+    const requestedPage = boundedPage(page);
     const term = escapeSearchTerm(query);
     if (term.length < 2) throw new Error('Enter at least two characters to search.');
     const kindQuery = contentKind === 'show'
@@ -94,23 +108,31 @@ class InternetArchiveService {
       q: searchQuery,
       output: 'json',
       rows: '20',
-      page: String(Math.max(1, Number(page) || 1)),
+      page: String(requestedPage),
       sort: 'downloads desc',
     });
     for (const field of ['identifier', 'title', 'description', 'date', 'year', 'subject', 'licenseurl', 'rights']) {
       params.append('fl[]', field);
     }
 
-    const response = await fetch(`https://archive.org/advancedsearch.php?${params}`, {
-      headers: { 'User-Agent': 'PROtv-Admin-Bot/1.0' },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!response.ok) throw new Error(`Internet Archive search failed (${response.status}).`);
-    const payload = await response.json();
+    const requestPage = async (selectedPage) => {
+      params.set('page', String(selectedPage));
+      const response = await fetch(`https://archive.org/advancedsearch.php?${params}`, {
+        headers: { 'User-Agent': 'PROtv-Admin-Bot/1.0' },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) throw new Error(`Internet Archive search failed (${response.status}).`);
+      return response.json();
+    };
+    let payload = await requestPage(requestedPage);
+    const total = Number(payload.response?.numFound || 0);
+    const pageCount = Math.min(MAX_SEARCH_PAGE, Math.max(1, Math.ceil(total / 20)));
+    const actualPage = requestedPage > pageCount ? 1 : requestedPage;
+    if (actualPage !== requestedPage) payload = await requestPage(actualPage);
     const docs = payload.response?.docs || [];
     return {
       total: Number(payload.response?.numFound || 0),
-      page: Math.max(1, Number(page) || 1),
+      page: actualPage,
       items: docs.map((item) => {
         const identifier = safeIdentifier(item.identifier);
         const evidence = explicitPublicDomainEvidence(item);
@@ -132,15 +154,18 @@ class InternetArchiveService {
   }
 
   async discover() {
-    const searches = [
-      { query: 'night of the living dead', contentKind: 'movie' },
-      { query: 'his girl friday', contentKind: 'movie' },
-      { query: 'public domain cartoons', contentKind: 'movie' },
-      { query: 'classic television', contentKind: 'show' },
-    ];
     const items = [];
-    for (const search of searches) {
-      const result = await this.search(search);
+    for (const search of DISCOVERY_SEARCHES) {
+      const stateKey = `internet-archive:${search.contentKind}:${search.query}`;
+      const saved = await this.paginationStore?.get(stateKey);
+      const page = boundedPage(saved?.nextPage);
+      const result = await this.search({ ...search, page });
+      if (this.paginationStore) {
+        const pageCount = Math.min(MAX_SEARCH_PAGE, Math.max(1, Math.ceil(result.total / 20)));
+        await this.paginationStore.set(stateKey, {
+          nextPage: result.page >= pageCount ? 1 : result.page + 1,
+        });
+      }
       items.push(...result.items
         .filter((item) => item.licenseEvidence.eligible)
         .map((item) => ({
@@ -203,6 +228,7 @@ class InternetArchiveService {
 
 module.exports = {
   InternetArchiveService,
+  boundedPage,
   explicitPublicDomainEvidence,
   parseRuntime,
   safeIdentifier,

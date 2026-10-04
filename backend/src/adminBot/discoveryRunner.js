@@ -1,8 +1,11 @@
+const { filterExistingCatalogCandidates } = require('./catalogDeduplication');
+
 class PublicDomainDiscoveryRunner {
-  constructor({ providers, candidateStore, audit }) {
+  constructor({ providers, candidateStore, audit, loadPublicCatalog = async () => [] }) {
     this.providers = providers;
     this.candidateStore = candidateStore;
     this.audit = audit;
+    this.loadPublicCatalog = loadPublicCatalog;
   }
 
   async run({ actorId = 'system:pd-discovery', onProgress = () => {} }) {
@@ -40,25 +43,39 @@ class PublicDomainDiscoveryRunner {
     }
 
     const unique = [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()];
-    await this.candidateStore.upsert(unique);
+    const catalogMatches = filterExistingCatalogCandidates(
+      unique,
+      await this.loadPublicCatalog()
+    );
+    const previousCandidates = await this.candidateStore.all();
+    const handledIds = new Set(previousCandidates
+      .filter((candidate) => ['approved', 'rejected'].includes(candidate.decision))
+      .map((candidate) => candidate.id));
+    const handledExcluded = catalogMatches.items.filter((candidate) => handledIds.has(candidate.id)).length;
+    const activeCandidates = catalogMatches.items.filter((candidate) => !handledIds.has(candidate.id));
+    await this.candidateStore.upsert(activeCandidates);
     const queueStatus = await this.candidateStore.status();
     await this.audit({
       type: 'pd.discovery',
-      message: `Public Domain discovery completed: ${unique.length} candidates found.`,
+      message: `Public Domain discovery completed: ${activeCandidates.length} candidates found.`,
       actorId,
       details: {
         discovered: unique.length,
+        excludedFromCatalog: catalogMatches.excluded,
+        excludedAsHandled: handledExcluded,
         pending: queueStatus.pending,
         sources: report.sourceResults,
       },
     });
     report.status = report.failures.length ? 'completed-with-errors' : 'completed';
     report.completedAt = new Date().toISOString();
-    report.candidatesFound = unique.length;
+    report.candidatesFound = activeCandidates.length;
+    report.catalogExcluded = catalogMatches.excluded;
+    report.handledExcluded = handledExcluded;
     report.pendingCandidates = queueStatus.pending;
     report.message = report.failures.length
-      ? `Discovery finished with ${unique.length} candidates and ${report.failures.length} source issue${report.failures.length === 1 ? '' : 's'}.`
-      : `Discovery complete. ${unique.length} candidates were reviewed across trusted sources.`;
+      ? `Discovery finished with ${activeCandidates.length} candidates and ${report.failures.length} source issue${report.failures.length === 1 ? '' : 's'}.`
+      : `Discovery complete. ${activeCandidates.length} candidates were reviewed across trusted sources.`;
     onProgress(report);
     return report;
   }

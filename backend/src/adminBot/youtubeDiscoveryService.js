@@ -1,6 +1,7 @@
 class YouTubeDiscoveryService {
-  constructor({ apiKey }) {
+  constructor({ apiKey, paginationStore = null }) {
     this.apiKey = apiKey || '';
+    this.paginationStore = paginationStore;
     this.name = 'YouTube Creative Commons';
   }
 
@@ -15,6 +16,8 @@ class YouTubeDiscoveryService {
     const queries = ['public domain full movie', 'public domain television'];
     const candidates = [];
     for (const query of queries) {
+      const stateKey = `youtube:${query}`;
+      const saved = await this.paginationStore?.get(stateKey);
       const params = new URLSearchParams({
         part: 'snippet',
         type: 'video',
@@ -24,11 +27,21 @@ class YouTubeDiscoveryService {
         q: query,
         key: this.apiKey,
       });
+      if (typeof saved?.pageToken === 'string' && saved.pageToken.length > 0 && saved.pageToken.length <= 2048) {
+        params.set('pageToken', saved.pageToken);
+      }
       const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, {
         signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error(`YouTube search failed (${response.status}).`);
       const payload = await response.json();
+      if (this.paginationStore) {
+        const pageToken = typeof payload.nextPageToken === 'string'
+          && payload.nextPageToken.length <= 2048
+          ? payload.nextPageToken
+          : null;
+        await this.paginationStore.set(stateKey, { pageToken });
+      }
       for (const result of payload.items || []) {
         const videoId = result.id?.videoId;
         if (!videoId) continue;
@@ -38,7 +51,7 @@ class YouTubeDiscoveryService {
           sourceLabel: this.name,
           externalId: videoId,
           title: result.snippet?.title || videoId,
-          year: Number.parseInt(result.snippet?.publishedAt?.slice(0, 4), 10) || null,
+          year: null,
           description: result.snippet?.description || 'No description is available.',
           thumbnailUrl: result.snippet?.thumbnails?.medium?.url || '',
           sourceUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,

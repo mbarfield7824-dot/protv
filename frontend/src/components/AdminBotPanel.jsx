@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 
 const CANDIDATE_FILTERS = [
@@ -49,7 +49,9 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [contentKind, setContentKind] = useState('movie');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchResultsPage, setSearchResultsPage] = useState(null);
   const [searching, setSearching] = useState(false);
+  const manualSearchCursor = useRef({ key: '', nextPage: 1 });
   const [confirmedId, setConfirmedId] = useState('');
   const [webJob, setWebJob] = useState(null);
   const [discoveryJob, setDiscoveryJob] = useState(null);
@@ -176,9 +178,19 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
     setSearching(true);
     setError('');
     setConfirmedId('');
+    const key = `${searchQuery.trim().toLocaleLowerCase()}:${contentKind}`;
+    const requestedPage = manualSearchCursor.current.key === key
+      ? manualSearchCursor.current.nextPage
+      : 1;
     try {
-      const results = await api.searchPublicDomainWeb(searchQuery, contentKind);
+      const results = await api.searchPublicDomainWeb(searchQuery, contentKind, requestedPage);
       setSearchResults(results.items);
+      const pageCount = Math.max(1, Math.ceil(results.total / 20));
+      setSearchResultsPage({ page: results.page, pageCount });
+      manualSearchCursor.current = {
+        key,
+        nextPage: results.page >= pageCount ? 1 : results.page + 1,
+      };
       await loadDiscovery();
     } catch (requestError) {
       setError(requestError.message);
@@ -532,6 +544,12 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
               {searching ? 'Searching...' : 'Search'}
             </button>
           </form>
+          {searchResultsPage && (
+            <p>
+              Showing page {searchResultsPage.page} of {searchResultsPage.pageCount}.
+              {' '}Search again to load the next page.
+            </p>
+          )}
           {searchResults.map((item) => (
             <p key={item.id}>{item.title} — added to the review queue.</p>
           ))}

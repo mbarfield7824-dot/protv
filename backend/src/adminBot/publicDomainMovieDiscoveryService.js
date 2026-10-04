@@ -55,8 +55,10 @@ function parseRss(xml) {
 }
 
 class PublicDomainMovieDiscoveryService {
-  constructor() {
+  constructor({ paginationStore = null, batchSize = 10 } = {}) {
     this.name = 'PublicDomainMovie.net';
+    this.paginationStore = paginationStore;
+    this.batchSize = Math.min(30, Math.max(1, Math.floor(Number(batchSize) || 10)));
   }
 
   async discover() {
@@ -65,7 +67,22 @@ class PublicDomainMovieDiscoveryService {
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`PublicDomainMovie.net feed failed (${response.status}).`);
-    return { items: parseRss(await response.text()).slice(0, 30) };
+    const items = parseRss(await response.text()).slice(0, 30);
+    if (!items.length) return { items };
+
+    const stateKey = 'publicdomainmovie:rss';
+    const saved = await this.paginationStore?.get(stateKey);
+    const batchSize = Math.min(this.batchSize, Math.max(1, Math.ceil(items.length / 2)));
+    const offset = Number.isInteger(saved?.offset)
+      ? ((saved.offset % items.length) + items.length) % items.length
+      : 0;
+    const window = items.slice(offset, offset + batchSize);
+    if (this.paginationStore) {
+      await this.paginationStore.set(stateKey, {
+        offset: offset + batchSize >= items.length ? 0 : offset + batchSize,
+      });
+    }
+    return { items: window };
   }
 }
 

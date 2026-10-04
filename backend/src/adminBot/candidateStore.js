@@ -38,7 +38,9 @@ function candidatePriority(candidate) {
 function deduplicateCandidates(candidates) {
   const groups = new Map();
   for (const candidate of candidates) {
-    const key = `${candidate.contentKind || 'movie'}:${normalizedCandidateTitle(candidate) || candidate.id}`;
+    const year = Number(candidate.year);
+    const yearKey = Number.isInteger(year) && year >= 1800 && year <= 2100 ? year : 'unknown';
+    const key = `${candidate.contentKind || 'movie'}:${yearKey}:${normalizedCandidateTitle(candidate) || candidate.id}`;
     const current = groups.get(key);
     if (!current || candidatePriority(candidate) > candidatePriority(current.primary)) {
       groups.set(key, {
@@ -161,6 +163,10 @@ class CandidateStore {
   async snapshot() {
     return candidateSnapshot(await this.load());
   }
+
+  async all() {
+    return Object.values((await this.load()).candidates);
+  }
 }
 
 function firestoreValue(value) {
@@ -268,6 +274,10 @@ class FirestoreCandidateStore {
 
   async snapshot() {
     return candidateSnapshot(await this.load());
+  }
+
+  async all() {
+    return Object.values((await this.load()).candidates);
   }
 }
 
