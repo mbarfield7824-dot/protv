@@ -4,7 +4,8 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "frontend/dist/index.html"
     }
   },
   "headers": [
@@ -13,9 +14,19 @@
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Link", "value": "<https://watchprotv.com/>; rel=\"canonical\"" }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/title/:id",
+      "destination": "/api/index?path=v1/catalog/titles/:id/html"
+    },
     {
       "source": "/sitemap.xml",
       "destination": "/api/index?path=v1/catalog/sitemap.xml"

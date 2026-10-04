@@ -88,7 +88,7 @@ test('production robots and rewrites preserve public navigation and exclude inte
   assert.ok(robots.includes('Sitemap: https://watchprotv.com/sitemap.xml'));
   assert.equal(/<html/i.test(robots), false);
   const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
-  assert.deepEqual(config.rewrites[0], {
+  assert.deepEqual(config.rewrites.find((rewrite) => rewrite.source === '/sitemap.xml'), {
     source: '/sitemap.xml', destination: '/api/index?path=v1/catalog/sitemap.xml',
   });
   const fallback = new RegExp(`^${config.rewrites.at(-1).source}$`);

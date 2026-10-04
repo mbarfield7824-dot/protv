@@ -2,11 +2,13 @@ const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
+const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 
 function createCatalogRouter({
   loadApproved = db
     ? getApprovedVideos
     : async () => (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved'),
+  loadHtmlTemplate = loadTitleTemplate,
 } = {}) {
   const router = express.Router();
   const load = async () => loadApproved();
@@ -77,6 +79,22 @@ function createCatalogRouter({
   });
 
   const loadTitle = async (id) => playableCatalog(await load()).find((item) => item.id === id);
+
+  router.get('/titles/:id/html', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const title = await loadTitle(req.params.id);
+      if (!title) {
+        return res.status(404).set('X-Robots-Tag', 'noindex')
+          .type('text/plain').send('Title not found.');
+      }
+      return res.type('html').send(titleHtml(await loadHtmlTemplate(), title));
+    } catch (error) {
+      console.error('Failed to render public title metadata:', error);
+      return res.status(503).set('X-Robots-Tag', 'noindex')
+        .type('text/plain').send('The title page is temporarily unavailable.');
+    }
+  });
 
   router.get('/titles/:id', async (req, res) => {
     try {

@@ -173,6 +173,20 @@ endpoint. Each request generates XML containing the homepage and deduplicated
 playable catalog rules. No dates or other metadata are invented. Catalog failures
 return an explicit 503 rather than a successful but incomplete sitemap.
 
+Direct `/title/{id}` requests use the same eligible public catalog to insert
+escaped title, description, canonical, Open Graph, and Twitter metadata into the
+built React HTML. The existing React scripts, empty root, appearance, and playback
+remain unchanged. The Vercel function includes `frontend/dist/index.html`; build
+the frontend before serving this HTML endpoint locally. Only existing absolute
+HTTP(S) artwork without embedded credentials is included. Missing descriptions
+fall back to the real title, and absent artwork produces no image tags.
+Ineligible titles return 404 with `noindex`; catalog or template failures return
+503, never private metadata or a misleading successful page. Initial body text
+and metadata updates during client-side navigation are outside this phase.
+The static homepage has its canonical URL in a homepage-only HTTP `Link` header,
+so other SPA fallback pages do not inherit a homepage canonical from the shared
+HTML template.
+
 ## Public Domain Admin Bot
 
 The owner-only Admin page includes a **Public Domain Bot** tab. It scans a configured local
