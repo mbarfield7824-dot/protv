@@ -456,7 +456,7 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
                     </span>
                   </div>
                   <p>{readableDescription(item.description)}</p>
-                  <p><strong>Source evidence:</strong> {item.licenseEvidence?.label || item.ingestionReason}</p>
+                  <p className="admin-evidence"><strong>Source evidence:</strong> {item.licenseEvidence?.label || item.ingestionReason}</p>
                   {item.alternateSources?.length > 0 && (
                     <p><strong>Also found on:</strong> {item.alternateSources.join(', ')}</p>
                   )}
@@ -495,7 +495,7 @@ export default function AdminBotPanel({ onPrepareManualUpload }) {
                   )}
                   <div className="admin-bot-actions">
                     <button
-                      className="admin-secondary"
+                      className="admin-secondary admin-button-danger"
                       disabled={processing}
                       onClick={() => void rejectCandidate(item)}
                     >

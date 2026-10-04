@@ -403,6 +403,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
           Verify all rights before submission.
         </p>
 
+        <h3 className="admin-form-section-title">Rights / License</h3>
         <div className="form-row">
           <label>
             Copyright Status * (What legal basis allows distribution?)
@@ -424,6 +425,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
           </label>
         </div>
 
+        <h3 className="admin-form-section-title">Rights holder</h3>
         <label>
           Rights Holder / Copyright Owner *
           <input
@@ -447,6 +449,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
           />
         </label>
 
+        <h3 className="admin-form-section-title">Commercial use</h3>
         <div className="form-row">
           <label>
             Commercial Use Status *
@@ -458,6 +461,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
           </label>
         </div>
 
+        <h3 className="admin-form-section-title">Attribution</h3>
         <div className="form-row">
           <label className="checkbox-label">
             <input
@@ -483,6 +487,7 @@ export default function AdminContentForm({ onSubmit, initialData = null }) {
           </label>
         )}
 
+        <h3 className="admin-form-section-title">Verification / Notes</h3>
         <label>
           Rights Verification Notes * (Document your verification process)
           <textarea

@@ -209,11 +209,15 @@ export default function AdminCatalogEditor() {
       {ratingStatus && <p className="admin-subtitle">{ratingStatus}</p>}
       {videos.map((video) => (
         <article className="catalog-editor-item" key={video.id}>
+          <header className="catalog-record-heading">
+            <h3>{video.title || 'Untitled content'}</h3>
+            <span className="admin-status-pill" data-approval-status={video.approvalStatus}>{video.approvalStatus || 'draft'}</span>
+          </header>
           <label>
             Title
             <input value={video.title || ''} onChange={(event) => updateDraft(video.id, 'title', event.target.value)} />
           </label>
-          <label>
+          <label className="admin-field-wide">
             Description
             <textarea rows={2} value={video.description || ''} onChange={(event) => updateDraft(video.id, 'description', event.target.value)} />
           </label>
@@ -243,7 +247,7 @@ export default function AdminCatalogEditor() {
               </select>
             </label>
           )}
-          <label>
+          <label className="admin-field-wide">
             Poster image URL
             <input
               type="url"
@@ -385,7 +389,7 @@ export default function AdminCatalogEditor() {
             </>
           )}
           <div className="catalog-editor-actions">
-            <button className="admin-secondary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
+            <button className="admin-secondary admin-button-primary" disabled={!video.title?.trim() || savingId === video.id} onClick={() => void saveVideo(video)}>
               {savingId === video.id ? 'Saving...' : 'Save'}
             </button>
             {savedId === video.id && <span role="status">Saved</span>}

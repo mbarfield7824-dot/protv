@@ -14,6 +14,7 @@ import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } fro
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
+import '../styles/AdminTools.css';
 
 const BULK_UPLOAD_CONCURRENCY = 3;
 
@@ -550,12 +551,13 @@ export default function Admin() {
             hidden={status !== 'idle' || !['file', 'url'].includes(mode)}
             onSubmit={mode === 'file' ? handleFileSubmit : handleUrlSubmit}
           >
-            <label>
+            <h3 className="admin-form-section-title">Content details</h3>
+            <label className="admin-field-wide">
               Title
               <input value={form.title} onChange={updateField('title')} required />
             </label>
 
-            <label>
+            <label className="admin-field-wide">
               Description <span className="optional">(optional)</span>
               <textarea value={form.description} onChange={updateField('description')} rows={3} />
             </label>
@@ -586,6 +588,7 @@ export default function Admin() {
               Poster / Thumbnail URL <span className="optional">(optional)</span>
               <input value={form.thumbnailUrl} onChange={updateField('thumbnailUrl')} placeholder="https://…" />
             </label>
+            <h3 className="admin-form-section-title">Metadata</h3>
             <div className="admin-form-row">
               <label>
                 Release Year <span className="optional">(optional)</span>
@@ -701,7 +704,8 @@ export default function Admin() {
               </>
             )}
 
-              <label hidden={mode !== 'file'}>
+              <h3 className="admin-form-section-title">Media source</h3>
+              <label className="admin-upload-area admin-field-wide" hidden={mode !== 'file'}>
                 Video File
                 <input
                   key={resetVersion}
@@ -711,7 +715,7 @@ export default function Admin() {
                   required={mode === 'file'}
                 />
               </label>
-              <label hidden={mode !== 'url'}>
+              <label className="admin-field-wide" hidden={mode !== 'url'}>
                 Video File URL
                 <input
                   value={form.sourceUrl}
@@ -731,6 +735,7 @@ export default function Admin() {
 
         {visitedModes.includes('bulk') && (
          <form className="admin-form" hidden={status !== 'idle' || mode !== 'bulk'} onSubmit={handleBulkSubmit}>
+           <h3 className="admin-form-section-title">Season information</h3>
            <label>
              Series Title
              <input
@@ -752,7 +757,7 @@ export default function Admin() {
                required
              />
            </label>
-           <label>
+           <label className="admin-field-wide">
              Shared Description <span className="optional">(optional)</span>
              <textarea value={form.description} onChange={updateField('description')} rows={3} />
            </label>
@@ -818,7 +823,7 @@ export default function Admin() {
              <input value={form.thumbnailUrl} onChange={updateField('thumbnailUrl')} placeholder="https://…" />
            </label>
 
-           <label>
+           <label className="admin-upload-area admin-field-wide">
              Episode Video Files
              <input
                key={resetVersion}

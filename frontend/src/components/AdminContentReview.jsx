@@ -3,17 +3,17 @@ import { api } from '../api';
 import { isPodcast } from '../admin/podcastAdmin';
 
 const APPROVAL_STATUSES = {
-  draft: { label: '📝 Draft', color: '#707070', bg: '#1a1a1a' },
-  'pending-review': { label: '🟡 Pending Review', color: '#FFD700', bg: '#1a1a00' },
-  approved: { label: '✅ Approved', color: '#4ADE80', bg: '#001a00' },
-  rejected: { label: '❌ Rejected', color: '#FF6B6B', bg: '#1a0000' },
-  'rights-verification-required': { label: '⚠️ Verify Rights', color: '#FF9500', bg: '#1a0a00' },
+  draft: { label: '📝 Draft' },
+  'pending-review': { label: '🟡 Pending Review' },
+  approved: { label: '✅ Approved' },
+  rejected: { label: '❌ Rejected' },
+  'rights-verification-required': { label: '⚠️ Verify Rights' },
 };
 
 const COMMERCIAL_STATUSES = {
-  verified: { label: '✅ Verified', color: '#4ADE80' },
-  'requires-verification': { label: '🟡 Needs Verification', color: '#FFD700' },
-  'not-permitted': { label: '❌ Not Permitted', color: '#FF6B6B' },
+  verified: { label: '✅ Verified' },
+  'requires-verification': { label: '🟡 Needs Verification' },
+  'not-permitted': { label: '❌ Not Permitted' },
 };
 
 export default function AdminContentReview() {
@@ -127,6 +127,7 @@ export default function AdminContentReview() {
       <div className="admin-review-filters">
         <input
           type="text"
+          aria-label="Search content by title"
           placeholder="🔍 Search by title..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -134,6 +135,7 @@ export default function AdminContentReview() {
         />
 
         <select
+          aria-label="Filter content by approval status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="admin-filter-select"
@@ -147,6 +149,7 @@ export default function AdminContentReview() {
         </select>
 
         <select
+          aria-label="Filter content by genre"
           value={genreFilter}
           onChange={(e) => setGenreFilter(e.target.value)}
           className="admin-filter-select"
@@ -179,18 +182,18 @@ export default function AdminContentReview() {
             return (
               <div
                 key={video.id}
-                className="admin-review-item"
+                className={`admin-review-item ${selectedVideo?.id === video.id ? 'is-selected' : ''}`}
+                data-approval-status={video.approvalStatus}
                 onClick={() => setSelectedVideo(video)}
-                style={{
-                  borderLeft: `4px solid ${statusInfo.color}`,
-                  background: selectedVideo?.id === video.id ? 'rgba(65, 105, 225, 0.1)' : 'transparent',
-                }}
               >
                 <div className="review-item-main">
                   <div>
-                    <h4 className="review-item-title">{video.title}</h4>
+                    <h4 className="review-item-title">
+                      <button type="button" className="review-item-select"
+                        aria-expanded={selectedVideo?.id === video.id}>{video.title}</button>
+                    </h4>
                     <div className="review-item-meta">
-                      <span style={{ color: statusInfo.color }}>
+                      <span className="admin-status-pill" data-approval-status={video.approvalStatus}>
                         {statusInfo.label}
                       </span>
                       <span>•</span>
@@ -198,7 +201,7 @@ export default function AdminContentReview() {
                       <span>•</span>
                       <span>{video.genre}</span>
                       <span>•</span>
-                      <span style={{ color: commercialInfo.color }}>
+                      <span className="admin-status-pill" data-commercial-status={video.commercialUseStatus}>
                         {commercialInfo.label}
                       </span>
                     </div>
@@ -240,8 +243,8 @@ export default function AdminContentReview() {
                           </tr>
                           <tr>
                             <td>Commercial Use:</td>
-                            <td style={{ color: commercialInfo.color, fontWeight: 'bold' }}>
-                              {commercialInfo.label}
+                            <td>
+                              <span className="admin-status-pill" data-commercial-status={video.commercialUseStatus}>{commercialInfo.label}</span>
                             </td>
                           </tr>
                           <tr>
@@ -286,6 +289,7 @@ export default function AdminContentReview() {
                       <div className="detail-section">
                         <h5>Admin Actions</h5>
                         <textarea
+                          aria-label={`Administrator notes for ${video.title}`}
                           placeholder="Add notes (optional)..."
                           value={actionNotes}
                           onChange={(e) => setActionNotes(e.target.value)}

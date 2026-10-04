@@ -292,10 +292,12 @@ function SafetyQueue() {
 
   return (
     <section className="safety-queue" aria-labelledby="safety-queue-title">
+      <div className="admin-tool-intro">
       <h2 id="safety-queue-title">Safety Reports</h2>
       <p>Newest submissions first. Review updates do not remove content, ban accounts, or trigger notifications or legal reporting.</p>
       <button type="button" className="admin-secondary" disabled={Boolean(pending) || saving}
         onClick={() => runQueue()}>Refresh queue</button>
+      </div>
       {pending && <p role="status">{pending === 'more' ? 'Loading more reports...' : 'Loading safety reports...'}</p>}
       {error && <div className="admin-error" role="alert"><p>{error}</p>
         <button type="button" disabled={Boolean(pending) || saving}
@@ -309,7 +311,7 @@ function SafetyQueue() {
                 {report.reason === 'csam_child_sexual_exploitation'
                   && <strong className="safety-queue__priority">CSAM / child sexual exploitation</strong>}
                 <p>{reportType(report.type)} - {reportReason(report.reason)}</p>
-                <p>Status: {report.status} | Submitted: {submittedTime(report.createdAt)}</p>
+                <p><span className="admin-status-pill" data-review-status={report.status}>Status: {report.status}</span> | Submitted: {submittedTime(report.createdAt)}</p>
                 <TargetReference report={report} />
                 <button type="button" className="admin-secondary" disabled={saving}
                   aria-pressed={selectedId === report.id}

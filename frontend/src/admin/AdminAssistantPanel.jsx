@@ -136,7 +136,7 @@ export default function AdminAssistantPanel() {
         ))}
         {pendingAction && !sending && (
           <div className="admin-assistant-confirmation">
-            <button className="admin-submit" type="button" onClick={() => void confirmAction()}>
+            <button className="admin-submit admin-button-confirm" type="button" onClick={() => void confirmAction()}>
               Confirm Change
             </button>
             <button className="admin-secondary" type="button" onClick={cancelAction}>

@@ -17,6 +17,15 @@ Rendered regression coverage is in `test/adminCommandCenter.test.js`. Run
 before visual review. Browser review of authorized states should use local
 fixtures, not production actions or an authorization bypass in application code.
 
+Admin tool presentation is unified in `src/styles/AdminTools.css`, loaded after
+the legacy tool styles and scoped to the Admin workspace. It reuses PROtv tokens
+for panels, controls and typography; semantic status colors distinguish review,
+warning, success and destructive actions. Presentation classes and section
+headings do not change tool handlers, API payloads or legal field requirements.
+The public shell remains unchanged. Visual review should cover 1440px, 768px and
+390px layouts with synthetic local data, including populated records, rights
+evidence, error feedback, disabled actions and the expanded mobile Admin menu.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

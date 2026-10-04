@@ -321,7 +321,7 @@ export default function AdminPodcasts() {
             ))}
           </div>
           <div className="podcast-admin-forms">
-            <form className="admin-form" onSubmit={(event) => { event.preventDefault(); void saveShow(); }}>
+            <form className="admin-form podcast-admin-show-form" onSubmit={(event) => { event.preventDefault(); void saveShow(); }}>
               <fieldset className="podcast-admin-fields" disabled={formsDisabled}>
               <h3>{selectedShowId ? 'Edit Show' : 'Create Show'}</h3>
               {selectedShowId && <p className="admin-subtitle">Stable Show ID: {selectedShowId}</p>}
@@ -340,9 +340,9 @@ export default function AdminPodcasts() {
               <div className="form-actions">
                 <button className="admin-submit" disabled={Boolean(pending || stale)} type="submit">{pending || (selectedShow?.approvalStatus === 'approved' ? 'Save Metadata' : 'Save Draft')}</button>
                 {selectedShow && (selectedShow.approvalStatus === 'approved'
-                  ? <button type="button" className="admin-secondary" disabled={Boolean(pending || stale)}
+                  ? <button type="button" className="admin-secondary admin-button-warning" disabled={Boolean(pending || stale)}
                     onClick={() => void showAction('unpublish')}>Unpublish Show</button>
-                  : <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || showHasEdits)}
+                  : <button type="button" className="admin-secondary admin-button-confirm" disabled={Boolean(pending || stale || showHasEdits)}
                     onClick={() => void showAction('approve')}>Approve / Publish Show</button>)}
               </div>
               {showHasEdits && <p className="admin-subtitle">Save Show changes before publishing.</p>}
@@ -350,7 +350,7 @@ export default function AdminPodcasts() {
               </fieldset>
             </form>
             {(selectedShowId || shows.length > 0) && (
-              <form className="admin-form" onSubmit={(event) => { event.preventDefault(); void saveEpisode(); }}>
+              <form className="admin-form podcast-admin-episode-form" onSubmit={(event) => { event.preventDefault(); void saveEpisode(); }}>
                 <fieldset className="podcast-admin-fields" disabled={formsDisabled}>
                 <h3>{selectedEpisodeId ? 'Edit Episode' : 'Create Episode'}</h3>
                 <label>Parent Show
@@ -383,9 +383,9 @@ export default function AdminPodcasts() {
                 <div className="form-actions">
                   <button className="admin-submit" type="submit" disabled={Boolean(pending || stale)}>{pending || (selectedEpisode?.approvalStatus === 'approved' ? 'Save Metadata' : 'Save Draft')}</button>
                   {selectedEpisode && (selectedEpisode.approvalStatus === 'approved'
-                    ? <button type="button" className="admin-secondary" disabled={Boolean(pending || stale)}
+                    ? <button type="button" className="admin-secondary admin-button-warning" disabled={Boolean(pending || stale)}
                       onClick={() => void episodeAction('unpublish')}>Unpublish Episode</button>
-                    : <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || episodeHasEdits || processing || !canApprove)}
+                    : <button type="button" className="admin-secondary admin-button-confirm" disabled={Boolean(pending || stale || episodeHasEdits || processing || !canApprove)}
                       onClick={() => void episodeAction('approve')}>Approve Episode</button>)}
                 </div>
                 {episodeHasEdits && <p className="admin-subtitle">Save Episode changes before approval or ingestion.</p>}

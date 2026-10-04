@@ -93,7 +93,7 @@ export default function AdminCommandCenter({
                   </section>
                 ))}
                 <section className="admin-command__portal">
-                  <div><h3>Creator Portal</h3><p>Open the existing owner workspace through your authenticated PROtv session.</p></div>
+                  <div><h3>Creator Portal</h3><p>Open the external, privileged Creator Portal owner workspace through your authenticated PROtv session.</p></div>
                   <button type="button" className="ptv-btn ptv-btn--ghost" onClick={onOwnerPortal}>Open Owner Portal</button>
                 </section>
               </div>
