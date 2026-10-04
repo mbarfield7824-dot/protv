@@ -161,6 +161,18 @@ production.
 5. Connect frontend to backend
 6. Integrate Mux for video streaming
 
+## Google crawl foundation
+
+The frontend serves `/robots.txt` as plain text, allowing public pages while
+disallowing account, admin, utility, player, and API paths. Robots directives
+control crawling, not access control or guaranteed removal from search results.
+
+Vercel routes `/sitemap.xml` to the existing catalog API's `/v1/catalog/sitemap.xml`
+endpoint. Each request generates XML containing the homepage and deduplicated
+`https://watchprotv.com/title/{id}` URLs using the existing approved, ready,
+playable catalog rules. No dates or other metadata are invented. Catalog failures
+return an explicit 503 rather than a successful but incomplete sitemap.
+
 ## Public Domain Admin Bot
 
 The owner-only Admin page includes a **Public Domain Bot** tab. It scans a configured local

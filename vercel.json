@@ -7,13 +7,25 @@
       "maxDuration": 300
     }
   },
+  "headers": [
+    {
+      "source": "/robots.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/index?path=v1/catalog/sitemap.xml"
+    },
     {
       "source": "/api/:path*",
       "destination": "/api/index?path=:path*"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|robots\\.txt$|sitemap\\.xml$).*)",
       "destination": "/index.html"
     }
   ]

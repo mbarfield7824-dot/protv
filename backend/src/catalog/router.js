@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
+const { catalogSitemap } = require('./sitemap');
 
 function createCatalogRouter({
   loadApproved = db
@@ -9,6 +10,17 @@ function createCatalogRouter({
 } = {}) {
   const router = express.Router();
   const load = async () => loadApproved();
+
+  router.get('/sitemap.xml', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const xml = catalogSitemap(await load());
+      res.type('application/xml').send(xml);
+    } catch (error) {
+      console.error('Failed to generate public sitemap:', error);
+      res.status(503).type('text/plain').send('The sitemap is temporarily unavailable.');
+    }
+  });
 
   router.get('/', async (req, res) => {
     try {

@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /profile
+Disallow: /my-list
+Disallow: /history
+Disallow: /report
+Disallow: /activate
+Disallow: /search
+Disallow: /player
+Disallow: /api/
+
+Sitemap: https://watchprotv.com/sitemap.xml
