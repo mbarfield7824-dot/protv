@@ -301,3 +301,86 @@ test('Vercel bridge preserves report pagination without broadening legacy query 
     else delete require.cache[appPath];
   }
 });
+
+test('Vercel bridge removes only internal report routing query before Express validation and storage', async (context) => {
+  const { createReportRouters } = require('../src/reports/router');
+  const id = '00000000-0000-4000-8000-000000000000';
+  const listCalls = [];
+  const applicationQueries = [];
+  const store = {
+    list: async (options) => {
+      listCalls.push(options);
+      return { items: [], nextCursor: null };
+    },
+    get: async (reportId) => ({ id: reportId }),
+  };
+  const app = express();
+  app.use((req, res, next) => {
+    applicationQueries.push({ ...req.query });
+    next();
+  });
+  app.use('/api/admin/reports', createReportRouters({
+    store,
+    authorize: (req, res, next) => next(),
+  }).adminRouter);
+  app.get('/api/v1/catalog', (req, res) => res.json({ url: req.url, query: req.query }));
+  app.get('/api/videos', (req, res) => res.json({ url: req.url, query: req.query }));
+  app.get('/api/health', (req, res) => res.json({ status: 'Backend is running!' }));
+
+  const appPath = require.resolve('../src/app');
+  const bridgePath = require.resolve('../../api/index');
+  const previousApp = require.cache[appPath];
+  const previousBridge = require.cache[bridgePath];
+  require.cache[appPath] = { id: appPath, filename: appPath, loaded: true, exports: app };
+  delete require.cache[bridgePath];
+  const bridge = require(bridgePath);
+  context.after(() => {
+    delete require.cache[bridgePath];
+    if (previousBridge) require.cache[bridgePath] = previousBridge;
+    if (previousApp) require.cache[appPath] = previousApp;
+    else delete require.cache[appPath];
+  });
+  const server = require('node:http').createServer((req, res) => {
+    req.query = Object.fromEntries(new URL(req.url, 'http://localhost').searchParams);
+    bridge(req, res);
+  });
+  context.after(() => { server.closeAllConnections(); server.close(); });
+  server.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const request = async (query) => {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/index?${query}`);
+    return { status: response.status, body: await response.json() };
+  };
+
+  assert.deepEqual(await request('path=admin/reports&limit=25'), {
+    status: 200, body: { items: [], nextCursor: null },
+  });
+  assert.deepEqual(applicationQueries.at(-1), { limit: '25' });
+  assert.deepEqual(listCalls, [{ limit: 25, cursor: undefined }]);
+
+  assert.equal((await request(`path=admin/reports&limit=25&cursor=${id}`)).status, 200);
+  assert.deepEqual(applicationQueries.at(-1), { limit: '25', cursor: id });
+  assert.deepEqual(listCalls.at(-1), { limit: 25, cursor: id });
+
+  assert.deepEqual(await request('path=admin/reports&limit=25&unexpected=value'), {
+    status: 400, body: { error: 'Unsupported list query.' },
+  });
+  assert.deepEqual(applicationQueries.at(-1), { limit: '25', unexpected: 'value' });
+  assert.equal(listCalls.length, 2);
+
+  assert.deepEqual(await request(`path=admin/reports/${id}`), { status: 200, body: { id } });
+  assert.deepEqual(applicationQueries.at(-1), {});
+  assert.deepEqual(await request('path=v1/catalog&view=movies&q=Black+Cinema'), {
+    status: 200,
+    body: {
+      url: '/api/v1/catalog?view=movies&q=Black+Cinema',
+      query: { path: 'v1/catalog', view: 'movies', q: 'Black Cinema' },
+    },
+  });
+  assert.deepEqual(await request('path=videos&view=movies'), {
+    status: 200, body: { url: '/api/videos', query: { path: 'videos', view: 'movies' } },
+  });
+  assert.deepEqual(await request('path=health'), {
+    status: 200, body: { status: 'Backend is running!' },
+  });
+});

@@ -15,6 +15,9 @@ module.exports = (req, res) => {
         }
       }
       req.url = `/api/${path}${query.size ? `?${query}` : ''}`;
+      if (path === 'admin/reports' || path.startsWith('admin/reports/')) {
+        delete req.query.path;
+      }
     } else {
       req.url = `/api/${path}`;
     }
