@@ -1,0 +1,287 @@
+.admin-command {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.admin-command__main {
+  padding: 132px var(--ptv-pad) 64px;
+}
+
+.admin-command__heading {
+  margin-bottom: 36px;
+}
+
+.admin-command__heading h1 {
+  margin-bottom: 14px;
+  font-size: clamp(30px, 3.6vw, 48px);
+  font-weight: 850;
+  line-height: 1.12;
+}
+
+.admin-command__heading > p:last-child,
+.admin-command__intro > p:last-child,
+.admin-command__tool-heading p,
+.admin-command__portal p {
+  max-width: 760px;
+  color: var(--protv-silver);
+  line-height: 1.6;
+}
+
+.admin-command__layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.admin-command__sidebar {
+  position: sticky;
+  top: 110px;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  border: 1px solid var(--protv-border);
+  border-radius: 14px;
+  background: var(--protv-midnight);
+}
+
+.admin-command__navigation {
+  display: grid;
+  gap: 20px;
+  padding: 20px 12px;
+}
+
+.admin-command__nav-group h2 {
+  padding: 0 12px 6px;
+  color: var(--protv-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.admin-command__nav-group button {
+  display: block;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--protv-silver);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-command__nav-group button:hover {
+  background: var(--protv-navy);
+  color: var(--protv-white);
+}
+
+.admin-command__nav-group button[aria-current="page"] {
+  border-color: var(--protv-border);
+  background: var(--protv-blue-glow);
+  color: var(--protv-electric-blue);
+}
+
+.admin-command__workspace {
+  min-width: 0;
+}
+
+.admin-command__overview {
+  display: grid;
+  gap: 30px;
+}
+
+.admin-command__intro,
+.admin-command__portal {
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--protv-border);
+  border-radius: 14px;
+  background: linear-gradient(130deg, var(--protv-navy), var(--protv-midnight));
+}
+
+.admin-command__intro h2,
+.admin-command__tool-heading h2 {
+  margin-bottom: 10px;
+  font-size: clamp(23px, 2.3vw, 30px);
+  font-weight: 800;
+}
+
+.admin-command__quick-group h3 {
+  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.admin-command__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-command__card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-height: 170px;
+  padding: 22px;
+  border: 1px solid var(--protv-border);
+  border-radius: 12px;
+  background: var(--protv-midnight);
+  color: var(--protv-white);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.admin-command__card:hover {
+  border-color: var(--protv-electric-blue);
+  box-shadow: 0 8px 24px var(--protv-blue-glow);
+}
+
+.admin-command__card strong {
+  font-size: 17px;
+}
+
+.admin-command__card > span {
+  color: var(--protv-silver);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-command__card .admin-command__card-action {
+  color: var(--protv-electric-blue);
+  font-weight: 700;
+}
+
+.admin-command__portal {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-command__portal h3 {
+  margin-bottom: 8px;
+}
+
+.admin-command__tool-heading {
+  margin-bottom: 24px;
+}
+
+.admin-command__upload-methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.admin-command__upload-methods button {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.admin-command__menu-toggle {
+  display: none;
+}
+
+.admin-command__gate {
+  padding: 160px var(--ptv-pad) 100px;
+  min-height: 65vh;
+  max-width: 760px;
+  margin: auto;
+}
+
+.admin-command__gate h1 {
+  margin-bottom: 16px;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 800;
+}
+
+.admin-command__gate p {
+  margin-bottom: 24px;
+  color: var(--protv-silver);
+}
+
+.admin-command [hidden] {
+  display: none !important;
+}
+
+.admin-command :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--protv-electric-blue);
+  outline-offset: 3px;
+}
+
+.admin-command button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .admin-command__main {
+    padding-top: 104px;
+  }
+
+  .admin-command__layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .admin-command__sidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .admin-command__menu-toggle {
+    display: flex;
+    width: 100%;
+    padding: 16px;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    border: 0;
+    background: transparent;
+    color: var(--protv-white);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .admin-command__menu-toggle span {
+    color: var(--protv-electric-blue);
+    font-size: 13px;
+  }
+
+  .admin-command__navigation {
+    display: none;
+  }
+
+  .admin-command__navigation.is-open {
+    display: grid;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-command__cards,
+  .admin-command__upload-methods {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-command__portal {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-command__workspace .admin-form-row,
+  .admin-command__workspace .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-command__workspace .admin-actions {
+    flex-wrap: wrap;
+  }
+}

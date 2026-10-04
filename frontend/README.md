@@ -1,5 +1,22 @@
 # React + Vite
 
+## Admin Command Center
+
+The `/admin` page uses the current PROtv shell. Authorized administrators start
+at Overview; grouped navigation opens the existing tools using local mode state.
+Upload Content contains File, URL and Add Content With Rights workflows.
+
+Visited tool panels remain mounted while hidden so section changes retain drafts
+and do not stop their existing polling. Upload, processing and rights-draft saving
+pause Admin section switching. Leaving Admin after opening a tool warns that
+drafts or operation monitoring may be lost; no draft persistence across reloads
+is implied. The overview does not fetch metrics or mount tools in advance.
+
+Rendered regression coverage is in `test/adminCommandCenter.test.js`. Run
+`node --test test/adminCommandCenter.test.js`, `npm run lint` and `npm run build`
+before visual review. Browser review of authorized states should use local
+fixtures, not production actions or an authorization bypass in application code.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
+import AdminCommandCenter, { AdminShell } from '../admin/AdminCommandCenter';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
@@ -20,7 +19,9 @@ const BULK_UPLOAD_CONCURRENCY = 3;
 
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
-  const [mode, setMode] = useState('file'); // 'file' | 'url' | 'bulk' | 'add-content' | 'review-content'
+  const [mode, setMode] = useState('overview');
+  const [visitedModes, setVisitedModes] = useState([]);
+  const [resetVersion, setResetVersion] = useState(0);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -52,8 +53,41 @@ export default function Admin() {
   const [videoId, setVideoId] = useState(null);
   const [error, setError] = useState('');
   const [manualUploadDraft, setManualUploadDraft] = useState(null);
+  const [contentSubmitting, setContentSubmitting] = useState(false);
   const pollRef = useRef(null);
   const bulkPollRef = useRef(null);
+  const uploadActive = contentSubmitting || ['uploading', 'processing'].includes(status)
+    || (status === 'bulk-uploading' && bulkUploads.some((upload) => !['ready', 'errored'].includes(upload.status)));
+
+  useEffect(() => {
+    if (!user || !isAdmin || visitedModes.length === 0) return undefined;
+    const warnBeforeLeaving = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [user, isAdmin, visitedModes.length]);
+
+  const confirmLeavingWorkspace = () => visitedModes.length === 0
+    || window.confirm('Leave Admin? Unsaved drafts may be lost and active operations may no longer be monitored. Stay in Admin to preserve your workspace.');
+
+  const guardConsumerNavigation = (event) => {
+    const link = event.target.closest('a[href]');
+    const button = event.target.closest('.ptv-header button');
+    const leavingButton = button && (button.getAttribute('aria-label') === 'Search PROtv'
+      || button.textContent.trim() === 'Sign Out');
+    if ((!link && !leavingButton) || visitedModes.length === 0) return;
+    if (link) {
+      if (link.target === '_blank' || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = new URL(link.href, window.location.href);
+      if (target.pathname === '/admin' && target.origin === window.location.origin) return;
+    }
+    if (!confirmLeavingWorkspace()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
 
   useEffect(
     () => () => {
@@ -75,6 +109,7 @@ export default function Admin() {
   };
 
   const openOwnerCreatorPortal = async () => {
+    if (!confirmLeavingWorkspace()) return;
     setError('');
     try {
       const { url } = await api.createOwnerCreatorSso();
@@ -86,19 +121,17 @@ export default function Admin() {
 
   if (!loading && !user) {
     return (
-      <div className="admin-page">
-        <Header />
-        <main className="admin-content">
-          <h1 className="admin-title">Sign in to manage content</h1>
+      <AdminShell>
+        <main className="admin-command__gate">
+          <h1>Sign in to manage content</h1>
           <p className="admin-subtitle">
             Use your PROtv account to upload authorized videos and manage the catalog.
           </p>
-          <button className="admin-tab active" onClick={openAuthModal}>
+          <button className="ptv-btn ptv-btn--primary" onClick={openAuthModal}>
             Sign In
           </button>
         </main>
-        <Footer />
-      </div>
+      </AdminShell>
     );
   }
 
@@ -112,20 +145,18 @@ export default function Admin() {
 
   if (user && !isAdmin) {
     return (
-      <div className="admin-page">
-        <Header />
-        <main className="admin-content">
-          <h1 className="admin-title">Owner access required</h1>
+      <AdminShell>
+        <main className="admin-command__gate">
+          <h1>Owner access required</h1>
           <p className="admin-subtitle">
             Content management is restricted to the PROtv owner account.
           </p>
           {error && <p className="admin-error">{error}</p>}
-          <button className="admin-tab active" onClick={() => void activateOwnerAccess()}>
+          <button className="ptv-btn ptv-btn--primary" onClick={() => void activateOwnerAccess()}>
             Activate Owner Access
           </button>
         </main>
-        <Footer />
-      </div>
+      </AdminShell>
     );
   }
 
@@ -393,6 +424,7 @@ export default function Admin() {
   };
 
   const reset = () => {
+    setResetVersion((current) => current + 1);
     clearInterval(pollRef.current);
     clearInterval(bulkPollRef.current);
     setForm({
@@ -428,6 +460,7 @@ export default function Admin() {
   };
 
   const handleContentFormSubmit = async (formData) => {
+    setContentSubmitting(true);
     try {
       setError('');
       // Submit structured content to backend
@@ -439,10 +472,14 @@ export default function Admin() {
     } catch (err) {
       setError(err.message || 'Failed to submit content');
       throw err;
+    } finally {
+      setContentSubmitting(false);
     }
   };
 
   const prepareReferenceUpload = (candidate) => {
+    if (visitedModes.includes('add-content')
+      && !window.confirm('Replace the current rights-content draft with this source reference? Unsaved changes in that draft will be lost.')) return;
     reset();
     setManualUploadDraft({
       title: candidate.title || '',
@@ -473,144 +510,44 @@ export default function Admin() {
       approvalStatus: 'draft',
     });
     setMode('add-content');
+    setVisitedModes((current) => [...new Set([...current, 'add-content'])]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const selectMode = (nextMode) => {
+    if (uploadActive) return;
+    if (nextMode !== mode && ['file', 'url', 'bulk', 'add-content'].includes(nextMode)) {
+      setStatus('idle');
+    }
+    if (nextMode !== 'overview') {
+      setVisitedModes((current) => [...new Set([...current, nextMode])]);
+    }
+    setMode(nextMode);
+  };
+
   return (
-    <div className="admin-page">
-      <Header />
+    <AdminCommandCenter mode={mode} onSelect={selectMode}
+      onOwnerPortal={() => void openOwnerCreatorPortal()}
+      navigationLocked={uploadActive} error={error} onNavigateAway={guardConsumerNavigation}>
+        {['file', 'url', 'add-content'].includes(mode) && (
+          <nav className="admin-command__upload-methods" aria-label="Upload method">
+            {[
+              { id: 'file', label: 'Upload File' },
+              { id: 'url', label: 'Paste URL' },
+              { id: 'add-content', label: 'Add Content With Rights' },
+            ].map((method) => (
+              <button key={method.id} type="button" disabled={uploadActive}
+                className={`ptv-btn ${mode === method.id ? 'ptv-btn--primary' : 'ptv-btn--quiet'}`}
+                aria-current={mode === method.id ? 'page' : undefined}
+                onClick={() => selectMode(method.id)}>{method.label}</button>
+            ))}
+          </nav>
+        )}
 
-      <div className={`admin-content ${['admin-bot', 'distributor-ingestion', 'assistant', 'podcasts'].includes(mode) ? 'admin-content-wide' : ''}`}>
-        <h1 className="admin-title">
-          {mode === 'admin-bot'
-            ? 'Public Domain Admin Bot'
-            : mode === 'podcasts'
-              ? 'Manage Podcasts'
-            : mode === 'safety-reports'
-              ? 'Review private safety reports with your authenticated Admin session.'
-            : mode === 'distributor-ingestion'
-              ? 'Distributor Ingestion Adapter'
-              : mode === 'assistant'
-                ? 'Administrator Assistant'
-              : 'Add a Real Movie'}
-        </h1>
-        <p className="admin-subtitle">
-          {mode === 'admin-bot'
-            ? 'Safely prepare and publish new Public Domain movies from your approved content folder.'
-            : mode === 'podcasts'
-              ? 'Manage Podcast Shows and their video Episodes with separate draft, ingestion, and approval steps.'
-            : mode === 'distributor-ingestion'
-              ? 'Import licensed titles from a secure distributor feed with rights and playback checks.'
-              : mode === 'assistant'
-                ? 'Ask operational questions or prepare confirmed catalog metadata and poster corrections.'
-              : 'Upload a video file directly, or paste a link to a file already hosted online. Mux transcodes it in the background — this page will update automatically when it is ready.'}
-        </p>
-
-        <button className="admin-tab owner-portal-link" type="button" onClick={() => void openOwnerCreatorPortal()}>
-          Creator Portal (Owner Access)
-        </button>
-
-        <div className="admin-tabs">
-          <button
-            className={`admin-tab ${mode === 'file' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('file');
-            }}
-          >
-            📁 Upload File
-          </button>
-          <button
-            className={`admin-tab ${mode === 'url' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('url');
-            }}
-          >
-            🔗 Paste URL
-          </button>
-          <button
-            className={`admin-tab ${mode === 'bulk' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('bulk');
-              setForm((current) => ({ ...current, seasonNumber: '' }));
-            }}
-          >
-            🗂️ Upload Season
-          </button>
-          <button
-            className={`admin-tab ${mode === 'add-content' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setManualUploadDraft(null);
-              setMode('add-content');
-            }}
-          >
-            ➕ Add Content (With Rights)
-          </button>
-          <button
-            className={`admin-tab ${mode === 'review-content' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('review-content');
-            }}
-          >
-            📋 Review Content
-          </button>
-          <button
-            className={`admin-tab ${mode === 'edit-catalog' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('edit-catalog');
-            }}
-          >
-            ✏️ Edit Catalog
-          </button>
-          <button
-            className={`admin-tab ${mode === 'safety-reports' ? 'active' : ''}`}
-            onClick={() => { reset(); setMode('safety-reports'); }}
-          >
-            Safety Reports
-          </button>
-          <button
-            className={`admin-tab ${mode === 'podcasts' ? 'active' : ''}`}
-            onClick={() => { reset(); setMode('podcasts'); }}
-          >
-            Podcasts
-          </button>
-          <button
-            className={`admin-tab ${mode === 'admin-bot' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('admin-bot');
-            }}
-          >
-            Public Domain Bot
-          </button>
-          <button
-            className={`admin-tab ${mode === 'distributor-ingestion' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('distributor-ingestion');
-            }}
-          >
-            Distributor Feed
-          </button>
-          <button
-            className={`admin-tab ${mode === 'assistant' ? 'active' : ''}`}
-            onClick={() => {
-              reset();
-              setMode('assistant');
-            }}
-          >
-            Assistant
-          </button>
-        </div>
-
-        {status === 'idle' && (mode === 'file' || mode === 'url') && (
+        {visitedModes.some((item) => item === 'file' || item === 'url') && (
           <form
             className="admin-form"
+            hidden={status !== 'idle' || !['file', 'url'].includes(mode)}
             onSubmit={mode === 'file' ? handleFileSubmit : handleUrlSubmit}
           >
             <label>
@@ -764,27 +701,25 @@ export default function Admin() {
               </>
             )}
 
-            {mode === 'file' ? (
-              <label>
+              <label hidden={mode !== 'file'}>
                 Video File
                 <input
+                  key={resetVersion}
                   type="file"
                   accept="video/*"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  required
+                  required={mode === 'file'}
                 />
               </label>
-            ) : (
-              <label>
+              <label hidden={mode !== 'url'}>
                 Video File URL
                 <input
                   value={form.sourceUrl}
                   onChange={updateField('sourceUrl')}
                   placeholder="https://cdn.example.com/movie.mp4"
-                  required
+                  required={mode === 'url'}
                 />
               </label>
-            )}
 
             {error && <p className="admin-error">{error}</p>}
 
@@ -794,8 +729,8 @@ export default function Admin() {
           </form>
         )}
 
-        {status === 'idle' && mode === 'bulk' && (
-         <form className="admin-form" onSubmit={handleBulkSubmit}>
+        {visitedModes.includes('bulk') && (
+         <form className="admin-form" hidden={status !== 'idle' || mode !== 'bulk'} onSubmit={handleBulkSubmit}>
            <label>
              Series Title
              <input
@@ -886,6 +821,7 @@ export default function Admin() {
            <label>
              Episode Video Files
              <input
+               key={resetVersion}
                type="file"
                accept="video/*"
                multiple
@@ -950,7 +886,7 @@ export default function Admin() {
           </div>
         )}
 
-        {status === 'bulk-uploading' && (
+        {status === 'bulk-uploading' && mode === 'bulk' && (
           <div className="admin-bulk-status">
             <h2>Uploading season</h2>
             <p>Up to {BULK_UPLOAD_CONCURRENCY} episodes upload at a time. Mux then processes each episode.</p>
@@ -979,7 +915,7 @@ export default function Admin() {
           </div>
         )}
 
-        {status === 'ready' && (
+        {status === 'ready' && ['file', 'url', 'bulk'].includes(mode) && (
           <div className="admin-status admin-status-ready">
             <p>✅ Ready! Your video is now live in the catalog.</p>
             <div className="admin-actions">
@@ -1002,8 +938,8 @@ export default function Admin() {
           </div>
         )}
 
-        {mode === 'add-content' && (
-          <div className="admin-form-section">
+        {visitedModes.includes('add-content') && (
+          <div className="admin-form-section" hidden={mode !== 'add-content'}>
             {manualUploadDraft && (
               <p className="admin-reference-notice">
                 This reference is not approved for automatic ingestion. Add an authorized direct
@@ -1028,18 +964,15 @@ export default function Admin() {
           </div>
         )}
 
-        {mode === 'review-content' && (
-          <AdminContentReview />
+        {visitedModes.includes('review-content') && (
+          <div hidden={mode !== 'review-content'}><AdminContentReview /></div>
         )}
-        {mode === 'edit-catalog' && <AdminCatalogEditor />}
-        {mode === 'podcasts' && <AdminPodcasts />}
-        {mode === 'safety-reports' && <AdminSafetyReports />}
-        {mode === 'admin-bot' && <AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} />}
-        {mode === 'distributor-ingestion' && <DistributorIngestionPanel />}
-        {mode === 'assistant' && <AdminAssistantPanel />}
-      </div>
-
-      <Footer />
-    </div>
+        {visitedModes.includes('edit-catalog') && <div hidden={mode !== 'edit-catalog'}><AdminCatalogEditor /></div>}
+        {visitedModes.includes('podcasts') && <div hidden={mode !== 'podcasts'}><AdminPodcasts /></div>}
+        {visitedModes.includes('safety-reports') && <div hidden={mode !== 'safety-reports'}><AdminSafetyReports /></div>}
+        {visitedModes.includes('admin-bot') && <div hidden={mode !== 'admin-bot'}><AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} /></div>}
+        {visitedModes.includes('distributor-ingestion') && <div hidden={mode !== 'distributor-ingestion'}><DistributorIngestionPanel /></div>}
+        {visitedModes.includes('assistant') && <div hidden={mode !== 'assistant'}><AdminAssistantPanel /></div>}
+    </AdminCommandCenter>
   );
 }
