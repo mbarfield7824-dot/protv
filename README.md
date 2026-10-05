@@ -148,10 +148,19 @@ Configure the PROtv backend with:
 ```env
 CREATOR_PORTAL_URL=http://127.0.0.1:5180
 CREATOR_SSO_SECRET=replace_with_a_high_entropy_shared_secret
+CREATOR_PORTAL_OWNER_EMAIL=admin@watchprotv.com
 ```
 
 Set the exact same secret as `PROTV_SSO_SECRET` in the Creator Agent. Use HTTPS public origins in
 production.
+
+The owner shortcut requires an authenticated interactive Firebase session with `admin: true`,
+a verified email, and an email matching `CREATOR_PORTAL_OWNER_EMAIL`. Its canonical owner is
+`admin@watchprotv.com`; set Creator Agent's `PROTV_OWNER_EMAIL` to the same value in production.
+Both comparisons and signed handoff emails are trimmed and lowercased. Owner configuration
+is required: missing, empty, or whitespace-only values fail closed without issuing owner access.
+The ordinary Creator handoff remains independent of owner configuration. Do not change user
+records or signing secrets to resolve an owner-email configuration mismatch.
 
 ## Next Steps
 1. Set up Firebase project ✓

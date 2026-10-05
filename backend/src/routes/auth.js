@@ -74,12 +74,21 @@ router.post('/creator-sso', verifyToken, requireInteractiveUserSession, (req, re
 router.post('/owner-creator-sso', verifyAdmin, (req, res) => {
   const portalUrl = String(process.env.CREATOR_PORTAL_URL || '').trim().replace(/\/+$/, '');
   const secret = String(process.env.CREATOR_SSO_SECRET || '').trim();
-  const ownerEmail = String(process.env.CREATOR_PORTAL_OWNER_EMAIL || 'admin@watchprotv.com').trim().toLowerCase();
+  const ownerEmail = String(process.env.CREATOR_PORTAL_OWNER_EMAIL || '').trim().toLowerCase();
   if (!portalUrl || !secret) {
     return res.status(503).json({ error: 'Creator Portal SSO is not configured.' });
   }
-  if (!req.user.email || req.user.email.toLowerCase() !== ownerEmail) {
+  if (!ownerEmail) {
+    return res.status(503).json({ error: 'Creator Portal owner SSO is not configured. Set CREATOR_PORTAL_OWNER_EMAIL.' });
+  }
+  if (!req.user.email || req.user.email.trim().toLowerCase() !== ownerEmail) {
     return res.status(403).json({ error: 'Owner access is restricted to the configured PROtv owner account.' });
+  }
+  if (!req.user.uid) {
+    return res.status(400).json({ error: 'The signed-in PROtv account does not have a usable identity.' });
+  }
+  if (req.user.email_verified !== true) {
+    return res.status(403).json({ error: 'Verify your PROtv email address before opening the Creator Portal.' });
   }
   try {
     const token = createCreatorSsoToken({ user: req.user, secret, access: 'owner' });

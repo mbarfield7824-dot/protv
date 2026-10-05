@@ -14,7 +14,7 @@ test('interactive admin, owner and Creator authorization preserves custom-provid
   process.env.OWNER_EMAIL = 'owner@example.test';
   process.env.CREATOR_PORTAL_URL = 'https://creator.example.test';
   process.env.CREATOR_SSO_SECRET = 'isolated-creator-sso-secret';
-  process.env.CREATOR_PORTAL_OWNER_EMAIL = 'owner@example.test';
+  process.env.CREATOR_PORTAL_OWNER_EMAIL = 'admin@watchprotv.com';
 
   const tokenFor = (provider, overrides = {}) => ({
     uid: 'owner-uid',
@@ -38,6 +38,14 @@ test('interactive admin, owner and Creator authorization preserves custom-provid
     creatorPassword: tokenFor('password', { uid: 'creator-uid', email: 'creator@example.test', admin: false }),
     creatorGoogle: tokenFor('google.com', { uid: 'creator-uid', email: 'creator@example.test', admin: false }),
     creatorCustom: tokenFor('custom', { uid: 'creator-uid', email: 'creator@example.test', admin: false }),
+    ssoOwnerPassword: tokenFor('password', { email: 'admin@watchprotv.com' }),
+    ssoOwnerGoogle: tokenFor('google.com', { email: 'admin@watchprotv.com' }),
+    ssoOwnerUppercase: tokenFor('password', { email: 'ADMIN@WATCHPROTV.COM' }),
+    ssoOwnerWhitespace: tokenFor('password', { email: '  admin@watchprotv.com  ' }),
+    ssoOwnerUnverified: tokenFor('password', { email: 'admin@watchprotv.com', email_verified: false }),
+    ssoOwnerNonadmin: tokenFor('password', { email: 'admin@watchprotv.com', admin: false }),
+    ssoOwnerCustom: tokenFor('custom', { email: 'admin@watchprotv.com' }),
+    ssoOwnerNoUid: tokenFor('password', { email: 'admin@watchprotv.com', uid: '' }),
   };
   firebase.auth = {
     verifyIdToken: async (token) => {
@@ -145,11 +153,33 @@ test('interactive admin, owner and Creator authorization preserves custom-provid
   for (const token of ['creatorCustom', 'custom', 'missing', 'unsupported', 'unverified']) {
     assert.equal((await request('/auth/creator-sso', token)).status, 403, `creator: ${token}`);
   }
-  for (const token of ['password', 'google']) {
-    assert.equal((await request('/auth/owner-creator-sso', token)).status, 200, `owner Creator: ${token}`);
+  for (const token of ['ssoOwnerPassword', 'ssoOwnerGoogle', 'ssoOwnerUppercase', 'ssoOwnerWhitespace']) {
+    const result = await request('/auth/owner-creator-sso', token);
+    assert.equal(result.status, 200, `owner Creator: ${token}`);
+    const handoff = new URLSearchParams(new URL(result.body.url).hash.slice(1)).get('sso');
+    const payload = JSON.parse(Buffer.from(handoff.split('.')[1], 'base64url').toString('utf8'));
+    assert.equal(payload.email, 'admin@watchprotv.com');
+    assert.equal(payload.access, 'owner');
+    assert.equal(payload.emailVerified, true);
   }
-  for (const token of ['custom', 'missing', 'unsupported', 'nonadmin', 'wrongOwner']) {
+  for (const token of [
+    'custom', 'missing', 'unsupported', 'nonadmin', 'wrongOwner', 'password',
+    'ssoOwnerUnverified', 'ssoOwnerNonadmin', 'ssoOwnerCustom', 'noEmail',
+  ]) {
     assert.equal((await request('/auth/owner-creator-sso', token)).status, 403, `owner Creator: ${token}`);
+  }
+  assert.equal((await request('/auth/owner-creator-sso', 'ssoOwnerNoUid')).status, 400);
+  assert.equal((await request('/auth/owner-creator-sso', 'invalid')).status, 401);
+  assert.equal((await request('/auth/owner-creator-sso')).status, 401);
+  process.env.CREATOR_PORTAL_OWNER_EMAIL = '  ADMIN@WATCHPROTV.COM  ';
+  assert.equal((await request('/auth/owner-creator-sso', 'ssoOwnerPassword')).status, 200);
+  for (const ownerEmail of [undefined, '', '   ']) {
+    if (ownerEmail === undefined) delete process.env.CREATOR_PORTAL_OWNER_EMAIL;
+    else process.env.CREATOR_PORTAL_OWNER_EMAIL = ownerEmail;
+    const denied = await request('/auth/owner-creator-sso', 'ssoOwnerPassword');
+    assert.equal(denied.status, 503);
+    assert.equal(denied.body.url, undefined, 'no owner handoff when configuration is missing');
+    assert.equal((await request('/auth/creator-sso', 'creatorPassword')).status, 200);
   }
 
   assert.deepEqual((await request('/users/me/favorites', 'custom', null, 'GET')), {
