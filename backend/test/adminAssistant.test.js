@@ -425,31 +425,12 @@ test('contract questions are not answered with discovery counts', () => {
   assert.doesNotMatch(reply, /You have 68 contracts/);
 });
 
-test('content discovery requests direct the Administrator to the Public Domain review flow', () => {
+test('canned discovery replies were removed so discovery goes through research tools (stage 4)', () => {
   const reply = answerVerifiedQuestion({
     message: 'Find some movies for me to add to the site.',
-    snapshot: {
-      discoveryCandidates: [{
-        title: 'A Public Domain Film',
-        source: 'Internet Archive',
-        ingestionAvailable: true,
-      }],
-      relevantTitles: [],
-    },
+    snapshot: { discoveryCandidates: [{ title: 'A Public Domain Film', source: 'Internet Archive', ingestionAvailable: true }], relevantTitles: [] },
   });
-  assert.match(reply, /1 recent Public Domain candidate/);
-  assert.match(reply, /A Public Domain Film \(Internet Archive\)/);
-  assert.match(reply, /Nothing is added automatically/);
-  assert.doesNotMatch(reply, /not have enough matching operational evidence/);
-});
-
-test('content discovery requests explain how to start an empty queue', () => {
-  const reply = answerVerifiedQuestion({
-    message: 'Can you discover movies for PROtv?',
-    snapshot: { discoveryCandidates: [], relevantTitles: [] },
-  });
-  assert.match(reply, /Run Discovery Now/);
-  assert.match(reply, /review and confirm/);
+  assert.equal(reply, null);
 });
 
 test('current time questions use the configured live time', () => {

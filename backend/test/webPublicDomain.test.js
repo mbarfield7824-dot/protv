@@ -61,6 +61,9 @@ test('accepts only explicit Public Domain or CC0 evidence', () => {
   assert.equal(explicitPublicDomainEvidence({ rights: 'This work is in the public domain.' }).eligible, true);
   assert.equal(explicitPublicDomainEvidence({
     licenseurl: 'https://creativecommons.org/licenses/by/4.0/',
+  }).classification, 'needs-review');
+  assert.equal(explicitPublicDomainEvidence({
+    licenseurl: 'https://creativecommons.org/licenses/by-nc/4.0/',
   }).eligible, false);
 });
 

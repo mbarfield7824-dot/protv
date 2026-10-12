@@ -11,6 +11,7 @@ const {
   getPlaybackId,
   waitForAssetReady,
 } = require('../mux');
+const { checkDuplicate } = require('../acquisition/duplicateDetector');
 
 class WebCatalogService {
   constructor({ transcodeTimeoutMs, deferUntilWebhook = Boolean(process.env.VERCEL) }) {
@@ -26,7 +27,8 @@ class WebCatalogService {
         if (!error.message.includes('Video not found')) throw error;
       }
     }
-    const existing = (await getAllVideos()).find((video) => (
+    const allVideos = await getAllVideos();
+    const existing = allVideos.find((video) => (
       video.publicDomainCandidateId === item.candidateId
       || (
         video.publicDomainSourceId === item.identifier
@@ -34,6 +36,22 @@ class WebCatalogService {
       )
     ));
     if (existing) return existing;
+    const evidence = item.licenseEvidence || {};
+    const duplicate = checkDuplicate({
+      id: item.candidateId,
+      title: metadata.title,
+      year: metadata.year,
+      source: item.source,
+      externalId: item.identifier,
+      sourceUrl: item.sourceUrl,
+    }, allVideos);
+    if (duplicate.status === 'already-in-catalog') {
+      throw new Error(`Already in catalog: ${duplicate.reasons[0]}`);
+    }
+    if (duplicate.status === 'possible-duplicate' && !item.rightsReview?.duplicateOverride) {
+      throw new Error(`Possible duplicate: ${duplicate.reasons[0]}`);
+    }
+    const classification = item.rightsReview?.classification || evidence.classification || 'needs-review';
     const videoId = await addVideo({
       title: metadata.title,
       year: metadata.year,
@@ -59,11 +77,18 @@ class WebCatalogService {
       publicDomainLicenseUrl: item.licenseEvidence.url,
       publicDomainConfirmedBy: actorId,
       publicDomainConfirmedAt: confirmedAt,
+      publicDomainRightsClassification: classification,
+      publicDomainRightsBasis: item.rightsReview?.basis || evidence.basis || '',
+      publicDomainRightsConcerns: evidence.concerns || [],
+      publicDomainRightsReviewNote: item.rightsReview?.note || '',
+      publicDomainEvidenceUrls: evidence.evidenceUrls || (evidence.url ? [evidence.url] : []),
       copyrightStatus: 'public-domain',
       licenseType: item.licenseEvidence.label,
       rightsHolder: 'Public Domain',
       commercialUseStatus: 'admin-confirmed',
-      rightsVerificationNotes: 'Administrator confirmed the source evidence before ingestion.',
+      rightsVerificationNotes: item.rightsReview?.note
+        ? `Administrator reviewed rights evidence: ${item.rightsReview.note}`
+        : 'Administrator confirmed the source evidence before ingestion.',
       approvalStatus: 'draft',
       status: 'processing',
       views: 0,

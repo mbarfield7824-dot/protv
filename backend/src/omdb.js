@@ -93,4 +93,28 @@ async function getTitleReference({ title, year }) {
   };
 }
 
-module.exports = { getImdbRating, getTitleReference, titleAndYear };
+// Read-only OMDb lookup used to enrich discovery candidates. Fields OMDb does not know stay null.
+async function getTitleDetails({ title, year }) {
+  const apiKey = process.env.OMDB_API_KEY;
+  if (!apiKey) {
+    throw new Error('OMDb is not configured. Add OMDB_API_KEY to the server environment.');
+  }
+  const params = new URLSearchParams({ apikey: apiKey, t: title });
+  if (year) params.set('y', String(year));
+  const result = await requestJson(`https://www.omdbapi.com/?${params.toString()}`);
+  if (result.Response !== 'True') return null;
+  const rating = Number(result.imdbRating);
+  const list = (value) => (value && value !== 'N/A' ? value.split(',').map((entry) => entry.trim()).filter(Boolean) : []);
+  return {
+    title: result.Title || title,
+    year: Number.parseInt(result.Year, 10) || null,
+    rating: Number.isFinite(rating) && rating > 0 ? rating : null,
+    votes: Number.parseInt(String(result.imdbVotes || '').replace(/,/g, ''), 10) || null,
+    genres: list(result.Genre),
+    plot: result.Plot && result.Plot !== 'N/A' ? result.Plot : '',
+    imdbId: result.imdbID || '',
+    type: result.Type || '',
+  };
+}
+
+module.exports = { getImdbRating, getTitleDetails, getTitleReference, titleAndYear };

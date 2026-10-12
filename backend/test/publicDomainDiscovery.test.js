@@ -268,12 +268,13 @@ test('catalog title matching does not exclude candidates with a missing year', (
   assert.equal(result.excluded.total, 0);
 });
 
-test('catalog identity and title matches ignore non-public catalog records', () => {
+test('catalog duplicate detection includes draft, errored and hidden records (stage 1)', () => {
   const result = filterExistingCatalogCandidates(
     [candidate({ title: 'Existing Feature', year: 1940 })],
-    [publicCatalogVideo({ status: 'errored' })]
+    [publicCatalogVideo({ status: 'errored', approvalStatus: 'draft' })]
   );
-  assert.equal(result.items.length, 1);
+  assert.equal(result.items.length, 0);
+  assert.equal(result.excluded.titleYear, 1);
 });
 
 test('active review excludes rejected and already ingested candidates without deleting history', async (context) => {
@@ -294,31 +295,36 @@ test('active review excludes rejected and already ingested candidates without de
   assert.equal((await store.get('internet-archive:ingested')).decision, 'approved');
 });
 
-test('Internet Archive discovery advances through result pages and wraps at the end', async () => {
+test('Internet Archive discovery rotates genres and advances result pages (no hardcoded titles)', async () => {
   const paginationStore = memoryPaginationStore();
-  const service = new InternetArchiveService({ paginationStore });
-  const requestedPages = [];
-  service.search = async ({ query, contentKind, page }) => {
-    requestedPages.push({ query, contentKind, page });
+  const requests = [];
+  const fetchImpl = async (url) => {
+    const params = new URL(url).searchParams;
+    requests.push({ q: params.get('q'), page: Number(params.get('page')) });
     return {
-      total: 40,
-      page,
-      items: [{
-        identifier: `${query.replace(/\W+/g, '-')}-${page}`,
-        title: `${query} ${page}`,
-        year: 1940,
-        contentKind,
-        licenseEvidence: { eligible: true },
-      }],
+      ok: true,
+      json: async () => ({
+        response: {
+          numFound: 120,
+          docs: [{ identifier: `film-${requests.length}`, title: `Film ${requests.length}`, year: '1925', runtime: '01:10:00' }],
+        },
+      }),
     };
   };
+  const service = new InternetArchiveService({ paginationStore, fetchImpl });
+
+  const first = await service.discover();
+  assert.equal(requests.length, 3);
+  assert.ok(requests.every((request) => request.page === 1));
+  assert.ok(requests.some((request) => /SciFi_Horror/.test(request.q)));
+  assert.equal(new Set(requests.map((request) => request.q)).size, 3);
+  assert.equal(first.items.length, 3);
+  assert.ok(first.items.every((item) => item.licenseEvidence.classification === 'likely-pd'));
 
   await service.discover();
-  await service.discover();
-  await service.discover();
-  assert.deepEqual(requestedPages.slice(0, 4).map((request) => request.page), [1, 1, 1, 1]);
-  assert.deepEqual(requestedPages.slice(4, 8).map((request) => request.page), [2, 2, 2, 2]);
-  assert.deepEqual(requestedPages.slice(8, 12).map((request) => request.page), [1, 1, 1, 1]);
+  assert.equal(requests.length, 6);
+  const firstGenres = new Set(requests.slice(0, 3).map((request) => request.q));
+  assert.ok(requests.slice(3).every((request) => !firstGenres.has(request.q)), 'second run rotates to new genres');
 });
 
 test('Wikimedia continuation advances and safely resets when no continuation remains', async () => {

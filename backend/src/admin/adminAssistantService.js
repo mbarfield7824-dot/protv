@@ -9,6 +9,9 @@ const { AiMetadataService } = require('../adminBot/aiMetadataService');
 const { PosterService } = require('../adminBot/posterService');
 const { AdminCatalogService, validateCatalogId, validateCatalogRights } = require('./catalogService');
 const { normalizeCategory, normalizeMetadataUpdates } = require('./metadataNormalizer');
+const { AssistantToolkit } = require('./assistantTools');
+const { AssistantAgent } = require('./assistantAgent');
+const { classifyCatalogItem } = require('../acquisition/contentTypes');
 const {
   AdminAssistantResponseService,
   answerVerifiedQuestion,
@@ -146,6 +149,20 @@ function categoryAction(message, catalog, contextCatalogId) {
   } catch (error) {
     return { clarification: error.message };
   }
+}
+
+function contentTypeWriteGuard(action) {
+  const family = classifyCatalogItem(action.video);
+  const label = action.video.title || 'This title';
+  const touchesCategory = action.type === 'update-metadata'
+    && action.payload && ('category' in action.payload || 'categories' in action.payload);
+  if ((family === 'podcast-show' || family === 'podcast-episode') && (action.type === 'regenerate-metadata' || touchesCategory)) {
+    return `${label} is a ${family === 'podcast-show' ? 'podcast show' : 'podcast episode'}. Podcasts use their own show and episode fields and category rules, so I won't apply movie metadata or category changes. Edit it from the Podcast tools instead.`;
+  }
+  if (family === 'music' && (action.type === 'regenerate-metadata' || touchesCategory)) {
+    return `${label} is a music video. Music uses its own format and genre rules, so I won't apply movie metadata or category changes. Edit it from the Music tools instead.`;
+  }
+  return null;
 }
 
 function parseAction(message, catalog, contextCatalogId) {
@@ -450,6 +467,14 @@ class AdminAssistantService {
       model: process.env.ADMIN_ASSISTANT_AI_MODEL || process.env.AI_MODEL,
     });
     this.log = dependencies.log || logMessage;
+    this.toolkit = dependencies.toolkit || new AssistantToolkit({
+      getCatalog: this.getCatalog,
+      getCandidates: async () => (await this.candidateStore.snapshot()).items || [],
+      getQueueStatus: async () => (await this.candidateStore.snapshot()).status || {},
+      getFilmDiscovery: dependencies.getFilmDiscovery
+        || (() => require('../adminBot/router').getAcquisitionServices().filmDiscovery),
+    });
+    this.agent = new AssistantAgent({ toolkit: this.toolkit, responseService: this.responseService });
     this.audit = dependencies.audit || logAdminEvent;
     this.confirmations = new Map();
   }
@@ -480,6 +505,11 @@ class AdminAssistantService {
       return { reply, contextCatalogId: parsedAction.video?.id || contextCatalogId || null };
     }
     if (parsedAction) {
+      const guard = contentTypeWriteGuard(parsedAction);
+      if (guard) {
+        await this.log({ actorId, conversationId, role: 'assistant', message: guard });
+        return { reply: guard, contextCatalogId: parsedAction.video.id };
+      }
       validateCatalogRights(await this.catalogService.get(parsedAction.video.id));
       const confirmationId = crypto.randomUUID();
       this.confirmations.set(confirmationId, {
@@ -548,21 +578,42 @@ class AdminAssistantService {
         })),
     };
     let reply;
+    let research = null;
     try {
-      reply = await this.responseService.answer({
+      const agentResult = await this.agent.run({
         message: normalizedMessage,
         history: safeHistory(history),
         snapshot,
       });
+      if (agentResult.handled) {
+        reply = agentResult.reply;
+        research = { mode: agentResult.mode, tools: agentResult.tools };
+      } else if (agentResult.aiNotice) {
+        research = { mode: 'none', aiError: agentResult.aiNotice };
+      }
     } catch (error) {
-      console.warn(`Administrator Assistant conversational response unavailable: ${error.message}`);
-      reply = answerVerifiedQuestion({ message: normalizedMessage, snapshot })
-        || buildOperationalReply(normalizedMessage, snapshot);
+      console.warn(`Administrator Assistant research failed: ${error.message}`);
+      research = { mode: 'failed', aiError: error.message };
+      reply = `My research tools failed (${error.message}). Nothing was changed.`;
+    }
+    if (!reply) {
+      try {
+        reply = await this.responseService.answer({
+          message: normalizedMessage,
+          history: safeHistory(history),
+          snapshot,
+        });
+      } catch (error) {
+        console.warn(`Administrator Assistant conversational response unavailable: ${error.message}`);
+        reply = answerVerifiedQuestion({ message: normalizedMessage, snapshot })
+          || buildOperationalReply(normalizedMessage, snapshot);
+      }
     }
     reply = humanizeReply(reply);
     await this.log({ actorId, conversationId, role: 'assistant', message: reply });
     return {
       reply,
+      research,
       contextCatalogId: relevantTitles.length === 1
         ? relevantTitles[0].id
         : contextCatalogId || null,

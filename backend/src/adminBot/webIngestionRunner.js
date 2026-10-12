@@ -19,7 +19,7 @@ class WebIngestionRunner {
     this.audit = audit;
   }
 
-  async run({ source, identifier, contentKind, candidateId, confirmation, actorId, onProgress = () => {} }) {
+  async run({ source, identifier, contentKind, candidateId, confirmation, actorId, rightsReview = null, onProgress = () => {} }) {
     source = source || 'internet-archive';
     candidateId = candidateId || `${source}:${identifier}`;
     if (confirmation !== true) throw new Error('Administrator confirmation is required.');
@@ -128,7 +128,7 @@ class WebIngestionRunner {
         report.warnings.push(...poster.warnings.map((message) => `${item.title}: ${message}`));
 
         const draft = await this.catalogService.createDraft({
-          item: { ...item, candidateId },
+          item: { ...item, candidateId, rightsReview },
           metadata,
           poster,
           previous,

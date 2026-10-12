@@ -1,9 +1,11 @@
 const express = require('express');
 const path = require('path');
-const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
+const { db, getAllVideos } = require('../firebase');
 const { verifyAdmin } = require('../middleware/auth');
-const { getTitleReference } = require('../omdb');
-const { isViewerEligible } = require('../catalog/readModel');
+const { getTitleDetails, getTitleReference } = require('../omdb');
+const { FilmDiscoveryService } = require('../acquisition/filmDiscoveryService');
+const { checkDuplicate, isOwnRetry } = require('../acquisition/duplicateDetector');
+const { classifyCandidateRights } = require('../acquisition/rightsClassifier');
 const { AdminBotRunner } = require('./adminBotRunner');
 const { AdminBotJobManager } = require('./jobManager');
 const { AiMetadataService } = require('./aiMetadataService');
@@ -28,6 +30,11 @@ const {
 } = require('./catalogDeduplication');
 
 let runtimeStatusProvider = null;
+let acquisitionServices = null;
+
+function getAcquisitionServices() {
+  return acquisitionServices;
+}
 
 function idleStatus(message) {
   return {
@@ -51,12 +58,8 @@ function getAdminBotRuntimeStatus() {
 }
 
 function createAdminBotRouter({
-  loadPublicCatalog = async () => {
-    const approved = db
-      ? await getApprovedVideos()
-      : (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved');
-    return approved.filter((video) => isViewerEligible(video, approved));
-  },
+  // Duplicate detection must see EVERY record (draft, processing, errored, hidden).
+  loadPublicCatalog = async () => getAllVideos(),
 } = {}) {
   const dataDirectory = path.resolve(__dirname, '../../.data');
   const stateFile = path.resolve(process.env.PD_STATE_FILE || path.join(dataDirectory, 'pd-ingestion-state.json'));
@@ -175,7 +178,44 @@ function createAdminBotRouter({
     discovery: discoveryJobs.status(),
     webIngestion: webJobs.status(),
   });
+  const filmDiscovery = new FilmDiscoveryService({
+    archive,
+    loadCatalog: loadPublicCatalog,
+    candidateStore,
+    getReference: process.env.OMDB_API_KEY ? getTitleDetails : null,
+  });
+  acquisitionServices = { filmDiscovery, loadCatalog: loadPublicCatalog, candidateStore };
   const router = express.Router();
+
+  router.get('/film-discovery', verifyAdmin, async (req, res) => {
+    try {
+      const result = await filmDiscovery.discover({
+        genre: String(req.query.genre || ''),
+        query: String(req.query.q || ''),
+        limit: Number(req.query.limit) || 10,
+        minYear: Number(req.query.minYear) || null,
+        maxYear: Number(req.query.maxYear) || null,
+      });
+      if (req.query.queue === 'true') {
+        await filmDiscovery.queue(result.shortlist);
+        result.queued = result.shortlist.length;
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(502).json({ error: `Film discovery failed: ${error.message}` });
+    }
+  });
+
+  router.get('/duplicate-check', verifyAdmin, async (req, res) => {
+    try {
+      const title = String(req.query.title || '').trim();
+      if (!title) return res.status(400).json({ error: 'A title is required.' });
+      const year = Number.parseInt(req.query.year, 10) || null;
+      res.json(checkDuplicate({ title, year }, await loadPublicCatalog()));
+    } catch (error) {
+      res.status(503).json({ error: error.message });
+    }
+  });
 
   router.post('/run', verifyAdmin, (req, res) => {
     const directory = process.env.PD_CONTENT_DIRECTORY || process.env.PUBLIC_DOMAIN_CONTENT_DIR;
@@ -345,6 +385,37 @@ function createAdminBotRouter({
       if (!['pending', 'processing', 'failed'].includes(candidate.decision)) {
         return res.status(409).json({ error: `This candidate is already ${candidate.decision}.` });
       }
+      const rights = classifyCandidateRights(candidate);
+      if (rights.classification === 'not-cleared') {
+        return res.status(400).json({
+          code: 'rights-not-cleared',
+          error: `Rights are not cleared: ${rights.basis}`,
+          rights,
+        });
+      }
+      const duplicate = checkDuplicate(candidate, await loadPublicCatalog());
+      if (duplicate.status === 'already-in-catalog' && !isOwnRetry(candidate, duplicate)) {
+        return res.status(409).json({
+          code: 'already-in-catalog',
+          error: `Already in catalog: ${duplicate.reasons[0]}`,
+          duplicate,
+        });
+      }
+      if (duplicate.status === 'possible-duplicate' && req.body?.confirmDuplicate !== true) {
+        return res.status(409).json({
+          code: 'possible-duplicate',
+          error: `Possible duplicate: ${duplicate.reasons[0]}. Resend with confirmDuplicate to proceed.`,
+          duplicate,
+        });
+      }
+      const rightsNote = String(req.body?.rightsNote || '').trim().slice(0, 500);
+      if (rights.classification === 'needs-review' && (req.body?.rightsReviewed !== true || rightsNote.length < 3)) {
+        return res.status(409).json({
+          code: 'rights-review-required',
+          error: `Rights need review before ingestion: ${rights.basis} Resend with rightsReviewed and a short rightsNote.`,
+          rights,
+        });
+      }
       const report = await webRunner.run({
         source: candidate.source,
         identifier: candidate.externalId,
@@ -352,6 +423,12 @@ function createAdminBotRouter({
         candidateId: candidate.id,
         confirmation: true,
         actorId: req.user.uid,
+        rightsReview: {
+          classification: rights.classification,
+          basis: rights.basis,
+          note: rightsNote,
+          duplicateOverride: duplicate.status === 'possible-duplicate',
+        },
       });
       res.status(report.status === 'processing' ? 202 : 200).json(report);
     } catch (error) {
@@ -458,4 +535,4 @@ function createAdminBotRouter({
   return router;
 }
 
-module.exports = { createAdminBotRouter, getAdminBotRuntimeStatus };
+module.exports = { createAdminBotRouter, getAcquisitionServices, getAdminBotRuntimeStatus };

@@ -126,26 +126,6 @@ function answerVerifiedQuestion({ message, snapshot }) {
     return 'I can’t see contract-review data from this PROtv Admin assistant, so I can’t give you a reliable contract count. The pending discovery count is for movies and shows awaiting catalog review, not contracts.';
   }
 
-  if (
-    asks('find', 'discover', 'search', 'recommend')
-    && asks('movie', 'movies', 'film', 'films', 'show', 'shows', 'title', 'titles', 'content')
-    && !asks('how many', 'count')
-  ) {
-    const candidates = snapshot.discoveryCandidates || [];
-    if (!candidates.length) {
-      return 'I can help find titles for PROtv. Open the Public Domain Bot and select “Run Discovery Now.” It will search the trusted sources and place eligible candidates in the Administrator review queue; nothing is added until you review and confirm a title.';
-    }
-    const available = candidates.filter((candidate) => candidate.ingestionAvailable);
-    const examples = available.slice(0, 5).map((candidate) => (
-      `${candidate.title} (${candidate.source})`
-    ));
-    return [
-      `I found ${candidates.length} recent Public Domain candidate${candidates.length === 1 ? '' : 's'} in the review queue; ${available.length} currently show ingestion-ready rights evidence.`,
-      examples.length ? `Start with: ${examples.join('; ')}.` : '',
-      'Open the Public Domain Bot to inspect the rights evidence and confirm one title. Nothing is added automatically.',
-    ].filter(Boolean).join(' ');
-  }
-
   if (title && asks('why') && asks('ready')) {
     if (title.playbackReady && title.processingStatus === 'ready') {
       return `It actually is ready. ${title.title} is approved and its public playback is available.`;
@@ -191,6 +171,33 @@ class AdminAssistantResponseService {
 
   get configured() {
     return Boolean(this.baseUrl && this.apiKey && this.model);
+  }
+
+  // One chat-completions round that may return tool_calls (OpenAI-compatible).
+  async complete({ messages, tools }) {
+    if (!this.configured) throw new Error('The conversational AI provider is not configured.');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    try {
+      const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify({
+          model: this.model,
+          temperature: 0.2,
+          messages,
+          ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`AI provider returned HTTP ${response.status}`);
+      const payload = await response.json();
+      const message = payload?.choices?.[0]?.message;
+      if (!message) throw new Error('AI provider returned no message');
+      return message;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async answer({ message, history, snapshot }) {
