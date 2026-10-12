@@ -131,6 +131,40 @@ Publishing and distribution remain behind the Creator Agent’s existing ownersh
 signed-contract, and Administrator confirmation gates. The API does not add deletion or
 pipeline-modification capabilities.
 
+## Creator Series episode integration - Phase 3B
+
+The existing signed `/videos/integrations/creator-actions` endpoint additionally accepts
+`episode_publishing` and `episode_status`. Requests require the shared-secret signature,
+five-minute timestamp window, exact approved submission, verified ownership, valid signed
+Series agreement covering that submission and explicit Creator Studio Admin authorization.
+The legacy movie bridge rejects Series; movie/music/podcast/manual workflows are otherwise
+unchanged.
+
+Episode records use `EPISODE`, deterministic `creator_episode_<episode UUID>` catalog IDs,
+and stable series/project, season and episode UUIDs. A Firestore transaction claims ingestion
+and immutable coverage. Real episode ingestion requires Firestore: the nontransactional local
+file fallback is not used, and database errors do not switch stores. Mocked local tests use the
+same pure state transition. Creator series group by stable IDs (key
+`creator_<project UUID>`), while manual episode title grouping remains compatible.
+
+Only the configured HTTPS Creator Agent origin and exact revision-scoped media route are accepted.
+The existing Mux URL pipeline is reused, with attempt-specific passthrough and SDK retries
+disabled for episode creation. Catalog visibility intentionally follows Mux readiness after
+Admin authorization; no second manual approval is required. Private source links, authorization
+and contract/processing details are excluded from public projections.
+
+Signed Mux webhooks and status polling reconcile ready/failed episodes with compare-and-set
+checks. Duplicate/late events cannot overwrite a different attempt or regress a published title.
+The passthrough can reconcile a response lost before the asset ID was saved. Known processing
+failures can be explicitly retried on the same catalog record. Unknown outcomes with no asset
+ID block replacement ingestion until webhook/manual reconciliation; no unsupported SDK
+idempotency guarantee is assumed. Generic admin ingestion and revision metadata changes are
+blocked only for Creator-managed episodes; existing manual episodes remain editable.
+
+Tests mock Mux and database integration. No real assets, production records, contracts or
+agreement activation are needed. This phase does not add signed-license termination/takedown
+automation.
+
 ## Creator Portal and SSO
 
 The homepage and `/creators` route introduce the Creator Portal, explain Creator benefits, and

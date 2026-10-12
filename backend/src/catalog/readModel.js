@@ -10,6 +10,9 @@ const {
 const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
 
 function isViewerEligible(video, videos = []) {
+  if (video?.creatorEpisodeId && (!video.creatorEpisodeAuthorization
+    || video.contentType !== 'EPISODE' || !video.seriesId || !video.seasonId
+    || !video.creatorSubmissionId || !video.creatorContractReference)) return false;
   if (video?.contentType === PODCAST_SHOW) return false;
   if (video?.contentType === PODCAST_EPISODE) {
     const show = videos.find((candidate) => candidate.id === video.podcastShowId);
@@ -47,6 +50,8 @@ function publicTitle(video) {
     seasonNumber: video.seasonNumber ?? null,
     episodeNumber: video.episodeNumber ?? null,
     episodeTitle: video.episodeTitle || '',
+    ...(video.contentType === 'EPISODE' && video.seriesId
+      ? { seriesId: video.seriesId, seasonId: video.seasonId, episodeId: video.episodeId, seasonTitle: video.seasonTitle || '' } : {}),
     ...(video.contentType === 'MUSIC' ? { musicFormat: video.musicFormat } : {}),
     ...(video.contentType === PODCAST_EPISODE ? { podcastShowId: video.podcastShowId } : {}),
   };
@@ -133,7 +138,7 @@ function consistentCategory(episodes) {
 function seriesCatalog(videos) {
   const groups = new Map();
   for (const episode of playableCatalog(videos).filter(eligibleEpisode)) {
-    const normalized = normalizeSeriesTitle(episode.seriesTitle);
+    const normalized = episode.seriesId ? `id:${episode.seriesId}` : normalizeSeriesTitle(episode.seriesTitle);
     if (!groups.has(normalized)) groups.set(normalized, []);
     groups.get(normalized).push(episode);
   }
@@ -145,7 +150,8 @@ function seriesCatalog(videos) {
       .sort((left, right) => left - right);
     const artworkEpisode = episodes.find((episode) => episode.thumbnailUrl || episode.posterUrl);
     return {
-      key: seriesKey(title),
+      key: group[0].seriesId ? `creator_${group[0].seriesId}` : seriesKey(title),
+      ...(group[0].seriesId ? { id: group[0].seriesId } : {}),
       title,
       category: consistentCategory(episodes),
       artwork: artworkEpisode?.thumbnailUrl || artworkEpisode?.posterUrl || '',
@@ -153,6 +159,9 @@ function seriesCatalog(videos) {
       episodeCount: episodes.length,
       seasons: numbers.map((number) => ({
         number,
+        ...(episodes.find((episode) => episode.seasonNumber === number)?.seasonId
+          ? { id: episodes.find((episode) => episode.seasonNumber === number).seasonId,
+            title: episodes.find((episode) => episode.seasonNumber === number).seasonTitle } : {}),
         episodes: episodes.filter((episode) => episode.seasonNumber === number),
       })),
     };

@@ -136,6 +136,37 @@ async function createCreatorVideo(creatorProjectId, videoData) {
   }
 }
 
+async function getCreatorEpisode(episodeId) {
+  const id = `creator_episode_${episodeId}`;
+  if (!db) throw new Error('Creator episode publishing requires transactional Firestore storage; use mocked integrations for local tests.');
+  const document = await db.collection('videos').doc(id).get();
+  return document.exists ? { ...document.data(), id } : null;
+}
+
+async function claimCreatorEpisode(episodeId, data, now, token) {
+  const { claimEpisode } = require('./integrations/creatorEpisodes');
+  if (!db) throw new Error('Creator episode publishing requires transactional Firestore storage; use mocked integrations for local tests.');
+  const document = db.collection('videos').doc(`creator_episode_${episodeId}`);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(document);
+    const claim = claimEpisode(snapshot.exists ? snapshot.data() : null, data, now, token);
+    if (claim.claimed) transaction.set(document, claim.video);
+    return claim;
+  });
+}
+
+async function updateCreatorEpisode(id, expected, updates) {
+  const { episodeUpdateMatches } = require('./integrations/creatorEpisodes');
+  if (!db) throw new Error('Creator episode publishing requires transactional Firestore storage; use mocked integrations for local tests.');
+  const document = db.collection('videos').doc(id);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(document);
+    if (!episodeUpdateMatches(snapshot.data(), expected)) return false;
+    transaction.update(document, updates);
+    return true;
+  });
+}
+
 // Helper function to get all videos
 async function getAllVideos() {
   if (!db) {
@@ -348,6 +379,9 @@ async function updateVideoApproval(videoId, approvalData) {
 }
 
 module.exports = {
+  getCreatorEpisode,
+  claimCreatorEpisode,
+  updateCreatorEpisode,
   db,
   auth,
   VideoNotFoundError,

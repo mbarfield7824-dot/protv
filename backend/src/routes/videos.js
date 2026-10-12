@@ -16,6 +16,7 @@ const {
   getVideoByAssetId,
   grantAdminRole,
   VideoNotFoundError,
+  getCreatorEpisode,
 } = require('../firebase');
 const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { validateEpisodeMetadata } = require('./episodeMetadata');
@@ -104,6 +105,9 @@ function withDocumentaryClassification(metadata) {
 }
 
 function publicVideo(video) {
+  if (video.creatorEpisodeId) return isViewerEligible(video)
+    ? { ...publicTitle(video), status: video.status }
+    : { id: video.id, contentType: 'EPISODE', status: video.status };
   const sanitized = { ...video };
   delete sanitized.adminSourceFilePath;
   delete sanitized.publicDomainFileHash;
@@ -292,6 +296,9 @@ router.patch('/admin/:id/verify', verifyAdmin, async (req, res) => {
 router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
   try {
     const video = await getVideoById(req.params.id);
+    if (video.creatorEpisodeId) {
+      return res.status(409).json({ error: 'Use Creator Studio episode authorization/retry so exact agreement coverage is checked.' });
+    }
     if ([PODCAST_SHOW, PODCAST_EPISODE].includes(video.contentType)) {
       return res.status(400).json({ error: 'Podcast ingestion is not enabled yet.' });
     }
@@ -347,6 +354,10 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id', verifyAdmin, async (req, res) => {
   try {
     const existing = await getVideoById(req.params.id);
+    if (existing.creatorEpisodeId && ['contentType', 'title', 'description', 'seriesTitle', 'seasonNumber', 'episodeNumber', 'episodeTitle']
+      .some((key) => Object.hasOwn(req.body, key) && req.body[key] !== existing[key])) {
+      return res.status(409).json({ error: 'Creator episode metadata is locked to its approved submission revision.' });
+    }
     if ([PODCAST_SHOW, PODCAST_EPISODE].includes(existing.contentType)) {
       return res.status(400).json({ error: 'Podcast editing is not enabled yet.' });
     }
@@ -848,6 +859,10 @@ router.get('/:id/status', verifyAdmin, async (req, res) => {
     }
 
     if (asset && asset.status === 'ready') {
+      if (video.creatorEpisodeId) {
+        const current = await creatorPublishing.episodes.reconcile(video, asset);
+        return res.json(current.status === 'ready' ? { ...publicTitle(current), status: 'ready' } : { id: current.id, status: current.status });
+      }
       const playbackId = getPlaybackId(asset);
       if (video.contentType === PODCAST_EPISODE && !playbackId) {
         return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
@@ -873,6 +888,10 @@ router.get('/:id/status', verifyAdmin, async (req, res) => {
     }
 
     if (asset && asset.status === 'errored') {
+      if (video.creatorEpisodeId) {
+        const current = await creatorPublishing.episodes.reconcile(video, asset);
+        return res.json({ id: current.id, status: current.status });
+      }
       if (video.contentType === PODCAST_EPISODE) {
         const updated = await updatePodcastIngestion(video.id, {
           status: 'processing', muxUploadId: video.muxUploadId, muxAssetId: video.muxAssetId,
@@ -926,7 +945,14 @@ router.post('/webhook', async (req, res) => {
 
       const video = uploadId
         ? await getVideoByUploadId(uploadId)
-        : await getVideoByAssetId(asset.id);
+        : await getVideoByAssetId(asset.id)
+          || (asset.passthrough?.startsWith('creator_episode_')
+            ? await getCreatorEpisode(asset.passthrough.split(':')[0].slice('creator_episode_'.length)) : null);
+
+      if (video?.creatorEpisodeId) {
+        await creatorPublishing.episodes.reconcile(video, { ...asset, status: 'ready' });
+        return res.status(200).json({ received: true });
+      }
 
       if (video && video.status === 'processing'
         && (!video.muxAssetId || video.muxAssetId === asset.id)) {
@@ -978,7 +1004,14 @@ router.post('/webhook', async (req, res) => {
       const asset = event.data;
       const video = asset.upload_id
         ? await getVideoByUploadId(asset.upload_id)
-        : await getVideoByAssetId(asset.id);
+        : await getVideoByAssetId(asset.id)
+          || (asset.passthrough?.startsWith('creator_episode_')
+            ? await getCreatorEpisode(asset.passthrough.split(':')[0].slice('creator_episode_'.length)) : null);
+
+      if (video?.creatorEpisodeId) {
+        await creatorPublishing.episodes.reconcile(video, { ...asset, status: 'errored' });
+        return res.status(200).json({ received: true });
+      }
 
       if (video && video.status === 'processing'
         && (!video.muxAssetId || video.muxAssetId === asset.id)) {

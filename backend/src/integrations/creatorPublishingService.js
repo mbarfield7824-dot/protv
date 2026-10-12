@@ -11,8 +11,10 @@ const {
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { logAdminEvent } = require('../adminBot/adminAudit');
+const { CreatorEpisodeService, validateEpisodeRequest } = require('./creatorEpisodes');
+const { getCreatorEpisode, claimCreatorEpisode, updateCreatorEpisode } = require('../firebase');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'distribution']);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'distribution', 'episode_publishing', 'episode_status']);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 
 function requiredText(value, label, maxLength = 500) {
@@ -43,6 +45,10 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     throw new Error('The Creator Agent request has expired.');
   }
   const project = payload.project;
+  if (payload.action.startsWith('episode_')) return validateEpisodeRequest(payload);
+  if (String(project?.contentType).trim().toLowerCase() === 'series') {
+    throw new Error('Series require revision-bound episode publishing, not the movie bridge.');
+  }
   if (!project || typeof project !== 'object' || Array.isArray(project)) {
     throw new Error('Project details are required.');
   }
@@ -113,14 +119,22 @@ class CreatorPublishingService {
       getAsset,
       getPlaybackId,
       logAdminEvent,
+      getCreatorEpisode,
+      claimCreatorEpisode,
+      updateCreatorEpisode,
     },
   } = {}) {
     this.creatorAgentOrigin = creatorAgentOrigin;
     this.dependencies = dependencies;
+    this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, dependencies });
   }
 
   async execute(payload) {
     const { action, project } = payload;
+    if (action.startsWith('episode_')) return this.episodes.execute(payload);
+    if (String(project?.contentType).trim().toLowerCase() === 'series') {
+      throw new Error('Series require revision-bound episode publishing, not the movie bridge.');
+    }
     if (action === 'licensing' || action === 'contracting') {
       const externalId = `creator_${action}_${project.id}`;
       await this.audit(action, project.id, externalId, 'Accepted approved Creator Agent milestone.');

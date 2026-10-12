@@ -18,6 +18,13 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   });
 
   const videos = new Map([
+    ['creator_episode_synthetic', {
+      id: 'creator_episode_synthetic', title: 'Approved creator episode', status: 'processing',
+      contentType: 'EPISODE', approvalStatus: 'approved', muxAssetId: 'asset-creator',
+      creatorEpisodeId: 'synthetic', creatorEpisodeAuthorization: { actorId: 'admin-1' },
+      creatorSubmissionId: 'revision-1', creatorContractReference: 'signed-1',
+      seriesId: 'series-1', seasonId: 'season-1', ingestionToken: 'claim-1', ingestionAttempt: 1,
+    }],
     ['upload-1', {
       id: 'upload-1', title: 'Uploaded', status: 'processing',
       approvalStatus: 'approved', muxUploadId: 'mux-upload-1',
@@ -37,6 +44,19 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
     [...videos.values()].find((video) => video.muxUploadId === id) || null);
   context.mock.method(firebase, 'getVideoByAssetId', async (id) =>
     [...videos.values()].find((video) => video.muxAssetId === id) || null);
+  context.mock.method(firebase, 'getVideoById', async (id) => {
+    const video = videos.get(id);
+    if (!video) throw new Error('Video not found');
+    return video;
+  });
+  context.mock.method(firebase, 'getCreatorEpisode', async (id) => videos.get(`creator_episode_${id}`) || null);
+  context.mock.method(firebase, 'updateCreatorEpisode', async (id, expected, changes) => {
+    const { episodeUpdateMatches } = require('../src/integrations/creatorEpisodes');
+    if (!episodeUpdateMatches(videos.get(id), expected)) return false;
+    updates.push({ id, changes });
+    videos.set(id, { ...videos.get(id), ...changes });
+    return true;
+  });
   context.mock.method(firebase, 'updateVideo', async (id, changes) => {
     updates.push({ id, changes });
     videos.set(id, { ...videos.get(id), ...changes });
@@ -155,4 +175,25 @@ test('Mux webhook verifies raw signed events and only reconciles the pending ass
   assert.deepEqual(decisions, [{ id: 'candidate-1', decision: 'approved' }]);
   assert.equal((await send(pdReady)).status, 200);
   assert.equal(approvals.length, 1);
+  const creatorReady = {
+    type: 'video.asset.ready', data: { id: 'asset-creator', status: 'ready',
+      playback_ids: [{ policy: 'public', id: 'creator-playback' }], duration: 51 },
+  };
+  const { isViewerEligible } = require('../src/catalog/readModel');
+  assert.equal(isViewerEligible(videos.get('creator_episode_synthetic')), false);
+  assert.equal((await send(creatorReady, { signed: false })).status, 401);
+  assert.equal((await send(creatorReady)).status, 200);
+  assert.equal(isViewerEligible(videos.get('creator_episode_synthetic')), true);
+  const publishedAt = videos.get('creator_episode_synthetic').publishedAt;
+  const creatorWrites = updates.length;
+  assert.equal((await send(creatorReady)).status, 200);
+  assert.equal(updates.length, creatorWrites);
+  assert.equal(videos.get('creator_episode_synthetic').publishedAt, publishedAt);
+  assert.equal((await send({ type: 'video.asset.errored', data: { id: 'asset-creator' } })).status, 200);
+  assert.equal(videos.get('creator_episode_synthetic').status, 'ready');
+  const publicResponse = await fetch(`${origin}${prefix}/videos/creator_episode_synthetic`);
+  assert.equal(publicResponse.status, 200);
+  const publicData = await publicResponse.json();
+  assert.equal(publicData.creatorEpisodeAuthorization, undefined);
+  assert.equal(publicData.ingestionToken, undefined);
 });

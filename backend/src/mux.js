@@ -34,12 +34,13 @@ async function getUpload(uploadId) {
  * Creates a Mux asset directly from a publicly reachable video URL
  * (e.g. an existing S3/GCS/CDN link) — no file upload needed.
  */
-async function createAssetFromUrl(inputUrl) {
+async function createAssetFromUrl(inputUrl, episodeOptions) {
   const asset = await mux.video.assets.create({
     inputs: [{ url: inputUrl }],
     playback_policies: ['public'],
     video_quality: 'basic',
-  });
+    ...(episodeOptions ? { passthrough: episodeOptions.passthrough } : {}),
+  }, episodeOptions ? { maxRetries: 0, timeout: 25_000 } : undefined);
   return asset;
 }
 
