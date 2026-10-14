@@ -218,6 +218,11 @@
   text-transform: uppercase;
 }
 
+.title-credits__full {
+  grid-column: 1 / -1;
+  white-space: pre-wrap;
+}
+
 .title-credits p {
   color: var(--ptv-ink-2) !important;
   font-size: 14px;

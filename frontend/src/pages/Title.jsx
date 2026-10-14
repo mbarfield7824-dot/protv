@@ -191,8 +191,9 @@ export default function Title() {
           </div>
         </section>
 
-        {(present(creator) || present(video.cast) || present(video.language) || present(video.subtitles)) && (
+        {(present(creator) || present(video.cast) || present(video.language) || present(video.subtitles) || present(video.credits)) && (
           <section className="title-credits" aria-label="Additional information">
+            {present(video.credits) && <div className="title-credits__full"><h2>Credits</h2><p>{video.credits}</p></div>}
             {present(creator) && <div><h2>Creator / Director</h2><p>{creator}</p></div>}
             {present(video.cast) && <div><h2>Cast</h2><p>{video.cast}</p></div>}
             {present(video.language) && <div><h2>Language</h2><p>{video.language}</p></div>}

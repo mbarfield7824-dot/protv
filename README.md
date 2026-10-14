@@ -131,6 +131,154 @@ Publishing and distribution remain behind the Creator Agent’s existing ownersh
 signed-contract, and Administrator confirmation gates. The API does not add deletion or
 pipeline-modification capabilities.
 
+### Movie promotional poster and credits
+
+Only `publishing` reads optional `project.promotional`:
+
+```json
+{
+  "credits": "Director: Creator\nCast: First, Second",
+  "poster": {
+    "assetId": "poster-asset-id",
+    "mimeType": "image/png",
+    "bytes": 123456,
+    "sourceUrl": "https://creator.example/api/integrations/protv/promotional/PROJECT_ID/poster-asset-id?expires=UNIX_EXPIRY&signature=HEX_HMAC"
+  }
+}
+```
+
+Credits are plain text (maximum 5,000 characters), persisted as catalog `credits` and displayed on
+the viewer title-details page. Missing/null/empty legacy promotional or poster fields remain valid;
+missing/null credits become empty text. Posters accept only PNG/JPEG, a positive integer byte count
+of at most 10 MiB, and an asset ID of 1–200 letters, digits, underscores or hyphens.
+
+The poster URL must use the configured HTTPS `CREATOR_AGENT_ORIGIN`, the exact project/asset path
+above, and only one each of `expires` and `signature`. Credentials and fragments are rejected.
+`expires` is Unix seconds (10 digits) or milliseconds (13 digits), still in the future.
+`signature` is hex HMAC-SHA256 using the existing `PROTV_PUBLISHING_SECRET` over the exact string
+`${projectId}:${assetId}:poster:${expires}`. The signed URL is never persisted in the catalog.
+
+Before creating any Mux asset, PROtv downloads without redirects, pins DNS resolution to checked
+public addresses, enforces a 30-second network deadline and the actual declared byte count, checks
+response MIME, and fully decodes/re-encodes the matching static image with `sharp` (40 megapixel
+input limit). It strips image metadata and fits artwork within 1000×1000 without enlargement
+(preserving aspect ratio), limiting stored/served bytes to 4 MiB, below Vercel's response payload
+limit. Both `thumbnailUrl` and `posterUrl` reference the stored copy, never a private source/review
+URL. Primary video ingestion and approval/readiness behavior are unchanged.
+
+**Production storage:** Creator posters use the existing Firebase Admin Storage SDK and an
+explicitly configured, already provisioned bucket. `firebase.js` reads `FIREBASE_STORAGE_BUCKET`
+(bare bucket name, not `gs://` or a URL), or an explicit `storageBucket` in the initialized Admin
+app's options. It never infers a bucket from a project ID, creates a bucket, changes IAM/ACL,
+or generates signed public object URLs. No new Firestore asset schema or collection is used.
+Objects use the dedicated prefix `creator-posters/creator-{sha256}.png` (or `.jpg`).
+The **10 MiB source is never uploaded directly**: the decoded/resized output is capped at 4 MiB.
+`file.save` uses a non-resumable CRC32C-validated atomic object upload and
+`ifGenerationMatch: 0`, so it cannot replace an existing object. Existing objects, including a
+concurrent create returning 412, must pass full validation before reuse. Failed uploads expose
+no partial object; no staged chunks or manifests need cleanup. A completed upload can remain
+unreferenced if subsequent verification/catalog work fails; retries verify and reuse it.
+The code never deletes an existing/shared object or starts Mux after a storage failure.
+An exactly 10 MiB valid PNG test exercises input acceptance, decoding, resizing and bucket storage.
+The absolute catalog URL `https://watchprotv.com/api/posters/creator-{sha256}.png`
+(or `.jpg`, using the same canonical production origin as title metadata) is served by the existing Vercel
+`api/index.js` rewrite through `app.js`. Reads accept only that filename pattern and prefix;
+check object size, MIME, generation and stored SHA-256 metadata; pin the read to that generation;
+enforce actual byte limits and a 30-second stream deadline; verify the content hash and fully
+decode the matching static image at bounded dimensions. Only validated image bytes are returned,
+with `nosniff` and `public, max-age=31536000, immutable` caching. No bucket/private/source/video
+URLs or internal metadata are exposed. Missing objects return 404; unavailable/misconfigured
+storage returns generic, non-cacheable 503. Cold starts use the same persistent bucket objects.
+The existing `PD_POSTER_DIRECTORY` filesystem remains a development fallback only when no
+bucket is configured, never on Vercel or in production.
+
+A failed transfer leaves a draft `poster_transfer_failed` reservation and an explicit retry error,
+with no Mux call. Re-send publishing with the same credits/asset/type/bytes and a fresh signed URL.
+Transactional token-checked updates allow only one retry; unfinished transfers can be reclaimed
+after their two-minute lease, and stale workers cannot start Mux. Successful retries retain the
+same catalog ID. Once Mux may have been contacted, uncertain ingestion is not automatically retried.
+Previously ingested movies are idempotent and are not retroactively edited.
+
+**Prior-art/storage rationale:** `adminBot/posterService.js` writes images to
+`PD_POSTER_DIRECTORY` (default `backend/.data/posters`) and serves them through the static
+poster route. On Vercel it instead returns a remote image URL or an SVG data URL and refuses
+generated base64 image bytes. That is not durable storage for an expiring Creator source.
+`src/services/firebase.js` mentions `VITE_FIREBASE_STORAGE_BUCKET` but exports only auth and
+Firestore; no existing backend bucket image uploader was implemented. This bridge now uses the
+already installed Firebase Admin Storage SDK with explicit bucket selection rather than assuming
+that remote poster URLs or serverless local files are durable. Bucket object operations/egress
+charges apply; no storage dependency is added. Storage availability is not verified against live
+systems.
+
+**Dependency rationale:** neither original root nor backend dependency tree contained an image
+decoder (`sharp`, `jimp`, `pngjs`, `jpeg-js` or `image-size`). The existing poster service checks
+only MIME and byte count; `ffprobe-static` is a video metadata probe, not a full image
+decoder/re-encoder. `sharp` is the only added direct dependency, for full PNG/JPEG decoding,
+metadata removal and bounded output. Root and backend manifests/locks both change because
+Vercel installs the root API dependencies while standalone backend development installs its own.
+Lock additions are `sharp` and its platform/runtime dependencies; no new storage dependency.
+
+**Deployment gate:** an owner must confirm the existing bucket name and explicitly configure
+`FIREBASE_STORAGE_BUCKET` before rollout (or confirm the already initialized app's explicit
+`storageBucket`). Confirm existing backend Admin credentials have `storage.objects.create` and
+`storage.objects.get` access to `creator-posters/` on that bucket. Object listing, overwrite,
+delete, bucket creation and public ACL permissions are not required by this code. Firebase client
+Storage rules do not authorize Admin server requests; IAM governs these operations. No new
+collection, migration, indexes, rules, credentials, bucket or permission changes are introduced.
+Missing bucket configuration fails before downloading the poster/Mux; permission errors fail
+before Mux and retain the retryable draft reservation. No browser bucket access is required.
+The route is intentionally public and does not check catalog approval; a validated poster is
+publicly retrievable if its content hash is known, even before Mux is ready. Failed catalog
+updates can leave harmless unreferenced objects; no garbage collector is added.
+
+Bucket availability is a deployment gate: local active environment files and the inspected
+Vercel production configuration contain no `FIREBASE_STORAGE_BUCKET`, while root/backend
+examples document the setting. Read-only discovery of the configured Firebase project returned
+no existing buckets. Do not substitute a guessed default name or provision a bucket automatically.
+The helper reads explicit settings, but no environment file was changed. An approved existing
+bucket's identity, IAM, retention policy, quotas and Linux/Vercel image-library packaging must be
+confirmed before enabling poster ingestion. Local mocked checks are not live object-permission
+verification; the protected deployed service-account secret cannot be exported for comparison.
+
+Production dependency preparation fixes the reported 15-package audit tree without a forced
+audit fix. Express remains on version 4, Multer on version 2, and the image decoder is patched
+`sharp` 0.35.5. The explicitly approved Firebase Admin 12-to-13.10 security upgrade removes
+the unpatched `node-forge` dependency while retaining the version-7 Firestore and Storage SDKs
+and existing namespaced Auth APIs. Firebase Admin 13 requires Node 18 or newer; `sharp` requires
+Node 20.9 or newer. The existing Vercel deployment uses Node 24.
+
+Root/backend overrides select CommonJS-compatible UUID 11.1.1 for the affected Google SDK
+chains and patched QS 6.16 for the nested body parser. UUID 12's ESM-only change is not used.
+Frontend Firebase stays on version 12 (12.19), with a same-version-family patched gRPC 1.13.7
+override; development brace-expansion/source-map dependencies also receive compatible patches.
+Root, standalone backend and frontend full/production audits report zero findings in the
+prepared dependency trees. Existing deployments remain exposed until these lockfiles are
+deployed; an audit result is not proof that every runtime vulnerability is absent.
+
+`dependencyCompatibility.test.js` exercises real Firebase custom-token signing and verification
+with synthetic credentials, Firestore/Storage constructors, Google SDK CommonJS UUID behavior,
+Express query/body parsing and mapped IPv6 proxy handling without production writes.
+
+Local validation commands (no live services or credentials):
+
+```powershell
+Set-Location D:\protv\backend
+npm test
+Set-Location D:\protv\frontend
+npm test
+npm run lint
+npm run build
+Set-Location D:\protv
+git --no-pager diff --check
+```
+
+Vercel-mode tests in `creatorPosterStorage.test.js` use the real image decoder, storage code,
+`app.js` poster mount and `api/index.js` rewrite with mocked Firebase Storage/network. They cover
+cold-start serving, create-only upload/reuse, corrupt metadata/content, explicit configuration,
+missing-bucket/save/read failures with no-Mux retry, and image resizing below the response limit.
+These are local compatibility checks, not a live
+deployment/IAM verification.
+
 ## Creator Series episode integration - Phase 3B
 
 The existing signed `/videos/integrations/creator-actions` endpoint additionally accepts

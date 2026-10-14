@@ -81,6 +81,15 @@ function heading() {
   return document.querySelector('main h1')?.textContent;
 }
 
+test('creator credits are visible as multiline plain text with durable poster artwork', async () => {
+  const credits = 'Director: Creator\nCast: <script>not executable</script>';
+  const title = { ...initial, credits, thumbnailUrl: 'https://catalog.example/posters/creator.png' };
+  await mount({ seed: title, fetchTitle: async () => title });
+  assert.equal(document.querySelector('.title-credits__full p').textContent, credits);
+  assert.equal(document.querySelector('.title-credits__full script'), null);
+  assert.equal(document.querySelector('.title-hero__poster').src, title.thumbnailUrl);
+});
+
 async function click(text) {
   const element = [...document.querySelectorAll('a, button')].find((item) => item.textContent.trim().endsWith(text));
   assert.ok(element, text);
