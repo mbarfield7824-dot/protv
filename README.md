@@ -240,6 +240,14 @@ bucket's identity, IAM, retention policy, quotas and Linux/Vercel image-library 
 confirmed before enabling poster ingestion. Local mocked checks are not live object-permission
 verification; the protected deployed service-account secret cannot be exported for comparison.
 
+`POST /api/admin/creator-posters/storage-check` requires the existing interactive Administrator
+Bearer-token authorization and an empty JSON object. It saves a fixed, tiny synthetic PNG through
+`CreatorPosterStore`, reads it back and verifies type/bytes/hash; it accepts no media, source URLs,
+bucket names or catalog identifiers. Repeated checks reuse the same content-addressed object.
+The response exposes only synthetic poster verification details. Actor/outcome are logged;
+configuration/storage failures return non-cacheable 503 without credentials or private URLs.
+This isolated deployed-account check never writes catalog records, calls Mux or starts publishing.
+
 Production dependency preparation fixes the reported 15-package audit tree without a forced
 audit fix. Express remains on version 4, Multer on version 2, and the image decoder is patched
 `sharp` 0.35.5. The explicitly approved Firebase Admin 12-to-13.10 security upgrade removes

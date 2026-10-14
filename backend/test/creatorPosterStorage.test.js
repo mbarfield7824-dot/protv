@@ -93,6 +93,7 @@ async function productionApi(store, storageModule) {
     './reports/router': { createReportRouters: () => ({ publicRouter: router(), adminRouter: router() }) },
     './integrations/creatorPosterStore': {
       createCreatorPosterRouter: () => storageModule.createCreatorPosterRouter({ store }),
+      createCreatorPosterStorageCheckRouter: router,
     },
   });
   const handler = loadModule('../../api/index', { '../backend/src/app': app });
