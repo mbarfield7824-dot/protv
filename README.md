@@ -231,14 +231,24 @@ The route is intentionally public and does not check catalog approval; a validat
 publicly retrievable if its content hash is known, even before Mux is ready. Failed catalog
 updates can leave harmless unreferenced objects; no garbage collector is added.
 
-Bucket availability is a deployment gate: local active environment files and the inspected
-Vercel production configuration contain no `FIREBASE_STORAGE_BUCKET`, while root/backend
-examples document the setting. Read-only discovery of the configured Firebase project returned
-no existing buckets. Do not substitute a guessed default name or provision a bucket automatically.
-The helper reads explicit settings, but no environment file was changed. An approved existing
-bucket's identity, IAM, retention policy, quotas and Linux/Vercel image-library packaging must be
-confirmed before enabling poster ingestion. Local mocked checks are not live object-permission
-verification; the protected deployed service-account secret cannot be exported for comparison.
+After explicit owner authorization and billing upgrade, the default bucket
+`protv-2f48e.firebasestorage.app` was provisioned in owner-selected `US-EAST4`, matching
+Firestore. Firebase client rules deny all reads/writes; bucket IAM has no public members.
+Vercel production `FIREBASE_STORAGE_BUCKET` now names this bucket for the next deployment.
+Preview/development lack the production backend credential and were not granted live access.
+No bucket setting is required in Creator Studio, which serves the protected transfer source.
+
+A 153-byte synthetic PNG passed an actual bucket save/read, checksum and local backend
+poster-route round trip using the existing local service account. Its object get/create
+permissions passed; direct anonymous bucket access returned 403. No Dead Air media, catalog
+record or Mux operation was used. No IAM permission was added. The small synthetic object
+is retained. This is not verification of the currently deployed account or endpoint:
+Vercel protects its production credential from export, so its identity and object permissions
+remain a rollout gate. Verify the deployed account without printing credentials, and verify
+the new route and Linux/Vercel image-library packaging on the approved deployment.
+The owner's $10 monthly alert budget has 50/90/100% email thresholds for billing admins/users
+and covers the billing account (currently only PROtv), alongside the pre-existing project budget.
+It is an alert, not a spending cap.
 
 Production dependency preparation fixes the reported 15-package audit tree without a forced
 audit fix. Express remains on version 4, Multer on version 2, and the image decoder is patched
