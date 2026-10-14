@@ -133,4 +133,49 @@ function createCreatorPosterRouter({ store } = {}) {
   return router;
 }
 
-module.exports = { CreatorPosterStore, createCreatorPosterRouter, MAX_STORED_POSTER_BYTES, POSTER_PREFIX };
+function createCreatorPosterStorageCheckRouter({
+  store,
+  verifyAdmin = require('../middleware/auth').verifyAdmin,
+} = {}) {
+  const router = express.Router();
+  router.post('/storage-check', verifyAdmin, async (request, response) => {
+    response.set('Cache-Control', 'no-store');
+    if (!request.is('application/json') || !request.body || Array.isArray(request.body)
+      || typeof request.body !== 'object' || Object.keys(request.body).length) {
+      return response.status(400).json({ error: 'Use an empty JSON object; only the fixed synthetic poster may be tested.' });
+    }
+    try {
+      const current = store || new CreatorPosterStore();
+      if (!current.bucket) throw new Error('An explicit Firebase Storage bucket is required for this check.');
+      const bytes = await require('sharp')({
+        create: { width: 16, height: 24, channels: 3, background: '#174b62' },
+      }).png().toBuffer();
+      const posterUrl = await current.save(bytes, 'image/png');
+      const fileName = new URL(posterUrl).pathname.split('/').pop();
+      const image = await current.read(fileName);
+      if (!image || image.mimeType !== 'image/png' || !image.bytes.equals(bytes)) {
+        throw new Error('Synthetic poster round trip verification failed.');
+      }
+      console.info('[Creator poster storage check]', { actorId: request.user.uid, status: 'passed' });
+      return response.json({
+        status: 'passed',
+        synthetic: true,
+        posterUrl,
+        bytes: bytes.length,
+        sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+        catalogChanged: false,
+        publishingStarted: false,
+      });
+    } catch (error) {
+      console.error('[Creator poster storage check]', {
+        actorId: request.user.uid,
+        status: 'failed',
+        code: Number.isInteger(Number(error.code)) ? Number(error.code) : 'STORAGE_CHECK_FAILED',
+      });
+      return response.status(503).json({ error: 'Private poster storage verification failed. Check service-account configuration and bucket access; no publishing was started.' });
+    }
+  });
+  return router;
+}
+
+module.exports = { CreatorPosterStore, createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, MAX_STORED_POSTER_BYTES, POSTER_PREFIX };

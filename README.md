@@ -250,6 +250,14 @@ The owner's $10 monthly alert budget has 50/90/100% email thresholds for billing
 and covers the billing account (currently only PROtv), alongside the pre-existing project budget.
 It is an alert, not a spending cap.
 
+`POST /api/admin/creator-posters/storage-check` requires the existing interactive Administrator
+Bearer-token authorization and an empty JSON object. It saves a fixed, tiny synthetic PNG through
+`CreatorPosterStore`, reads it back and verifies type/bytes/hash; it accepts no media, source URLs,
+bucket names or catalog identifiers. Repeated checks reuse the same content-addressed object.
+The response exposes only synthetic poster verification details. Actor/outcome are logged;
+configuration/storage failures return non-cacheable 503 without credentials or private URLs.
+This isolated deployed-account check never writes catalog records, calls Mux or starts publishing.
+
 Production dependency preparation fixes the reported 15-package audit tree without a forced
 audit fix. Express remains on version 4, Multer on version 2, and the image decoder is patched
 `sharp` 0.35.5. The explicitly approved Firebase Admin 12-to-13.10 security upgrade removes

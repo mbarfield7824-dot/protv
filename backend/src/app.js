@@ -14,7 +14,7 @@ const { createAdminPodcastRouter } = require('./catalog/adminPodcastRouter');
 const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
 const { createReportRouters } = require('./reports/router');
-const { createCreatorPosterRouter } = require('./integrations/creatorPosterStore');
+const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter } = require('./integrations/creatorPosterStore');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -29,6 +29,7 @@ app.use(express.json({
   },
 }));
 app.use(`${apiPrefix}/posters`, createCreatorPosterRouter());
+app.use(`${apiPrefix}/admin/creator-posters`, createCreatorPosterStorageCheckRouter());
 app.use(
   `${apiPrefix}/posters`,
   express.static(path.resolve(process.env.PD_POSTER_DIRECTORY || path.join(__dirname, '../.data/posters')), {
