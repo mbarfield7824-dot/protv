@@ -155,10 +155,29 @@ test('publishing retry returns the existing title without contacting Mux', async
       },
     }),
   });
+
   const result = await service.execute(publishingPayload());
   assert.equal(result.externalId, 'catalog-1');
   assert.equal(muxCalls, 0);
 });
+
+test('a post-create storage failure retains the Mux ID and cannot masquerade as a retryable authentication rejection', async () => {
+    let video = null;
+    let creates = 0;
+    let writes = 0;
+    const service = new CreatorPublishingService({ creatorAgentOrigin: 'https://creator.example', dependencies: dependencies({
+      getVideoByCreatorProjectId: async () => video,
+      createAssetFromUrl: async () => { creates++; return { id: 'already-created' }; },
+      updateVideo: async (_id, update) => {
+        if (++writes === 1) throw new Error('401 simulated storage failure after Mux returned');
+        video = { id: 'catalog-1', ...update };
+      },
+    }) });
+    await assert.rejects(() => service.execute(publishingPayload()), /storage failure/);
+    assert.equal(video.muxAssetId, 'already-created');
+    assert.equal((await service.execute(publishingPayload())).status, 'failed');
+    assert.equal(creates, 1);
+  });
 
 test('failed ingestion cannot become a successful retry or a processing distribution error', async () => {
     let creates = 0;

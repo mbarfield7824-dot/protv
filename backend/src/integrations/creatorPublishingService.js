@@ -292,9 +292,10 @@ class CreatorPublishingService {
   }
 
   async startMovieIngestion(project, catalogId) {
+    let asset;
     try {
       const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
-      const asset = await this.dependencies.createAssetFromUrl(sourceUrl, { passthrough: `creator_movie_${project.id}` });
+      asset = await this.dependencies.createAssetFromUrl(sourceUrl, { passthrough: `creator_movie_${project.id}` });
       await this.dependencies.updateVideo(catalogId, {
         approvalStatus: 'approved',
         approvalNotes: 'Published after Creator Agent ownership, contract, and Administrator approval checks.',
@@ -306,6 +307,7 @@ class CreatorPublishingService {
     } catch (error) {
       await this.dependencies.updateVideo(catalogId, {
         status: 'ingestion_failed',
+        ...(asset?.id ? { muxAssetId: asset.id } : {}),
         integrationError: error instanceof Error ? error.message : 'Mux ingestion failed.',
       });
       throw error;
@@ -314,7 +316,7 @@ class CreatorPublishingService {
     return {
       externalId: catalogId,
       status: 'processing',
-      message: `PROtv created catalog title ${catalogId}; Mux is processing the media.`,
+      message: `PROtv catalog title ${catalogId} is reserved; Mux is processing the media. Publication is not confirmed.`,
     };
   }
 
