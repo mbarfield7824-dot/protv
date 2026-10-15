@@ -18,7 +18,7 @@ const {
   validatePromotional, posterSource, transferPoster, promotionalBinding,
 } = require('./creatorPromotional');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'distribution', 'episode_publishing', 'episode_status']);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'publishing_status', 'distribution', 'episode_publishing', 'episode_status']);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 
 function requiredText(value, label, maxLength = 500) {
@@ -69,7 +69,7 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
   if (project.approval?.status !== 'approved') {
     throw new Error('Explicit Administrator approval is required for this action.');
   }
-  if (payload.action === 'publishing' || payload.action === 'distribution') {
+  if (payload.action === 'publishing' || payload.action === 'publishing_status' || payload.action === 'distribution') {
     if (project.contract?.status !== 'signed' || !project.contract.signedAt) {
       throw new Error('A signed creator contract is required before publishing or distribution.');
     }
@@ -155,7 +155,24 @@ class CreatorPublishingService {
     }
 
     if (action === 'publishing') return this.publish(payload);
+    if (action === 'publishing_status') {
+      const video = await this.dependencies.getVideoByCreatorProjectId(project.id);
+      if (!video || project.catalogId !== video.id) throw new Error('The linked catalog title could not be verified.');
+      return this.publicationResult(video);
+    }
     return this.distribute(payload);
+  }
+
+  publicationResult(video) {
+    const published = video.status === 'ready' && Boolean(video.muxPlaybackId) && video.approvalStatus === 'approved';
+    const failed = ['ingestion_failed', 'errored', 'poster_transfer_failed'].includes(video.status);
+    return {
+      externalId: video.id,
+      status: published ? 'published' : failed ? 'failed' : 'processing',
+      message: published ? 'PROtv confirms approved, playback-ready publication.'
+        : failed ? `PROtv ingestion failed for the existing title (${video.status}). Resolve the integration error before recovery; do not create another title.`
+          : 'The existing PROtv title is not playback-ready. Publication is not confirmed.',
+    };
   }
 
   async publish({ requestId, project }) {
@@ -163,6 +180,21 @@ class CreatorPublishingService {
     const binding = promotionalBinding(promotional);
     const existing = await this.dependencies.getVideoByCreatorProjectId(project.id);
     if (existing) {
+      if (existing.status === 'ingestion_failed' && !existing.muxAssetId
+        && /^401\b/.test(existing.integrationError || '')) {
+        if (existing.creatorContractReference !== project.contract.reference
+          || existing.creatorPromotionalBinding !== binding) {
+          throw new Error('Recovery must retain the original signed contract and promotional package.');
+        }
+        parseSourceUrl(project.media?.sourceUrl, this.creatorAgentOrigin);
+        const token = crypto.randomUUID();
+        const claimed = await this.dependencies.updateCreatorPosterTransfer(existing.id, existing, {
+          status: 'initializing', posterTransferToken: token, integrationError: '',
+        });
+        if (!claimed) throw new Error('Recovery reservation changed; no Mux request was made.');
+        await this.audit('publishing', project.id, existing.id, 'Administrator-authorized recovery of a definitively rejected Mux request; same catalog title and contract retained.');
+        return this.startMovieIngestion(project, existing.id);
+      }
       if (['poster_transfer_failed', 'poster_transferring'].includes(existing.status)) {
         if (!promotional.poster || existing.creatorPromotionalBinding !== binding) {
           throw new Error('Poster retry must match the reserved promotional asset and credits.');
@@ -173,11 +205,7 @@ class CreatorPublishingService {
         return this.resumePoster(project, promotional, existing);
       }
       await this.audit('publishing', project.id, existing.id, 'Returned existing catalog title for an idempotent retry.');
-      return {
-        externalId: existing.id,
-        status: existing.status,
-        message: `PROtv already has this creator project as catalog title ${existing.id}.`,
-      };
+      return this.publicationResult(existing);
     }
 
     if (!project.media || typeof project.media !== 'object') {
@@ -217,11 +245,7 @@ class CreatorPublishingService {
     if (!reservation.created) {
       const reserved = await this.dependencies.getVideoByCreatorProjectId(project.id);
       if (!reserved) throw new Error('The existing creator catalog reservation could not be loaded.');
-      return {
-        externalId: catalogId,
-        status: reserved.status,
-        message: `PROtv already has this creator project as catalog title ${catalogId}.`,
-      };
+      return this.publicationResult(reserved);
     }
 
     if (promotional.poster) {
@@ -270,7 +294,7 @@ class CreatorPublishingService {
   async startMovieIngestion(project, catalogId) {
     try {
       const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
-      const asset = await this.dependencies.createAssetFromUrl(sourceUrl);
+      const asset = await this.dependencies.createAssetFromUrl(sourceUrl, { passthrough: `creator_movie_${project.id}` });
       await this.dependencies.updateVideo(catalogId, {
         approvalStatus: 'approved',
         approvalNotes: 'Published after Creator Agent ownership, contract, and Administrator approval checks.',
@@ -302,6 +326,9 @@ class CreatorPublishingService {
     }
 
     let current = video;
+    if (['ingestion_failed', 'errored', 'poster_transfer_failed'].includes(current.status)) {
+      throw new Error(`PROtv ingestion failed (${current.status}); this title is not processing. Resolve the integration error before retrying distribution.`);
+    }
     if (current.status === 'processing' && current.muxAssetId) {
       const asset = await this.dependencies.getAsset(current.muxAssetId);
       if (asset.status === 'errored') {

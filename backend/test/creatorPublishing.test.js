@@ -155,10 +155,70 @@ test('publishing retry returns the existing title without contacting Mux', async
       },
     }),
   });
-
   const result = await service.execute(publishingPayload());
   assert.equal(result.externalId, 'catalog-1');
   assert.equal(muxCalls, 0);
+});
+
+test('failed ingestion cannot become a successful retry or a processing distribution error', async () => {
+    let creates = 0;
+    const service = new CreatorPublishingService({ dependencies: dependencies({
+      getVideoByCreatorProjectId: async () => ({ id: 'catalog-1', status: 'ingestion_failed', integrationError: 'Uncertain network outcome' }),
+      createAssetFromUrl: async () => { creates++; throw new Error('Must not create'); },
+    }) });
+    const payload = publishingPayload();
+    assert.equal((await service.execute(payload)).status, 'failed');
+    payload.action = 'distribution';
+    await assert.rejects(() => service.execute(payload), /not processing/);
+    payload.action = 'publishing_status';
+    payload.project.catalogId = 'catalog-1';
+    assert.equal((await service.execute(payload)).status, 'failed');
+    assert.equal(creates, 0);
+});
+
+test('a manually authorized definite 401 recovery claims the same title once and retains its contract and poster', async () => {
+  const payload = publishingPayload();
+  const { promotionalBinding } = require('../src/integrations/creatorPromotional');
+  let video = { id: 'catalog-1', status: 'ingestion_failed', approvalStatus: 'draft', integrationError: '401 Unauthorized',
+    creatorContractReference: payload.project.contract.reference, creatorPromotionalBinding: promotionalBinding({ credits: '' }) };
+  let creates = 0;
+  const service = new CreatorPublishingService({ creatorAgentOrigin: 'https://creator.example', dependencies: dependencies({
+    getVideoByCreatorProjectId: async () => ({ ...video }),
+    updateCreatorPosterTransfer: async (_id, expected, update) => {
+      if (!transferMatches(video, expected)) return false;
+      video = { ...video, ...update }; return true;
+    },
+    createAssetFromUrl: async () => { creates++; return { id: 'recovered-asset' }; },
+    updateVideo: async (id, update) => { assert.equal(id, 'catalog-1'); video = { ...video, ...update }; },
+    createCreatorVideo: async () => { throw new Error('No new catalog title'); },
+  }) });
+  const results = await Promise.allSettled([service.execute(payload), service.execute(payload)]);
+  assert.equal(results.filter(r => r.status === 'fulfilled').length >= 1, true);
+  assert.equal(creates, 1);
+  assert.equal(video.muxAssetId, 'recovered-asset');
+  assert.equal((await service.execute(payload)).externalId, 'catalog-1');
+  assert.equal(creates, 1);
+});
+
+test('status reconciliation never ingests, publishes or activates distribution', async () => {
+    for (const [video, expected] of [
+      [{ status: 'processing' }, 'processing'],
+      [{ status: 'ready', muxPlaybackId: 'playback', approvalStatus: 'draft' }, 'processing'],
+      [{ status: 'ready', muxPlaybackId: 'playback', approvalStatus: 'approved' }, 'published'],
+      [{ status: 'errored' }, 'failed'],
+    ]) {
+      const service = new CreatorPublishingService({ dependencies: dependencies({
+        getVideoByCreatorProjectId: async () => ({ id: 'catalog-1', ...video }),
+        createAssetFromUrl: async () => { throw new Error('No creation'); },
+        updateVideo: async () => { throw new Error('No writes'); },
+      }) });
+      const payload = publishingPayload();
+      payload.action = 'publishing_status';
+      payload.project.catalogId = 'catalog-1';
+      assert.equal((await service.execute(payload)).status, expected);
+      payload.project.catalogId = 'wrong';
+      await assert.rejects(() => service.execute(payload), /verified/);
+    }
 });
 
 test('distribution waits for Mux readiness and activates a ready title', async () => {
@@ -364,7 +424,7 @@ test.describe('movie promotional publishing', () => {
     await assert.rejects(store.service.execute(posterPayload()), /Uncertain Mux/);
     assert.equal(store.video().status, 'ingestion_failed');
     const retry = await store.service.execute(posterPayload());
-    assert.equal(retry.status, 'ingestion_failed');
+    assert.equal(retry.status, 'failed');
     assert.equal(muxCalls, 1);
     assert.equal(store.transfers(), 1);
   });

@@ -5,6 +5,20 @@
 - **Firebase** integration (Firestore database + Authentication)
 - **Modular structure** ready for Roku/Firestick apps later
 
+## Creator movie publication status and recovery
+
+Catalog reservation alone is not publication. The signed `publishing_status` action
+reads the existing title without creating assets or activating distribution. It reports
+`published` only for approved, ready titles with playback IDs; failed ingestion is
+reported as `failed`, not as ongoing processing.
+
+A manually approved publishing request can recover the same draft reservation after
+a definite Mux HTTP 401 rejection only when no asset exists and the original signed
+contract and promotional binding still match. Recovery claims the existing reservation
+transactionally; unknown/network outcomes are never retried automatically. Creator
+movie creation carries a project-bound Mux passthrough and disables SDK POST retries.
+The existing approved Mux-ready automatic publishing behavior is unchanged.
+
 ## Project Structure
 ```
 backend/
