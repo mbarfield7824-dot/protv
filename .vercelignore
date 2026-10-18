@@ -5,5 +5,7 @@ test-media
 backend/.data
 backend/.env
 backend/serviceAccountKey.json
+protv-2f48e-b190530734f5.json
+tv
 *.env
 *.pem
