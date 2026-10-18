@@ -163,6 +163,34 @@ export const api = {
     return response;
   },
 
+  async recordPlaybackEvent(event, { token, signal } = {}) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    const cancel = () => controller.abort();
+    signal?.addEventListener('abort', cancel, { once: true });
+    try {
+      const res = await fetch(`${API_URL}/playback/events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(event),
+        signal: controller.signal,
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        const error = new Error(response.error || 'Unable to record the playback event.');
+        error.status = res.status;
+        throw error;
+      }
+      return response;
+    } finally {
+      window.clearTimeout(timeout);
+      signal?.removeEventListener('abort', cancel);
+    }
+  },
+
   async getCategories() {
     try {
       const res = await fetch(`${API_URL}/videos/categories/list`, { cache: 'no-store' });

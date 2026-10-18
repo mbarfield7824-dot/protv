@@ -22,7 +22,7 @@ function loadImaSdk() {
   });
 }
 
-export default function VastMuxPlayer({ video, playerRef }) {
+export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
   const containerRef = useRef(null);
   const adContainerRef = useRef(null);
   const [adVisible, setAdVisible] = useState(false);
@@ -50,6 +50,7 @@ export default function VastMuxPlayer({ video, playerRef }) {
       if (disposed) return;
       setAdVisible(false);
       setAdNotice('');
+      onAdStateChange?.(false);
       if (userRequestedPlayback) void contentPlayer?.play().catch(() => {});
     };
 
@@ -101,15 +102,25 @@ export default function VastMuxPlayer({ video, playerRef }) {
           adsManager = event.getAdsManager(player, new ima.AdsRenderingSettings());
           adsManager.addEventListener(ima.AdErrorEvent.Type.AD_ERROR, (adError) => failOpen(adError.getError()));
           adsManager.addEventListener(ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED, () => {
+            onAdStateChange?.(true);
             setAdVisible(true);
             setAdNotice('Advertisement');
             player.pause();
           });
           adsManager.addEventListener(ima.AdEvent.Type.CONTENT_RESUME_REQUESTED, resumeContent);
           adsManager.addEventListener(ima.AdEvent.Type.IMPRESSION, () => sendEvent('impression'));
-          adsManager.addEventListener(ima.AdEvent.Type.STARTED, () => sendEvent('started'));
-          adsManager.addEventListener(ima.AdEvent.Type.COMPLETE, () => sendEvent('completed'));
-          adsManager.addEventListener(ima.AdEvent.Type.SKIPPED, () => sendEvent('skipped'));
+          adsManager.addEventListener(ima.AdEvent.Type.STARTED, () => {
+            onAdStateChange?.(true);
+            sendEvent('started');
+          });
+          adsManager.addEventListener(ima.AdEvent.Type.COMPLETE, () => {
+            onAdStateChange?.(false);
+            sendEvent('completed');
+          });
+          adsManager.addEventListener(ima.AdEvent.Type.SKIPPED, () => {
+            onAdStateChange?.(false);
+            sendEvent('skipped');
+          });
           startAds(ima);
         },
         false,
@@ -154,8 +165,9 @@ export default function VastMuxPlayer({ video, playerRef }) {
       resizeObserver?.disconnect();
       adsManager?.destroy();
       adsLoader?.destroy();
+      onAdStateChange?.(false);
     };
-  }, [playerRef, video.id]);
+  }, [onAdStateChange, playerRef, video.id]);
 
   return (
     <div className="vast-player-shell" ref={containerRef}>

@@ -78,6 +78,14 @@ Video filesystem storage is a local-development fallback only. On Vercel or
 with `NODE_ENV=production`, unavailable Firestore fails explicitly rather than
 reading or writing `backend/.data`; a missing Firestore video returns 404.
 
+## Playback view tracking
+
+Playback start and qualified-view telemetry uses Firestore transactions and
+requires a dedicated `PLAYBACK_TRACKING_SECRET`. See
+[`docs/playback-view-tracking.md`](./docs/playback-view-tracking.md) for counting
+rules, retention, Firestore TTL setup, and the deferred Creator Portal reporting
+integration.
+
 ### Owner access
 
 Content uploads, catalog edits, reviews, and Mux ingestion require a Firebase

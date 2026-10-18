@@ -16,6 +16,28 @@ async function verifyToken(req, res, next) {
   }
 }
 
+function createOptionalTokenVerifier(tokenAuth = auth) {
+  return async (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (authorization === undefined) {
+      req.user = null;
+      return next();
+    }
+
+    const match = /^Bearer ([^\s]+)$/i.exec(authorization);
+    if (!match) return res.status(401).json({ error: 'Invalid authorization header.' });
+    if (!tokenAuth) return res.status(503).json({ error: 'Account authentication is temporarily unavailable.' });
+
+    try {
+      req.user = await tokenAuth.verifyIdToken(match[1]);
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid token.' });
+    }
+  };
+}
+
+const verifyOptionalToken = createOptionalTokenVerifier();
 function requireInteractiveUserSession(req, res, next) {
   const provider = req.user?.firebase?.sign_in_provider;
   if (provider !== 'password' && provider !== 'google.com') {
@@ -35,4 +57,10 @@ async function verifyAdmin(req, res, next) {
   });
 }
 
-module.exports = { verifyToken, requireInteractiveUserSession, verifyAdmin };
+module.exports = {
+  verifyToken,
+  verifyOptionalToken,
+  createOptionalTokenVerifier,
+  requireInteractiveUserSession,
+  verifyAdmin,
+};

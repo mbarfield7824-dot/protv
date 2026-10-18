@@ -4,6 +4,7 @@ import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
 import { api } from '../api';
 import { podcastParentUrl } from '../data/playerCatalog';
+import { createPlaybackTracker, getOrCreatePlaybackGuestId } from '../data/playbackTracking';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import { safetyReportUrl } from '../data/safetyReports';
@@ -28,6 +29,9 @@ export default function Player() {
   const [error, setError] = useState('');
   const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
   const playerRef = useRef(null);
+  const playbackTrackerRef = useRef(null);
+  const playbackUserRef = useRef(user);
+  const adActiveRef = useRef(false);
   const resumeAppliedRef = useRef(null);
   const request = useRef(0);
   const activeRequest = useRef(null);
@@ -35,6 +39,13 @@ export default function Player() {
   const isPodcast = video?.contentType === 'PODCAST_EPISODE';
   const parentShowId = loadedVideoId === id && isPodcast
     ? video.podcastShowId : location.state?.podcastShowId;
+  useEffect(() => {
+    playbackUserRef.current = user;
+  }, [user]);
+  const onAdStateChange = useCallback((active) => {
+    adActiveRef.current = active;
+    playbackTrackerRef.current?.setAdsActive(active);
+  }, []);
   const goBack = () => {
     if (location.key !== 'default') {
       navigate(-1);
@@ -159,6 +170,89 @@ export default function Player() {
     };
   }, [video, user, updateProgress]);
 
+  useEffect(() => {
+    const videoId = video?.id;
+    const playbackId = video?.muxPlaybackId;
+    if (loadedVideoId !== id || videoId !== id || !playbackId || playbackId.startsWith('demo-playback')) {
+      return undefined;
+    }
+    if (window.navigator.doNotTrack === '1' || window.doNotTrack === '1'
+      || window.navigator.msDoNotTrack === '1') return undefined;
+
+    const guestId = getOrCreatePlaybackGuestId();
+    let disposed = false;
+    const controller = new AbortController();
+    const retryTimers = new Map();
+    const wait = (delay) => new Promise((resolve) => {
+      const timer = window.setTimeout(() => {
+        retryTimers.delete(timer);
+        resolve();
+      }, delay);
+      retryTimers.set(timer, resolve);
+    });
+    const startRequests = new Map();
+    const sendEventWithRetries = async (event) => {
+      for (const delay of [0, 1000, 3000]) {
+        if (delay) await wait(delay);
+        if (disposed) return null;
+        try {
+          const currentUser = playbackUserRef.current;
+          const token = currentUser ? await currentUser.getIdToken() : undefined;
+          const result = await api.recordPlaybackEvent(event, { token, signal: controller.signal });
+          if (disposed || !Number.isSafeInteger(result.views) || result.views < 0) return null;
+          setVideo((current) => current?.id === videoId
+            ? { ...current, views: result.views } : current);
+          return { ...result, clientReceivedAt: performance.now() };
+        } catch (error) {
+          if (disposed || controller.signal.aborted) return null;
+          if (error.status && error.status < 500) {
+            console.warn('Playback analytics event was not recorded:', error.message);
+            return null;
+          }
+          if (delay === 3000) {
+            console.warn('Playback analytics event was not recorded:', error.message);
+          }
+        }
+      }
+      return null;
+    };
+    const tracker = createPlaybackTracker({
+      player: playerRef.current,
+      videoId,
+      guestId,
+      onEvent: (event) => {
+        if (event.eventType === 'play_start') {
+          startRequests.set(event.sessionId, sendEventWithRetries(event));
+          return;
+        }
+        void (async () => {
+          const started = await startRequests.get(event.sessionId);
+          if (!started || disposed) return;
+          const elapsedSinceStartAck = performance.now() - started.clientReceivedAt;
+          const remaining = Math.max(0, (Number(started.qualifiedAfterMs) || 0) - elapsedSinceStartAck);
+          if (remaining > 0) await wait(Math.min(remaining, 30_000));
+          if (!disposed) await sendEventWithRetries(event);
+          startRequests.delete(event.sessionId);
+        })();
+      },
+    });
+    playbackTrackerRef.current = tracker;
+    tracker.setAdsActive(adActiveRef.current);
+
+    return () => {
+      disposed = true;
+      controller.abort();
+      retryTimers.forEach((resolve, timer) => {
+        window.clearTimeout(timer);
+        resolve();
+      });
+      retryTimers.clear();
+      tracker.cleanup();
+      if (playbackTrackerRef.current === tracker) playbackTrackerRef.current = null;
+      adActiveRef.current = false;
+    };
+  }, [id, loadedVideoId, video?.id, video?.muxPlaybackId]);
+
   if (loading || loadedVideoId !== id) {
     return (
       <div className="player-page player-page--state">
@@ -228,7 +322,7 @@ export default function Player() {
         >
           <div className="video-player">
             {hasRealPlayback ? (
-              <VastMuxPlayer video={video} playerRef={playerRef} />
+              <VastMuxPlayer video={video} playerRef={playerRef} onAdStateChange={onAdStateChange} />
             ) : (
               <div
                 className="placeholder-player"
@@ -277,7 +371,12 @@ export default function Player() {
                 </span>
               )}
               {typeof video.views === 'number' && (
-                <span className="views">{video.views.toLocaleString()} views</span>
+                <span
+                  className="views"
+                  title="Platform-reported playback views; not unique people or audited audience figures."
+                >
+                  {video.views.toLocaleString()} platform-reported views
+                </span>
               )}
             </div>
 

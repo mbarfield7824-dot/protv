@@ -15,6 +15,7 @@ const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
 const { createReportRouters } = require('./reports/router');
 const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter } = require('./integrations/creatorPosterStore');
+const { createPlaybackRouter } = require('./playback/router');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -53,6 +54,7 @@ app.use(`${apiPrefix}/admin/podcasts`, createAdminPodcastRouter());
 app.use(`${apiPrefix}/v1/live`, createLiveRouter());
 app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
 app.use(`${apiPrefix}/users`, userRoutes);
+app.use(`${apiPrefix}/playback`, createPlaybackRouter());
 app.use(`${apiPrefix}/admin-bot`, createAdminBotRouter());
 app.use(`${apiPrefix}/distributor-ingestion`, createDistributorIngestionRouter());
 app.use(`${apiPrefix}/admin-assistant`, createAdminAssistantRouter());
