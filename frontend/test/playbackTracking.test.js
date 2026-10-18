@@ -38,6 +38,12 @@ class FakePlayer extends EventTarget {
     clock.advance(seconds);
     this.emit('timeupdate');
   }
+
+  advancePlayback(realSeconds, clock) {
+    this.currentTime += realSeconds * this.playbackRate;
+    clock.advance(realSeconds);
+    this.emit('timeupdate');
+  }
 }
 
 function clockHarness() {
@@ -135,21 +141,31 @@ test('seeking/skipped content and VAST ad time are excluded', () => {
   h.tracker.cleanup();
 });
 
-test('faster-than-normal playback is excluded; normal-speed playback still qualifies', () => {
+test('qualification measures active real time at faster playback rates', () => {
   const h = trackerHarness();
   h.begin();
   h.player.playbackRate = 2;
   h.player.emit('ratechange');
-  h.player.currentTime += 60;
-  h.clock.advance(30);
+  h.player.currentTime += 30;
+  h.clock.advance(15);
   h.player.emit('timeupdate');
   assert.equal(count(h.events, 'qualified_view'), 0);
 
-  h.player.playbackRate = 1;
+  h.player.currentTime += 30;
+  h.clock.advance(15);
+  h.player.emit('timeupdate');
+  assert.equal(count(h.events, 'qualified_view'), 1);
+  h.tracker.cleanup();
+});
+
+test('slower playback also qualifies by active real time, not media-time duration', () => {
+  const h = trackerHarness();
+  h.begin();
+  h.player.playbackRate = 0.5;
   h.player.emit('ratechange');
-  h.player.advance(29.9, h.clock);
+  h.player.advancePlayback(15, h.clock);
   assert.equal(count(h.events, 'qualified_view'), 0);
-  h.player.advance(0.1, h.clock);
+  h.player.advancePlayback(15, h.clock);
   assert.equal(count(h.events, 'qualified_view'), 1);
   h.tracker.cleanup();
 });

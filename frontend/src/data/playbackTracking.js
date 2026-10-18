@@ -41,8 +41,10 @@ export function createPlaybackTracker({
     if (wasActive) {
       const wallDelta = Math.max(0, (wallTime - previousWallTime) / 1000);
       const mediaDelta = mediaTime - previousTime;
-      if (mediaDelta > 0 && mediaDelta <= wallDelta + 0.5) {
-        playedSeconds += Math.min(mediaDelta, wallDelta);
+      const playbackRate = Number(player.playbackRate);
+      if (mediaDelta > 0 && playbackRate > 0
+        && mediaDelta <= wallDelta * playbackRate + 0.5) {
+        playedSeconds += wallDelta;
         if (session && !session.qualified && playedSeconds + 0.001 >= thresholdSeconds) {
           session.qualified = true;
           onEvent({
@@ -60,7 +62,7 @@ export function createPlaybackTracker({
   };
 
   const canPlay = () => !disposed && !player.paused && !player.seeking && !seeking
-    && !buffering && !adsActive && Number(player.playbackRate) <= 1;
+    && !buffering && !adsActive && Number(player.playbackRate) > 0;
 
   const startIfNeeded = () => {
     if (!session) {
