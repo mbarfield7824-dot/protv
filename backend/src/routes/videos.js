@@ -17,7 +17,10 @@ const {
   grantAdminRole,
   VideoNotFoundError,
   getCreatorEpisode,
+  getSeriesReleaseContext,
 } = require('../firebase');
+const { createReleaseRouter } = require('../catalog/releaseRouter');
+const { SERIES_RELEASE } = require('../catalog/releases');
 const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { validateEpisodeMetadata } = require('./episodeMetadata');
 const {
@@ -52,6 +55,9 @@ const publicDomainCandidates = createCandidateStore({
 const creatorPublishing = new CreatorPublishingService({
   creatorAgentOrigin: process.env.CREATOR_AGENT_ORIGIN || '',
 });
+router.use('/admin/releases', createReleaseRouter({
+  db, loadVideos: getAllVideos, authenticate: verifyAdmin,
+}));
 
 async function updateImdbRating(video) {
   try {
@@ -157,7 +163,7 @@ router.get('/', async (req, res) => {
 router.get('/admin/all', verifyAdmin, async (req, res) => {
   try {
     const videos = await getAllVideosAdmin();
-    res.json(videos);
+    res.json(videos.filter((video) => video.contentType !== SERIES_RELEASE));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -335,6 +341,11 @@ router.post('/admin/:id/ingest', verifyAdmin, async (req, res) => {
 
 // GET /videos/:id - Get single video
 router.get('/:id', async (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+    'CDN-Cache-Control': 'no-store',
+    'Vercel-CDN-Cache-Control': 'no-store',
+  });
   try {
     const video = await getVideoById(req.params.id);
     const records = video.contentType === PODCAST_EPISODE
@@ -344,7 +355,7 @@ router.get('/:id', async (req, res) => {
         if (error instanceof VideoNotFoundError || error.message === 'Video not found') return null;
         throw error;
       })].filter(Boolean)
-      : [];
+      : await getSeriesReleaseContext(video);
     if (!isViewerEligible(video, records)) return res.status(404).json({ error: 'Video not found' });
     res.json(video.contentType === PODCAST_EPISODE ? publicTitle(video) : publicVideo(video));
   } catch (error) {
@@ -866,7 +877,7 @@ router.get('/:id/status', verifyAdmin, async (req, res) => {
         const current = await creatorPublishing.episodes.reconcile(video, asset);
         return res.json(current.status === 'ready' ? { ...publicTitle(current), status: 'ready' } : { id: current.id, status: current.status });
       }
-      const playbackId = getPlaybackId(asset);
+      const playbackId = getPlaybackId(asset, video.muxPlaybackPolicy || 'public');
       if (video.contentType === PODCAST_EPISODE && !playbackId) {
         return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
       }
@@ -944,13 +955,12 @@ router.post('/webhook', async (req, res) => {
     if (event.type === 'video.asset.ready') {
       const asset = event.data;
       const uploadId = asset.upload_id;
-      const playbackId = getPlaybackId(asset);
-
       const video = uploadId
         ? await getVideoByUploadId(uploadId)
         : await getVideoByAssetId(asset.id)
           || (asset.passthrough?.startsWith('creator_episode_')
             ? await getCreatorEpisode(asset.passthrough.split(':')[0].slice('creator_episode_'.length)) : null);
+      const playbackId = getPlaybackId(asset, video?.muxPlaybackPolicy || 'public');
 
       if (video?.creatorEpisodeId) {
         await creatorPublishing.episodes.reconcile(video, { ...asset, status: 'ready' });

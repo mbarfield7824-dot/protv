@@ -10,6 +10,7 @@ data class PlaybackResponse(
     val id: String,
     val streamType: String,
     val muxPlaybackId: String,
+    val playbackToken: String? = null,
 )
 
 interface PlaybackApi {
@@ -24,7 +25,10 @@ class PlaybackRepository(private val api: PlaybackApi) {
         require(response.id == titleId && response.streamType == "on-demand") {
             "Playback response does not match the requested title"
         }
-        return muxHlsUrl(response.muxPlaybackId)
+        val url = muxHlsUrl(response.muxPlaybackId)
+        val token = response.playbackToken ?: return url
+        require(token.matches(Regex("[A-Za-z0-9_.-]+"))) { "Invalid signed playback token" }
+        return "$url?token=$token"
     }
 }
 

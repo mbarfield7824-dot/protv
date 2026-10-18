@@ -13,6 +13,25 @@ import java.util.concurrent.TimeUnit
 
 class PlaybackRepositoryTest {
     @Test
+    fun attachesSignedPlaybackAuthorizationAndRejectsMalformedTokens() {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody(
+                """{"id":"title-42","streamType":"on-demand","muxPlaybackId":"abc123","playbackToken":"header.payload.signature"}"""
+            ))
+            server.enqueue(MockResponse().setBody(
+                """{"id":"title-42","streamType":"on-demand","muxPlaybackId":"abc123","playbackToken":"token&bypass=true"}"""
+            ))
+            server.start()
+            val repository = PlaybackApiClient.create(server.url("/api/").toString())
+            assertEquals("https://stream.mux.com/abc123.m3u8?token=header.payload.signature",
+                runBlocking { repository.hlsUrl("title-42") })
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { repository.hlsUrl("title-42") }
+            }
+        }
+    }
+
+    @Test
     fun usesSelectedCatalogIdInPublicPlaybackRequestAndBuildsMuxHlsUrl() {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setBody(

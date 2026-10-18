@@ -1,0 +1,21 @@
+.admin-command .release-controls { display: grid; gap: 20px; }
+.admin-command .release-card {
+  padding: var(--admin-panel-pad);
+  border: 1px solid var(--protv-border);
+  border-radius: 14px;
+  background: var(--protv-midnight);
+}
+.admin-command .release-card fieldset {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.admin-command .release-card label { flex: 1 1 220px; }
+.admin-command .release-card .release-warning { color: var(--admin-warning); }
+@media (max-width: 640px) {
+  .admin-command .release-card fieldset > * { width: 100%; }
+}

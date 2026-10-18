@@ -1,4 +1,5 @@
 const { isMusicFormat } = require('./music');
+const { releaseEligible } = require('./releases');
 const {
   PODCAST_SHOW,
   PODCAST_EPISODE,
@@ -9,7 +10,8 @@ const {
 
 const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
 
-function isViewerEligible(video, videos = []) {
+function isViewerEligible(video, videos = [], now = Date.now()) {
+  if (!releaseEligible(video, videos, now)) return false;
   if (video?.creatorEpisodeId && (!video.creatorEpisodeAuthorization
     || video.contentType !== 'EPISODE' || !video.seriesId || !video.seasonId
     || !video.creatorSubmissionId || !video.creatorContractReference)) return false;
@@ -47,6 +49,7 @@ function publicTitle(video) {
     posterUrl: video.posterUrl || '',
     heroImageUrl: video.heroImageUrl || '',
     muxPlaybackId: video.muxPlaybackId.trim(),
+    ...(video.muxPlaybackPolicy === 'signed' ? { muxPlaybackPolicy: 'signed' } : {}),
     seriesTitle: typeof video.seriesTitle === 'string' ? video.seriesTitle : '',
     seasonNumber: video.seasonNumber ?? null,
     episodeNumber: video.episodeNumber ?? null,

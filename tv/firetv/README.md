@@ -8,7 +8,8 @@ supported by the included Gradle wrapper (Android Studio's bundled JDK is suitab
 `com.protv.firetv.ui` groups it into PROtv category rails (`ui.home.buildCategoryRails`) on a
 single TV home screen themed with the locked PROtv palette (`ui.theme`). Selecting a title calls the public
 `GET /v1/catalog/titles/{id}/playback` endpoint via `com.protv.firetv.playback`, validates
-the on-demand response, and plays its public Mux HLS stream with Media3. The native
+the on-demand response, and plays its Mux HLS stream with Media3, including the
+short-lived playback token returned for released signed creator media. The native
 `PlayerView` supplies D-pad play/pause and seeking controls; Back exits and releases
 the player. Authentication remains a future `com.protv.firetv.auth` concern. The app
 has no dependency on the web frontend and contains no Firebase credentials.
@@ -34,8 +35,8 @@ is a 1280x720 still from the title's public `muxPlaybackId` (catalog artwork is 
 and its one Play action uses the same playback path as the rails. There is no rotation.
 Hero Play and catalog cards are D-pad selectable; the catalog, scroll positions and last-focused
 control are held above the home/player swap, so Back from playback returns to the same focused
-hero or title without reloading. Neither title details nor authentication, progress, ads or signed
-playback is implemented.
+hero or title without reloading. Neither title details nor authentication, progress, or ads
+are implemented. Holds and release schedules are enforced by the backend playback endpoint.
 
 `minSdk 23` establishes a modern Android TV baseline without claiming compatibility with
 older Fire OS devices before device testing. `compileSdk 37` uses the installed Android SDK

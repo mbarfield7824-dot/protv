@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { publicationResult } = require('../catalog/releases');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BINDING = ['creatorProjectId', 'creatorSubmissionId', 'creatorEpisodeId', 'creatorMediaId', 'creatorMediaSha256', 'creatorContractReference', 'seriesId', 'seasonId', 'episodeNumber', 'seasonNumber'];
@@ -70,6 +71,9 @@ function claimEpisode(existing, data, now, token) {
     claimed: true,
     video: {
       ...existing, ...data, id: `creator_episode_${data.creatorEpisodeId}`,
+      releaseStatus: existing?.releaseStatus ?? (existing ? 'published' : 'held'),
+      releaseAt: existing?.releaseAt ?? null,
+      muxPlaybackPolicy: existing?.muxPlaybackPolicy ?? (existing ? 'public' : 'signed'),
       status: 'ingesting', muxAssetId: null, muxPlaybackId: null, integrationError: '',
       ingestionAttempt: attempt, ingestionToken: token, ingestionLeaseUntil: now + 60_000,
       ingestionStartedAt: newAttempt ? now : existing.ingestionStartedAt,
@@ -83,19 +87,15 @@ function episodeUpdateMatches(video, expected) {
     && (video.muxAssetId || null) === (expected.muxAssetId || null));
 }
 
-function episodeResult(video) {
-  return {
-    externalId: video.id,
-    status: video.status === 'ready' ? 'published' : video.status === 'failed' ? 'failed' : 'processing',
-    message: video.integrationError || (video.status === 'ready'
-      ? 'Authorized episode is published after Mux readiness.' : 'Authorized episode is processing in Mux.'),
-  };
-}
-
 class CreatorEpisodeService {
   constructor({ creatorAgentOrigin, dependencies }) {
     this.origin = creatorAgentOrigin;
     this.dependencies = dependencies;
+  }
+
+  async result(video) {
+    const loadContext = this.dependencies.getSeriesReleaseContext || require('../firebase').getSeriesReleaseContext;
+    return publicationResult(video, await loadContext(video));
   }
 
   async execute(payload) {
@@ -105,7 +105,7 @@ class CreatorEpisodeService {
       if (!video) throw new Error('Episode publishing has not been authorized in PROtv.');
       if (BINDING.some((key) => video[key] !== data[key])) throw new Error('Episode status does not match the authorized revision.');
       if (video.approvalStatus !== 'approved') throw new Error('PROtv approval was withdrawn.');
-      return episodeResult(await this.refresh(video));
+      return this.result(await this.refresh(video));
     }
     if (!this.origin) throw new Error('Creator Agent media origin is not configured.');
     const url = new URL(payload.episode.media.sourceUrl);
@@ -114,12 +114,17 @@ class CreatorEpisodeService {
       || url.pathname !== expectedPath || url.username || url.password) {
       throw new Error('Episode media source does not match the protected Creator Agent revision.');
     }
+    const existing = await this.dependencies.getCreatorEpisode(data.creatorEpisodeId);
+    if (!existing || existing.muxPlaybackPolicy === 'signed') {
+      (this.dependencies.requirePlaybackSigning || require('../mux').requirePlaybackSigning)();
+    }
     const claim = await this.dependencies.claimCreatorEpisode(data.creatorEpisodeId, data, Date.now(), crypto.randomUUID());
-    if (!claim.claimed) return episodeResult(await this.refresh(claim.video));
+    if (!claim.claimed) return this.result(await this.refresh(claim.video));
     const video = claim.video;
     try {
       const asset = await this.dependencies.createAssetFromUrl(url.toString(), {
         passthrough: `${video.id}:${video.ingestionAttempt}`,
+        playbackPolicy: video.muxPlaybackPolicy,
       });
       if (!asset?.id) throw new Error('Mux returned no episode asset ID.');
       const updated = await this.dependencies.updateCreatorEpisode(video.id, video, {
@@ -128,11 +133,11 @@ class CreatorEpisodeService {
       if (!updated) {
         const current = await this.dependencies.getCreatorEpisode(video.creatorEpisodeId);
         if (current?.muxAssetId === asset.id && ['processing', 'ready'].includes(current.status)) {
-          return episodeResult(current);
+          return this.result(current);
         }
         throw new Error('Episode ingestion claim changed; refresh status before retrying.');
       }
-      return episodeResult(await this.refresh({ ...video, status: 'processing', muxAssetId: asset.id }));
+      return this.result(await this.refresh({ ...video, status: 'processing', muxAssetId: asset.id }));
     } catch (error) {
       await this.dependencies.updateCreatorEpisode(video.id, video, {
         status: 'failed', ingestionLeaseUntil: 0,
@@ -145,8 +150,8 @@ class CreatorEpisodeService {
   async refresh(video) {
     if (video.status === 'ingesting' && video.ingestionLeaseUntil <= Date.now() && !video.muxAssetId) {
       const updates = { status: 'failed', integrationError: 'Mux ingestion result is uncertain. Await its matching webhook or reconcile manually; duplicate creation is blocked.' };
-      const updated = await this.dependencies.updateCreatorEpisode(video.id, video, updates);
-      return updated ? { ...video, ...updates } : await this.dependencies.getCreatorEpisode(video.creatorEpisodeId);
+      await this.dependencies.updateCreatorEpisode(video.id, video, updates);
+      return this.dependencies.getCreatorEpisode(video.creatorEpisodeId);
     }
     if (!['processing', 'failed'].includes(video.status) || !video.muxAssetId) return video;
     const asset = await this.dependencies.getAsset(video.muxAssetId);
@@ -160,15 +165,15 @@ class CreatorEpisodeService {
     if (!video.muxAssetId && asset.passthrough !== `${video.id}:${video.ingestionAttempt}`) return video;
     let updates;
     if (asset.status === 'ready') {
-      const playbackId = this.dependencies.getPlaybackId(asset);
-      if (!playbackId) throw new Error('Mux episode is ready without a public playback ID.');
+      const playbackId = this.dependencies.getPlaybackId(asset, video.muxPlaybackPolicy || 'public');
+      if (!playbackId) throw new Error('Mux episode is ready without the expected playback ID.');
       updates = { status: 'ready', muxAssetId: asset.id, muxPlaybackId: playbackId,
-        duration: Math.round(asset.duration || 0), integrationError: '', publishedAt: new Date().toISOString() };
+        duration: Math.round(asset.duration || 0), integrationError: '', mediaReadyAt: new Date().toISOString() };
     } else if (asset.status === 'errored') {
       updates = { status: 'failed', muxAssetId: asset.id, muxPlaybackId: null, integrationError: 'Mux could not process this episode.' };
     } else return video;
-    const updated = await this.dependencies.updateCreatorEpisode(video.id, video, updates);
-    return updated ? { ...video, ...updates } : await this.dependencies.getCreatorEpisode(video.creatorEpisodeId);
+    await this.dependencies.updateCreatorEpisode(video.id, video, updates);
+    return this.dependencies.getCreatorEpisode(video.creatorEpisodeId);
   }
 }
 

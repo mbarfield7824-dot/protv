@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { isViewerEligible } = require('../catalog/readModel');
+const { seriesReleaseId } = require('../catalog/releases');
 
 const QUALIFIED_VIEW_SECONDS = 30;
 const EVENT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -175,9 +176,15 @@ class PlaybackTrackingService {
           video = { ...video, podcastShow: { id: parentSnapshot.id, ...parentSnapshot.data() } };
         }
       }
+      const releaseContext = [];
+      if (video?.seriesId) {
+        const seriesSnapshot = await transaction.get(this.db.collection('videos').doc(seriesReleaseId(video.seriesId)));
+        if (seriesSnapshot.exists) releaseContext.push({ id: seriesSnapshot.id, ...seriesSnapshot.data() });
+      }
       if (!videoSnapshot.exists || !isViewerEligible(
         video,
-        video?.podcastShow ? [video, video.podcastShow] : [video].filter(Boolean),
+        [...(video?.podcastShow ? [video, video.podcastShow] : [video].filter(Boolean)), ...releaseContext],
+        now,
       ) || video.muxPlaybackId.startsWith('demo-playback')) {
         throw new PlaybackNotEligibleError('Playback tracking is available only for published, playable titles.');
       }

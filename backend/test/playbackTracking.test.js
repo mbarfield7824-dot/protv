@@ -121,6 +121,19 @@ test('validation only accepts bounded event fields, UUIDs, and 30 played seconds
   assert.equal(playbackEvent('qualified_view').playedSeconds, 30);
 });
 
+test('held titles and closed series gates cannot create playback sessions or qualified views', async () => {
+  for (const videos of [
+    [playableVideo({ releaseStatus: 'held' })],
+    [playableVideo({ releaseStatus: 'published', seriesId: 'series1' }),
+      { id: 'series_release_series1', contentType: 'SERIES_RELEASE', releaseStatus: 'held' }],
+  ]) {
+    const h = harness({ videos });
+    await assert.rejects(record(h, playbackEvent('play_start')), PlaybackNotEligibleError);
+    assert.equal(h.db.get('playbackViewSessions', SESSION), undefined);
+    assert.equal(h.db.get('videos', ID).views, 12);
+  }
+});
+
 test('no qualified count before 30 server seconds, then exactly one at the threshold', async () => {
   const h = harness();
   const started = await record(h, playbackEvent('play_start'));

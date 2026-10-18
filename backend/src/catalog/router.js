@@ -3,14 +3,24 @@ const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
+const { signPlayback } = require('../mux');
 
 function createCatalogRouter({
   loadApproved = db
     ? getApprovedVideos
     : async () => (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved'),
   loadHtmlTemplate = loadTitleTemplate,
+  signPlaybackToken = signPlayback,
 } = {}) {
   const router = express.Router();
+  router.use((req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    });
+    next();
+  });
   const load = async () => loadApproved();
 
   router.get('/sitemap.xml', async (req, res) => {
@@ -115,6 +125,9 @@ function createCatalogRouter({
         id: title.id,
         streamType: 'on-demand',
         muxPlaybackId: title.muxPlaybackId,
+        ...(title.muxPlaybackPolicy === 'signed' ? {
+          playbackToken: await signPlaybackToken(title.muxPlaybackId, title.duration),
+        } : {}),
       });
     } catch (error) {
       console.error('Failed to load viewer playback:', error);

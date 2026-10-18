@@ -44,7 +44,9 @@ function harness(overrides = {}) {
     },
     createAssetFromUrl: async (url, options) => { calls.push({ url, options }); return asset; },
     getAsset: async () => asset,
-    getPlaybackId: (value) => value.playback_ids?.find((item) => item.policy === 'public')?.id || null,
+    getPlaybackId: (value, policy = 'public') => value.playback_ids?.find((item) => item.policy === policy)?.id || null,
+    getSeriesReleaseContext: async () => [],
+    requirePlaybackSigning: () => {},
     ...overrides,
   };
   return {
@@ -83,7 +85,7 @@ test('signed episode requests require exact agreement coverage and explicit Admi
   }
 });
 
-test('authorized EPISODE stays private while processing, then automatically appears in its stable series and season', async () => {
+test('authorized EPISODE stays private after processing until explicitly released in its stable series and season', async () => {
   const value = payload();
   const h = harness();
   const started = await h.service.execute(value);
@@ -97,10 +99,17 @@ test('authorized EPISODE stays private while processing, then automatically appe
   const retry = await h.service.execute(value);
   assert.equal(retry.externalId, started.externalId);
   assert.equal(h.calls.length, 1);
-  h.setAsset({ id: 'asset-1', status: 'ready', duration: 92, playback_ids: [{ id: 'playback', policy: 'public' }] });
+  assert.equal(video.releaseStatus, 'held');
+  assert.equal(h.calls[0].options.playbackPolicy, 'signed');
+  h.setAsset({ id: 'asset-1', status: 'ready', duration: 92, playback_ids: [{ id: 'playback', policy: 'signed' }] });
   const ready = await h.service.execute({ ...value, action: 'episode_status' });
-  assert.equal(ready.status, 'published');
+  assert.equal(ready.status, 'processing');
+  assert.equal(ready.releaseStatus, 'held');
+  assert.match(ready.message, /ready and held privately/);
   assert.equal(h.calls.length, 1, 'status must never start ingestion');
+  assert.equal(seriesCatalog([...h.videos.values()]).length, 0);
+  h.videos.set(video.id, { ...h.videos.get(video.id), releaseStatus: 'published' });
+  assert.equal((await h.service.execute({ ...value, action: 'episode_status' })).status, 'published');
   const series = seriesCatalog([...h.videos.values()]);
   assert.equal(series[0].id, value.project.id);
   assert.equal(series[0].seasons[0].id, value.episode.seasonId);
@@ -122,6 +131,49 @@ test('concurrent requests and process restart retry share one durable catalog re
   const restarted = new CreatorEpisodeService({ creatorAgentOrigin: 'https://creator.example', dependencies: h.dependencies });
   await restarted.execute(value);
   assert.equal(h.calls.length, 1);
+});
+
+test('an administrator hold saved during Mux polling survives reconciliation and is reported as private', async () => {
+  const h = harness();
+  const value = payload();
+  const started = await h.service.execute(value);
+  h.videos.set(started.externalId, { ...h.videos.get(started.externalId), releaseStatus: 'published' });
+  h.dependencies.getAsset = async () => {
+    h.videos.set(started.externalId, { ...h.videos.get(started.externalId), releaseStatus: 'held' });
+    return { id: 'asset-1', status: 'ready', playback_ids: [{ id: 'protected', policy: 'signed' }] };
+  };
+  const result = await h.service.execute({ ...value, action: 'episode_status' });
+  assert.equal(result.status, 'processing');
+  assert.equal(result.releaseStatus, 'held');
+  assert.equal(h.videos.get(started.externalId).status, 'ready');
+  assert.equal(h.videos.get(started.externalId).releaseStatus, 'held');
+  assert.equal(playableCatalog([...h.videos.values()]).length, 0);
+});
+
+test('Creator Agent status respects a held or scheduled series gate after the episode is released', async () => {
+  const value = payload();
+  const gate = { id: `series_release_${value.project.id}`, releaseStatus: 'held' };
+  const h = harness({ getSeriesReleaseContext: async () => [gate] });
+  const started = await h.service.execute(value);
+  h.videos.set(started.externalId, { ...h.videos.get(started.externalId), releaseStatus: 'published' });
+  h.setAsset({ id: 'asset-1', status: 'ready', playback_ids: [{ id: 'protected', policy: 'signed' }] });
+  let result = await h.service.execute({ ...value, action: 'episode_status' });
+  assert.equal(result.status, 'processing');
+  assert.equal(result.releaseStatus, 'held');
+  gate.releaseStatus = 'scheduled';
+  gate.releaseAt = '2099-01-01T00:00:00Z';
+  result = await h.service.execute({ ...value, action: 'episode_status' });
+  assert.equal(result.releaseStatus, 'scheduled');
+  assert.match(result.message, /2099-01-01/);
+  gate.releaseStatus = 'published';
+  assert.equal((await h.service.execute({ ...value, action: 'episode_status' })).status, 'published');
+});
+
+test('signing configuration is checked before any new episode reservation or Mux attempt', async () => {
+  const h = harness({ requirePlaybackSigning: () => { throw new Error('Signing is not configured.'); } });
+  await assert.rejects(h.service.execute(payload()), /Signing is not configured/);
+  assert.equal(h.videos.size, 0);
+  assert.equal(h.calls.length, 0);
 });
 
 test('uncertain transport retry fails closed without submitting a second Mux request', async () => {
@@ -181,7 +233,7 @@ test('lost Mux response is reconciled by exact passthrough without accepting ano
   await assert.rejects(h.service.execute(value));
   const video = [...h.videos.values()][0];
   const ready = { id: 'lost-asset', status: 'ready', passthrough: `${video.id}:${video.ingestionAttempt}`,
-    playback_ids: [{ id: 'recovered', policy: 'public' }] };
+    playback_ids: [{ id: 'recovered', policy: 'signed' }] };
   await h.service.reconcile(video, { ...ready, passthrough: `${video.id}:99` });
   assert.equal(h.videos.get(video.id).status, 'failed');
   await h.service.reconcile(video, ready);
@@ -193,8 +245,9 @@ test('same-title creator series are grouped by stable identity without changing 
   for (const value of [payload(), payload()]) {
     const result = await h.service.execute(value);
     await h.service.reconcile(h.videos.get(result.externalId), {
-      id: 'asset-1', status: 'ready', playback_ids: [{ id: 'public', policy: 'public' }],
+      id: 'asset-1', status: 'ready', playback_ids: [{ id: 'signed', policy: 'signed' }],
     });
+    h.videos.set(result.externalId, { ...h.videos.get(result.externalId), releaseStatus: 'published' });
   }
   assert.equal(seriesCatalog([...h.videos.values()]).length, 2);
   const legacy = { id: 'manual', contentType: 'EPISODE', seriesTitle: 'Same Series Title', seasonNumber: 1,
@@ -237,11 +290,13 @@ test('a readiness webhook arriving before the asset-create response cannot regre
   h.dependencies.createAssetFromUrl = async (_url, options) => {
     const video = [...h.videos.values()][0];
     const asset = { id: 'fast-asset', status: 'ready', passthrough: options.passthrough,
-      playback_ids: [{ id: 'fast-playback', policy: 'public' }] };
+      playback_ids: [{ id: 'fast-playback', policy: 'signed' }] };
     await h.service.reconcile(video, asset);
     return asset;
   };
-  assert.equal((await h.service.execute(payload())).status, 'published');
+  const result = await h.service.execute(payload());
+  assert.equal(result.status, 'processing');
+  assert.equal(result.releaseStatus, 'held');
   assert.equal([...h.videos.values()][0].status, 'ready');
 });
 

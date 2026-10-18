@@ -30,6 +30,7 @@ data class CatalogItem(
     val year: JsonElement? = null,
     val maturityRating: JsonElement? = null,
     val muxPlaybackId: JsonElement? = null,
+    val muxPlaybackPolicy: JsonElement? = null,
 )
 
 private val JsonElement?.primitive: JsonPrimitive?
@@ -49,7 +50,9 @@ val CatalogItem.maturityRatingText: String? get() = maturityRating.text()
 
 /** The public Mux playback ID, only when it has the expected public-ID shape. */
 val CatalogItem.publicMuxPlaybackId: String?
-    get() = muxPlaybackId.text()?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }
+    get() = muxPlaybackId.text()?.takeIf {
+        muxPlaybackPolicy.text() != "signed" && it.matches(Regex("[A-Za-z0-9]+"))
+    }
 
 interface CatalogApi {
     @GET("v1/catalog?view=all")

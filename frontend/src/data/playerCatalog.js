@@ -53,10 +53,13 @@ export async function fetchPlayerTitle(apiBaseUrl, id, {
     };
     const legacy = await read(`${base}/videos/${encodeURIComponent(id)}`);
     if (legacy === null) return null;
-    if (legacy.contentType !== 'PODCAST_EPISODE') return normalizePlayerTitle(legacy, id);
-    const title = await read(url);
+    if (legacy.contentType !== 'PODCAST_EPISODE' && legacy.muxPlaybackPolicy !== 'signed') {
+      return normalizePlayerTitle(legacy, id);
+    }
+    const title = legacy.contentType === 'PODCAST_EPISODE' ? await read(url) : legacy;
     if (title === null) return null;
-    if (title.contentType !== 'PODCAST_EPISODE' || title.podcastShowId !== legacy.podcastShowId) {
+    if (legacy.contentType === 'PODCAST_EPISODE'
+      && (title.contentType !== 'PODCAST_EPISODE' || title.podcastShowId !== legacy.podcastShowId)) {
       throw new Error('The public Podcast Episode response changed. Please try again.');
     }
     const normalized = normalizePlayerTitle(title, id);
@@ -68,6 +71,11 @@ export async function fetchPlayerTitle(apiBaseUrl, id, {
       || (normalized.contentType === 'PODCAST_EPISODE' && playback.muxPlaybackId.trim().startsWith('demo-playback'))) {
       throw new Error('The public playback response is invalid.');
     }
-    return { ...normalized, muxPlaybackId: playback.muxPlaybackId.trim() };
+    if (normalized.muxPlaybackPolicy === 'signed'
+      && (typeof playback.playbackToken !== 'string' || !playback.playbackToken)) {
+      throw new Error('Signed playback authorization is unavailable.');
+    }
+    return { ...normalized, muxPlaybackId: playback.muxPlaybackId.trim(),
+      ...(playback.playbackToken ? { playbackToken: playback.playbackToken } : {}) };
   }, 'Playback request', timeoutMs, signal);
 }

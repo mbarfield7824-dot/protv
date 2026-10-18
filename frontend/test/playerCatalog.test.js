@@ -129,6 +129,7 @@ test('non-Podcast live player retains existing public-video metadata and makes n
       return response(movie);
     },
   });
+
   assert.equal(calls, 1);
   for (const [key, value] of Object.entries(movie)) assert.equal(result[key], value);
 });
@@ -140,4 +141,27 @@ test('cancelled player request rejects promptly even if fetch ignores abort', { 
   });
   controller.abort(new Error('New route'));
   await assert.rejects(pending, /New route/);
+});
+
+test('signed creator playback rechecks eligibility and requires a token before handing off to Mux', async () => {
+  const movie = { id: 'creator-movie', title: 'Private until released', contentType: 'MOVIE',
+    muxPlaybackId: 'signed123', muxPlaybackPolicy: 'signed' };
+  const calls = [];
+  const result = await fetchPlayerTitle('https://example.org/api', movie.id, {
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return response(url.endsWith('/playback')
+        ? { id: movie.id, streamType: 'on-demand', muxPlaybackId: movie.muxPlaybackId, playbackToken: 'signed-token' } : movie);
+    },
+  });
+  assert.equal(calls.length, 2);
+  assert.equal(result.playbackToken, 'signed-token');
+  assert.ok(calls[1].endsWith('/v1/catalog/titles/creator-movie/playback'));
+  assert.equal(await fetchPlayerTitle('https://example.org/api', movie.id, {
+    fetchImpl: async (url) => url.endsWith('/playback') ? response({}, 404) : response(movie),
+  }), null);
+  await assert.rejects(fetchPlayerTitle('https://example.org/api', movie.id, {
+    fetchImpl: async (url) => response(url.endsWith('/playback')
+      ? { id: movie.id, streamType: 'on-demand', muxPlaybackId: movie.muxPlaybackId } : movie),
+  }), /authorization is unavailable/);
 });

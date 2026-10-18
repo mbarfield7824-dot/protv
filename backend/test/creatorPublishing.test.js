@@ -109,6 +109,7 @@ function publishingPayload() {
 
 function dependencies(overrides = {}) {
   return {
+    requirePlaybackSigning: () => {},
     createCreatorVideo: async () => ({
       id: 'creator_4d7132eb-2a9d-4de0-a455-05467113a97e',
       created: true,
@@ -264,6 +265,7 @@ test('distribution waits for Mux readiness and activates a ready title', async (
         id: 'catalog-1',
         status: 'processing',
         muxAssetId: 'mux-asset-1',
+        approvalStatus: 'approved',
       }),
       updateVideo: async (id, update) => updates.push({ id, update }),
     }),
@@ -362,6 +364,8 @@ test.describe('movie promotional publishing', () => {
     assert.equal(store.video().thumbnailUrl, store.video().posterUrl);
     assert.equal(store.video().credits, payload.project.promotional.credits);
     assert.equal(store.video().approvalStatus, 'approved');
+    assert.equal(store.video().releaseStatus, 'held');
+    assert.equal(store.video().muxPlaybackPolicy, 'signed');
     assert.equal(JSON.stringify(store.video()).includes('signature='), false);
     assert.equal(JSON.stringify(store.video()).includes('/api/integrations/protv/'), false);
     assert.equal(publicTitle({ ...store.video(), muxPlaybackId: 'public' }).credits, payload.project.promotional.credits);

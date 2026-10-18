@@ -27,6 +27,38 @@ function eligible(title, overrides = {}) {
   };
 }
 
+test('legacy list and direct detail apply title holds and series gates without exposing signed IDs', async (context) => {
+  const gate = { id: 'series_release_series1', contentType: 'SERIES_RELEASE', approvalStatus: 'approved', releaseStatus: 'held' };
+  const fixtures = [
+    eligible('held', { releaseStatus: 'held', muxPlaybackPolicy: 'signed' }),
+    eligible('scheduled', { releaseStatus: 'scheduled', releaseAt: '2099-01-01T00:00:00Z' }),
+    eligible('series-episode', { contentType: 'EPISODE', seriesId: 'series1', releaseStatus: 'published' }),
+    gate,
+  ];
+  context.mock.method(firebase, 'getApprovedVideos', async () => fixtures);
+  context.mock.method(firebase, 'getVideoById', async (id) => {
+    const record = fixtures.find((item) => item.id === id);
+    if (!record) throw new firebase.VideoNotFoundError('Video not found');
+    return record;
+  });
+  context.mock.method(firebase, 'getSeriesReleaseContext', async (video) => video.seriesId ? [gate] : []);
+  const routePath = require.resolve('../src/routes/videos');
+  delete require.cache[routePath];
+  const app = express();
+  app.use('/videos', require(routePath));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => { server.close(); delete require.cache[routePath]; });
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/videos`;
+  assert.deepEqual(await (await fetch(base)).json(), []);
+  for (const record of fixtures) {
+    const response = await fetch(`${base}/${record.id}`);
+    assert.equal(response.status, 404);
+    assert.match(response.headers.get('cache-control'), /no-store/);
+    assert.equal(JSON.stringify(await response.json()).includes('playback'), false);
+  }
+});
+
 test('legacy public video detail enforces viewer eligibility and preserves eligible response shape', async (context) => {
   const fixtures = new Map([
     [validMusic.id, validMusic],

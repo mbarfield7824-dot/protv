@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
-const { db, getVideoById } = require('../firebase');
+const { db, getVideoById, getSeriesReleaseContext } = require('../firebase');
+const { releaseEligible } = require('../catalog/releases');
 const { verifyAdmin } = require('../middleware/auth');
 const {
   AdRevenueStore,
@@ -40,9 +41,11 @@ function createAdsRouter(dependencies = {}) {
     filePath: path.resolve(process.env.AD_REVENUE_FILE || path.join(__dirname, '../../.data/ad-revenue.json')),
   });
   const getVideo = dependencies.getVideo || getVideoById;
+  const loadReleaseContext = dependencies.getSeriesReleaseContext || getSeriesReleaseContext;
   const forwardRevenue = dependencies.forwardRevenue || forwardCreatorRevenue;
 
   router.get('/session/:videoId', async (request, response) => {
+    response.set('Cache-Control', 'no-store');
     const adTagUrl = String(process.env.VAST_AD_TAG_URL || '').trim();
     const signingSecret = String(process.env.AD_EVENT_SIGNING_SECRET || '').trim();
     if (!adTagUrl || !signingSecret) return response.json({ enabled: false });
@@ -50,7 +53,8 @@ function createAdsRouter(dependencies = {}) {
       const parsed = new URL(adTagUrl);
       if (parsed.protocol !== 'https:') throw new Error('The VAST ad tag must use HTTPS.');
       const video = await getVideo(request.params.videoId);
-      if (video.approvalStatus !== 'approved' || !video.muxPlaybackId) {
+      if (video.approvalStatus !== 'approved' || !video.muxPlaybackId
+        || !releaseEligible(video, await loadReleaseContext(video))) {
         return response.status(409).json({ error: 'Ads are available only for approved playback-ready titles.' });
       }
       response.json({

@@ -227,6 +227,17 @@ async function getVideoById(videoId) {
   return { id: doc.id, ...doc.data() };
 }
 
+async function getSeriesReleaseContext(video) {
+  if (!video.seriesId) return [];
+  const { seriesReleaseId } = require('./catalog/releases');
+  try {
+    return [await getVideoById(seriesReleaseId(video.seriesId))];
+  } catch (error) {
+    if (error instanceof VideoNotFoundError || error.message === 'Video not found') return [];
+    throw error;
+  }
+}
+
 // Helper function to update an existing video (e.g. once Mux finishes
 // transcoding and we can fill in the real playback ID/duration/status)
 async function updateVideo(videoId, updates) {
@@ -405,6 +416,7 @@ async function updateVideoApproval(videoId, approvalData) {
 }
 
 module.exports = {
+  getSeriesReleaseContext,
   getCreatorPosterBucket,
   updateCreatorPosterTransfer,
   getCreatorEpisode,

@@ -74,6 +74,7 @@ async function mount(value = auth) {
     items: [], status: { pending: 0, processing: 0, failed: 0 }, discovery: status,
   });
   api.getAdminSafetyReports = async () => ({ items: [], nextCursor: null });
+  api.getReleaseQueue = async () => ({ titles: [], series: [] });
   root = createRoot(document.getElementById('root'));
   await act(async () => root.render(
     React.createElement(MemoryRouter, { initialEntries: ['/admin'] },
@@ -131,6 +132,7 @@ test('every destination opens its existing tool, including all upload workflows'
     ['Review Content', '.admin-review-container'],
     ['Catalog & Metadata', '.catalog-editor'],
     ['Series & Seasons', '.admin-form'],
+    ['Release Controls', '.release-controls'],
     ['Shows & Episodes', '.podcast-admin'],
     ['Public Domain Discovery', '.admin-bot-panel'],
     ['Distributor Feed', '.admin-bot-panel'],
@@ -306,5 +308,63 @@ test('unified tool styles are strictly Admin-scoped, including responsive and mo
     assert.doesNotMatch(css, /#root|\.ptv-header|\.ptv-footer|--protv-[\w-]+\s*:/);
   } finally {
     cssDom.window.close();
+  }
+});
+
+test('Release Controls confirms changes, schedules by time zone, cancels schedules, and exposes save failures', async () => {
+  await mount();
+  const title = {
+    id: 'held-episode', title: 'Release fixture', contentType: 'EPISODE', seriesId: 'series-fixture',
+    seriesTitle: 'Fixture series', seasonNumber: 1, episodeNumber: 1,
+    status: 'ready', approvalStatus: 'approved', releaseStatus: 'held', releaseAt: null,
+    protectedPlayback: true, live: false,
+  };
+  const series = { seriesId: 'series-fixture', title: 'Fixture series', releaseStatus: 'published' };
+  api.getReleaseQueue = async () => ({ titles: [{ ...title }], series: [{ ...series }] });
+  const saved = [];
+  api.updateRelease = async (kind, id, body) => {
+    saved.push({ kind, id, body });
+    Object.assign(kind === 'titles' ? title : series, body);
+    title.live = title.releaseStatus === 'published' && series.releaseStatus === 'published';
+  };
+  await navigate('Release Controls');
+  const form = () => document.querySelector('form[aria-label="Release settings for Release fixture"]');
+  const select = async (value) => {
+    await act(async () => {
+      const element = form().querySelector('select');
+      element.value = value;
+      element.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
+  };
+  await select('published');
+  await click('Save release', form());
+  assert.equal(saved.length, 0, 'Confirmation cancellation must not save');
+  window.confirm = () => true;
+  try {
+    await click('Save release', form());
+    assert.equal(saved[0].body.releaseStatus, 'published');
+    assert.match(form().closest('article').textContent, /Live/);
+    await select('scheduled');
+    await act(async () => {
+      const zone = form().querySelectorAll('select')[1];
+      zone.value = 'America/New_York';
+      zone.dispatchEvent(new window.Event('change', { bubbles: true }));
+      const input = form().querySelector('input');
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+        .set.call(input, '2099-12-20T20:30');
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await click('Save release', form());
+    assert.equal(saved.at(-1).body.releaseAt, '2099-12-21T01:30:00.000Z');
+    assert.equal(saved.at(-1).body.releaseTimeZone, 'America/New_York');
+    await select('held');
+    await click('Save release', form());
+    assert.equal(saved.at(-1).body.releaseAt, null);
+    assert.equal(saved.at(-1).body.releaseTimeZone, null);
+    api.updateRelease = async () => { throw new Error('Synthetic release save failure'); };
+    await click('Save release', form());
+    assert.match(form().closest('article').textContent, /Synthetic release save failure/);
+  } finally {
+    window.confirm = () => false;
   }
 });

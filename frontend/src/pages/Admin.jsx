@@ -3,6 +3,7 @@ import AdminCommandCenter, { AdminShell } from '../admin/AdminCommandCenter';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
+import AdminReleaseControls from '../components/AdminReleaseControls';
 import AdminPodcasts from '../components/AdminPodcasts';
 import AdminSafetyReports from '../components/AdminSafetyReports';
 import AdminBotPanel from '../components/AdminBotPanel';
@@ -973,6 +974,7 @@ export default function Admin() {
           <div hidden={mode !== 'review-content'}><AdminContentReview /></div>
         )}
         {visitedModes.includes('edit-catalog') && <div hidden={mode !== 'edit-catalog'}><AdminCatalogEditor /></div>}
+        {visitedModes.includes('releases') && <div hidden={mode !== 'releases'}><AdminReleaseControls /></div>}
         {visitedModes.includes('podcasts') && <div hidden={mode !== 'podcasts'}><AdminPodcasts /></div>}
         {visitedModes.includes('safety-reports') && <div hidden={mode !== 'safety-reports'}><AdminSafetyReports /></div>}
         {visitedModes.includes('admin-bot') && <div hidden={mode !== 'admin-bot'}><AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} /></div>}

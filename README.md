@@ -111,8 +111,9 @@ distribution—a signed contract.
 Publishing reserves a deterministic catalog ID before contacting Mux, preventing duplicate catalog
 records during concurrent retries. Mux reads the master through an expiring, project-and-asset
 scoped Creator Agent URL. The configured Creator Agent origin is allowlisted to prevent arbitrary
-server-side URL ingestion. Distribution is refused until Mux reports a ready asset with a public
-playback ID. Licensing and contracting requests record approved operational milestones only.
+server-side URL ingestion. New creator media uses signed Mux playback and starts on hold.
+Distribution is refused until the media is ready, approved, and explicitly released.
+Licensing and contracting requests record approved operational milestones only.
 
 Configure both production systems with the same high-entropy secret:
 
@@ -130,6 +131,17 @@ PROTV_PUBLISHING_SECRET=replace_with_the_same_secret
 Publishing and distribution remain behind the Creator Agent’s existing ownership, review,
 signed-contract, and Administrator confirmation gates. The API does not add deletion or
 pipeline-modification capabilities.
+
+### Release controls
+
+Use **Admin > Content > Release Controls** to hold/unpublish, release now, or schedule
+creator titles and episodes. Series gates can hold every episode without changing its
+individual release settings. Uploading, signing, approval, and Mux readiness never override
+a new creator title's hold. Existing live titles remain unchanged.
+
+Configure `MUX_SIGNING_KEY_ID` and `MUX_SIGNING_PRIVATE_KEY` before new creator ingestion.
+See [Release controls](docs/RELEASE_CONTROLS.md) for time zones, deployment requirements,
+audit records, legacy public-URL limitations, and signed-token expiry behavior.
 
 ### Movie promotional poster and credits
 
@@ -315,8 +327,9 @@ same pure state transition. Creator series group by stable IDs (key
 
 Only the configured HTTPS Creator Agent origin and exact revision-scoped media route are accepted.
 The existing Mux URL pipeline is reused, with attempt-specific passthrough and SDK retries
-disabled for episode creation. Catalog visibility intentionally follows Mux readiness after
-Admin authorization; no second manual approval is required. Private source links, authorization
+disabled for episode creation. New episodes start held with signed-only playback; catalog
+visibility requires Mux readiness, approval, and administrator-controlled release. This is a
+release decision, not another rights approval. Private source links, authorization
 and contract/processing details are excluded from public projections.
 
 Signed Mux webhooks and status polling reconcile ready/failed episodes with compare-and-set

@@ -7,6 +7,7 @@ export const ADMIN_GROUPS = [
     { mode: 'review-content', label: 'Review Content', description: 'Inspect rights evidence and review catalog approvals.' },
     { mode: 'edit-catalog', label: 'Catalog & Metadata', description: 'Edit existing titles, artwork, formats and episode metadata.' },
     { mode: 'bulk', label: 'Series & Seasons', description: 'Upload a season with per-episode titles and numbering.' },
+    { mode: 'releases', label: 'Release Controls', description: 'Hold, release, or schedule creator titles and series gates independently of uploads and signatures.' },
   ] },
   { title: 'Podcasts', items: [
     { mode: 'podcasts', label: 'Shows & Episodes', description: 'Manage Podcast Shows, Episode drafts and publishing.' },

@@ -175,6 +175,7 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
         ref={playerRef}
         streamType="on-demand"
         playbackId={video.muxPlaybackId}
+        tokens={video.playbackToken ? { playback: video.playbackToken } : undefined}
         metadata={{ video_id: video.id, video_title: video.title }}
         accentColor="#4169E1"
         style={{ width: '100%', height: '100%' }}

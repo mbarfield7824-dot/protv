@@ -4,11 +4,14 @@ const {
   getVideoByCreatorProjectId,
   updateVideo,
   updateCreatorPosterTransfer,
+  getSeriesReleaseContext,
 } = require('../firebase');
+const { publicationResult } = require('../catalog/releases');
 const {
   createAssetFromUrl,
   getAsset,
   getPlaybackId,
+  requirePlaybackSigning,
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { logAdminEvent } = require('../adminBot/adminAudit');
@@ -130,6 +133,8 @@ class CreatorPublishingService {
       getCreatorEpisode,
       claimCreatorEpisode,
       updateCreatorEpisode,
+      getSeriesReleaseContext,
+      requirePlaybackSigning,
     },
   } = {}) {
     this.creatorAgentOrigin = creatorAgentOrigin;
@@ -164,15 +169,7 @@ class CreatorPublishingService {
   }
 
   publicationResult(video) {
-    const published = video.status === 'ready' && Boolean(video.muxPlaybackId) && video.approvalStatus === 'approved';
-    const failed = ['ingestion_failed', 'errored', 'poster_transfer_failed'].includes(video.status);
-    return {
-      externalId: video.id,
-      status: published ? 'published' : failed ? 'failed' : 'processing',
-      message: published ? 'PROtv confirms approved, playback-ready publication.'
-        : failed ? `PROtv ingestion failed for the existing title (${video.status}). Resolve the integration error before recovery; do not create another title.`
-          : 'The existing PROtv title is not playback-ready. Publication is not confirmed.',
-    };
+    return publicationResult(video);
   }
 
   async publish({ requestId, project }) {
@@ -193,7 +190,7 @@ class CreatorPublishingService {
         });
         if (!claimed) throw new Error('Recovery reservation changed; no Mux request was made.');
         await this.audit('publishing', project.id, existing.id, 'Administrator-authorized recovery of a definitively rejected Mux request; same catalog title and contract retained.');
-        return this.startMovieIngestion(project, existing.id);
+        return this.startMovieIngestion(project, existing.id, existing.muxPlaybackPolicy || 'public');
       }
       if (['poster_transfer_failed', 'poster_transferring'].includes(existing.status)) {
         if (!promotional.poster || existing.creatorPromotionalBinding !== binding) {
@@ -208,6 +205,7 @@ class CreatorPublishingService {
       return this.publicationResult(existing);
     }
 
+    (this.dependencies.requirePlaybackSigning || requirePlaybackSigning)();
     if (!project.media || typeof project.media !== 'object') {
       throw new Error('A protected media source is required for publishing.');
     }
@@ -239,6 +237,9 @@ class CreatorPublishingService {
       rightsVerificationNotes: 'Ownership and signed contract were verified in the PROtv Creator Agent before Administrator-approved publishing.',
       creatorContractReference: optionalText(project.contract.reference, 300),
       creatorContractSignedAt: project.contract.signedAt,
+      releaseStatus: 'held',
+      releaseAt: null,
+      muxPlaybackPolicy: 'signed',
       ...transferState,
     });
     const catalogId = reservation.id;
@@ -249,9 +250,9 @@ class CreatorPublishingService {
     }
 
     if (promotional.poster) {
-      return this.ingestWithPoster(project, promotional, { id: catalogId, ...transferState });
+      return this.ingestWithPoster(project, promotional, { id: catalogId, muxPlaybackPolicy: 'signed', ...transferState });
     }
-    return this.startMovieIngestion(project, catalogId);
+    return this.startMovieIngestion(project, catalogId, 'signed');
   }
 
   async resumePoster(project, promotional, existing) {
@@ -288,17 +289,19 @@ class CreatorPublishingService {
       thumbnailUrl: posterUrl, posterUrl, credits: promotional.credits,
     });
     if (!updated) throw new Error('Poster reservation changed; Mux ingestion was not started.');
-    return this.startMovieIngestion(project, reservation.id);
+    return this.startMovieIngestion(project, reservation.id, reservation.muxPlaybackPolicy || 'public');
   }
 
-  async startMovieIngestion(project, catalogId) {
+  async startMovieIngestion(project, catalogId, playbackPolicy = 'public') {
     let asset;
     try {
       const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
-      asset = await this.dependencies.createAssetFromUrl(sourceUrl, { passthrough: `creator_movie_${project.id}` });
+      asset = await this.dependencies.createAssetFromUrl(sourceUrl, {
+        passthrough: `creator_movie_${project.id}`, playbackPolicy,
+      });
       await this.dependencies.updateVideo(catalogId, {
         approvalStatus: 'approved',
-        approvalNotes: 'Published after Creator Agent ownership, contract, and Administrator approval checks.',
+        approvalNotes: 'Ingestion authorized after Creator Agent ownership, contract, and Administrator approval checks. Release is controlled separately.',
         approvedBy: 'creator-agent',
         approvedAt: new Date().toISOString(),
         status: 'processing',
@@ -338,7 +341,7 @@ class CreatorPublishingService {
         throw new Error('Mux could not process this title, so distribution cannot begin.');
       }
       if (asset.status === 'ready') {
-        const playbackId = this.dependencies.getPlaybackId(asset);
+        const playbackId = this.dependencies.getPlaybackId(asset, current.muxPlaybackPolicy || 'public');
         if (!playbackId) throw new Error('Mux finished processing without a public playback ID.');
         const updates = {
           status: 'ready',
@@ -352,6 +355,8 @@ class CreatorPublishingService {
     if (current.status !== 'ready' || !current.muxPlaybackId) {
       throw new Error('Mux is still processing this title. Retry distribution after playback is ready.');
     }
+    const publication = this.publicationResult(current);
+    if (publication.status !== 'published') throw new Error(publication.message);
 
     const distributedAt = current.distributedAt || new Date().toISOString();
     await this.dependencies.updateVideo(current.id, {

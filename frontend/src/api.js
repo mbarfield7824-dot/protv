@@ -33,6 +33,24 @@ async function authenticatedHeaders() {
 }
 
 export const api = {
+  async getReleaseQueue() {
+    const res = await fetch(`${API_URL}/videos/admin/releases`, {
+      headers: await authenticatedHeaders(), cache: 'no-store',
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load the release queue.');
+    return response;
+  },
+
+  async updateRelease(kind, id, body) {
+    const res = await fetch(`${API_URL}/videos/admin/releases/${kind}/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: await authenticatedHeaders(), body: JSON.stringify(body),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to save release controls.');
+    return response;
+  },
+
   async getAdminSafetyReports(options = {}) {
     return adminReportRequest(API_URL, authenticatedHeaders, options);
   },

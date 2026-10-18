@@ -131,4 +131,14 @@ class FeaturedTitleTest {
         assertEquals(true, heroStillUrl(short)?.contains("time=95&"))
         assertNull(heroStillUrl(sampled.copy(muxPlaybackId = JsonPrimitive("not/a-public-id"))))
     }
+
+    @Test
+    fun signedCreatorMediaDoesNotGenerateUnsignedThumbnailRequests() {
+        val signed = item("creator").copy(
+            muxPlaybackId = JsonPrimitive("SignedPlayback123"),
+            muxPlaybackPolicy = JsonPrimitive("signed"),
+        )
+        assertNull(heroStillUrl(signed))
+        assertNull(signed.muxStillArtwork())
+    }
 }
