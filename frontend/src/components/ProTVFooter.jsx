@@ -36,6 +36,7 @@ const COLUMNS = [
       { to: '/faq', label: 'FAQ' },
       { to: '/about', label: 'About Us' },
       { to: '/contact', label: 'Contact Us' },
+      { to: '/sponsors', label: 'Partner with PROtv', document: true },
     ],
   },
   {
@@ -67,7 +68,9 @@ export default function ProTVFooter() {
         {COLUMNS.map((column) => (
           <nav key={column.title} aria-label={column.title}>
             <h3>{column.title}</h3>
-            {column.links.map((link) => <Link key={link.label} to={link.to}>{link.label}</Link>)}
+            {column.links.map((link) => link.document
+              ? <a key={link.label} href={link.to}>{link.label}</a>
+              : <Link key={link.label} to={link.to}>{link.label}</Link>)}
           </nav>
         ))}
       </div>

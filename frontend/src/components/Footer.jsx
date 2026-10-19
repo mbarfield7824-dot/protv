@@ -38,6 +38,7 @@ export default function Footer() {
             <Link to="/faq">FAQ</Link>
             <Link to="/about">About Us</Link>
             <Link to="/contact">Contact Us</Link>
+            <a href="/sponsors">Partner with PROtv</a>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/acceptable-use-policy">Acceptable Use Policy</Link>

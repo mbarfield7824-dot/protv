@@ -24,6 +24,14 @@
   ],
   "rewrites": [
     {
+      "source": "/sponsors",
+      "destination": "/sponsors/index.html"
+    },
+    {
+      "source": "/sponsors/",
+      "destination": "/sponsors/index.html"
+    },
+    {
       "source": "/title/:id",
       "destination": "/api/index?path=v1/catalog/titles/:id/html"
     },
