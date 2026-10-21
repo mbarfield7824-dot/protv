@@ -79,10 +79,7 @@ fun ContentCard(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
 
-    var naturalAspect by remember(tile.id, tile.artwork) { mutableStateOf<Float?>(null) }
-    // A fixed card envelope keeps every artwork top, title, and metadata aligned.
-    // The image itself is still fitted to its actual natural dimensions inside it.
-    val aspectRatio = cardAspectFor(naturalAspect, tile.posterStyle)
+    // Every card occupies an identical slot; loaded images keep their original proportions.
     Column(modifier = modifier.width(CardWidth)) {
         Card(
             onClick = onClick,
@@ -108,7 +105,7 @@ fun ContentCard(
             ),
             interactionSource = interactionSource,
         ) {
-            CardArtwork(tile, focused, aspectRatio, onArtworkAspect = { naturalAspect = it })
+            CardArtwork(tile, focused)
         }
         // Fixed spacing clears the focused scale so the label never jumps or hides under the card.
         Spacer(modifier = Modifier.height(7.dp))
@@ -138,7 +135,7 @@ fun ContentCard(
 }
 
 @Composable
-private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float, onArtworkAspect: (Float) -> Unit) {
+private fun CardArtwork(tile: HomeTile, focused: Boolean) {
     var usingFallback by remember(tile.id) { mutableStateOf(tile.artwork == null) }
     var failed by remember(tile.id) { mutableStateOf(tile.artwork == null && tile.fallbackArtwork == null) }
     if (failed) {
@@ -156,7 +153,6 @@ private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float, on
         focused = focused,
         progressFraction = tile.progressFraction,
         targetAspectRatio = CardWidth.value / CardArtworkHeight.value,
-        onImageAspectRatio = onArtworkAspect,
     )
 }
 
