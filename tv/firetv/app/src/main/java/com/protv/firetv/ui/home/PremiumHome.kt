@@ -146,7 +146,7 @@ fun PremiumHome(
             .focusProperties { canFocus = !showHero && firstCard == null && destination != HomeDestination.Settings }
             .focusable()) {
             if (showHero) {
-                HeroBackdrop(featured, Modifier.fillMaxWidth().height(360.dp).graphicsLayer {
+                HeroBackdrop(featured, Modifier.fillMaxWidth().height(405.dp).graphicsLayer {
                     alpha = if (controller.listState.firstVisibleItemIndex > 0) 0f else 1f
                 })
             } else ProTvAtmosphere(Modifier.fillMaxSize())
@@ -229,13 +229,13 @@ fun PremiumHome(
                     }
                     itemsIndexed(visibleRails, key = { _, rail -> rail.key }) { railIndex, rail ->
                         Column {
-                            Text(rail.title, color = ProTvColors.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 20.dp, bottom = 2.dp))
+                            Text(rail.title, color = ProTvColors.White, fontSize = 19.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 20.dp, bottom = 4.dp))
                             CompositionLocalProvider(LocalBringIntoViewSpec provides horizontalSpec) {
                                 LazyRow(
                                     state = controller.rowState(rail.key),
                                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                                 ) {
                                     itemsIndexed(rail.tiles, key = { _, tile -> tile.id }) { tileIndex, tile ->
                                         val requester = if (tileIndex == 0) rowRequesters.getValue(rail.key) else remember { FocusRequester() }

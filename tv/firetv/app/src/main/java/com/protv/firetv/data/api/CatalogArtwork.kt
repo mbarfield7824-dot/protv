@@ -5,7 +5,7 @@ import okio.ByteString.Companion.decodeBase64
 import kotlin.math.roundToInt
 
 fun CatalogItem.artworkUrl(baseUrl: String): String? {
-    val raw = sequenceOf(thumbnailUrl, posterUrl, heroImageUrl)
+    val raw = sequenceOf(posterUrl, thumbnailUrl, heroImageUrl)
         .firstOrNull { it.isNotBlank() } ?: return null
     return resolveArtworkUrl(raw, baseUrl)
 }
@@ -17,7 +17,7 @@ private fun resolveArtworkUrl(raw: String, baseUrl: String): String? {
 }
 
 fun CatalogItem.artworkModel(baseUrl: String): Any? {
-    val raw = sequenceOf(thumbnailUrl, posterUrl, heroImageUrl)
+    val raw = sequenceOf(posterUrl, thumbnailUrl, heroImageUrl)
         .firstOrNull { it.isNotBlank() } ?: return null
     return artworkSourceModel(raw, baseUrl)
 }

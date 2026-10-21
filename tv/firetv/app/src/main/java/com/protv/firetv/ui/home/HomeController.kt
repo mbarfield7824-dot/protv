@@ -39,7 +39,13 @@ class HomeTile(
     val category: String = "",
     val addedAt: Long? = null,
     val progressFraction: Float? = null,
+    /** Prefer a full-height poster tile when dedicated catalog poster artwork exists. */
+    val posterStyle: Boolean = false,
 )
+
+/** Prefer genuine catalog key art; use film stills only as a fallback. */
+internal fun preferredRailArtwork(catalogArtwork: Any?, landscapeStill: String?): Pair<Any?, Any?> =
+    if (catalogArtwork != null) catalogArtwork to landscapeStill else landscapeStill to null
 
 @Immutable
 data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
@@ -224,13 +230,17 @@ class HomeController(private val repository: CatalogRepository?, private val api
         // Verified catalog art (poster/thumbnail) is primary; an unreviewed Mux still is only a
         // fallback for titles whose catalog artwork is missing or fails to load.
         val landscapeArtwork = item.muxStillArtwork()
+        // Preserve genuine movie artwork rather than replacing posters with film stills.
+        // When source artwork is missing or fails, use an authorized Mux still.
+        val (railArtwork, railFallback) = preferredRailArtwork(artwork, landscapeArtwork)
         return HomeTile(
             id = item.id,
             title = item.title,
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
-            artwork = artwork,
-            artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
-            fallbackArtwork = landscapeArtwork,
+            artwork = railArtwork,
+            artworkCacheKey = if (railArtwork is ByteArray) "protv-artwork:${item.id}" else null,
+            fallbackArtwork = railFallback,
+            posterStyle = item.posterUrl.isNotBlank(),
             searchText = "${item.category} ${item.searchText}".trim(),
             contentType = item.contentTypeText ?: "MOVIE",
             category = item.category,
@@ -278,6 +288,7 @@ fun buildPersonalizedRails(
                     contentType = tile.contentType,
                     category = tile.category,
                     addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
                     progressFraction = (progress.positionSeconds / progress.durationSeconds).toFloat().coerceIn(0f, 1f),
                 )
             }
@@ -300,6 +311,7 @@ fun buildPersonalizedRails(
                     contentType = tile.contentType,
                     category = tile.category,
                     addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
                 )
             }
         }

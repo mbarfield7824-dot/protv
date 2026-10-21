@@ -50,9 +50,22 @@ import com.protv.firetv.data.api.artworkFitFor
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvWordmark
 
-/** Compact landscape cards leave room for the persistent TV sidebar. */
-val CardWidth = 120.dp
+/** Artwork-first tiles sized for full-width browsing with the drawer hidden. */
+val CardWidth = 160.dp
+val CardArtworkHeight = 204.dp
+val CardTitleHeight = 34.dp
+val CardMetaHeight = 16.dp
 const val CardAspectRatio = 16f / 9f
+const val PosterCardAspectRatio = 2f / 3f
+const val SquareCardAspectRatio = 1f
+
+/** The source image's dimensions, not the upload form's field name, decide card shape. */
+internal fun cardAspectFor(imageRatio: Float?, posterStyle: Boolean): Float = when {
+    imageRatio == null || !imageRatio.isFinite() || imageRatio <= 0f -> if (posterStyle) PosterCardAspectRatio else CardAspectRatio
+    imageRatio < 0.85f -> PosterCardAspectRatio
+    imageRatio <= 1.18f -> SquareCardAspectRatio
+    else -> CardAspectRatio
+}
 private val CardShape = RoundedCornerShape(8.dp)
 
 @Composable
@@ -66,12 +79,13 @@ fun ContentCard(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
 
+    // Every card occupies an identical slot; loaded images keep their original proportions.
     Column(modifier = modifier.width(CardWidth)) {
         Card(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(CardAspectRatio)
+                .height(CardArtworkHeight)
                 .focusRequester(focusRequester)
                 .onFocusChanged { if (it.isFocused || it.hasFocus) onFocused() },
             shape = CardDefaults.shape(CardShape),
@@ -80,29 +94,30 @@ fun ContentCard(
                 focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                 pressedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
             ),
-            scale = CardDefaults.scale(focusedScale = 1.06f, pressedScale = 1.03f),
+            scale = CardDefaults.scale(focusedScale = 1.045f, pressedScale = 1.02f),
             border = CardDefaults.border(
                 border = Border.None,
                 focusedBorder = Border.None,
                 pressedBorder = Border.None,
             ),
             glow = CardDefaults.glow(
-                focusedGlow = Glow(elevationColor = ProTvColors.ElectricBlue, elevation = 18.dp),
+                focusedGlow = Glow(elevationColor = ProTvColors.ElectricBlue, elevation = 12.dp),
             ),
             interactionSource = interactionSource,
         ) {
             CardArtwork(tile, focused)
         }
         // Fixed spacing clears the focused scale so the label never jumps or hides under the card.
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(7.dp))
         Text(
             text = tile.title.ifBlank { stringResource(R.string.title_unavailable) },
             color = if (focused) ProTvColors.White else ProTvColors.Silver,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
             fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().height(CardTitleHeight),
         )
         if (tile.meta != null) {
             Text(
@@ -111,7 +126,10 @@ fun ContentCard(
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.height(CardMetaHeight),
             )
+        } else {
+            Spacer(Modifier.height(CardMetaHeight))
         }
     }
 }
@@ -134,6 +152,7 @@ private fun CardArtwork(tile: HomeTile, focused: Boolean) {
         modifier = Modifier.fillMaxSize(),
         focused = focused,
         progressFraction = tile.progressFraction,
+        targetAspectRatio = CardWidth.value / CardArtworkHeight.value,
     )
 }
 
@@ -149,6 +168,7 @@ internal fun ArtworkFrame(
     targetAspectRatio: Float = CardAspectRatio,
     focused: Boolean = false,
     progressFraction: Float? = null,
+    onImageAspectRatio: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val request = remember(source, cacheKey) {
@@ -186,6 +206,7 @@ internal fun ArtworkFrame(
                     fit = artworkFitFor(drawable.intrinsicWidth, drawable.intrinsicHeight, targetAspectRatio)
                     if (drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
                         imageAspectRatio = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight
+                        onImageAspectRatio(imageAspectRatio)
                     }
                 },
                 onError = { onError() },
