@@ -25,6 +25,20 @@ class RailArtworkPreferenceTest {
         assertNull(fallback)
     }
 
+    @Test fun portraitThumbnailGetsPortraitCardEvenWithoutPosterField() {
+        assertEquals(PosterCardAspectRatio, cardAspectFor(442f / 694f, false), 0.001f)
+        assertEquals(PosterCardAspectRatio, cardAspectFor(445f / 689f, false), 0.001f)
+    }
+
+    @Test fun squareThumbnailGetsSquareCard() {
+        assertEquals(SquareCardAspectRatio, cardAspectFor(184f / 173f, false), 0.001f)
+    }
+
+    @Test fun landscapeArtRemainsLandscapeAndUnknownUsesFallback() {
+        assertEquals(CardAspectRatio, cardAspectFor(16f / 9f, false), 0.001f)
+        assertEquals(PosterCardAspectRatio, cardAspectFor(null, true), 0.001f)
+    }
+
     @Test fun titlesWithoutArtworkRemainUnchanged() {
         val (primary, fallback) = preferredRailArtwork(null, null)
         assertNull(primary)
