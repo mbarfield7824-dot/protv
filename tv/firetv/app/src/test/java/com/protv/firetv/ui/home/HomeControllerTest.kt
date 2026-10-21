@@ -6,6 +6,7 @@ import com.protv.firetv.data.api.CatalogRepository
 import com.protv.firetv.data.api.CatalogResponse
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -84,5 +85,32 @@ class HomeControllerTest {
 
         assertNull((controller.state as HomeState.Loaded).featured)
         assertFalse(controller.heroFocused)
+    }
+
+    @Test
+    fun refreshRebuildsFeaturedOrderingFromNewPublicationMetadata() = runBlocking {
+        val classic = CatalogItem(FEATURED_TITLE_IDS[0], "Classic", "Drama", "", "", "")
+        val newFilm = CatalogItem("new-film", "New film", "Originals", "", "", "",
+            publishedAt = JsonPrimitive("2026-10-01T00:00:00Z"))
+        var items = listOf(classic)
+        val controller = HomeController(CatalogRepository(object : CatalogApi {
+            override suspend fun browse() = CatalogResponse(items)
+        }), "https://api.example/api/")
+        controller.load()
+        assertEquals(classic.id, (controller.state as HomeState.Loaded).featured?.tile?.id)
+        items = listOf(classic, newFilm)
+        controller.load()
+        assertEquals(newFilm.id, (controller.state as HomeState.Loaded).featured?.tile?.id)
+        assertEquals(0, controller.featuredIndex)
+    }
+
+    @Test
+    fun restoresRailIdentityWhenTheSameTitleAlsoAppearsInContinueWatching() {
+        val controller = HomeController(null, "")
+        controller.onTileFocused("shared-title", "drama")
+        controller.onHomeShown()
+        assertEquals("drama", controller.focusedRailKey)
+        assertEquals("shared-title", controller.focusedTileId)
+        assertTrue(controller.restorePending)
     }
 }

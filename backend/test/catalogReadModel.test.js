@@ -75,6 +75,36 @@ test('movies and documentary views preserve current web filtering', () => {
   ]);
 });
 
+test('public catalog includes only normalized publication timestamps, not private metadata', () => {
+  const [item] = browse([title('dated', {
+    publishedAt: '2026-10-20T12:00:00Z',
+    approvedAt: new Date('2026-10-19T00:00:00Z'),
+    createdAt: { _seconds: 1700000000 },
+    submittedAt: 'invalid',
+  })]);
+  assert.equal(item.publishedAt, '2026-10-20T12:00:00.000Z');
+  assert.equal(item.approvedAt, '2026-10-19T00:00:00.000Z');
+  assert.equal(item.createdAt, '2023-11-14T22:13:20.000Z');
+  assert.equal(item.submittedAt, undefined);
+  assert.equal(item.rightsHolder, undefined);
+});
+
+test('missing or invalid publication dates never remove older playable titles or alter existing client fields', () => {
+  const legacy = title('legacy', { year: 1938 });
+  const baseline = browse([legacy])[0];
+  for (const invalid of [null, 'invalid', -1, 0, Infinity, 8640000000000001, {}]) {
+    assert.deepEqual(browse([{ ...legacy, publishedAt: invalid, createdAt: invalid }]), [baseline]);
+  }
+  const dated = browse([{ ...legacy, publishedAt: 1792454400000 }])[0];
+  const { publishedAt, ...existingFields } = dated;
+  assert.equal(publishedAt, '2026-10-20T00:00:00.000Z');
+  assert.deepEqual(existingFields, baseline);
+  assert.equal(baseline.year, 1938);
+  assert.equal('publishedAt' in baseline, false);
+  assert.equal('createdAt' in baseline, false);
+  assert.deepEqual(browse([{ ...legacy, publishedAt: { seconds: 1792454400 } }]), [dated]);
+});
+
 test('Music formats are explicit, validated values', () => {
   assert.deepEqual(MUSIC_FORMATS, [
     'music_video',

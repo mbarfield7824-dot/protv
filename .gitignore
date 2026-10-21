@@ -9,9 +9,9 @@ build/
 .idea/
 serviceAccountKey.json
 protv-2f48e-*.json
+tv/firetv/app/google-services.json
 .vercel
 .env*
-!.env.example
 mux-access-token-*.env
 *service-account*.json
 *serviceAccount*.json
@@ -21,3 +21,14 @@ mux-access-token-*.env
 *.p12
 backend/.data/safety-reports.json
 backend/.data/safety-reports.json.*.tmp
+google-services.json
+*.jks
+*.keystore
+*.pfx
+*.apk
+*.aab
+*.apks
+*.dm
+tv/firetv/app/release/
+.cache/
+coverage/

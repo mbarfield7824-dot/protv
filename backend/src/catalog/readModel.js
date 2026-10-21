@@ -48,6 +48,8 @@ function publicTitle(video) {
     thumbnailUrl: video.thumbnailUrl || video.posterUrl || '',
     posterUrl: video.posterUrl || '',
     heroImageUrl: video.heroImageUrl || '',
+    ...Object.fromEntries(['publishedAt', 'approvedAt', 'createdAt', 'submittedAt']
+      .map((key) => [key, publicTimestamp(video[key])]).filter(([, value]) => value !== null)),
     muxPlaybackId: video.muxPlaybackId.trim(),
     ...(video.muxPlaybackPolicy === 'signed' ? { muxPlaybackPolicy: 'signed' } : {}),
     seriesTitle: typeof video.seriesTitle === 'string' ? video.seriesTitle : '',
@@ -59,6 +61,16 @@ function publicTitle(video) {
     ...(video.contentType === 'MUSIC' ? { musicFormat: video.musicFormat } : {}),
     ...(video.contentType === PODCAST_EPISODE ? { podcastShowId: video.podcastShowId } : {}),
   };
+}
+
+function publicTimestamp(value) {
+  const millis = value instanceof Date ? value.getTime()
+    : typeof value === 'string' ? Date.parse(value)
+      : typeof value === 'number' ? value
+        : value && typeof (value._seconds ?? value.seconds) === 'number'
+          ? (value._seconds ?? value.seconds) * 1000 : NaN;
+  return Number.isFinite(millis) && millis > 0 && millis <= 8640000000000000
+    ? new Date(millis).toISOString() : null;
 }
 
 function playableCatalog(videos, parentContext = videos) {

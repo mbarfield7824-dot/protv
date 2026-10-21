@@ -12,11 +12,24 @@ object ProTvColors {
     val Navy = Color(0xFF0F1B32)
     val Blue = Color(0xFF174FA6)
     val ElectricBlue = Color(0xFF4D9BFF)
+    val Violet = Color(0xFF5142D4)
     val Cyan = Color(0xFF4BC8D6)
     val White = Color(0xFFFFFFFF)
     val Silver = Color(0xFFC5CFDC)
     val Muted = Color(0xFF94A3B8)
     val Line = Muted.copy(alpha = 0.22f)
+
+    /** The indigo-black of the website atmosphere gradient. */
+    val Indigo = Color(0xFF060716)
+
+    /** End stop of the website's primary button gradient. */
+    val BlueBright = Color(0xFF1D5FC7)
+
+    /** `--protv-control-border`. */
+    val ControlBorder = Color(0xFF53657F)
+
+    /** `--protv-blue-glow`. */
+    val BlueGlow = Color(0x3D226AD8)
 }
 
 /** Overscan-safe insets for a 960x540dp (1920x1080 @ 2x) TV canvas. */

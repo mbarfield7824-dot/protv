@@ -4,6 +4,7 @@ import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogResponse
 import com.protv.firetv.data.api.descriptionText
 import com.protv.firetv.data.api.muxStillArtwork
+import com.protv.firetv.data.api.catalogAddedAt
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -29,6 +30,43 @@ class FeaturedTitleTest {
             listOf(FEATURED_TITLE_IDS[0], FEATURED_TITLE_IDS[2]),
             selectFeaturedTitles(items).map { it.id },
         )
+    }
+
+    @Test
+    fun newlyPublishedOriginalAndRecentFilmsPrecedeOldManualFeatures() {
+        val now = java.time.Instant.parse("2026-10-20T00:00:00Z").toEpochMilli()
+        val original = item("original").copy(category = "Originals", publishedAt = JsonPrimitive("2026-10-18T00:00:00Z"))
+        val recent = item("recent", title = "Classic from 1938").copy(publishedAt = JsonPrimitive("2026-10-19T00:00:00Z"))
+        val oldOriginal = item("old-original").copy(category = "Originals", approvedAt = JsonPrimitive("2025-01-01T00:00:00Z"))
+        assertEquals(listOf("original", "recent", "old-original", FEATURED_TITLE_IDS[0]),
+            selectFeaturedTitles(listOf(item(FEATURED_TITLE_IDS[0]), oldOriginal, recent, original), now).map { it.id })
+    }
+
+    @Test
+    fun publishDateWinsOverCreatedDateAndReleaseYearDoesNotDetermineRecency() {
+        val first = item("first").copy(publishedAt = JsonPrimitive("2026-10-20T00:00:00Z"),
+            createdAt = JsonPrimitive("2024-01-01T00:00:00Z"), year = JsonPrimitive(1938))
+        val second = item("second").copy(createdAt = JsonPrimitive("2026-09-01T00:00:00Z"), year = JsonPrimitive(2026))
+        assertEquals(listOf("first", "second"), selectFeaturedTitles(listOf(second, first), Long.MAX_VALUE).map { it.id })
+        assertEquals(java.time.Instant.parse("2026-10-20T00:00:00Z").toEpochMilli(), first.catalogAddedAt)
+    }
+
+    @Test
+    fun timestampsSupportFirestoreAndInvalidValuesFallBackWithoutInventingDates() {
+        val parsed = json.decodeFromString<CatalogResponse>(
+            """{"items":[{"id":"a","title":"A","category":"","thumbnailUrl":"","posterUrl":"","heroImageUrl":"",
+                "publishedAt":"invalid","approvedAt":{"_seconds":1700000000,"_nanoseconds":0}}]}"""
+        ).items.single()
+        assertEquals(1700000000000, parsed.catalogAddedAt)
+        assertNull(item("unknown").catalogAddedAt)
+    }
+
+    @Test
+    fun futurePublishDatesAndNonMovieTypesDoNotDisplaceCurrentFilms() {
+        val film = item("film").copy(createdAt = JsonPrimitive(1000))
+        val future = item("future").copy(publishedAt = JsonPrimitive(9000))
+        val music = item("music", contentType = "MUSIC").copy(publishedAt = JsonPrimitive(2000))
+        assertEquals(listOf("film"), selectFeaturedTitles(listOf(future, music, film), now = 3000).map { it.id })
     }
 
     @Test

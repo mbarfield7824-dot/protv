@@ -20,6 +20,21 @@ movie creation carries a project-bound Mux passthrough and disables SDK POST ret
 The existing approved Mux-ready automatic publishing behavior is unchanged.
 
 ## Project Structure
+
+### Fire TV catalog recency and progress compatibility
+
+The public catalog adds optional normalized ISO `publishedAt`, `approvedAt`, `createdAt`, and
+`submittedAt` values when valid source values exist. Publication eligibility and private-field
+filtering are unchanged. These dates represent catalog addition/publication, not the original
+film year, and allow TV clients to rank newly available films without another endpoint.
+
+Viewer progress PUT uses a nested `watchProgress` map with recursive Firestore merge. Previously,
+`set({ ['watchProgress.' + id]: entry }, { merge: true })` created literal dotted top-level fields,
+which GET did not read. GET now recovers both shapes, choosing the latest timestamp; PUT and DELETE
+clean the affected legacy dotted key while preserving other titles. The public progress response
+shape is unchanged. Regression checks:
+`node --test test/catalogReadModel.test.js test/watchProgress.test.js test/usersWatchProgress.test.js`.
+
 ```
 backend/
 ├── src/

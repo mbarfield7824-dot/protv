@@ -20,6 +20,89 @@ if (apiBaseUrl.isNotEmpty()) {
 val normalizedApiBaseUrl = if (apiBaseUrl.isEmpty()) "" else "${apiBaseUrl.trimEnd('/')}/"
 fun buildConfigString(value: String) = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
+data class FirebaseConfig(val apiKey: String, val applicationId: String, val projectId: String)
+
+val firebaseConfigFile = project.file("google-services.json")
+val googleServicesFirebaseConfig = if (firebaseConfigFile.isFile) {
+    val config = groovy.json.JsonSlurper().parse(firebaseConfigFile) as? Map<*, *>
+        ?: error("google-services.json must contain a JSON object")
+    val projectInfo = config["project_info"] as? Map<*, *>
+        ?: error("google-services.json is missing project_info")
+    val matchingClients = (config["client"] as? List<*>)
+        .orEmpty()
+        .mapNotNull { it as? Map<*, *> }
+        .filter { client ->
+            val clientInfo = client["client_info"] as? Map<*, *>
+            val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
+            androidInfo?.get("package_name") == "com.protv.firetv"
+        }
+    require(matchingClients.size == 1) {
+        "google-services.json must contain exactly one Android client for com.protv.firetv"
+    }
+    val clientInfo = matchingClients.single()["client_info"] as? Map<*, *>
+        ?: error("google-services.json Android client is missing client_info")
+    val appId = clientInfo["mobilesdk_app_id"] as? String
+        ?: error("google-services.json Android client is missing mobilesdk_app_id")
+    val apiKey = (matchingClients.single()["api_key"] as? List<*>)
+        .orEmpty()
+        .mapNotNull { it as? Map<*, *> }
+        .firstNotNullOfOrNull { it["current_key"] as? String }
+        ?: error("google-services.json Android client is missing its API key")
+    val projectId = projectInfo["project_id"] as? String
+        ?: error("google-services.json is missing project_info.project_id")
+    require(apiKey.isNotBlank() && appId.isNotBlank() && projectId.isNotBlank()) {
+        "google-services.json has blank Firebase configuration values"
+    }
+    FirebaseConfig(apiKey, appId, projectId)
+} else {
+    null
+}
+
+fun frontendFirebaseValue(key: String): String {
+    val environmentFile = rootProject.file("../../frontend/.env")
+    if (!environmentFile.isFile) return ""
+    val prefix = "$key="
+    return environmentFile.useLines { lines ->
+        lines.firstOrNull { it.trimStart().startsWith(prefix) }
+            ?.trim()
+            ?.removePrefix(prefix)
+            ?.trim()
+            ?.removeSurrounding("\"")
+            ?.removeSurrounding("'")
+            .orEmpty()
+    }
+}
+
+fun configuredValue(
+    property: String,
+    environmentVariable: String,
+    frontendEnvironmentKey: String? = null,
+): String =
+    providers.gradleProperty(property)
+        .orElse(providers.environmentVariable(environmentVariable))
+        .orElse(providers.provider {
+            when (property) {
+                "protvFirebaseApiKey" -> googleServicesFirebaseConfig?.apiKey
+                "protvFirebaseApplicationId" -> googleServicesFirebaseConfig?.applicationId
+                "protvFirebaseProjectId" -> googleServicesFirebaseConfig?.projectId
+                else -> null
+            }.orEmpty()
+        })
+        .orElse(providers.provider { frontendEnvironmentKey?.let(::frontendFirebaseValue).orEmpty() })
+        .orNull?.trim().orEmpty()
+
+val firebaseApiKey = configuredValue(
+    "protvFirebaseApiKey",
+    "PROTV_FIREBASE_API_KEY",
+    "VITE_FIREBASE_API_KEY",
+)
+val firebaseApplicationId = configuredValue("protvFirebaseApplicationId", "PROTV_FIREBASE_APPLICATION_ID")
+val firebaseProjectId = configuredValue(
+    "protvFirebaseProjectId",
+    "PROTV_FIREBASE_PROJECT_ID",
+    "VITE_FIREBASE_PROJECT_ID",
+)
+
 android {
     namespace = "com.protv.firetv"
     compileSdk = 37
@@ -30,6 +113,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "FIREBASE_API_KEY", buildConfigString(firebaseApiKey))
+        buildConfigField("String", "FIREBASE_APPLICATION_ID", buildConfigString(firebaseApplicationId))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", buildConfigString(firebaseProjectId))
     }
 
     buildFeatures {
@@ -50,12 +136,14 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.tv:tv-material:1.1.0")
@@ -66,6 +154,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
+    implementation("com.google.firebase:firebase-auth:24.0.1")
+    implementation("com.google.zxing:core:3.5.3")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

@@ -33,6 +33,18 @@ class CatalogRepositoryTest {
     }
 
     @Test
+    fun preservesPublicSearchMetadataWithoutMakingItRequired() {
+        val item = json.decodeFromString<CatalogItem>(
+            """{"id":"film-1","title":"A Story","category":"Drama","thumbnailUrl":"","posterUrl":"","heroImageUrl":"","description":"A singer travels home.","subgenre":"Music","genres":["Drama","Independent"],"musicFormat":"Performance"}"""
+        )
+
+        assertEquals("A singer travels home. Music Drama Independent Performance", item.searchText)
+        assertEquals("", json.decodeFromString<CatalogItem>(
+            """{"id":"film-2","title":"Another Story","category":"","thumbnailUrl":"","posterUrl":"","heroImageUrl":""}"""
+        ).searchText)
+    }
+
+    @Test
     fun rejectsMalformedEnvelopeRatherThanShowingEmptyCatalog() {
         assertThrows(SerializationException::class.java) {
             json.decodeFromString<CatalogResponse>("""{"error":"The catalog is temporarily unavailable."}""")
