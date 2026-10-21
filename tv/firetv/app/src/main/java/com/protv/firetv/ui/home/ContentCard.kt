@@ -50,8 +50,8 @@ import com.protv.firetv.data.api.artworkFitFor
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvWordmark
 
-/** Compact landscape cards leave room for the persistent TV sidebar. */
-val CardWidth = 120.dp
+/** Artwork-first tiles sized for full-width browsing with the drawer hidden. */
+val CardWidth = 164.dp
 const val CardAspectRatio = 16f / 9f
 private val CardShape = RoundedCornerShape(8.dp)
 
@@ -80,26 +80,26 @@ fun ContentCard(
                 focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                 pressedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
             ),
-            scale = CardDefaults.scale(focusedScale = 1.06f, pressedScale = 1.03f),
+            scale = CardDefaults.scale(focusedScale = 1.045f, pressedScale = 1.02f),
             border = CardDefaults.border(
                 border = Border.None,
                 focusedBorder = Border.None,
                 pressedBorder = Border.None,
             ),
             glow = CardDefaults.glow(
-                focusedGlow = Glow(elevationColor = ProTvColors.ElectricBlue, elevation = 18.dp),
+                focusedGlow = Glow(elevationColor = ProTvColors.ElectricBlue, elevation = 12.dp),
             ),
             interactionSource = interactionSource,
         ) {
             CardArtwork(tile, focused)
         }
         // Fixed spacing clears the focused scale so the label never jumps or hides under the card.
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(7.dp))
         Text(
             text = tile.title.ifBlank { stringResource(R.string.title_unavailable) },
             color = if (focused) ProTvColors.White else ProTvColors.Silver,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
             fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
