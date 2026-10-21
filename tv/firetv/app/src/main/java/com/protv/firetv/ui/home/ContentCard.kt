@@ -51,9 +51,10 @@ import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvWordmark
 
 /** Artwork-first tiles sized for full-width browsing with the drawer hidden. */
-val CardWidth = 164.dp
-val PosterCardWidth = 132.dp
-val SquareCardWidth = 148.dp
+val CardWidth = 160.dp
+val CardArtworkHeight = 204.dp
+val CardTitleHeight = 34.dp
+val CardMetaHeight = 16.dp
 const val CardAspectRatio = 16f / 9f
 const val PosterCardAspectRatio = 2f / 3f
 const val SquareCardAspectRatio = 1f
@@ -79,18 +80,15 @@ fun ContentCard(
     val focused by interactionSource.collectIsFocusedAsState()
 
     var naturalAspect by remember(tile.id, tile.artwork) { mutableStateOf<Float?>(null) }
+    // A fixed card envelope keeps every artwork top, title, and metadata aligned.
+    // The image itself is still fitted to its actual natural dimensions inside it.
     val aspectRatio = cardAspectFor(naturalAspect, tile.posterStyle)
-    val cardWidth = when (aspectRatio) {
-        PosterCardAspectRatio -> PosterCardWidth
-        SquareCardAspectRatio -> SquareCardWidth
-        else -> CardWidth
-    }
-    Column(modifier = modifier.width(cardWidth)) {
+    Column(modifier = modifier.width(CardWidth)) {
         Card(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(aspectRatio)
+                .height(CardArtworkHeight)
                 .focusRequester(focusRequester)
                 .onFocusChanged { if (it.isFocused || it.hasFocus) onFocused() },
             shape = CardDefaults.shape(CardShape),
@@ -120,8 +118,9 @@ fun ContentCard(
             fontSize = 12.sp,
             lineHeight = 16.sp,
             fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().height(CardTitleHeight),
         )
         if (tile.meta != null) {
             Text(
@@ -130,7 +129,10 @@ fun ContentCard(
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.height(CardMetaHeight),
             )
+        } else {
+            Spacer(Modifier.height(CardMetaHeight))
         }
     }
 }
@@ -153,7 +155,7 @@ private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float, on
         modifier = Modifier.fillMaxSize(),
         focused = focused,
         progressFraction = tile.progressFraction,
-        targetAspectRatio = aspectRatio,
+        targetAspectRatio = CardWidth.value / CardArtworkHeight.value,
         onImageAspectRatio = onArtworkAspect,
     )
 }
