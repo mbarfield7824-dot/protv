@@ -224,13 +224,18 @@ class HomeController(private val repository: CatalogRepository?, private val api
         // Verified catalog art (poster/thumbnail) is primary; an unreviewed Mux still is only a
         // fallback for titles whose catalog artwork is missing or fails to load.
         val landscapeArtwork = item.muxStillArtwork()
+        // TV rails are 16:9: prefer a true landscape frame where available so a
+        // portrait catalog poster is never reduced to a tiny image in a wide slot.
+        // Retain the authorized catalog artwork as a fallback if the still fails.
+        val railArtwork = landscapeArtwork ?: artwork
+        val railFallback = if (landscapeArtwork != null) artwork else null
         return HomeTile(
             id = item.id,
             title = item.title,
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
-            artwork = artwork,
-            artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
-            fallbackArtwork = landscapeArtwork,
+            artwork = railArtwork,
+            artworkCacheKey = if (railArtwork is ByteArray) "protv-artwork:${item.id}" else null,
+            fallbackArtwork = railFallback,
             searchText = "${item.category} ${item.searchText}".trim(),
             contentType = item.contentTypeText ?: "MOVIE",
             category = item.category,
