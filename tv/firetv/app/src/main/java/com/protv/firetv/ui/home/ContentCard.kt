@@ -53,8 +53,18 @@ import com.protv.firetv.ui.theme.ProTvWordmark
 /** Artwork-first tiles sized for full-width browsing with the drawer hidden. */
 val CardWidth = 164.dp
 val PosterCardWidth = 132.dp
+val SquareCardWidth = 148.dp
 const val CardAspectRatio = 16f / 9f
 const val PosterCardAspectRatio = 2f / 3f
+const val SquareCardAspectRatio = 1f
+
+/** The source image's dimensions, not the upload form's field name, decide card shape. */
+internal fun cardAspectFor(imageRatio: Float?, posterStyle: Boolean): Float = when {
+    imageRatio == null || !imageRatio.isFinite() || imageRatio <= 0f -> if (posterStyle) PosterCardAspectRatio else CardAspectRatio
+    imageRatio < 0.85f -> PosterCardAspectRatio
+    imageRatio <= 1.18f -> SquareCardAspectRatio
+    else -> CardAspectRatio
+}
 private val CardShape = RoundedCornerShape(8.dp)
 
 @Composable
@@ -68,8 +78,13 @@ fun ContentCard(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
 
-    val aspectRatio = if (tile.posterStyle) PosterCardAspectRatio else CardAspectRatio
-    val cardWidth = if (tile.posterStyle) PosterCardWidth else CardWidth
+    var naturalAspect by remember(tile.id, tile.artwork) { mutableStateOf<Float?>(null) }
+    val aspectRatio = cardAspectFor(naturalAspect, tile.posterStyle)
+    val cardWidth = when (aspectRatio) {
+        PosterCardAspectRatio -> PosterCardWidth
+        SquareCardAspectRatio -> SquareCardWidth
+        else -> CardWidth
+    }
     Column(modifier = modifier.width(cardWidth)) {
         Card(
             onClick = onClick,
@@ -95,7 +110,7 @@ fun ContentCard(
             ),
             interactionSource = interactionSource,
         ) {
-            CardArtwork(tile, focused, aspectRatio)
+            CardArtwork(tile, focused, aspectRatio, onArtworkAspect = { naturalAspect = it })
         }
         // Fixed spacing clears the focused scale so the label never jumps or hides under the card.
         Spacer(modifier = Modifier.height(7.dp))
@@ -121,7 +136,7 @@ fun ContentCard(
 }
 
 @Composable
-private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float) {
+private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float, onArtworkAspect: (Float) -> Unit) {
     var usingFallback by remember(tile.id) { mutableStateOf(tile.artwork == null) }
     var failed by remember(tile.id) { mutableStateOf(tile.artwork == null && tile.fallbackArtwork == null) }
     if (failed) {
@@ -139,6 +154,7 @@ private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float) {
         focused = focused,
         progressFraction = tile.progressFraction,
         targetAspectRatio = aspectRatio,
+        onImageAspectRatio = onArtworkAspect,
     )
 }
 
@@ -154,6 +170,7 @@ internal fun ArtworkFrame(
     targetAspectRatio: Float = CardAspectRatio,
     focused: Boolean = false,
     progressFraction: Float? = null,
+    onImageAspectRatio: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
     val request = remember(source, cacheKey) {
@@ -191,6 +208,7 @@ internal fun ArtworkFrame(
                     fit = artworkFitFor(drawable.intrinsicWidth, drawable.intrinsicHeight, targetAspectRatio)
                     if (drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
                         imageAspectRatio = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight
+                        onImageAspectRatio(imageAspectRatio)
                     }
                 },
                 onError = { onError() },
