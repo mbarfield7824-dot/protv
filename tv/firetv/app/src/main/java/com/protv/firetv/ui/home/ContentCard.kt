@@ -52,7 +52,9 @@ import com.protv.firetv.ui.theme.ProTvWordmark
 
 /** Artwork-first tiles sized for full-width browsing with the drawer hidden. */
 val CardWidth = 164.dp
+val PosterCardWidth = 132.dp
 const val CardAspectRatio = 16f / 9f
+const val PosterCardAspectRatio = 2f / 3f
 private val CardShape = RoundedCornerShape(8.dp)
 
 @Composable
@@ -66,12 +68,14 @@ fun ContentCard(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
 
-    Column(modifier = modifier.width(CardWidth)) {
+    val aspectRatio = if (tile.posterStyle) PosterCardAspectRatio else CardAspectRatio
+    val cardWidth = if (tile.posterStyle) PosterCardWidth else CardWidth
+    Column(modifier = modifier.width(cardWidth)) {
         Card(
             onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(CardAspectRatio)
+                .aspectRatio(aspectRatio)
                 .focusRequester(focusRequester)
                 .onFocusChanged { if (it.isFocused || it.hasFocus) onFocused() },
             shape = CardDefaults.shape(CardShape),
@@ -91,7 +95,7 @@ fun ContentCard(
             ),
             interactionSource = interactionSource,
         ) {
-            CardArtwork(tile, focused)
+            CardArtwork(tile, focused, aspectRatio)
         }
         // Fixed spacing clears the focused scale so the label never jumps or hides under the card.
         Spacer(modifier = Modifier.height(7.dp))
@@ -117,7 +121,7 @@ fun ContentCard(
 }
 
 @Composable
-private fun CardArtwork(tile: HomeTile, focused: Boolean) {
+private fun CardArtwork(tile: HomeTile, focused: Boolean, aspectRatio: Float) {
     var usingFallback by remember(tile.id) { mutableStateOf(tile.artwork == null) }
     var failed by remember(tile.id) { mutableStateOf(tile.artwork == null && tile.fallbackArtwork == null) }
     if (failed) {
@@ -134,6 +138,7 @@ private fun CardArtwork(tile: HomeTile, focused: Boolean) {
         modifier = Modifier.fillMaxSize(),
         focused = focused,
         progressFraction = tile.progressFraction,
+        targetAspectRatio = aspectRatio,
     )
 }
 
