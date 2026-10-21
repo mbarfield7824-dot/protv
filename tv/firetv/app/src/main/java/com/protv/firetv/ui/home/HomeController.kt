@@ -41,6 +41,10 @@ class HomeTile(
     val progressFraction: Float? = null,
 )
 
+/** Select a full-width image for landscape TV rails, retaining the catalog poster on failure. */
+internal fun preferredRailArtwork(catalogArtwork: Any?, landscapeStill: String?): Pair<Any?, Any?> =
+    if (landscapeStill != null) landscapeStill to catalogArtwork else catalogArtwork to null
+
 @Immutable
 data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
 
@@ -227,8 +231,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         // TV rails are 16:9: prefer a true landscape frame where available so a
         // portrait catalog poster is never reduced to a tiny image in a wide slot.
         // Retain the authorized catalog artwork as a fallback if the still fails.
-        val railArtwork = landscapeArtwork ?: artwork
-        val railFallback = if (landscapeArtwork != null) artwork else null
+        val (railArtwork, railFallback) = preferredRailArtwork(artwork, landscapeArtwork)
         return HomeTile(
             id = item.id,
             title = item.title,
