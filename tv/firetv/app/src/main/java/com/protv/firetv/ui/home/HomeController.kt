@@ -39,11 +39,13 @@ class HomeTile(
     val category: String = "",
     val addedAt: Long? = null,
     val progressFraction: Float? = null,
+    /** Prefer a full-height poster tile when dedicated catalog poster artwork exists. */
+    val posterStyle: Boolean = false,
 )
 
 /** Select a full-width image for landscape TV rails, retaining the catalog poster on failure. */
 internal fun preferredRailArtwork(catalogArtwork: Any?, landscapeStill: String?): Pair<Any?, Any?> =
-    if (landscapeStill != null) landscapeStill to catalogArtwork else catalogArtwork to null
+    if (catalogArtwork != null) catalogArtwork to landscapeStill else landscapeStill to null
 
 @Immutable
 data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
@@ -228,9 +230,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
         // Verified catalog art (poster/thumbnail) is primary; an unreviewed Mux still is only a
         // fallback for titles whose catalog artwork is missing or fails to load.
         val landscapeArtwork = item.muxStillArtwork()
-        // TV rails are 16:9: prefer a true landscape frame where available so a
-        // portrait catalog poster is never reduced to a tiny image in a wide slot.
-        // Retain the authorized catalog artwork as a fallback if the still fails.
+        // Preserve genuine movie artwork rather than replacing posters with film stills.
+        // When source artwork is missing or fails, use an authorized Mux still.
         val (railArtwork, railFallback) = preferredRailArtwork(artwork, landscapeArtwork)
         return HomeTile(
             id = item.id,
@@ -239,6 +240,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
             artwork = railArtwork,
             artworkCacheKey = if (railArtwork is ByteArray) "protv-artwork:${item.id}" else null,
             fallbackArtwork = railFallback,
+            posterStyle = item.posterUrl.isNotBlank(),
             searchText = "${item.category} ${item.searchText}".trim(),
             contentType = item.contentTypeText ?: "MOVIE",
             category = item.category,
