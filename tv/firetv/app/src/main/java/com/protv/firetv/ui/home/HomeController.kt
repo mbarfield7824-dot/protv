@@ -43,7 +43,7 @@ class HomeTile(
     val posterStyle: Boolean = false,
 )
 
-/** Select a full-width image for landscape TV rails, retaining the catalog poster on failure. */
+/** Prefer genuine catalog key art; use film stills only as a fallback. */
 internal fun preferredRailArtwork(catalogArtwork: Any?, landscapeStill: String?): Pair<Any?, Any?> =
     if (catalogArtwork != null) catalogArtwork to landscapeStill else landscapeStill to null
 
@@ -288,6 +288,7 @@ fun buildPersonalizedRails(
                     contentType = tile.contentType,
                     category = tile.category,
                     addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
                     progressFraction = (progress.positionSeconds / progress.durationSeconds).toFloat().coerceIn(0f, 1f),
                 )
             }
@@ -310,6 +311,7 @@ fun buildPersonalizedRails(
                     contentType = tile.contentType,
                     category = tile.category,
                     addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
                 )
             }
         }
