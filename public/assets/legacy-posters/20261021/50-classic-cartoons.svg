@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1350" viewBox="0 0 900 1350">
+  <defs>
+    <linearGradient id="blue" x2=".85" y2="1"><stop stop-color="#152b60"/><stop offset=".5" stop-color="#123985"/><stop offset="1" stop-color="#091228"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#2768cd" stop-opacity=".8"/><stop offset="1" stop-color="#102453" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gold" x2=".15" y2="1"><stop stop-color="#fff3b8"/><stop offset=".48" stop-color="#ffdc65"/><stop offset="1" stop-color="#ffad36"/></linearGradient>
+    <linearGradient id="metal" x2="1" y2="1"><stop stop-color="#e6f2ff"/><stop offset=".5" stop-color="#96b7df"/><stop offset="1" stop-color="#477cbd"/></linearGradient>
+    <clipPath id="panel"><rect x="24" y="36" width="852" height="1278" rx="5"/></clipPath>
+  </defs>
+  <rect width="900" height="1350" fill="#0a1020"/>
+  <g clip-path="url(#panel)">
+    <rect x="24" y="36" width="852" height="1278" fill="url(#blue)"/>
+    <ellipse cx="450" cy="550" rx="510" ry="640" fill="url(#glow)"/>
+    <g fill="none" stroke="#5b8adb" opacity=".16">
+      <circle cx="450" cy="590" r="280" stroke-width="2"/><circle cx="450" cy="590" r="400" stroke-width="2"/><circle cx="450" cy="590" r="540" stroke-width="2"/>
+      <path d="M450 590L-60 66M450 590L115 0M450 590L900 92M450 590L1000 486M450 590L-100 917M450 590L940 1209" stroke-width="40"/>
+    </g>
+    <path d="M-90 1075Q180 825 450 1030T990 992" fill="none" stroke="#060f29" stroke-width="103"/>
+    <path d="M-90 1075Q180 825 450 1030T990 992" fill="none" stroke="#335da5" stroke-width="75" stroke-dasharray="9 25" opacity=".8"/>
+    <path d="M-90 1075Q180 825 450 1030T990 992" fill="none" stroke="#07152e" stroke-width="49"/>
+    <path d="M91,211 Q99,211 99,203 Q99,211 107,211 Q99,211 99,219 Q99,211 91,211" fill="#ffe4a0"/><path d="M765,281 Q777,281 777,269 Q777,281 789,281 Q777,281 777,293 Q777,281 765,281" fill="#ffe4a0"/><path d="M152,461 Q162,461 162,451 Q162,461 172,461 Q162,461 162,471 Q162,461 152,461" fill="#ffe4a0"/><path d="M739,506 Q746,506 746,499 Q746,506 753,506 Q746,506 746,513 Q746,506 739,506" fill="#ffe4a0"/><path d="M87,810 Q98,810 98,799 Q98,810 109,810 Q98,810 98,821 Q98,810 87,810" fill="#ffe4a0"/><path d="M785,894 Q794,894 794,885 Q794,894 803,894 Q794,894 794,903 Q794,894 785,894" fill="#ffe4a0"/><path d="M195,1125 Q202,1125 202,1118 Q202,1125 209,1125 Q202,1125 202,1132 Q202,1125 195,1125" fill="#ffe4a0"/><path d="M682,1173 Q693,1173 693,1162 Q693,1173 704,1173 Q693,1173 693,1184 Q693,1173 682,1173" fill="#ffe4a0"/>
+    <g fill="#8babec" opacity=".65"><circle cx="134" cy="335" r="3"/><circle cx="747" cy="186" r="3"/><circle cx="703" cy="831" r="4"/><circle cx="257" cy="1232" r="3"/></g>
+    <text x="450" y="111" text-anchor="middle" fill="#fff" font-family="Arial" font-size="42" font-weight="900">PRO<tspan fill="#a370ff">tv</tspan></text>
+    <path d="M330 150H570" stroke="#799ce0" stroke-width="1" opacity=".6"/>
+    <text x="450" y="204" text-anchor="middle" fill="#c1d4f6" font-family="Arial" font-size="18" font-weight="700" letter-spacing="6">THE ANIMATION COLLECTION</text>
+    <text x="458" y="543" text-anchor="middle" fill="#071024" stroke="#071024" stroke-width="22" paint-order="stroke" font-family="Impact" font-size="376">50</text>
+    <text x="450" y="529" text-anchor="middle" fill="url(#gold)" stroke="#7a320e" stroke-width="3" paint-order="stroke" font-family="Impact" font-size="376">50</text>
+    <g transform="rotate(-4 450 685)">
+      <path d="M107 581L790 564L790 818L107 835Z" fill="#070f24" opacity=".55"/>
+      <text x="450" y="663" text-anchor="middle" fill="#fff5d8" stroke="#07142a" stroke-width="12" paint-order="stroke" font-family="Impact" font-size="117" letter-spacing="3">CLASSIC</text>
+      <text x="450" y="793" text-anchor="middle" fill="#ff6b59" stroke="#07142a" stroke-width="13" paint-order="stroke" font-family="Impact" font-size="134">CARTOONS</text>
+    </g>
+    <g>
+      <circle cx="450" cy="1047" r="112" fill="#050d22" opacity=".6"/>
+      <circle cx="450" cy="1035" r="104" fill="url(#metal)" stroke="#d7eaff" stroke-width="3"/>
+      <circle cx="450" cy="1035" r="92" fill="none" stroke="#6085b6" stroke-width="2"/>
+      <circle cx="450" cy="977" r="24" fill="#111d43" stroke="#5279be" stroke-width="2"/><circle cx="505.1612779451189" cy="1017.077014326253" r="24" fill="#111d43" stroke="#5279be" stroke-width="2"/><circle cx="484.09154463296346" cy="1081.922985673747" r="24" fill="#111d43" stroke="#5279be" stroke-width="2"/><circle cx="415.9084553670366" cy="1081.922985673747" r="24" fill="#111d43" stroke="#5279be" stroke-width="2"/><circle cx="394.8387220548811" cy="1017.0770143262531" r="24" fill="#111d43" stroke="#5279be" stroke-width="2"/>
+      <circle cx="450" cy="1035" r="17" fill="#14294f" stroke="#d9e8fc" stroke-width="4"/>
+      <circle cx="450" cy="1035" r="5" fill="#85a5cf"/>
+    </g>
+    <path d="M310 1193H590" stroke="#779ed8" stroke-width="1"/>
+    <text x="450" y="1232" text-anchor="middle" fill="#d4e1fa" font-family="Arial" font-size="21" font-weight="700" letter-spacing="4">A VINTAGE ANIMATION MIX</text>
+  </g>
+  <rect x="24.5" y="36.5" width="851" height="1277" rx="5" fill="none" stroke="#8297bd" stroke-opacity=".3"/>
+  <text x="450" y="1338" text-anchor="middle" fill="#8999b8" font-family="Arial" font-size="12" letter-spacing="4">PROtv / CINEMA COLLECTION</text>
+  </svg>

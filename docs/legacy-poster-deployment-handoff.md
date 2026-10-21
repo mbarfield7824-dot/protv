@@ -1,6 +1,12 @@
 # PROtv legacy portrait poster assets — deployment handoff
 
-Status: **Prepared locally for review; no production or database modifications.**
+Status: **Original ZIP review completed; owner subsequently approved revised artwork and requested implementation on 2026-10-21.**
+
+The original montage-derived ZIP described below is superseded by the approved local revision in
+`public/assets/legacy-posters/20261021/`. See [the implementation and rollback instructions](legacy-poster-implementation.md).
+50 Classic Cartoons is a complete original vector rebuild, not the unfinished overlay in the original ZIP.
+The other nine retain their acknowledged montage-detail limitations with cleaned borders and framing.
+The dated history below is retained for provenance; it is not a claim that the original ZIP passed quality review.
 
 The user-approved cinematic collage has been cut into ten separate JPEG preview assets at 900×1350 pixels, packaged in `protv_legacy_posters_review.zip`. These are **upscaled crops of the original generated montage**, not native 900×1350 image generations; image sharpness must be checked on Fire TV before deployment.
 

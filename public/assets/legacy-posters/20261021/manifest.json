@@ -1,0 +1,22 @@
+{
+  "version": "20261021",
+  "approval": "Owner approved local revised posters on 2026-10-21, including acknowledged montage-detail limitations, and requested implementation.",
+  "projectId": "protv-2f48e",
+  "bucket": "protv-2f48e.firebasestorage.app",
+  "field": "posterUrl",
+  "width": 900,
+  "height": 1350,
+  "provenance": "50 Classic Cartoons is a new original vector design with editable SVG. The other nine are cleaned owner-supplied concept images, retaining their inherited montage upscaling; not native-detail restorations. No historical candidate poster downloaded or used. Approval does not certify underlying film rights, historical likeness accuracy or worldwide distribution rights.",
+  "entries": [
+    { "id": "1l1uGB4v8CaUr9p4TTGv", "title": "The Duke Is Tops", "file": "the-duke-is-tops.jpg", "sha256": "3e194dfb71e93ee4f1b016d1453b7919bd9edefce77dd126f4cd0e31464d75fc", "inheritsMontageUpscaling": true },
+    { "id": "1uuUM2H0SzmcKeOpIe3V", "title": "50 Classic Cartoons", "file": "50-classic-cartoons.jpg", "sha256": "3c5e46362d3efc9116cc071bde87ebbfe42f5c0c6caadf0c5daf323cb978f5cb", "inheritsMontageUpscaling": false },
+    { "id": "2OTfk1MA9SNAJcXQajCl", "title": "The Battle of Midway", "file": "the-battle-of-midway.jpg", "sha256": "13e5b6341009da8506b50fdb813f184d00e431a532472d022d1082f440a9d9f3", "inheritsMontageUpscaling": true },
+    { "id": "3NAU6BldsmCNs9wjM08a", "title": "The Little Shop of Horrors", "file": "the-little-shop-of-horrors.jpg", "sha256": "0b74c7e9db514c346aefdec7cc422d913bfa067d3f959773336017836f2b6838", "inheritsMontageUpscaling": true },
+    { "id": "6h3blkiA6LTeLv66jj1v", "title": "Murder in Harlem", "file": "murder-in-harlem.jpg", "sha256": "82b51725a7a198339b0ec4f082eb139dad0ba52a5fe63286562ccbc98f129686", "inheritsMontageUpscaling": true },
+    { "id": "9P2whdYluJRAJeI6cOuh", "title": "Woman on the Run", "file": "woman-on-the-run.jpg", "sha256": "a30c4a25c16aabc79edade32c824e395e847640566a4f84580bb70576f974234", "inheritsMontageUpscaling": true },
+    { "id": "aFRblRPxcp3LEm1lf4ye", "title": "Jungle Book", "file": "jungle-book-1942.jpg", "sha256": "1f438c936021dd62b1d8ca9ec74127e4bcae4590b4e7608537b14633a07cf763", "inheritsMontageUpscaling": true },
+    { "id": "aIZ4FeTCPjuTlycMgxiK", "title": "Angel and the Badman", "file": "angel-and-the-badman.jpg", "sha256": "3d8af0cd0ed44fad04c5164fcba536caf5f6ca2ad56d4d865b890745057aab62", "inheritsMontageUpscaling": true },
+    { "id": "APlVZLmiQPIczS9uEbEd", "title": "The Plow That Broke the Plains", "file": "the-plow-that-broke-the-plains.jpg", "sha256": "7b560222dc3d96ed9a6554792eeb6e41e2cd1767295397ff46e86289b1cd44eb", "inheritsMontageUpscaling": true },
+    { "id": "B2MDEH2b25NknMQMEhoM", "title": "Plan 9 from Outer Space", "file": "plan-9-from-outer-space.jpg", "sha256": "a5dbd93efad00534815f70e3bdfa18e742747a99b2e5f5780c75250e77e33bbb", "inheritsMontageUpscaling": true }
+  ]
+}
