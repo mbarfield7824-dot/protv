@@ -65,10 +65,10 @@ import com.protv.firetv.ui.theme.ProTvSpacing
 import com.protv.firetv.ui.theme.ProTvWordmark
 
 /** Copy column width: the left-hand readability block of the cinematic field. */
-private val HeroTextWidth = 470.dp
+private val HeroTextWidth = 520.dp
 
 /** Height of the key-art poster shown when the featured title only has portrait artwork. */
-private val HeroPosterHeight = 300.dp
+private val HeroPosterHeight = 330.dp
 
 private val TitleShadow = Shadow(color = Color.Black.copy(alpha = 0.7f), offset = Offset(0f, 3f), blurRadius = 14f)
 
@@ -132,8 +132,8 @@ fun HeroContent(
             text = featured.displayTitle,
             color = ProTvColors.White,
             style = TextStyle(shadow = TitleShadow),
-            fontSize = 36.sp,
-            lineHeight = 39.sp,
+            fontSize = 42.sp,
+            lineHeight = 46.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = (-0.5).sp,
             maxLines = 2,
@@ -314,9 +314,9 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
         Box(
             modifier = Modifier.fillMaxSize().background(
                 Brush.horizontalGradient(
-                    0f to ProTvColors.Black.copy(alpha = 0.82f),
-                    0.32f to ProTvColors.Black.copy(alpha = 0.5f),
-                    0.58f to Color.Transparent,
+                    0f to ProTvColors.Black.copy(alpha = 0.91f),
+                    0.3f to ProTvColors.Black.copy(alpha = 0.65f),
+                    0.68f to Color.Transparent,
                 ),
             ),
         )
@@ -326,7 +326,7 @@ private fun HeroArtwork(featured: HomeFeatured, modifier: Modifier) {
                     0f to ProTvColors.Black.copy(alpha = 0.5f),
                     0.16f to Color.Transparent,
                     0.62f to Color.Transparent,
-                    0.86f to ProTvColors.Black.copy(alpha = 0.88f),
+                    0.88f to ProTvColors.Black.copy(alpha = 0.91f),
                     1f to ProTvColors.Black,
                 ),
             ),
@@ -340,7 +340,7 @@ private fun LandscapeArt(source: Any, onError: () -> Unit, modifier: Modifier) {
     val request = remember(source) {
         ImageRequest.Builder(context).data(source).crossfade(true).build()
     }
-    Box(modifier = modifier.fillMaxWidth(0.72f).fillMaxHeight(0.84f)) {
+    Box(modifier = modifier.fillMaxWidth(0.86f).fillMaxHeight(0.97f)) {
         AsyncImage(
             model = request,
             contentDescription = null,
