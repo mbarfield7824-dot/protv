@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+build/
+.cache/
+.env
+.env.*
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+google-services.json
+*service-account*.json
+*serviceAccount*.json

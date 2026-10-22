@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PosterCard" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="render" />
+    <field id="focusPercent" type="float" onChange="focusChanged" />
+    <field id="rowFocusPercent" type="float" onChange="focusChanged" />
+  </interface>
+  <script type="text/brightscript" uri="PosterCard.brs" />
+  <children>
+    <Rectangle id="border" color="0x53657FFF" width="148" height="220" translation="[-2,-2]" />
+    <Rectangle id="panel" color="0x0F1B32FF" width="144" height="216" />
+    <Label id="brand" text="PROtv" width="144" height="40" translation="[0,54]" horizAlign="center" color="0xC5CFDCFF" />
+    <Label id="fallbackTitle" width="128" height="90" translation="[8,104]" horizAlign="center" wrap="true" font="font:SmallSystemFont" />
+    <Poster id="art" width="144" height="216" loadDisplayMode="scaleToFit" />
+    <Rectangle id="progressTrack" width="144" height="4" translation="[0,216]" color="0x283548FF" visible="false" />
+    <Rectangle id="progressFill" width="0" height="4" translation="[0,216]" color="0x4D9BFFFF" visible="false" />
+    <Label id="caption" width="144" height="44" translation="[0,222]" wrap="true" maxLines="2" font="font:SmallSystemFont" />
+  </children>
+</component>

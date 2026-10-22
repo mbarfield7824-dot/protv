@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="ProtvScene" extends="Scene">
+  <interface>
+    <field id="launchRequest" type="assocarray" onChange="onLaunch" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/model.brs" />
+  <script type="text/brightscript" uri="pkg:/source/firebaseConfig.brs" />
+  <script type="text/brightscript" uri="ProtvScene.brs" />
+  <children>
+    <Rectangle width="1280" height="720" color="0x05070BFF" />
+    <Label text="PRO" translation="[64,30]" width="110" height="48" font="font:LargeBoldSystemFont" />
+    <Label text="tv" translation="[165,30]" width="65" height="48" color="0x8C70FFFF" font="font:LargeBoldSystemFont" />
+    <Label text="INDEPENDENT STORIES. TIMELESS CINEMA." translation="[250,42]" width="780" height="32" color="0x94A3B8FF" font="font:SmallSystemFont" />
+    <LayoutGroup id="nav" translation="[64,92]" layoutDirection="horiz" itemSpacings="[16]">
+      <Button id="navHome" text="Home" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
+      <Button id="navSearch" text="Search" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
+      <Button id="navAccount" text="Account" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
+      <Button id="navAbout" text="About" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
+    </LayoutGroup>
+    <Group id="home">
+      <Rectangle translation="[64,155]" width="1152" height="174" color="0x0F1B32FF" />
+      <Rectangle translation="[64,155]" width="4" height="174" color="0x5142D4FF" />
+      <Label id="heroTitle" translation="[88,170]" width="1080" height="42" font="font:LargeBoldSystemFont" />
+      <Label id="heroMeta" translation="[88,216]" width="1080" height="28" color="0x4D9BFFFF" font="font:SmallSystemFont" />
+      <Label id="heroDescription" translation="[88,252]" width="1080" height="64" wrap="true" maxLines="2" color="0xC5CFDCFF" font="font:SmallSystemFont" />
+      <RowList id="rails" translation="[64,350]" itemComponentName="PosterCard" itemSize="[1152,310]" numRows="1" rowItemSize="[[144,266]]" rowItemSpacing="[[20,0]]" rowLabelOffset="[[0,10]]" showRowLabel="[true]" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" drawFocusFeedback="false" />
+    </Group>
+    <Group id="detail" visible="false">
+      <Rectangle translation="[64,162]" width="276" height="414" color="0x0F1B32FF" />
+      <Label id="detailFallback" translation="[78,240]" width="248" height="220" horizAlign="center" wrap="true" />
+      <Poster id="detailArt" translation="[64,162]" width="276" height="414" loadDisplayMode="scaleToFit" />
+      <Label id="detailTitle" translation="[384,165]" width="812" height="90" wrap="true" maxLines="2" font="font:LargeBoldSystemFont" />
+      <Label id="detailMeta" translation="[384,260]" width="812" height="30" color="0x4D9BFFFF" font="font:SmallSystemFont" />
+      <Label id="detailDescription" translation="[384,304]" width="812" height="190" wrap="true" maxLines="7" color="0xC5CFDCFF" />
+      <LayoutGroup id="detailButtons" translation="[384,524]" layoutDirection="horiz" itemSpacings="[16]">
+        <Button id="detailPlay" text="Play" minWidth="160" height="48" iconUri="" focusedIconUri="" />
+        <Button id="detailBack" text="Back" minWidth="160" height="48" iconUri="" focusedIconUri="" />
+      </LayoutGroup>
+    </Group>
+    <Group id="about" visible="false">
+      <Label text="PROtv | Roku development preview" translation="[80,180]" width="1100" height="60" font="font:LargeBoldSystemFont" />
+      <Label text="Guest browsing and playback remain available. Link a PROtv account to synchronize Continue Watching and resume saved progress.&#10;&#10;Account credentials and refresh tokens stay in memory only; leaving the app requires linking again. Sign Out clears this device's session.&#10;&#10;Progress is saved while signed in and is not stored for guests.&#10;&#10;Press Back to return. Catalog retry: select Home." translation="[80,260]" width="1080" height="310" wrap="true" color="0xC5CFDCFF" />
+    </Group>
+    <Group id="account" visible="false">
+      <Label text="PROtv account" translation="[80,180]" width="1100" height="60" font="font:LargeBoldSystemFont" />
+      <Label id="accountMessage" translation="[80,260]" width="1080" height="86" wrap="true" color="0xC5CFDCFF" />
+      <Label id="accountCode" translation="[80,370]" width="1080" height="62" font="font:LargeBoldSystemFont" color="0x4D9BFFFF" />
+      <Label id="accountUrl" translation="[80,432]" width="1080" height="34" color="0xC5CFDCFF" />
+      <Label id="accountExpiry" translation="[80,474]" width="1080" height="34" color="0x94A3B8FF" />
+      <LayoutGroup id="accountButtons" translation="[80,550]" layoutDirection="horiz" itemSpacings="[16]">
+        <Button id="accountAction" text="Link PROtv account" minWidth="270" height="48" iconUri="" focusedIconUri="" />
+        <Button id="accountSignOut" text="Sign Out" minWidth="160" height="48" visible="false" iconUri="" focusedIconUri="" />
+        <Button id="accountBack" text="Back" minWidth="160" height="48" iconUri="" focusedIconUri="" />
+      </LayoutGroup>
+    </Group>
+    <Label id="status" translation="[64,666]" width="1152" height="30" color="0xC5CFDCFF" font="font:SmallSystemFont" />
+    <Video id="video" visible="false" width="1280" height="720" enableUI="true" />
+    <Timer id="accountPollTimer" repeat="true" duration="5.0" />
+    <Timer id="progressTimer" repeat="true" duration="15.0" />
+  </children>
+</component>

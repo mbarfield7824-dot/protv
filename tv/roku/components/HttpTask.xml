@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="HttpTask" extends="Task">
+  <interface>
+    <field id="path" type="string" />
+    <field id="kind" type="string" />
+    <field id="url" type="string" />
+    <field id="method" type="string" />
+    <field id="body" type="string" />
+    <field id="contentType" type="string" />
+    <field id="authorization" type="string" />
+    <field id="deviceSecret" type="string" />
+    <field id="result" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/model.brs" />
+  <script type="text/brightscript" uri="HttpTask.brs" />
+</component>
