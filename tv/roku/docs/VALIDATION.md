@@ -1,5 +1,22 @@
 # Roku validation record
 
+## Email keyboard focus fix (v0.6.1 dev) - 2026-10-23 (local time)
+- Device (v0.6.0): after Sign in and Roku's email request, the email keyboard
+  appeared pre-filled but the remote did nothing.
+- Root cause (code path; not yet confirmed on the TV): the keyboard was shown
+  inside the ChannelStore userData callback while Roku's request screen was
+  still closing; Roku then returned focus to the Sign in button behind the
+  keyboard, so keys went to the hidden Account screen. The keyboard also
+  received its buttons after it was shown, unlike the working search keyboard.
+- Fix: open the keyboard 0.4 s after the request screen closes; build it
+  completely, then show it and give it focus; any key that reaches the scene
+  while a keyboard is open returns focus to it; validation messages reopen
+  the keyboard instead of editing it on screen. Backend unchanged.
+- npm test 10/10: 175 model assertions, 175 scene regressions (9 new for this
+  failure, plus static checks on the build-show-focus order).
+- ZIP: dist/releases/protv-roku-v0.6.1-dev.zip, SHA-256
+  d2975203d75f2398744526ddcd98b00e774d30c64f08b52bd1644b87d24f1229.
+
 ## On-device sign-in (v0.6.0 dev) - 2026-10-23 (local time)
 Branch `feature/roku-on-device-auth` from `roku-v0.5.6-tv-verified`; backend
 branch `feature/tv-on-device-auth-backend` from `origin/main` (4142f26). Not

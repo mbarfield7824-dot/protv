@@ -226,6 +226,8 @@
     <Timer id="statusTimer" repeat="false" duration="5.0" />
     <Timer id="rotateTimer" repeat="true" duration="8.0" />
     <Timer id="backdropTimer" repeat="false" duration="0.3" />
+    <!-- Opens the email keyboard after Roku's email request screen has closed. -->
+    <Timer id="authDialogTimer" repeat="false" duration="0.4" />
     <Timer id="playerHideTimer" repeat="false" duration="3.0" />
     <Timer id="seekTimer" repeat="false" duration="0.8" />
   </children>

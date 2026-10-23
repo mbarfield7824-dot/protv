@@ -32,6 +32,8 @@ sub Main()
     m.dialogs = []
     m.newStore = FakeStore
     m.newDialog = FakeDialog
+    m.authDialogTimer = { control: "" }
+    m.pendingEmail = ""
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
     m.pendingFavorite = invalid
@@ -323,16 +325,30 @@ sub Main()
     accountActionSelected()
     Check(m.stores.Count() = 1 and m.tasks.Count() = 0, "a second press while the flow is open starts nothing")
     store.userData = { email: "viewer@example.com" }
+    ' Device bug (v0.6.0): the keyboard opened inside Roku's email callback, and
+    ' Roku then returned focus to the hidden Sign in button, so the remote did nothing.
     authUserData()
+    Check(m.authDialog = invalid and m.authDialogTimer.control = "start", "the keyboard waits for Roku's email screen to close")
+    authDialogTimerFired()
     emailBox = m.authDialog
     Check(emailBox.keyboardDomain = "email" and emailBox.text = "viewer@example.com" and emailBox.buttons[0] = "Continue", "the shared Roku email pre-fills the email keyboard")
+    Check(emailBox.focusCount = 1 and emailBox.shownWith.buttons = 2 and emailBox.shownWith.text = "viewer@example.com" and emailBox.shownWith.handler = "authEmailButton", "the keyboard is complete, with Continue, before it is shown and focused")
+    Check(Instr(1, emailBox.message[0], "Press Down to reach Continue") > 0, "the keyboard says how to reach Continue")
+    m.top.nodes.accountAction.setFocus(true)
+    Check(Press("OK") and emailBox.focusCount = 2 and m.stores.Count() = 1 and m.tasks.Count() = 0, "a key that lands behind the keyboard returns focus to it and does nothing else")
+    Check(Press("down") and Press("back") and emailBox.focusCount = 4 and m.mode = "account" and m.authFlow <> invalid, "arrows and Back behind the keyboard never move the hidden screen")
+    authDialogTimerFired()
+    Check(m.authDialog.focusCount = 4 and m.dialogs.Count() = 1, "a late timer never opens a second keyboard")
     emailBox.text = "not-an-email"
     emailBox.buttonSelected = 0
     authEmailButton()
-    Check(Instr(1, emailBox.message[0], "full email") > 0 and m.tasks.Count() = 0 and not emailBox.close, "an incomplete email is caught on the TV")
+    Check(emailBox.close and Instr(1, m.authDialog.message[0], "full email") > 0 and m.authDialog.text = "not-an-email" and m.authDialog.focusCount = 1 and m.tasks.Count() = 0, "an incomplete email reopens the keyboard with the message and the typed text")
+    emailBox = m.authDialog
     emailBox.text = " viewer@example.com "
+    emailBox.buttonSelected = 0
     authEmailButton()
     passwordBox = m.authDialog
+    Check(passwordBox.shownWith.buttons = 2 and passwordBox.shownWith.text = "" and passwordBox.focusCount = 1, "the password keyboard is complete before it is shown and focused")
     Check(emailBox.close and passwordBox.keyboardDomain = "password" and passwordBox.textEditBox.secureMode and passwordBox.buttons[0] = "Sign in", "the password keyboard hides what is typed")
     passwordBox.text = "wrong horse"
     passwordBox.buttonSelected = 0
@@ -352,6 +368,7 @@ sub Main()
     accountActionSelected()
     m.stores[m.stores.Count() - 1].userData = invalid
     authUserData()
+    authDialogTimerFired()
     Check(m.authDialog.text = "", "declining Roku's request leads to typing the email")
     m.authDialog.text = "viewer@example.com"
     m.authDialog.buttonSelected = 0
@@ -384,6 +401,7 @@ sub Main()
     Check(store.requestedUserDataInfo.context = "signup", "Create account asks Roku for the email in sign-up mode")
     store.userData = { email: "new@example.com" }
     authUserData()
+    authDialogTimerFired()
     m.authDialog.buttonSelected = 0
     authEmailButton()
     passwordBox = m.authDialog
@@ -391,8 +409,9 @@ sub Main()
     passwordBox.text = "12345"
     passwordBox.buttonSelected = 0
     authPasswordButton()
-    Check(m.tasks.Count() = 0 and Instr(1, passwordBox.message[0], "6 characters") > 0, "the website's 6-character minimum is checked on the TV")
-    passwordBox.text = "long enough"
+    Check(m.tasks.Count() = 0 and passwordBox.close and Instr(1, m.authDialog.message[0], "6 characters") > 0 and m.authDialog.textEditBox.secureMode, "the website's 6-character minimum is checked on the TV")
+    m.authDialog.text = "long enough"
+    m.authDialog.buttonSelected = 0
     authPasswordButton()
     Check(m.tasks[0].kind = "tv-sign-up" and m.tasks[0].path = "/auth/tv/sign-up", "sign-up goes to PROtv's TV sign-up route")
     Finish(invalid, "PROtv request failed (HTTP 409). Please try again.", 409, "email_exists")
@@ -400,6 +419,7 @@ sub Main()
     accountCreateSelected()
     m.stores[m.stores.Count() - 1].userData = { email: "fresh@example.com" }
     authUserData()
+    authDialogTimerFired()
     m.authDialog.buttonSelected = 0
     authEmailButton()
     m.authDialog.text = "long enough"
@@ -417,6 +437,7 @@ sub Main()
     accountResetSelected()
     m.stores[m.stores.Count() - 1].userData = invalid
     authUserData()
+    authDialogTimerFired()
     m.authDialog.text = "google-only@example.com"
     m.authDialog.buttonSelected = 0
     authEmailButton()
@@ -429,11 +450,21 @@ sub Main()
     accountActionSelected()
     m.stores[m.stores.Count() - 1].userData = invalid
     authUserData()
+    authDialogTimerFired()
     authDialogClosed()
     Check(m.authFlow = invalid and m.authDialog = invalid and m.top.nodes.accountAction.focused and m.tasks.Count() = 1, "Back on a keyboard cancels sign-in")
+    Check(Press("right") and m.top.nodes.accountCreate.focused, "after Back the Account screen responds to the remote again")
     accountActionSelected()
     m.stores[m.stores.Count() - 1].userData = invalid
     authUserData()
+    endAuthFlow()
+    dialogsBefore = m.dialogs.Count()
+    authDialogTimerFired()
+    Check(m.authDialogTimer.control = "stop" and m.dialogs.Count() = dialogsBefore and m.authDialog = invalid, "cancelling before the keyboard opens leaves no keyboard behind")
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    authDialogTimerFired()
     cancelBox = m.authDialog
     cancelBox.buttonSelected = 1
     authEmailButton()
@@ -442,6 +473,7 @@ sub Main()
         accountActionSelected()
         m.stores[m.stores.Count() - 1].userData = { email: "viewer@example.com" }
         authUserData()
+        authDialogTimerFired()
         m.authDialog.buttonSelected = 0
         authEmailButton()
         m.authDialog.text = "any password"
@@ -704,7 +736,11 @@ end function
 
 ' Stands in for StandardKeyboardDialog.
 function FakeDialog() as Object
-    dialog = { title: "", message: [], text: "", buttons: [], keyboardDomain: "", buttonSelected: -1, close: false, textEditBox: { secureMode: false }, handlers: {},
+    dialog = { title: "", message: [], text: "", buttons: [], keyboardDomain: "", buttonSelected: -1, close: false, textEditBox: { secureMode: false }, handlers: {}, focusCount: 0, shownWith: invalid,
+        setFocus: sub(value as Boolean)
+            m.focusCount = m.focusCount + 1
+            if m.shownWith = invalid then m.shownWith = { buttons: m.buttons.Count(), text: m.text, message: m.message.Count(), handler: m.handlers.buttonSelected }
+        end sub,
         observeField: sub(field as String, handler as String)
             m.handlers[field] = handler
         end sub,

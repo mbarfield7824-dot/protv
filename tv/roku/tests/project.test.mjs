@@ -27,7 +27,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*166(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*175(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {
@@ -181,6 +181,18 @@ test('account flow uses existing contracts and does not persist or expose sessio
   assert.match(scene, /m\.authStore\.command = "getUserData"/);
   assert.match(scene, /requestedUserData = "email"/);
   assert.match(scene, /dialog\.textEditBox\.secureMode = true/);
+  // Device bug (v0.6.0): every sign-in keyboard is fully built before it is
+  // shown, then focused; it opens after Roku's email screen closes; and keys
+  // that land behind it return focus to it.
+  const present = /sub presentAuthDialog\([\s\S]*?\nend sub/.exec(scene)[0];
+  const shown = present.indexOf('m.top.dialog = dialog');
+  for (const field of ['dialog.message =', 'dialog.text =', 'dialog.buttons =', 'observeField("buttonSelected"', 'observeField("wasClosed"']) {
+    assert.ok(present.indexOf(field) > 0 && present.indexOf(field) < shown, `${field} is set before the keyboard is shown`);
+  }
+  assert.ok(present.indexOf('dialog.setFocus(true)') > shown, 'the keyboard is focused after it is shown');
+  assert.equal((scene.match(/m\.top\.dialog = dialog/g) || []).length, 1, 'sign-in keyboards are only shown through presentAuthDialog');
+  assert.match(scene, /sub authUserData\(\)[\s\S]*?m\.authDialogTimer\.control = "start"\nend sub/);
+  assert.match(scene, /function onKeyEvent\(key as String, press as Boolean\) as Boolean\n    if not press then return false\n    if m\.authDialog <> invalid\n        m\.authDialog\.setFocus\(true\)\n        return true/);
   // The password only ever appears in a request body, never in state, storage or logs.
   for (const line of scene.split('\n').filter((text) => /password/i.test(text) && !/^\s*'/.test(text))) {
     assert.doesNotMatch(line, /^\s*m\.(authFlow|account|auth\w*)[\w.]*\s*=[^=]*\bpassword\b|\bprint\b|storage\.write/i, line.trim());

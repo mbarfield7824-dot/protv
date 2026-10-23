@@ -32,6 +32,7 @@ sub init()
     m.authDialog = invalid
     m.authStore = invalid
     m.authNotice = ""
+    m.pendingEmail = ""
     m.accountTask = invalid
     m.afterRefreshAction = ""
     m.authRetryAction = ""
@@ -61,7 +62,7 @@ sub init()
     m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
@@ -102,6 +103,7 @@ sub init()
     m.top.findNode("seriesArt").observeField("loadStatus", "seriesArtStatus")
     m.seriesEpisodes.observeField("itemSelected", "episodeSelected")
     m.progressTimer.observeField("fire", "progressTimerFired")
+    m.authDialogTimer.observeField("fire", "authDialogTimerFired")
     ' Installed version, for support requests and test reports.
     m.top.findNode("accountBuild").text = "PROtv for Roku " + CreateObject("roAppInfo").GetVersion()
     restoreSession()
@@ -1395,6 +1397,10 @@ end sub
 ' Focus zones: sidebar | featured actions above the rails | account actions.
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    if m.authDialog <> invalid
+        m.authDialog.setFocus(true)
+        return true
+    end if
     restartRotation()
     if m.video.visible
         return playerKey(key)
@@ -1667,7 +1673,7 @@ sub startAuthFlow(mode as String)
     m.authFlow = { mode: mode, email: "" }
     m.authStore = m.newStore()
     if m.authStore = invalid
-        showEmailDialog("")
+        showEmailDialog("", "")
         return
     end if
     info = CreateObject("roSGNode", "ContentNode")
@@ -1681,23 +1687,30 @@ sub startAuthFlow(mode as String)
 end sub
 
 ' Roku sets userData to the shared fields, or to invalid if the viewer declines.
+' The email keyboard opens a moment later: on a TV, Roku returns focus to the
+' Sign in button when its request screen finishes closing, which would leave
+' a keyboard opened from this callback visible but without remote focus.
 sub authUserData()
     store = m.authStore
     m.authStore = invalid
     if store = invalid or m.authFlow = invalid then return
     store.unobserveField("userData")
-    email = ""
+    m.pendingEmail = ""
     data = store.userData
-    if data <> invalid then email = Text(data.email)
-    showEmailDialog(email)
+    if data <> invalid then m.pendingEmail = Text(data.email)
+    m.authDialogTimer.control = "stop"
+    m.authDialogTimer.control = "start"
 end sub
 
-sub showEmailDialog(email as String)
-    dialog = openAuthDialog("email")
-    dialog.message = ["Enter the email address for your PROtv account."]
-    dialog.text = email
-    dialog.buttons = ["Continue", "Cancel"]
-    dialog.observeField("buttonSelected", "authEmailButton")
+sub authDialogTimerFired()
+    if m.authFlow = invalid or m.authDialog <> invalid then return
+    showEmailDialog(m.pendingEmail, "")
+end sub
+
+sub showEmailDialog(email as String, problem as String)
+    message = "Enter the email address for your PROtv account. Press Down to reach Continue."
+    if problem <> "" then message = problem
+    presentAuthDialog("email", message, email, ["Continue", "Cancel"], "authEmailButton")
 end sub
 
 sub authEmailButton()
@@ -1709,7 +1722,7 @@ sub authEmailButton()
     end if
     email = Text(dialog.text).Trim()
     if not ValidEmail(email)
-        dialog.message = ["Enter a full email address, for example name@example.com."]
+        showEmailDialog(Text(dialog.text), "Enter a full email address, for example name@example.com.")
         return
     end if
     m.authFlow.email = email
@@ -1717,22 +1730,20 @@ sub authEmailButton()
     if m.authFlow.mode = "reset"
         submitAuth("")
     else
-        showPasswordDialog()
+        showPasswordDialog("")
     end if
 end sub
 
-sub showPasswordDialog()
-    dialog = openAuthDialog("password")
-    if dialog.textEditBox <> invalid then dialog.textEditBox.secureMode = true
+sub showPasswordDialog(problem as String)
     if m.authFlow.mode = "signup"
-        dialog.message = ["Choose a password of at least 6 characters for " + m.authFlow.email + "."]
-        dialog.buttons = ["Create account", "Cancel"]
+        message = "Choose a password of at least 6 characters for " + m.authFlow.email + "."
+        buttons = ["Create account", "Cancel"]
     else
-        dialog.message = ["Enter the password for " + m.authFlow.email + "."]
-        dialog.buttons = ["Sign in", "Cancel"]
+        message = "Enter the password for " + m.authFlow.email + "."
+        buttons = ["Sign in", "Cancel"]
     end if
-    dialog.text = ""
-    dialog.observeField("buttonSelected", "authPasswordButton")
+    if problem <> "" then message = problem
+    presentAuthDialog("password", message + " Press Down to reach " + buttons[0] + ".", "", buttons, "authPasswordButton")
 end sub
 
 sub authPasswordButton()
@@ -1745,7 +1756,7 @@ sub authPasswordButton()
     password = Text(dialog.text)
     if password = "" then return
     if m.authFlow.mode = "signup" and Len(password) < 6
-        dialog.message = ["Choose a password of at least 6 characters."]
+        showPasswordDialog("Choose a password of at least 6 characters.")
         return
     end if
     closeAuthDialog()
@@ -1767,17 +1778,24 @@ sub submitAuth(password as String)
     end if
 end sub
 
-function openAuthDialog(keyboard as String) as Object
+' Builds the keyboard completely, as the search keyboard does, then shows it
+' and gives it focus explicitly.
+sub presentAuthDialog(keyboard as String, message as String, value as String, buttons as Object, handler as String)
     closeAuthDialog()
     dialog = m.newDialog()
     titles = { signin: "Sign in to PROtv", signup: "Create a free PROtv account", reset: "Reset your PROtv password" }
     dialog.title = titles[m.authFlow.mode]
     dialog.keyboardDomain = keyboard
+    dialog.message = [message]
+    dialog.text = value
+    dialog.buttons = buttons
+    if keyboard = "password" and dialog.textEditBox <> invalid then dialog.textEditBox.secureMode = true
+    dialog.observeField("buttonSelected", handler)
     dialog.observeField("wasClosed", "authDialogClosed")
     m.authDialog = dialog
     m.top.dialog = dialog
-    return dialog
-end function
+    dialog.setFocus(true)
+end sub
 
 sub closeAuthDialog()
     dialog = m.authDialog
@@ -1795,6 +1813,7 @@ sub authDialogClosed()
 end sub
 
 sub endAuthFlow()
+    m.authDialogTimer.control = "stop"
     closeAuthDialog()
     m.authFlow = invalid
     m.status.text = ""
@@ -2015,6 +2034,7 @@ end sub
 ' A failed sign-in, sign-up or reset leaves the viewer on the Account screen.
 sub authFlowFailed(message as String)
     closeAuthDialog()
+    m.authDialogTimer.control = "stop"
     m.authFlow = invalid
     m.authNotice = ""
     showAccountState()
