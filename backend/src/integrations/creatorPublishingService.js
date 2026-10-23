@@ -3,6 +3,7 @@ const {
   createCreatorVideo,
   getVideoByCreatorProjectId,
   updateVideo,
+  updateCreatorPosterTransfer,
 } = require('../firebase');
 const {
   createAssetFromUrl,
@@ -11,6 +12,9 @@ const {
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { logAdminEvent } = require('../adminBot/adminAudit');
+const {
+  validatePromotional, posterSource, transferPoster, promotionalBinding,
+} = require('./creatorPromotional');
 
 const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'distribution']);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
@@ -63,6 +67,7 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     if (project.contract?.status !== 'signed' || !project.contract.signedAt) {
       throw new Error('A signed creator contract is required before publishing or distribution.');
     }
+    if (payload.action === 'publishing') validatePromotional(project.promotional);
   }
   return payload;
 }
@@ -105,10 +110,13 @@ function metadataFromProject(project) {
 class CreatorPublishingService {
   constructor({
     creatorAgentOrigin = '',
+    publishingSecret = process.env.PROTV_PUBLISHING_SECRET || '',
     dependencies = {
       createCreatorVideo,
       getVideoByCreatorProjectId,
       updateVideo,
+      updateCreatorPosterTransfer,
+      transferPoster,
       createAssetFromUrl,
       getAsset,
       getPlaybackId,
@@ -116,6 +124,7 @@ class CreatorPublishingService {
     },
   } = {}) {
     this.creatorAgentOrigin = creatorAgentOrigin;
+    this.publishingSecret = publishingSecret;
     this.dependencies = dependencies;
   }
 
@@ -136,8 +145,19 @@ class CreatorPublishingService {
   }
 
   async publish({ requestId, project }) {
+    const promotional = validatePromotional(project.promotional);
+    const binding = promotionalBinding(promotional);
     const existing = await this.dependencies.getVideoByCreatorProjectId(project.id);
     if (existing) {
+      if (['poster_transfer_failed', 'poster_transferring'].includes(existing.status)) {
+        if (!promotional.poster || existing.creatorPromotionalBinding !== binding) {
+          throw new Error('Poster retry must match the reserved promotional asset and credits.');
+        }
+        if (existing.status === 'poster_transferring' && existing.posterTransferLeaseUntil > Date.now()) {
+          throw new Error('Poster transfer is in progress; retry publishing later.');
+        }
+        return this.resumePoster(project, promotional, existing);
+      }
       await this.audit('publishing', project.id, existing.id, 'Returned existing catalog title for an idempotent retry.');
       return {
         externalId: existing.id,
@@ -150,8 +170,16 @@ class CreatorPublishingService {
       throw new Error('A protected media source is required for publishing.');
     }
     const metadata = metadataFromProject(project);
+    if (promotional.poster) posterSource(project.id, promotional.poster, this.creatorAgentOrigin, this.publishingSecret);
+    const transferState = promotional.poster ? {
+      status: 'poster_transferring',
+      posterTransferToken: crypto.randomUUID(),
+      posterTransferLeaseUntil: Date.now() + 120_000,
+      creatorPromotionalBinding: binding,
+    } : {};
     const reservation = await this.dependencies.createCreatorVideo(project.id, {
       ...metadata,
+      credits: promotional.credits,
       thumbnailUrl: '',
       duration: 0,
       views: 0,
@@ -169,6 +197,7 @@ class CreatorPublishingService {
       rightsVerificationNotes: 'Ownership and signed contract were verified in the PROtv Creator Agent before Administrator-approved publishing.',
       creatorContractReference: optionalText(project.contract.reference, 300),
       creatorContractSignedAt: project.contract.signedAt,
+      ...transferState,
     });
     const catalogId = reservation.id;
     if (!reservation.created) {
@@ -181,6 +210,50 @@ class CreatorPublishingService {
       };
     }
 
+    if (promotional.poster) {
+      return this.ingestWithPoster(project, promotional, { id: catalogId, ...transferState });
+    }
+    return this.startMovieIngestion(project, catalogId);
+  }
+
+  async resumePoster(project, promotional, existing) {
+    parseSourceUrl(project.media?.sourceUrl, this.creatorAgentOrigin);
+    posterSource(project.id, promotional.poster, this.creatorAgentOrigin, this.publishingSecret);
+    const state = {
+      status: 'poster_transferring', posterTransferToken: crypto.randomUUID(),
+      posterTransferLeaseUntil: Date.now() + 120_000, integrationError: '',
+    };
+    if (!await this.dependencies.updateCreatorPosterTransfer(existing.id, existing, state)) {
+      throw new Error('Poster reservation changed; retry publishing later.');
+    }
+    return this.ingestWithPoster(project, promotional, { ...existing, ...state });
+  }
+
+  async ingestWithPoster(project, promotional, reservation) {
+    let posterUrl;
+    try {
+      posterUrl = await this.dependencies.transferPoster(project.id, promotional.poster, {
+        origin: this.creatorAgentOrigin, secret: this.publishingSecret,
+      });
+      if (typeof posterUrl !== 'string' || !posterUrl || posterUrl.includes('/api/integrations/protv/')) {
+        throw new Error('Poster storage did not return a durable catalog URL.');
+      }
+    } catch {
+      await this.dependencies.updateCreatorPosterTransfer(reservation.id, reservation, {
+        status: 'poster_transfer_failed', posterTransferLeaseUntil: 0,
+        integrationError: 'Poster transfer failed before Mux ingestion. Retry publishing with a fresh signed poster URL.',
+      });
+      throw new Error('Poster transfer failed before Mux ingestion. Retry publishing with a fresh signed poster URL.');
+    }
+    const updated = await this.dependencies.updateCreatorPosterTransfer(reservation.id, reservation, {
+      status: 'initializing', posterTransferLeaseUntil: 0, integrationError: '',
+      thumbnailUrl: posterUrl, posterUrl, credits: promotional.credits,
+    });
+    if (!updated) throw new Error('Poster reservation changed; Mux ingestion was not started.');
+    return this.startMovieIngestion(project, reservation.id);
+  }
+
+  async startMovieIngestion(project, catalogId) {
     try {
       const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
       const asset = await this.dependencies.createAssetFromUrl(sourceUrl);

@@ -103,8 +103,18 @@ function updateVideo(id, updates) {
   if (!videos[id]) {
     throw new Error('Video not found');
   }
+
   videos[id] = { ...videos[id], ...updates };
   saveVideos(videos);
+}
+
+function updateCreatorPosterTransfer(id, expected, updates) {
+  const { transferMatches } = require('./integrations/creatorPromotional');
+  const videos = loadVideos();
+  if (!transferMatches(videos[id], expected)) return false;
+  videos[id] = { ...videos[id], ...updates };
+  saveVideos(videos);
+  return true;
 }
 
 function updatePodcastIngestion(id, expected, updates) {
@@ -189,6 +199,7 @@ function getVideoByCreatorProjectId(creatorProjectId) {
 }
 
 module.exports = {
+  updateCreatorPosterTransfer,
   getAllVideos,
   getApprovedVideos,
   getVideoById,

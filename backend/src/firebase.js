@@ -29,6 +29,7 @@ try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: process.env.FIREBASE_PROJECT_ID,
+    ...(process.env.FIREBASE_STORAGE_BUCKET ? { storageBucket: process.env.FIREBASE_STORAGE_BUCKET } : {}),
   });
 
   // Get Firestore instance
@@ -40,6 +41,19 @@ try {
   console.warn('⚠ Firebase initialization failed:', err.message);
   console.warn(process.env.VERCEL || process.env.NODE_ENV === 'production'
     ? '⚠ Local video storage disabled in production.' : '⚠ Falling back to file-based storage');
+}
+
+function getCreatorPosterBucket() {
+  let app;
+  try { app = admin.app(); } catch {
+    if (process.env.FIREBASE_STORAGE_BUCKET) throw new Error('Firebase Admin Storage credentials are unavailable.');
+    return null;
+  }
+  const name = process.env.FIREBASE_STORAGE_BUCKET || app.options?.storageBucket;
+  if (!name) return null;
+  if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/.test(name)
+    || name.includes('..')) throw new Error('An explicit valid Firebase Storage bucket name is required.');
+  return admin.storage(app).bucket(name);
 }
 
 // Helper function to create a new user
@@ -134,6 +148,18 @@ async function createCreatorVideo(creatorProjectId, videoData) {
     }
     throw new Error(`Failed to reserve the creator catalog title: ${error.message}`);
   }
+}
+
+async function updateCreatorPosterTransfer(id, expected, updates) {
+  if (!db) return localVideoStorage().updateCreatorPosterTransfer(id, expected, updates);
+  const { transferMatches } = require('./integrations/creatorPromotional');
+  const document = db.collection('videos').doc(id);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(document);
+    if (!transferMatches(snapshot.data(), expected)) return false;
+    transaction.update(document, updates);
+    return true;
+  });
 }
 
 // Helper function to get all videos
@@ -348,6 +374,8 @@ async function updateVideoApproval(videoId, approvalData) {
 }
 
 module.exports = {
+  getCreatorPosterBucket,
+  updateCreatorPosterTransfer,
   db,
   auth,
   VideoNotFoundError,

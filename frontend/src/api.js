@@ -5,6 +5,7 @@ import { fetchSearchVideos } from './data/searchCatalog';
 import { fetchPlayerTitle } from './data/playerCatalog';
 import { submitSafetyReport } from './data/safetyReports';
 import { adminReportRequest } from './admin/safetyReports';
+import { uploadTitlePoster } from './admin/posterUpload';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -245,6 +246,8 @@ export const api = {
   unpublishPodcastEpisode: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),
   podcastUploadUrl: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/upload-url`, { method: 'POST', body: {} }),
   podcastFromUrl: (id, sourceUrl) => podcastRequest(`episodes/${encodeURIComponent(id)}/from-url`, { method: 'POST', body: { sourceUrl } }),
+
+  uploadTitlePoster: (videoId, file) => uploadTitlePoster(API_URL, authenticatedHeaders, videoId, file),
 
   async updateVideoMetadata(videoId, metadata) {
     const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {
