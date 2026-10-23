@@ -1,5 +1,5 @@
-' Focusable rounded button. Styles: "primary", "secondary" and "nav"
-' (sidebar; compact = icon only).
+' Focusable rounded button. Styles: "primary", "secondary", "nav"
+' (sidebar; compact = icon only) and "ghost" (no background until focused).
 ' icon names a pkg:/assets/icon-<name>-<light|dim|dark>.png set.
 sub init()
     m.background = m.top.findNode("background")
@@ -62,6 +62,8 @@ sub refresh()
         variant = "dark"
     else if style = "primary"
         uri = "pkg:/assets/btn-primary.9.png"
+    else if style = "ghost"
+        uri = ""
     else
         uri = "pkg:/assets/btn-idle.9.png"
     end if

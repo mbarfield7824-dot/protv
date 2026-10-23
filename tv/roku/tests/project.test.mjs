@@ -22,12 +22,12 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
   const output = execFileSync(process.execPath, [
     path.join(root, 'node_modules', 'brs', 'bin', 'cli.js'),
     path.join(root, 'source', 'model.brs'),
-    path.join(root, 'source', 'firebaseConfig.brs'),
+    path.join(root, 'tests', 'firebaseConfig.brs'),
     path.join(root, 'components', 'ProtvScene.brs'),
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*67(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*100(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {

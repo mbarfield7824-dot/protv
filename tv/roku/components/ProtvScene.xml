@@ -87,11 +87,9 @@
         <PillButton id="navAccount" text="Account" style="nav" icon="user" width="216" height="40" compact="true" translation="[0,414]" />
       </Group>
     </Group>
+    <!-- Guest / greeting: focusable (Up from the featured actions); OK opens Account. -->
     <Group id="topBar">
-      <Label id="accountBadge" translation="[960,26]" width="212" height="32" horizAlign="right" vertAlign="center" color="0xE9EEF8FF">
-        <Font role="font" uri="font:SystemFontFile" size="17" />
-      </Label>
-      <Poster uri="pkg:/assets/icon-user-light.png" translation="[1184,28]" width="28" height="28" />
+      <PillButton id="profileButton" text="Guest" style="ghost" icon="user" width="216" height="40" translation="[1000,22]" />
     </Group>
 
     <Group id="detail" visible="false">

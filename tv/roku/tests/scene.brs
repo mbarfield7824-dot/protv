@@ -5,6 +5,10 @@ sub Main()
         nodes: {},
         dialog: invalid,
         findNode: function(id as String) as Object
+            if not m.nodes.DoesExist(id)
+                m.nodes[id] = FocusNode()
+                GetGlobalAA().all.Push(m.nodes[id])
+            end if
             return m.nodes[id]
         end function,
         signalBeacon: sub(name as String)
@@ -12,7 +16,30 @@ sub Main()
         end sub
     }
     m.beacons = []
-    for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "accountBadge", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountSignOut", "accountBack"]
+    m.loaded = true
+    m.loading = false
+    m.catalogLoadedAt = CurrentEpochSeconds()
+    m.guestWrittenAt = 0
+    m.rowsStale = false
+    m.accountFromProfile = false
+    m.accountPollTimer = { control: "", duration: 0 }
+    m.progressTimer = { control: "" }
+    m.playTask = invalid
+    m.deviceSession = invalid
+    m.pendingProgressSave = invalid
+    m.savingProgress = invalid
+    m.pendingFavorite = invalid
+    m.savingFavorite = invalid
+    m.afterRefreshAction = ""
+    m.authRetryAction = ""
+    m.pollDelaySeconds = 5
+    m.exchangeRetryCount = 0
+    m.progressLoaded = false
+    m.favoritesLoaded = false
+    m.selected = invalid
+    m.tasks = []
+    m.newTask = FakeTask
+    for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "profileButton", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountSignOut", "accountBack"]
         m.top.nodes[id] = FocusNode()
     end for
     for each id in ["logo", "sidebarBg", "sidebarFade", "sidebarWidth", "sidebarFadeMove", "heroTitle", "railsGroup", "heroLayer", "heroCopy", "bottomFade", "heroExtras", "railsMove", "heroLayerMove", "heroCopyMove", "fadeMove", "extrasFade", "heroEyebrow", "heroMeta", "heroDescription", "heroArtwork", "heroDots"]
@@ -20,6 +47,10 @@ sub Main()
         m.top.nodes[id].opacity = 1.0
     end for
     m.top.nodes.sidebarBg.width = 88.0
+    m.profile = m.top.nodes.profileButton
+    for each id in ["home", "detail", "seriesScreen", "accountScreen", "sidebar", "topBar"]
+        m[id] = FocusNode()
+    end for
     m.browseAnim = { control: "" }
     m.sidebarAnim = { control: "" }
     m.backdropTimer = { control: "" }
@@ -60,6 +91,9 @@ sub Main()
     m.statusTimer = { control: "" }
     m.rotateTimer = { control: "" }
     m.all = [m.rails, m.top.nodes.detailDescription]
+    for each id in m.top.nodes
+        m.all.Push(m.top.nodes[id])
+    end for
     for each group in [m.nav, m.heroButtons, m.detailButtons, m.accountButtons]
         m.all.Push(group)
         for each child in group.children
@@ -127,12 +161,12 @@ sub Main()
     m.view = "movies"
     updateNavState()
     Check(m.nav.children[3].active and not m.nav.children[0].active, "current destination is marked active")
-    Check(m.top.nodes.accountBadge.text = "Guest", "guest badge before linking")
+    Check(m.top.nodes.profileButton.text = "Guest", "guest badge before linking")
     m.mode = "account"
     m.account = { viewerId: "v" }
     updateNavState()
     Check(m.nav.children[9].active, "Account marked active on its page")
-    Check(Left(m.top.nodes.accountBadge.text, 5) = "Good ", "signed-in viewers are greeted")
+    Check(Left(m.top.nodes.profileButton.text, 5) = "Good ", "signed-in viewers are greeted")
 
     m.favorites = ["creator_1"]
     updateListButtons()
@@ -242,8 +276,144 @@ sub Main()
     m.progress = { e2: { positionSeconds: 600, durationSeconds: 1500, progressPercent: 40, updatedAt: 5 } }
     selectSeason(1, false)
     Check(m.seriesEpisodes.content.getChild(0).title = "E1  " + Chr(183) + "  Two  " + Chr(183) + "  15m left", "episodes in progress show time left")
+
+    ' Device bug 3: the top-right Guest control is reachable and opens Account.
+    m.mode = "home"
+    m.view = "home"
+    m.items = [{ id: "g1", title: "G1", contentType: "MOVIE", artwork: "", backdrop: "" }, { id: "g2", title: "G2", contentType: "MOVIE", artwork: "", backdrop: "" }]
+    m.progress = {}
+    m.heroItem = m.rows[0].items[0]
+    m.heroIndex = 0
+    focusHero()
+    Check(Press("up") and m.profile.focused, "Up from the featured actions reaches the Guest control")
+    Check(Press("down") and m.top.nodes.heroPlay.focused, "Down from the Guest control returns to the featured actions")
+    focusProfile()
+    Check(Press("left") and m.nav.children[m.navIndex].focused, "Left from the Guest control reaches the sidebar")
+    m.heroItem = invalid
+    m.rails.setFocus(true)
+    m.rails.rowItemFocused = [0, 0]
+    Check(Press("up") and m.profile.focused, "without a featured title, Up from the first rail reaches the Guest control")
+    m.heroItem = m.rows[0].items[0]
+    profileSelected()
+    Check(m.mode = "account" and m.top.nodes.accountAction.focused and m.nav.children[9].active, "OK on the Guest control opens Account")
+    Check(Press("up") and m.profile.focused, "Up from the account actions reaches the Guest control")
+    Check(Press("down") and m.top.nodes.accountAction.focused, "Down returns to the account actions")
+    Check(Press("back") and m.mode = "home" and m.profile.focused, "Back from Account returns to the Guest control")
+
+    ' Device bug 2: TV sign-in completes and never stalls.
+    m.account = invalid
+    m.tasks = []
+    openAccount()
+    accountActionSelected()
+    Check(m.tasks.Count() = 1 and m.tasks[0].kind = "activation-create" and m.tasks[0].method = "POST" and m.tasks[0].control = "run", "Link starts one activation request")
+    accountActionSelected()
+    Check(m.tasks.Count() = 1 and m.status.text = "Contacting PROtv. One moment...", "pressing again while waiting starts no second request")
+    expires = CreateObject("roDateTime")
+    expires.FromSeconds(CurrentEpochSeconds() + 600)
+    iso = Left(expires.ToISOString(), 19) + ".000Z"
+    secret = String(43, "s")
+    Finish({ sessionId: String(43, "a"), deviceSecret: secret, userCode: "ABCD-EF23", verificationUrl: "https://watchprotv.com/activate", expiresAt: iso, interval: 5 }, "", 201)
+    Check(m.deviceSession <> invalid and m.top.nodes.accountCode.text = "ABCD-EF23" and m.top.nodes.accountUrl.text = "https://watchprotv.com/activate", "the linking code and address appear")
+    Check(m.accountPollTimer.control = "start" and m.accountPollTimer.duration = 5.0 and m.top.nodes.accountAction.focused, "approval polling starts and focus stays usable")
+    stale = FakeTask()
+    accountTaskCompleted(TaskEvent(stale))
+    Check(m.deviceSession <> invalid and m.accountTask = invalid, "a late result from another request is ignored")
+    m.tasks = []
+    pollDeviceSession()
+    Check(m.tasks[0].kind = "activation-poll" and m.tasks[0].deviceSecret = secret, "polling sends the device secret header")
+    Finish({ status: "pending" })
+    pollDeviceSession()
+    Finish({ status: "approved" })
+    Check(m.tasks[m.tasks.Count() - 1].kind = "activation-exchange", "approval exchanges the session")
+    Finish({ customToken: "custom" })
+    firebase = m.tasks[m.tasks.Count() - 1]
+    Check(firebase.kind = "firebase-custom" and Instr(1, firebase.url, "signInWithCustomToken?key=test-public-web-key") > 0, "Firebase sign-in uses the public web key")
+    Finish({ localId: "viewer", idToken: "id-token", refreshToken: "refresh-token", expiresIn: "3600" })
+    Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = "id-token", "Continue Watching loads after sign-in")
+    Finish({})
+    Check(m.tasks[m.tasks.Count() - 1].kind = "favorites-read", "My List loads next")
+    Finish([])
+    Check(HasViewerSession(m.account) and m.accountTask = invalid and m.deviceSession = invalid and m.accountPollTimer.control = "stop", "linking completes with no request left running")
+    Check(ParseStoredAccount(m.storage.values.account).viewerId = "viewer" and Instr(1, m.storage.values.account, secret) = 0, "the sign-in is saved without the device secret")
+    Check(m.profile.text <> "Guest", "the top-right control greets the signed-in viewer")
+    accountSignOutSelected()
+    Check(m.account = invalid and not m.storage.values.DoesExist("account") and m.profile.text = "Guest", "Sign Out returns to guest")
+    m.tasks = []
+    accountActionSelected()
+    Finish(invalid, "PROtv request timed out. Please try again.")
+    Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountAction.focused and Instr(1, m.top.nodes.accountMessage.text, "retry") > 0, "a timeout leaves the account screen usable")
+    accountActionSelected()
+    Finish({ sessionId: "bad" }, "", 201)
+    Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountMessage.text = "The device sign-in response was invalid.", "a malformed response is reported, not trusted")
+    Check(Press("back") and m.mode = "home", "Back always leaves the account screen")
+
+    ' Device bug 1: the player keeps focus and the remote controls pause.
+    m.mode = "detail"
+    m.detailIndex = 0
+    m.selected = { id: "g1", title: "G1" }
+    m.account = invalid
+    m.progress = {}
+    m.video = FocusNode()
+    m.video.state = "playing"
+    m.video.control = "play"
+    m.video.position = 300.0
+    m.video.duration = 1200.0
+    m.all.Push(m.video)
+    m.video.setFocus(true)
+    Check(Press("OK") and m.video.control = "pause" and m.video.focused, "OK pauses when the player passes it on")
+    m.video.state = "paused"
+    Check(Press("play") and m.video.control = "resume", "Play/Pause resumes")
+    m.video.state = "playing"
+    Check(not Press("left") and not Press("right") and not Press("fastforward") and not Press("rewind"), "seek and trick play stay with the native player")
+    focusRails()
+    focusNav()
+    focusHero()
+    focusDetails()
+    focusAccount()
+    focusProfile()
+    Check(m.video.focused, "nothing takes focus from the playing video")
+    m.rowsStale = false
+    refreshRows()
+    Check(m.rowsStale, "rail rebuilds wait until playback ends")
+    Check(Press("back") and not m.video.visible and m.video.control = "stop" and m.detailButtons.children[0].focused, "Back exits playback to the details")
+    Check(ResumePosition(m.progress, "g1") = 300 and ParseStoredProgress(m.storage.values.guestProgress)["g1"].positionSeconds = 300 and m.top.nodes.detailPlay.text = "Resume", "Back preserves the resume position")
+    Check(not m.rowsStale, "deferred rows refresh after playback")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
+end sub
+
+' Records each request instead of contacting PROtv.
+function FakeTask() as Object
+    tasks = GetGlobalAA().tasks
+    task = {
+        uid: tasks.Count() + 1,
+        kind: "", path: "", method: "", body: "", authorization: "", deviceSecret: "", url: "", contentType: "",
+        result: invalid, control: "", observer: "",
+        observeField: sub(field as String, handler as String)
+            m.observer = handler
+        end sub,
+        unobserveField: sub(field as String)
+            m.observer = ""
+        end sub,
+        isSameNode: function(other as Dynamic) as Boolean
+            return other <> invalid and other.uid = m.uid
+        end function
+    }
+    tasks.Push(task)
+    return task
+end function
+
+function TaskEvent(task as Object) as Object
+    return { task: task, getRoSGNode: function() as Object
+        return m.task
+    end function }
+end function
+
+' Completes the newest request with a payload, as HttpTask would.
+sub Finish(payload as Dynamic, error = "" as String, statusCode = 200 as Integer)
+    task = m.tasks[m.tasks.Count() - 1]
+    task.result = { error: error, payload: payload, statusCode: statusCode }
+    accountTaskCompleted(TaskEvent(task))
 end sub
 
 ' Stands in for the roRegistrySection wrapper.
@@ -287,6 +457,17 @@ function FocusNode() as Object
         width: 0,
         translation: [0, 0],
         children: [],
+        uri: "",
+        loadStatus: "",
+        style: "",
+        createChild: function(kind as String) as Object
+            node = FocusNode()
+            m.children.Push(node)
+            return node
+        end function,
+        removeChildIndex: sub(index as Integer)
+            m.children.Delete(index)
+        end sub,
         setFocus: sub(value as Boolean)
             for each node in GetGlobalAA().all
                 node.focused = false

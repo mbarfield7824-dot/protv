@@ -46,7 +46,12 @@ sub init()
     m.seasons = []
     m.seasonIndex = 0
     m.seriesEpisodeIndex = 0
+    m.rowsStale = false
+    m.accountFromProfile = false
+    m.guestWrittenAt = 0
     m.storage = RegistryStorage()
+    ' Tests substitute fake tasks; the app always uses HttpTask.
+    m.newTask = HttpTaskNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
     for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim"]
@@ -54,6 +59,12 @@ sub init()
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
     m.accountScreen = m.top.findNode("account")
+    m.profile = m.top.findNode("profileButton")
+    m.profile.observeField("buttonSelected", "profileSelected")
+    ' Native player bars in PROtv blue so position and pause state read clearly.
+    for each bar in [m.video.trickPlayBar, m.video.bufferingBar, m.video.retrievingBar]
+        if bar <> invalid then bar.filledBarBlendColor = "0x60A5FAFF"
+    end for
     for index = 0 to m.nav.getChildCount() - 1
         m.nav.getChild(index).observeField("buttonSelected", "navSelected")
     end for
@@ -89,6 +100,10 @@ sub init()
     focusNav()
     loadCatalog()
 end sub
+
+function HttpTaskNode() as Object
+    return CreateObject("roSGNode", "HttpTask")
+end function
 
 ' This app's registry section; tests substitute an in-memory object.
 function RegistryStorage() as Object
@@ -157,7 +172,7 @@ sub loadCatalog()
     if m.loading then return
     m.loading = true
     if not m.refreshing then m.status.text = "Loading PROtv..."
-    m.catalogTask = CreateObject("roSGNode", "HttpTask")
+    m.catalogTask = m.newTask()
     m.catalogTask.kind = "catalog"
     m.catalogTask.path = "/v1/catalog?view=all"
     m.catalogTask.observeField("result", "catalogLoaded")
@@ -354,6 +369,11 @@ end sub
 ' Rebuilds rows after account data changes without losing the viewer's place.
 sub refreshRows()
     if not m.loaded then return
+    if m.video.visible
+        m.rowsStale = true
+        return
+    end if
+    m.rowsStale = false
     pair = m.rails.rowItemFocused
     rowTitle = ""
     itemId = ""
@@ -603,11 +623,10 @@ sub updateNavState()
     for index = 0 to m.nav.getChildCount() - 1
         m.nav.getChild(index).active = m.navViews[index] = activeView
     end for
-    badge = m.top.findNode("accountBadge")
     if m.account <> invalid
-        badge.text = Greeting(CurrentLocalHour())
+        m.profile.text = Greeting(CurrentLocalHour())
     else
-        badge.text = "Guest"
+        m.profile.text = "Guest"
     end if
 end sub
 
@@ -634,12 +653,14 @@ sub setListButton(button as Object, saved as Boolean)
 end sub
 
 sub focusRails()
+    if m.video.visible then return
     setSidebarExpanded(false)
     setBrowseMode(true)
     m.rails.setFocus(true)
 end sub
 
 sub focusHero()
+    if m.video.visible then return
     if m.heroItem = invalid
         if m.rows.Count() > 0 then focusRails()
         return
@@ -991,9 +1012,8 @@ sub navSelected()
         m.top.dialog = m.searchDialog
         m.status.text = "Enter a title or genre, then select Show results."
     else if view = "account"
-        changeMode("account")
-        showAccountState()
-        focusAccount()
+        m.accountFromProfile = false
+        openAccount()
     else
         m.view = view
         m.mood = ""
@@ -1006,6 +1026,32 @@ sub navSelected()
             refreshCatalogIfStale()
         end if
     end if
+end sub
+
+sub openAccount()
+    for index = 0 to m.navViews.Count() - 1
+        if m.navViews[index] = "account" then m.navIndex = index
+    end for
+    changeMode("account")
+    showAccountState()
+    focusAccount()
+end sub
+
+' Top-right Guest / greeting control; Back returns to it.
+sub profileSelected()
+    if m.mode = "account"
+        focusAccount()
+        return
+    end if
+    m.accountFromProfile = true
+    openAccount()
+end sub
+
+sub focusProfile()
+    if m.video.visible then return
+    setSidebarExpanded(false)
+    if m.mode = "home" then setBrowseMode(false)
+    m.profile.setFocus(true)
 end sub
 
 sub searchSelected()
@@ -1040,7 +1086,10 @@ sub returnHome()
         return
     end if
     changeMode("home")
-    if previous = "detail" and origin = "hero" and m.heroItem <> invalid
+    if previous = "account" and m.accountFromProfile
+        m.accountFromProfile = false
+        focusProfile()
+    else if previous = "detail" and origin = "hero" and m.heroItem <> invalid
         focusHero()
     else if (previous = "detail" or previous = "series") and m.rows.Count() > 0
         focusRails()
@@ -1071,7 +1120,7 @@ end sub
 sub startPlayback()
     cancelPlaybackRequest()
     m.status.text = "Authorizing playback..."
-    m.playTask = CreateObject("roSGNode", "HttpTask")
+    m.playTask = m.newTask()
     m.playTask.kind = "playback"
     m.playTask.path = "/v1/catalog/titles/" + m.selected.id.EncodeUriComponent() + "/playback"
     m.playTask.observeField("result", "playbackLoaded")
@@ -1127,6 +1176,16 @@ sub videoState()
     end if
 end sub
 
+sub togglePause()
+    state = m.video.state
+    if state = "paused"
+        m.video.control = "resume"
+    else if state = "playing" or state = "buffering"
+        m.video.control = "pause"
+    end if
+    m.video.setFocus(true)
+end sub
+
 sub closeVideo()
     saveCurrentProgress(true)
     m.progressTimer.control = "stop"
@@ -1134,8 +1193,8 @@ sub closeVideo()
     m.video.visible = false
     m.video.content = invalid
     updatePlayLabel()
-    ' Guest progress is local, so rows update here rather than after a request.
-    if m.account = invalid then refreshRows()
+    ' Rows deferred during playback, and guest progress, update here.
+    if m.rowsStale or m.account = invalid then refreshRows()
     focusDetails()
 end sub
 
@@ -1177,8 +1236,13 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
     restartRotation()
     if m.video.visible
+        ' The native player handles transport keys it uses. OK and Play/Pause
+        ' that reach the scene toggle pause, so the remote never goes dead.
         if key = "back"
             closeVideo()
+            return true
+        else if key = "OK" or key = "play"
+            togglePause()
             return true
         end if
         return false
@@ -1194,6 +1258,22 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         return false
     end if
     if m.mode = "search" then return false
+    if m.profile.isInFocusChain()
+        if key = "down"
+            if m.mode = "account"
+                focusAccount()
+            else if m.heroItem <> invalid
+                focusHero()
+            else if m.rows.Count() > 0
+                focusRails()
+            end if
+            return true
+        else if key = "left"
+            focusNav()
+            return true
+        end if
+        return key = "up" or key = "right"
+    end if
     if m.mode = "series"
         ' Seasons row above the episode list; Left/Right changes season.
         if m.seriesSeasons.isInFocusChain()
@@ -1247,6 +1327,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             focusRails()
             return true
         else if key = "up"
+            focusProfile()
             return true
         end if
         return false
@@ -1255,8 +1336,11 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         pair = m.rails.rowItemFocused
         if key = "up" and (validPair(pair) or IsInvitePair(pair)) and pair[0] = 0
             if m.heroItem = invalid and m.spotlight.Count() > 0 then updateHero(m.spotlight[m.spotlightIndex], "spotlight")
-            if m.heroItem = invalid then return false
-            focusHero()
+            if m.heroItem = invalid
+                focusProfile()
+            else
+                focusHero()
+            end if
             return true
         else if key = "left" and validPair(pair) and pair[1] = 0
             focusNav()
@@ -1279,6 +1363,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             focusDetails()
             return true
         end if
+    else if m.mode = "account" and m.accountButtons.isInFocusChain() and key = "up"
+        focusProfile()
+        return true
     else if m.mode = "account" and m.accountButtons.isInFocusChain() and (key = "left" or key = "right")
         visibleButtons = []
         currentIndex = 0
@@ -1366,6 +1453,7 @@ sub showAccountState()
 end sub
 
 sub focusAccount()
+    if m.video.visible then return
     setSidebarExpanded(false)
     if m.account <> invalid
         m.top.findNode("accountSignOut").setFocus(true)
@@ -1375,6 +1463,11 @@ sub focusAccount()
 end sub
 
 sub accountActionSelected()
+    ' One account request at a time; a repeated press waits for the answer.
+    if m.accountTask <> invalid
+        showNotice("Contacting PROtv. One moment...")
+        return
+    end if
     if m.account <> invalid
         m.authRetryAction = ""
         if m.pendingProgressSave <> invalid
@@ -1443,7 +1536,7 @@ sub pollDeviceSession()
 end sub
 
 sub startAccountTask(kind as String, path as String, method as String, body as String, authorization as String, deviceSecret as String, url as String, contentType as String)
-    task = CreateObject("roSGNode", "HttpTask")
+    task = m.newTask()
     task.kind = kind
     task.path = path
     task.method = method
@@ -1457,12 +1550,20 @@ sub startAccountTask(kind as String, path as String, method as String, body as S
     task.control = "run"
 end sub
 
-sub accountTaskCompleted()
-    task = m.accountTask
-    if task = invalid then return
+' Bound to the request that fired: a late result from a replaced or cancelled
+' request is ignored rather than reading the newer request's empty result.
+sub accountTaskCompleted(event as Object)
+    task = event.getRoSGNode()
+    if task = invalid or m.accountTask = invalid then return
+    if not task.isSameNode(m.accountTask) then return
     m.accountTask = invalid
     result = task.result
     kind = task.kind
+    if not IsMap(result) then result = { error: "PROtv returned an invalid response. Please try again." }
+    if (kind = "activation-poll" or kind = "activation-exchange") and m.deviceSession = invalid
+        drainAccountQueue()
+        return
+    end if
     if result.error <> ""
         handleAccountTaskError(kind, result)
         if kind <> "progress-write" then drainPendingProgress()
@@ -1479,7 +1580,7 @@ sub accountTaskCompleted()
             m.pollDelaySeconds = m.deviceSession.intervalSeconds
             m.top.findNode("accountMessage").text = "On your phone or computer, visit this address and sign in to your PROtv account. Enter the code shown here."
             showAccountState()
-            m.accountPollTimer.duration = m.deviceSession.intervalSeconds
+            m.accountPollTimer.duration = m.deviceSession.intervalSeconds * 1.0
             m.accountPollTimer.control = "start"
             m.status.text = "Waiting for approval. This TV checks at the interval provided by PROtv."
         end if
@@ -1605,7 +1706,7 @@ sub handleAccountTaskError(kind as String, result as Object)
             activationExpired()
         else
             m.pollDelaySeconds = NextPollDelay(m.pollDelaySeconds, m.deviceSession.intervalSeconds)
-            m.accountPollTimer.duration = m.pollDelaySeconds
+            m.accountPollTimer.duration = m.pollDelaySeconds * 1.0
             m.accountPollTimer.control = "start"
             retryLabel = "Network issue while checking approval."
             if failureState = "rate-limited" then retryLabel = "PROtv is rate-limiting approval checks."
@@ -1615,7 +1716,7 @@ sub handleAccountTaskError(kind as String, result as Object)
     else if kind = "activation-exchange"
         if m.deviceSession <> invalid and CurrentEpochSeconds() < m.deviceSession.expiresAtSeconds and m.exchangeRetryCount < 3
             m.exchangeRetryCount++
-            m.accountPollTimer.duration = m.deviceSession.intervalSeconds
+            m.accountPollTimer.duration = m.deviceSession.intervalSeconds * 1.0
             m.accountPollTimer.control = "start"
             m.top.findNode("accountMessage").text = "PROtv approved the TV, but sign-in completion was interrupted. Retrying " + m.exchangeRetryCount.ToStr().Trim() + " of 3."
             m.status.text = message + " Retrying sign-in before this code expires."
@@ -1780,7 +1881,7 @@ sub saveCurrentProgress(force as Boolean)
     positionSeconds = Int(position)
     videoId = Text(m.selected.id)
     if m.account = invalid
-        if ProgressSaveDue(positionSeconds, m.lastSavedPosition, force) then saveGuestProgress(videoId, positionSeconds, duration)
+        if ProgressSaveDue(positionSeconds, m.lastSavedPosition, force) then saveGuestProgress(videoId, positionSeconds, duration, force)
         return
     end if
     if not HasViewerSession(m.account) then return
@@ -1796,10 +1897,15 @@ sub saveCurrentProgress(force as Boolean)
 end sub
 
 ' Guests keep their 50 most recent titles on this TV only; nothing is sent.
-sub saveGuestProgress(videoId as String, positionSeconds as Integer, duration as Dynamic)
-    m.progress = RecordProgress(m.progress, videoId, LocalProgressEntry(positionSeconds, duration, CurrentEpochSeconds()), 50)
+' The registry is written on pause, Back and finish, otherwise once a minute.
+sub saveGuestProgress(videoId as String, positionSeconds as Integer, duration as Dynamic, persist as Boolean)
+    now = CurrentEpochSeconds()
+    m.progress = RecordProgress(m.progress, videoId, LocalProgressEntry(positionSeconds, duration, now), 50)
     m.lastSavedPosition = positionSeconds
-    m.storage.write("guestProgress", FormatJson(m.progress))
+    if persist or now - m.guestWrittenAt >= 60
+        m.guestWrittenAt = now
+        m.storage.write("guestProgress", FormatJson(m.progress))
+    end if
 end sub
 
 sub drainPendingProgress()
@@ -1815,12 +1921,14 @@ sub cancelAccountTask()
 end sub
 
 sub focusNav()
+    if m.video.visible then return
     setSidebarExpanded(true)
     setBrowseMode(false)
     m.nav.getChild(m.navIndex).setFocus(true)
 end sub
 
 sub focusDetails()
+    if m.video.visible then return
     m.top.findNode("synopsisFocus").visible = false
     m.detailButtons.getChild(m.detailIndex).setFocus(true)
 end sub

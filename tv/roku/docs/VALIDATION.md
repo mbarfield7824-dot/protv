@@ -1,5 +1,24 @@
 # Roku validation record
 
+## Device bug fixes (v0.5.1) - 2026-10-23 (local time)
+Owner device test of v0.5 reported three defects; fixes are not yet device-verified.
+- Playback: OK and Play/Pause that reach the scene toggle pause/resume;
+  no focus function can take focus from the playing video; rail rebuilds
+  wait until playback ends; guest registry writes happen on pause, Back and
+  finish (otherwise once a minute); native bars use PROtv blue.
+- Sign-in: account results are bound to the request that produced them (a
+  late result previously read the newer request's empty result, a runtime
+  error that halts a sideloaded app); a repeated press while a request runs
+  is ignored with a notice; timer durations are floats.
+- Guest control: the top-right Guest/greeting is a focusable button (Up from
+  the featured actions, the first rail or the account actions); OK opens
+  Account; Back returns to it.
+- npm run check: 0 diagnostics. npm test: 9/9, 162 model assertions, 100
+  scene regressions (33 new, driving the full sign-in flow with fake requests,
+  the player keys and the Guest control). npm run smoke: passed.
+- ZIP: dist/protv-roku.zip, 670,369 bytes, SHA-256
+  ecbef1bfb579eb0e2c5f0dccdbefdef86eb06a82a20012a5d62c72755b6bf671.
+
 ## Completion sprint (v0.5) - 2026-10-23 (local time)
 - B1 account linking: the packager injects the website's existing public
   Firebase web key (ROKU_FIREBASE_API_KEY, else the gitignored
