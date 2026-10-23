@@ -468,8 +468,59 @@ end function
 
 function ValidFirebaseSession(payload as Dynamic) as Boolean
     if not IsMap(payload) then return false
-    if Text(payload.localId) = "" or Text(payload.idToken) = "" or Text(payload.refreshToken) = "" then return false
+    if Text(payload.idToken) = "" or Text(payload.refreshToken) = "" then return false
+    if FirebaseSessionUid(payload) = "" then return false
     return PositiveInteger(payload.expiresIn)
+end function
+
+' accounts:signInWithCustomToken returns idToken, refreshToken and expiresIn
+' but no localId, so the viewer is the ID token's user_id / sub claim (the
+' Firebase UID). A localId, when present, must agree.
+function FirebaseSessionUid(payload as Object) as String
+    uid = IdTokenUid(Text(payload.idToken))
+    if uid = "" then return ""
+    localId = Text(payload.localId)
+    if localId <> "" and not ExactStringEquals(localId, uid) then return ""
+    return uid
+end function
+
+' Reads, without verifying, the claims of a token this TV just received from
+' Firebase over HTTPS; PROtv's API verifies the token on every request.
+function IdTokenUid(idToken as String) as String
+    parts = idToken.Split(".")
+    if parts.Count() <> 3 then return ""
+    claims = ParseJson(Base64UrlDecode(parts[1]))
+    if not IsMap(claims) then return ""
+    userId = Text(claims.user_id)
+    subject = Text(claims.sub)
+    if userId = "" then userId = subject
+    if userId = "" or Len(userId) > 128 then return ""
+    if subject <> "" and not ExactStringEquals(userId, subject) then return ""
+    return userId
+end function
+
+function Base64UrlDecode(value as String) as String
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    powers = [1, 2, 4, 8, 16, 32, 64, 128]
+    decoded = ""
+    buffer = 0
+    bits = 0
+    for index = 1 to Len(value)
+        character = Mid(value, index, 1)
+        if character = "+" then character = "-"
+        if character = "/" then character = "_"
+        if character = "=" then exit for
+        digit = Instr(1, alphabet, character) - 1
+        if digit < 0 then return ""
+        buffer = buffer * 64 + digit
+        bits = bits + 6
+        if bits >= 8
+            bits = bits - 8
+            decoded = decoded + Chr(Int(buffer / powers[bits]))
+            buffer = buffer MOD powers[bits]
+        end if
+    end for
+    return decoded
 end function
 
 function ValidFirebaseRefresh(payload as Dynamic, viewerId as String) as Boolean

@@ -1,5 +1,22 @@
 # Roku validation record
 
+## Firebase sign-in fix (v0.5.2) - 2026-10-23 (local time)
+- Device result: after approval the Roku showed "Firebase returned an invalid
+  account session." That message is the HTTP-success branch of the
+  firebase-custom step, so the backend custom token, the endpoint
+  (accounts:signInWithCustomToken, returnSecureToken=true) and the Firebase
+  project (protv-2f48e for both the web key and the token signer) worked.
+- Root cause: ValidFirebaseSession required localId, which the
+  signInWithCustomToken response does not contain (Google's reference lists
+  kind, idToken, refreshToken, expiresIn, isNewUser). Valid sessions were
+  rejected and the consumed activation could not be reused.
+- Fix: the viewer ID is the ID token's user_id/sub claim (they must agree; a
+  localId, if present, must match). Refresh still requires the same user_id.
+- Regression test fails on v0.5.1 and passes now. npm test 9/9: 170 model
+  assertions, 101 scene regressions. npm run smoke passed.
+- ZIP: dist/protv-roku.zip, 670,997 bytes, SHA-256
+  b63e903cc944e1a9606b1ff2f58cc1e1c9078b61221a8faf3840a75b749f6966.
+
 ## Device bug fixes (v0.5.1) - 2026-10-23 (local time)
 Owner device test of v0.5 reported three defects; fixes are not yet device-verified.
 - Playback: OK and Play/Pause that reach the scene toggle pause/resume;

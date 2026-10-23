@@ -328,8 +328,11 @@ sub Main()
     Finish({ customToken: "custom" })
     firebase = m.tasks[m.tasks.Count() - 1]
     Check(firebase.kind = "firebase-custom" and Instr(1, firebase.url, "signInWithCustomToken?key=test-public-web-key") > 0, "Firebase sign-in uses the public web key")
-    Finish({ localId: "viewer", idToken: "id-token", refreshToken: "refresh-token", expiresIn: "3600" })
-    Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = "id-token", "Continue Watching loads after sign-in")
+    ' Exactly what Firebase returns: no localId; the UID is in the ID token.
+    viewerToken = "h.eyJ1c2VyX2lkIjoidmlld2VyIiwic3ViIjoidmlld2VyIn0.s"
+    Finish({ kind: "identitytoolkit#VerifyCustomTokenResponse", idToken: viewerToken, refreshToken: "refresh-token", expiresIn: "3600", isNewUser: false })
+    Check(m.account <> invalid and m.account.viewerId = "viewer" and m.top.nodes.accountMessage.text <> "Firebase returned an invalid account session. Link again. Guest browsing and playback remain available.", "a real Firebase custom-token response signs the TV in")
+    Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = viewerToken, "Continue Watching loads after sign-in")
     Finish({})
     Check(m.tasks[m.tasks.Count() - 1].kind = "favorites-read", "My List loads next")
     Finish([])

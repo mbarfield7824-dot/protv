@@ -1615,8 +1615,8 @@ sub accountTaskCompleted(event as Object)
         else
             previousViewerId = ""
             if m.account <> invalid then previousViewerId = Text(m.account.viewerId)
-            m.progress = ProgressForViewer(previousViewerId, Text(result.payload.localId), m.progress)
-            m.account = { viewerId: result.payload.localId }
+            m.progress = ProgressForViewer(previousViewerId, FirebaseSessionUid(result.payload), m.progress)
+            m.account = { viewerId: FirebaseSessionUid(result.payload) }
             m.deviceSession = invalid
             m.accountPollTimer.control = "stop"
             m.account.idToken = result.payload.idToken

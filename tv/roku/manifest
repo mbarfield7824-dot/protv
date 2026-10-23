@@ -1,7 +1,7 @@
 title=PROtv
 major_version=0
 minor_version=5
-build_version=1
+build_version=2
 ui_resolutions=hd
 mm_icon_focus_hd=pkg:/assets/channel-icon-hd.png
 mm_icon_focus_fhd=pkg:/assets/channel-icon-fhd.png

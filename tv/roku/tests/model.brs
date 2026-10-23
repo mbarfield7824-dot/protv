@@ -149,9 +149,22 @@ sub Main()
     Assert(not DeviceSessionDetails(activation, 1700000000).valid, "insecure activation URL rejected")
     activation.verificationUrl = "https://watchprotv.com/activate?code=ABCD-EFGH"
     Assert(not DeviceSessionDetails(activation, 1700000000).valid, "activation URL cannot contain query tokens")
-    firebaseSession = { localId: "viewer-one", idToken: "id-token", refreshToken: "refresh-token", expiresIn: "3600" }
-    Assert(ValidFirebaseSession(firebaseSession), "Firebase custom token exchange response accepted")
-    Assert(not ValidFirebaseSession({ localId: "viewer-one", idToken: "", refreshToken: "refresh-token", expiresIn: "3600" }), "empty Firebase ID token rejected")
+    ' The real accounts:signInWithCustomToken response: no localId (device failure 2026-10-23).
+    claims = "eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vcHJvdHYtMmY0OGUiLCJhdWQiOiJwcm90di0yZjQ4ZSIsInVzZXJfaWQiOiJ2aWV3ZXItVWlkXzEiLCJzdWIiOiJ2aWV3ZXItVWlkXzEiLCJ4IjoiPz8-PiJ9"
+    idToken = "eyJhbGciOiJSUzI1NiJ9." + claims + ".c2lnbmF0dXJl"
+    firebaseSession = { kind: "identitytoolkit#VerifyCustomTokenResponse", idToken: idToken, refreshToken: "refresh-token", expiresIn: "3600", isNewUser: false }
+    Assert(ValidFirebaseSession(firebaseSession), "Firebase custom token response without localId accepted")
+    Assert(FirebaseSessionUid(firebaseSession) = "viewer-Uid_1", "viewer ID comes from the ID token user_id claim")
+    Assert(Base64UrlDecode("eyJzdWIiOiJ2aWV3ZXItcyJ9") = "{" + Chr(34) + "sub" + Chr(34) + ":" + Chr(34) + "viewer-s" + Chr(34) + "}", "base64url decodes unpadded segments")
+    Assert(IdTokenUid("h.eyJzdWIiOiJ2aWV3ZXItcyJ9.s") = "viewer-s", "sub is the UID when user_id is absent")
+    Assert(IdTokenUid("h.eyJ1c2VyX2lkIjoidmlld2VyLWEiLCJzdWIiOiJ2aWV3ZXItYiJ9.s") = "", "disagreeing user_id and sub rejected")
+    Assert(IdTokenUid("id-token") = "" and IdTokenUid("a.!!!.c") = "" and IdTokenUid("a.bm90IGpzb24.c") = "", "opaque or malformed ID tokens rejected")
+    firebaseSession.localId = "viewer-Uid_1"
+    Assert(ValidFirebaseSession(firebaseSession), "a matching localId is accepted")
+    firebaseSession.localId = "someone-else"
+    Assert(not ValidFirebaseSession(firebaseSession), "a localId that disagrees with the token is rejected")
+    Assert(not ValidFirebaseSession({ idToken: "", refreshToken: "refresh-token", expiresIn: "3600" }), "empty Firebase ID token rejected")
+    Assert(not ValidFirebaseSession({ idToken: idToken, refreshToken: "", expiresIn: "3600" }) and not ValidFirebaseSession({ idToken: idToken, refreshToken: "r", expiresIn: "0" }), "missing refresh token or expiry rejected")
     firebaseRefresh = { user_id: "viewer-one", access_token: "next-id-token", refresh_token: "next-refresh", expires_in: "3600" }
     Assert(ValidFirebaseRefresh(firebaseRefresh, "viewer-one"), "Firebase refresh response accepted")
     Assert(not ValidFirebaseRefresh(firebaseRefresh, "viewer-two"), "Firebase refresh identity must not change")

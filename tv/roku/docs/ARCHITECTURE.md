@@ -104,7 +104,8 @@ Firestore schema or production data was changed.
   user action.
 - The Roku exchanges that Firebase custom token at
   `identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken` using the
-  existing website's public Firebase client API key. Firebase ID and rotating
+  existing website's public Firebase client API key. That response has no
+  localId; the viewer ID is the ID token's user_id/sub claim. Firebase ID and rotating
   refresh tokens are saved in this app's registry section so the TV stays
   linked (v0.5); a refresh uses the existing Firebase Secure Token REST
   contract and runs at launch before any account request. The ID token is sent only as
