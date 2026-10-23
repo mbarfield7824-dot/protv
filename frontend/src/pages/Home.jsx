@@ -30,6 +30,7 @@ const FEATURED_PROTV_TITLE_IDS = [
 
 const RAILS_AFTER_SPOTLIGHT = [
   { id: 'black-cinema', title: 'Black Cinema', matches: ['Black Cinema'] },
+  { id: 'ai-cinema', title: 'AI Cinema', matches: ['AI Cinema'] },
   { id: 'independent', title: 'Independent Films', matches: ['Independent'] },
   { id: 'documentary', title: 'Documentaries', matches: ['Documentary'] },
   { id: 'music', title: 'Music & Hip-Hop', matches: ['Music', 'Hip-Hop'], viewAll: { to: '/music' } },

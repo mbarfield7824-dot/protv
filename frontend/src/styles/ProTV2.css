@@ -1467,6 +1467,13 @@
   box-shadow: 0 0 0 1px var(--protv-border), 0 0 18px var(--protv-blue-glow), 0 10px 24px rgba(0, 0, 0, 0.4);
 }
 
+/* Categories without sprite art (e.g. AI Cinema) match the sprite tiles' shape. */
+.ptv-rail--category .ptv-cat:not(.ptv-cat--sprite) {
+  aspect-ratio: 488 / 308;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--protv-border), 0 0 18px var(--protv-blue-glow), 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
 .ptv-cat--sprite::after {
   box-shadow: inset 0 0 0 1px var(--protv-border);
 }
