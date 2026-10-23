@@ -3,6 +3,7 @@ const { createUser, getUserById } = require('../firebase');
 const { verifyToken, requireInteractiveUserSession, verifyAdmin } = require('../middleware/auth');
 const { createCreatorSsoToken } = require('../auth/creatorSso');
 const { createDeviceSessionService, createDeviceSessionRouter } = require('../auth/deviceSessions');
+const { createTvAuthRouter } = require('../auth/tvAuth');
 const router = express.Router();
 
 router.use('/device-sessions', createDeviceSessionRouter({
@@ -10,6 +11,8 @@ router.use('/device-sessions', createDeviceSessionRouter({
   verifyToken,
   requireInteractiveUserSession,
 }));
+// On-device TV sign-in (Roku certification 2.2); see auth/tvAuth.js.
+router.use('/tv', createTvAuthRouter());
 
 // POST /auth/signup - Create a new account
 router.post('/signup', async (req, res) => {
