@@ -29,6 +29,7 @@ function publicTitle(video) {
     id: video.id,
     title: typeof video.title === 'string' ? video.title : '',
     description: video.description || '',
+    ...(typeof video.credits === 'string' && video.credits ? { credits: video.credits } : {}),
     contentType: video.contentType,
     category: typeof video.category === 'string' && video.category
       ? video.category

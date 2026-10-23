@@ -119,6 +119,9 @@ function publicVideo(video) {
   delete sanitized.publicDomainConfirmedBy;
   delete sanitized.publicDomainConfirmedAt;
   delete sanitized.creatorProjectId;
+  delete sanitized.posterTransferToken;
+  delete sanitized.posterTransferLeaseUntil;
+  delete sanitized.creatorPromotionalBinding;
   delete sanitized.rightsHolder;
   delete sanitized.rightsVerificationNotes;
   return sanitized;
