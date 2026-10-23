@@ -1,5 +1,16 @@
 # Roku release checkpoints
 
+## v0.5.6 stabilization candidate (2026-10-23, not device tested)
+
+| Item | Value |
+| --- | --- |
+| Sideload ZIP | `dist/releases/protv-roku-v0.5.6-candidate.zip` |
+| SHA-256 | `78805d67b6bcbb9694ea9355792a2651350e7850c917cf6299ce47545920763c` |
+| Manifest | 0.5.6 |
+
+To go back to the working build, follow the roll-back steps below with the
+v0.5.5 ZIP. The candidate does not replace it.
+
 ## roku-v0.5.5-working (2026-10-23)
 
 Owner-verified on a physical Roku TV: account linking, saved sign-in and

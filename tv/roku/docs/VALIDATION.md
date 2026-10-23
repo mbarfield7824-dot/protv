@@ -1,5 +1,34 @@
 # Roku validation record
 
+## Stabilization candidate (v0.5.6) - 2026-10-23 (local time)
+- Owner device test of v0.5.5: sign-in, playback and OK pause work; the
+  player progress bar stayed on browsing screens after exit.
+- Root cause: closeVideo hid the overlay, then stopped the player while the
+  Video was still visible; the resulting state change ran videoState, which
+  redrew the overlay. Fix: one endPlayback teardown (overlay, preview, fill,
+  time, timers, scrubbing, Video) and a playbackActive guard on every overlay
+  callback. Saved progress is written before teardown and kept.
+- Continue Watching: ParseJson returns the backend's millisecond updatedAt
+  as LongInteger, which IsNumber rejected, so every signed-in progress entry
+  was invalid (empty row, no resume, saves resent). IsNumber now accepts
+  LongInteger.
+- Player: clips of 10 s or less and titles without a duration show controls
+  but do not seek; the playback-failure message says what to do.
+- Temporary sign-in diagnostics removed; validation and short codes kept; the
+  Account screen shows the installed version.
+- Captions: none of the 56 live manifests has subtitle, CC or alternate audio
+  tracks; the website and Fire TV have none either. Plan: decide which titles
+  need captions (legal), add tracks in Mux (upload WebVTT, or Mux
+  auto-generated captions; confirm current Mux pricing first), then add a CC
+  control to the PROtv overlay using the Video node's subtitle track and
+  globalCaptionMode fields.
+- npm run check: 0 diagnostics. npm test: 10/10, 186 model assertions, 147
+  scene regressions. New tests fail on the v0.5.5 code at both device bugs.
+  npm run smoke passed (56 titles, playback 200, HLS 200).
+- ZIP: dist/releases/protv-roku-v0.5.6-candidate.zip, 674,975 bytes, SHA-256
+  78805d67b6bcbb9694ea9355792a2651350e7850c917cf6299ce47545920763c.
+- **Not device tested.**
+
 ## Playback remote (v0.5.5) - 2026-10-23 (local time)
 - Device (v0.5.4): sign-in works; OK neither paused nor showed controls.
 - Root cause: the native Video node held focus and consumed OK (it uses OK

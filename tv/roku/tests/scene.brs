@@ -460,6 +460,19 @@ sub Main()
         Check(clean and not m.playbackActive and not m.scrubbing and m.seekTimer.control = "stop" and m.playerHideTimer.control = "stop" and m.progressTimer.control = "stop" and m.video.content = invalid, "no playback UI remains after exit: " + exitPath)
         Check(m.video.seek = -1 and ResumePosition(m.progress, "g1") = 300, "exit keeps the saved position and drops the pending seek: " + exitPath)
     end for
+    StartFakePlayback({ id: "short", title: "Short" })
+    m.video.duration = 8.0
+    m.video.position = 3.0
+    m.video.seek = -1
+    Check(Press("right") and not m.scrubbing and m.video.seek = -1 and m.playerOverlay.visible, "a clip of 10 s or less shows controls but never seeks to the start")
+    m.video.duration = invalid
+    Check(Press("left") and not m.scrubbing and m.top.nodes.playerTime.text = "0:03", "missing duration shows the position only")
+    Press("back")
+    StartFakePlayback({ id: "g1", title: "G1" })
+    m.video.state = "error"
+    m.video.errorCode = -3
+    videoState()
+    Check(Instr(1, m.status.text, "stopped playing") > 0 and Instr(1, m.status.text, "select Play to try again") > 0 and not m.playerOverlay.visible, "a playback failure explains what to do and clears the controls")
     StartFakePlayback({ id: "e9", title: "Episode Nine" })
     Check(m.playerOverlay.visible and m.top.nodes.playerTitle.text = "Episode Nine" and m.playbackActive, "the next title gets fresh controls")
     Press("back")

@@ -1183,7 +1183,7 @@ sub videoState()
         code = m.video.errorCode
         m.progressTimer.control = "stop"
         closeVideo()
-        m.status.text = "Playback failed (Roku " + code.ToStr() + "). Select Play to retry."
+        m.status.text = "This title stopped playing. Check your connection, then select Play to try again (Roku " + code.ToStr() + ")."
         signalLaunchComplete()
     else if m.video.state = "paused"
         saveCurrentProgress(true)
@@ -1242,7 +1242,12 @@ end sub
 ' the seek happens after a short pause in key presses or on OK.
 sub scrubBy(stepValue as Integer)
     duration = NumberOr(m.video.duration, 0)
-    if duration <= 0 then return
+    ' Unknown length or a clip of 10 s or less: show the controls, do not seek.
+    if duration <= 10
+        renderPlayerOverlay()
+        schedulePlayerHide()
+        return
+    end if
     if not m.scrubbing
         m.scrubbing = true
         m.scrubTarget = Int(NumberOr(m.video.position, 0))
