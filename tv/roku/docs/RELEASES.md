@@ -13,8 +13,9 @@ v0.5.5 ZIP. The candidate does not replace it.
 
 ## roku-v0.5.5-working (2026-10-23)
 
-Owner-verified on a physical Roku TV: account linking, saved sign-in and
-PROtv playback controls (OK, Play/Pause, Left/Right, Back) work.
+Owner-verified on a physical Roku TV: account activation, login, movie
+playback, OK pause/resume and the PROtv playback overlay work. Saved sign-in
+after a restart was not reported and remains unverified.
 
 | Item | Value |
 | --- | --- |
