@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="PillButton" extends="Group">
+  <interface>
+    <field id="text" type="string" onChange="layout" />
+    <field id="style" type="string" value="secondary" onChange="layout" />
+    <field id="icon" type="string" onChange="layout" />
+    <field id="width" type="float" value="160" onChange="layout" />
+    <field id="height" type="float" value="48" onChange="layout" />
+    <field id="active" type="boolean" onChange="refresh" />
+    <field id="compact" type="boolean" onChange="layout" />
+    <field id="buttonSelected" type="boolean" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="PillButton.brs" />
+  <children>
+    <Poster id="background" translation="[-12,-12]" />
+    <Poster id="iconArt" width="24" height="24" visible="false" />
+    <Label id="label" horizAlign="center" vertAlign="center">
+      <Font role="font" uri="font:BoldSystemFontFile" size="20" />
+    </Label>
+  </children>
+</component>

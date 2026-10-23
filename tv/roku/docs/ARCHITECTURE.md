@@ -66,16 +66,24 @@ off the render thread with CA validation, timeout and explicit errors.
 all movies, category rails, episodic rail, search, details and native `Video`.
 `PosterCard` presents unmodified art with a branded load-error fallback.
 
-HD logical canvas, 64px horizontal safe margin, dark PROtv palette, white PRO /
-violet tv wordmark, blue focus outlines. SceneGraph RowList supplies scrolling;
-native StandardKeyboardDialog and Video supply input and playback controls. No HTML wrapper,
-Android dependency, synthetic catalog or production writes.
+HD logical canvas with title-safe content kept within x=64..1216 and
+y=24..684. v0.2 replaces the sidebar with a top tab bar and uses only the
+PROtv blue palette. `PillButton` provides focusable primary/secondary/tab
+buttons drawn from generated 9-patch art. SceneGraph RowList supplies the
+rails (one full row plus a peek of the next); native StandardKeyboardDialog
+and Video supply input and playback controls. No HTML wrapper, Android
+dependency, synthetic catalog or production writes.
 
 Search runs against the downloaded public catalog using the existing all-term
 semantics; it avoids a network call per remote key. Featured is an explicit
 editorial ID list, not a claim of server ranking or newest release dates.
-The hero is intentionally typographic: portrait art is not enlarged into
-invented landscape artwork.
+The featured area pairs an eyebrow, title, metadata, summary, Play and More
+Info with a contained 168 x 252 portrait on a framed panel. The public catalog
+has no backdrop field, so the ambient background is UI art, never film artwork
+stretched into a landscape. Cards are 140 x 210 (2:3) and 256 x 144 (16:9);
+rounded corners come from a background-coloured corner mask, so artwork is
+never cropped. Details use a contained 280 x 420 framed portrait and native
+ScrollableText synopsis/credits.
 
 ## Phase 2 account and progress contracts
 

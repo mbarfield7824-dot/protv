@@ -1,17 +1,33 @@
 sub init()
     m.items = []
     m.rows = []
+    m.spotlight = []
+    m.spotlightIndex = 0
     m.mode = "home"
+    m.view = "home"
     m.query = ""
+    m.mood = ""
     m.loaded = false
     m.loading = false
     m.navIndex = 0
+    m.heroIndex = 0
     m.detailIndex = 0
+    m.detailOrigin = "rails"
+    m.heroItem = invalid
+    m.heroSource = "spotlight"
+    m.backdropFront = invalid
+    m.backdropUri = ""
+    m.pendingBackdrop = ""
     m.pendingLaunch = invalid
     m.playTask = invalid
     m.account = invalid
     m.progress = {}
     m.progressLoaded = false
+    m.favorites = []
+    m.favoritesLoaded = false
+    m.pendingFavorite = invalid
+    m.savingFavorite = invalid
+    m.accountQueue = []
     m.deviceSession = invalid
     m.accountTask = invalid
     m.afterRefreshAction = ""
@@ -21,25 +37,42 @@ sub init()
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
     m.lastSavedPosition = 0
-    for each id in ["nav", "home", "rails", "detail", "detailButtons", "about", "account", "accountButtons", "video", "status", "accountPollTimer", "progressTimer"]
+    m.browsing = false
+    m.sidebarExpanded = false
+    ' Sidebar order; parallel to the children of the nav group.
+    m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "account", "accountButtons", "video", "status", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim"]
         m[id] = m.top.findNode(id)
     end for
-    for each id in ["navHome", "navSearch", "navAccount", "navAbout"]
-        m.top.findNode(id).observeField("buttonSelected", "navSelected")
+    for index = 0 to m.nav.getChildCount() - 1
+        m.nav.getChild(index).observeField("buttonSelected", "navSelected")
     end for
+    m.top.findNode("heroPlay").observeField("buttonSelected", "heroPlaySelected")
+    m.top.findNode("heroInfo").observeField("buttonSelected", "heroInfoSelected")
+    m.top.findNode("heroList").observeField("buttonSelected", "heroListSelected")
     m.rails.observeField("rowItemSelected", "titleSelected")
     m.rails.observeField("rowItemFocused", "titleFocused")
-    for each id in ["detailPlay", "detailBack"]
+    for each id in ["detailPlay", "detailList", "detailBack"]
         m.top.findNode(id).observeField("buttonSelected", "detailSelected")
     end for
     m.top.findNode("accountAction").observeField("buttonSelected", "accountActionSelected")
     m.top.findNode("accountSignOut").observeField("buttonSelected", "accountSignOutSelected")
     m.top.findNode("accountBack").observeField("buttonSelected", "accountBackSelected")
     m.video.observeField("state", "videoState")
+    m.status.observeField("text", "statusChanged")
+    m.statusTimer.observeField("fire", "statusTimerFired")
+    m.rotateTimer.observeField("fire", "rotateTimerFired")
+    m.backdropTimer.observeField("fire", "backdropTimerFired")
+    for each id in ["backdropA", "backdropB"]
+        m.top.findNode(id).observeField("loadStatus", "backdropLoaded")
+    end for
+    m.backdropFront = m.top.findNode("backdropA")
+    m.top.findNode("heroArt").observeField("loadStatus", "heroArtStatus")
     m.top.findNode("detailArt").observeField("loadStatus", "detailArtStatus")
     m.accountPollTimer.observeField("fire", "activationPollTimerFired")
     m.progressTimer.observeField("fire", "progressTimerFired")
     showAccountState()
+    layoutNav()
     focusNav()
     loadCatalog()
 end sub
@@ -59,25 +92,108 @@ sub catalogLoaded()
     m.loading = false
     result = m.catalogTask.result
     if result.error <> ""
+        showHeroMessage("PROtv is unavailable", result.error + " Select Home to retry.")
         m.status.text = result.error + " Select Home to retry."
         return
     end if
     m.items = result.items
+    firstLoad = not m.loaded
     m.loaded = true
+    layoutNav()
     showRows()
-    if m.pendingLaunch <> invalid then applyLaunch()
+    if m.pendingLaunch <> invalid
+        applyLaunch()
+    else if firstLoad and m.mode = "home" and m.navIndex = 0 and m.nav.isInFocusChain() and m.heroItem <> invalid
+        ' Land on the featured title, not on the menu.
+        focusHero()
+    end if
 end sub
 
-sub showRows()
-    m.rows = []
-    if m.query = "" and m.account <> invalid and m.progressLoaded
-        continueItems = ContinueWatchingItems(m.items, m.progress)
-        if continueItems.Count() > 0 then m.rows.Push({ title: "Continue Watching", items: continueItems, landscape: false })
-    end if
-    baseRows = HomeRows(m.items, m.query)
-    for each row in baseRows
-        m.rows.Push(row)
+' Hides destinations that have nothing to show and restacks the rest.
+sub layoutNav()
+    y = 0
+    for index = 0 to m.nav.getChildCount() - 1
+        button = m.nav.getChild(index)
+        button.visible = NavAvailable(m.navViews[index])
+        if button.visible
+            button.translation = [0, y]
+            y = y + 46
+        end if
     end for
+    if not m.nav.getChild(m.navIndex).visible then m.navIndex = 0
+end sub
+
+function NavAvailable(view as String) as Boolean
+    if view = "creators" or view = "series" or view = "blackcinema" or view = "aicinema"
+        return ViewRows(m.items, view).Count() > 0
+    end if
+    return true
+end function
+
+function NextNavIndex(current as Integer, stepValue as Integer) as Integer
+    index = current + stepValue
+    while index >= 0 and index < m.nav.getChildCount()
+        if m.nav.getChild(index).visible then return index
+        index = index + stepValue
+    end while
+    return current
+end function
+
+function PersonalRow(kind as String) as Dynamic
+    if m.account = invalid then return invalid
+    if kind = "continue" and m.progressLoaded
+        items = ContinueWatchingItems(m.items, m.progress)
+        if items.Count() > 0 then return { title: "Continue Watching", items: items, landscape: true, kind: "titles", progress: true }
+    else if kind = "mylist" and m.favoritesLoaded
+        items = FavoriteItems(m.items, m.favorites)
+        if items.Count() > 0 then return { title: "My List", items: items, landscape: false, kind: "titles" }
+    end if
+    return invalid
+end function
+
+function BuildRows() as Object
+    rows = []
+    if m.view = "search"
+        for each row in HomeRows(m.items, m.query)
+            rows.Push(row)
+        end for
+    else if m.view = "home"
+        base = HomeRows(m.items, "")
+        creatorCount = CreatorRows(m.items).Count()
+        for index = 0 to creatorCount - 1
+            rows.Push(base[index])
+        end for
+        for each kind in ["continue", "mylist"]
+            row = PersonalRow(kind)
+            if row <> invalid then rows.Push(row)
+        end for
+        moodList = AvailableMoods(m.items)
+        if moodList.Count() > 0
+            rows.Push({ title: "PROtv Discover  " + Chr(183) + "  Pick a mood", items: moodList, landscape: false, kind: "moods" })
+            for each mood in moodList
+                if mood.id = m.mood then rows.Push({ title: "Feeling " + mood.title, items: MoodItems(m.items, mood.id), landscape: false, kind: "titles" })
+            end for
+        end if
+        for index = creatorCount to base.Count() - 1
+            rows.Push(base[index])
+        end for
+    else if m.view = "mylist" or m.view = "continue"
+        row = PersonalRow(m.view)
+        if row <> invalid then rows.Push(row)
+    else
+        for each row in ViewRows(m.items, m.view)
+            rows.Push(row)
+        end for
+    end if
+    for each row in rows
+        if row.kind = invalid then row.kind = "titles"
+        row.cta = row.title = "From PROtv Creators" and (m.view = "home" or m.view = "creators")
+    end for
+    return rows
+end function
+
+sub showRows()
+    m.rows = BuildRows()
     root = CreateObject("roSGNode", "ContentNode")
     sizes = []
     heights = []
@@ -87,20 +203,33 @@ sub showRows()
         for each item in row.items
             child = node.createChild("ContentNode")
             child.title = item.title
-            child.HDPosterUrl = item.artwork
-            cardFields = { id: item.id, landscape: row.landscape, continueWatching: false, progressPercent: 0 }
-            if row.title = "Continue Watching" and m.progress.DoesExist(item.id)
-                cardFields.continueWatching = true
-                cardFields.progressPercent = m.progress[item.id].progressPercent
+            if row.kind = "moods"
+                child.addFields({ kind: "mood", id: item.id, icon: item.icon, active: item.id = m.mood, landscape: false })
+            else
+                child.HDPosterUrl = item.artwork
+                cardFields = { kind: "title", id: item.id, landscape: row.landscape, creator: IsCreatorTitle(item), subtitle: CardSubtitle(item), continueWatching: false, progressPercent: 0, timeLeft: "" }
+                if row.DoesExist("progress") and m.progress.DoesExist(item.id)
+                    cardFields.continueWatching = true
+                    cardFields.progressPercent = m.progress[item.id].progressPercent
+                    cardFields.timeLeft = TimeLeft(m.progress[item.id])
+                end if
+                child.addFields(cardFields)
             end if
-            child.addFields(cardFields)
         end for
-        if row.landscape
-            sizes.Push([256,194])
-            heights.Push(230)
+        if row.cta
+            invite = node.createChild("ContentNode")
+            invite.title = "Join PROtv"
+            invite.addFields({ kind: "cta", id: "", landscape: false })
+        end if
+        if row.kind = "moods"
+            sizes.Push([176,99])
+            heights.Push(133)
+        else if row.landscape
+            sizes.Push([176,151])
+            heights.Push(185)
         else
-            sizes.Push([144,266])
-            heights.Push(310)
+            sizes.Push([120,232])
+            heights.Push(266)
         end if
     end for
     if sizes.Count() > 0
@@ -108,27 +237,411 @@ sub showRows()
         m.rails.rowHeights = heights
     end if
     m.rails.content = root
+    updateNavState()
+    m.spotlight = SpotlightFor(m.rows)
+    m.spotlightIndex = 0
     if m.rows.Count() = 0
-        m.status.text = "No matching titles. Select Search or Home."
-        m.top.findNode("heroTitle").text = "Discover PROtv"
-        m.top.findNode("heroMeta").text = ""
-        m.top.findNode("heroDescription").text = ""
-        focusNav()
+        showEmptyView()
     else
-        updateHero(m.rows[0].items[0])
-        m.status.text = "Up/Down: categories   Left/Right: titles   OK: details   Back: navigation"
+        m.status.text = ""
+        if m.spotlight.Count() > 0 then updateHero(m.spotlight[0], "spotlight")
+        updateRailCount(0)
+    end if
+    restartRotation()
+end sub
+
+' Rebuilds rows after account data changes without losing the viewer's place.
+sub refreshRows()
+    if not m.loaded then return
+    pair = m.rails.rowItemFocused
+    rowTitle = ""
+    itemId = ""
+    if validPair(pair)
+        rowTitle = m.rows[pair[0]].title
+        itemId = Text(m.rows[pair[0]].items[pair[1]].id)
+    end if
+    railsFocused = m.rails.isInFocusChain()
+    heroItem = m.heroItem
+    heroSource = m.heroSource
+    showRows()
+    if heroItem <> invalid and m.rows.Count() > 0 then updateHero(heroItem, heroSource)
+    for rowIndex = 0 to m.rows.Count() - 1
+        if m.rows[rowIndex].title = rowTitle
+            for itemIndex = 0 to m.rows[rowIndex].items.Count() - 1
+                if Text(m.rows[rowIndex].items[itemIndex].id) = itemId
+                    m.rails.jumpToRowItem = [rowIndex, itemIndex]
+                    updateRailCount(rowIndex)
+                end if
+            end for
+        end if
+    end for
+    if railsFocused and m.rows.Count() = 0 and m.mode = "home" then focusNav()
+end sub
+
+function SpotlightFor(rows as Object) as Object
+    if m.view = "home" then return SpotlightItems(m.items)
+    result = []
+    for each row in rows
+        if row.kind = "titles"
+            for each item in row.items
+                if result.Count() < 5 then result.Push(item)
+            end for
+            return result
+        end if
+    end for
+    return result
+end function
+
+sub showEmptyView()
+    if m.view = "search"
+        m.status.text = "No matching titles. Select Search or Home."
+        showHeroMessage("Nothing found", "Try another title or genre, or select Home to browse everything on PROtv.")
+    else if (m.view = "mylist" or m.view = "continue") and m.account = invalid
+        showHeroMessage("Link your account", "Select Account in the menu to link this TV. My List and Continue Watching follow you across the PROtv website, Fire TV and Roku.")
+    else if m.view = "mylist"
+        showHeroMessage("My List is empty", "Select + My List on any title to save it here.")
+    else if m.view = "continue"
+        showHeroMessage("Nothing in progress", "Start any title and it will appear here so you can pick up where you left off.")
+    else
+        showHeroMessage("Coming soon", "New titles are on the way.")
+    end if
+    m.top.findNode("railCount").text = ""
+    if m.mode = "home" and not m.nav.isInFocusChain() then focusNav()
+end sub
+
+sub updateRailCount(rowIndex as Integer)
+    label = m.top.findNode("railCount")
+    label.text = ""
+    if rowIndex < 0 or rowIndex >= m.rows.Count() then return
+    row = m.rows[rowIndex]
+    if row.kind = "titles" and row.items.Count() > 1 then label.text = row.items.Count().ToStr().Trim() + " titles"
+end sub
+
+sub showHeroMessage(title as String, description as String)
+    m.heroItem = invalid
+    m.top.findNode("heroEyebrow").text = "PROtv"
+    m.top.findNode("heroTitle").text = title
+    m.top.findNode("heroMeta").text = ""
+    m.top.findNode("heroDescription").text = description
+    m.top.findNode("heroArtwork").visible = false
+    for each id in ["heroPlay", "heroInfo", "heroList"]
+        m.top.findNode(id).visible = false
+    end for
+    renderDots()
+    requestBackdrop("", false)
+end sub
+
+function EyebrowText(item as Object, source as String) as String
+    if source = "spotlight"
+        if IsCreatorTitle(item) then return "PROtv CREATOR SPOTLIGHT"
+        if m.view = "home" then return "FEATURED ON PROtv"
+        return UCase(ViewTitle(m.view)).Replace("PROTV", "PROtv")
+    end if
+    pair = m.rails.rowItemFocused
+    if not validPair(pair) then return ""
+    row = m.rows[pair[0]]
+    label = UCase(row.title).Replace("PROTV", "PROtv")
+    if row.items.Count() > 1 then label = label + "   " + (pair[1] + 1).ToStr().Trim() + " OF " + row.items.Count().ToStr().Trim()
+    if IsCreatorTitle(item) and row.title <> "From PROtv Creators" then label = "PROtv CREATOR   " + Chr(183) + "   " + label
+    return label
+end function
+
+function ViewTitle(view as String) as String
+    for index = 0 to m.navViews.Count() - 1
+        if m.navViews[index] = view then return m.nav.getChild(index).text
+    end for
+    return "PROtv"
+end function
+
+sub updateHero(item as Object, source as String)
+    m.heroItem = item
+    m.heroSource = source
+    m.top.findNode("heroEyebrow").text = EyebrowText(item, source)
+    m.top.findNode("heroTitle").text = item.title
+    m.top.findNode("heroMeta").text = TitleMetadata(item)
+    m.top.findNode("heroDescription").text = Synopsis(item)
+    m.top.findNode("heroArtwork").visible = true
+    for each id in ["heroPlay", "heroInfo", "heroList"]
+        m.top.findNode(id).visible = true
+    end for
+    updateListButtons()
+    art = m.top.findNode("heroArt")
+    art.visible = art.uri = item.artwork and art.loadStatus = "ready"
+    art.uri = item.artwork
+    renderDots()
+    if Text(item.backdrop) <> ""
+        requestBackdrop(item.backdrop, true)
+    else
+        requestBackdrop(Text(item.artwork), false)
     end if
 end sub
 
-sub updateHero(item as Object)
-    m.top.findNode("heroTitle").text = item.title
-    m.top.findNode("heroMeta").text = TitleMetadata(item)
-    m.top.findNode("heroDescription").text = Text(item.description)
+' Spotlight position dots; shown only while the spotlight drives the hero.
+sub renderDots()
+    dots = m.heroDots
+    while dots.getChildCount() > 0
+        dots.removeChildIndex(0)
+    end while
+    if m.heroItem = invalid or m.heroSource <> "spotlight" or m.spotlight.Count() < 2 then return
+    x = 0
+    for index = 0 to m.spotlight.Count() - 1
+        dot = dots.createChild("Rectangle")
+        dot.height = 6
+        dot.translation = [x, 0]
+        if index = m.spotlightIndex
+            dot.width = 22
+            dot.color = "0x60A5FAFF"
+        else
+            dot.width = 6
+            dot.color = "0xFFFFFF55"
+        end if
+        x = x + dot.width + 8
+    end for
+end sub
+
+sub restartRotation()
+    m.rotateTimer.control = "stop"
+    if m.spotlight.Count() > 1 then m.rotateTimer.control = "start"
+end sub
+
+sub rotateTimerFired()
+    if m.mode <> "home" or m.video.visible or m.top.dialog <> invalid then return
+    if m.rails.isInFocusChain() or m.spotlight.Count() < 2 then return
+    m.spotlightIndex = (m.spotlightIndex + 1) MOD m.spotlight.Count()
+    updateHero(m.spotlight[m.spotlightIndex], "spotlight")
+end sub
+
+' Backdrop changes are debounced so fast remote scrolling stays smooth.
+' sharp = real wide art at full resolution; otherwise a low-resolution wash.
+sub requestBackdrop(uri as String, sharp as Boolean)
+    m.pendingBackdrop = uri
+    m.pendingSharp = sharp
+    m.backdropTimer.control = "stop"
+    m.backdropTimer.control = "start"
+end sub
+
+sub backdropTimerFired()
+    uri = m.pendingBackdrop
+    if uri = m.backdropUri then return
+    m.backdropUri = uri
+    back = BackdropBack()
+    width = 48
+    height = 16
+    if m.pendingSharp = true
+        width = 1064
+        height = 340
+    end if
+    if uri = ""
+        crossfadeBackdrop(invalid)
+    else if back.uri = uri and back.loadWidth = width and back.loadStatus = "ready"
+        crossfadeBackdrop(back)
+    else
+        back.loadWidth = width
+        back.loadHeight = height
+        back.uri = uri
+    end if
+end sub
+
+sub backdropLoaded()
+    back = BackdropBack()
+    if back.loadStatus = "ready" and back.uri = m.backdropUri and m.backdropUri <> "" then crossfadeBackdrop(back)
+end sub
+
+function BackdropBack() as Object
+    if m.backdropFront.id = "backdropA" then return m.top.findNode("backdropB")
+    return m.top.findNode("backdropA")
+end function
+
+sub crossfadeBackdrop(incoming as Dynamic)
+    m.backdropFade.control = "stop"
+    fadeIn = m.top.findNode("fadeIn")
+    fadeOut = m.top.findNode("fadeOut")
+    fadeOut.fieldToInterp = m.backdropFront.id + ".opacity"
+    fadeOut.keyValue = [m.backdropFront.opacity, 0.0]
+    if incoming = invalid
+        fadeIn.fieldToInterp = BackdropBack().id + ".opacity"
+        fadeIn.keyValue = [BackdropBack().opacity, 0.0]
+    else
+        fadeIn.fieldToInterp = incoming.id + ".opacity"
+        fadeIn.keyValue = [incoming.opacity, 0.85]
+        m.backdropFront = incoming
+    end if
+    m.backdropFade.control = "start"
+end sub
+
+sub heroArtStatus()
+    art = m.top.findNode("heroArt")
+    art.visible = art.loadStatus = "ready"
+    if art.loadStatus = "failed" and m.heroItem <> invalid
+        print "PROtv artwork: featured failed id="; m.heroItem.id; " (URL omitted)"
+    end if
+end sub
+
+sub statusChanged()
+    m.top.findNode("statusPanel").visible = m.status.text <> ""
+end sub
+
+' Confirmations fade away on their own; errors stay until the next action.
+sub showNotice(message as String)
+    m.status.text = message
+    m.statusTimer.control = "stop"
+    m.statusTimer.control = "start"
+    m.noticeText = message
+end sub
+
+sub statusTimerFired()
+    if m.status.text = Text(m.noticeText) then m.status.text = ""
+end sub
+
+' Highlights the current destination, independent of remote focus.
+sub updateNavState()
+    activeView = m.view
+    if m.mode = "account" then activeView = "account"
+    if m.mode = "search" then activeView = "search"
+    for index = 0 to m.nav.getChildCount() - 1
+        m.nav.getChild(index).active = m.navViews[index] = activeView
+    end for
+    badge = m.top.findNode("accountBadge")
+    if m.account <> invalid
+        badge.text = Greeting(CurrentLocalHour())
+    else
+        badge.text = "Guest"
+    end if
+end sub
+
+function CurrentLocalHour() as Integer
+    now = CreateObject("roDateTime")
+    now.ToLocalTime()
+    return now.GetHours()
+end function
+
+sub updateListButtons()
+    saved = m.heroItem <> invalid and IsFavorite(m.favorites, Text(m.heroItem.id))
+    setListButton(m.top.findNode("heroList"), saved)
+    if m.selected <> invalid then setListButton(m.top.findNode("detailList"), IsFavorite(m.favorites, Text(m.selected.id)))
+end sub
+
+sub setListButton(button as Object, saved as Boolean)
+    if saved
+        button.text = "In My List"
+        button.icon = "check"
+    else
+        button.text = "My List"
+        button.icon = "plus"
+    end if
+end sub
+
+sub focusRails()
+    setSidebarExpanded(false)
+    setBrowseMode(true)
+    m.rails.setFocus(true)
+end sub
+
+sub focusHero()
+    if m.heroItem = invalid
+        if m.rows.Count() > 0 then focusRails()
+        return
+    end if
+    setSidebarExpanded(false)
+    setBrowseMode(false)
+    m.heroButtons.getChild(m.heroIndex).setFocus(true)
+end sub
+
+' Browse: rails slide up under a compact title so two full rails fit.
+sub setBrowseMode(browsing as Boolean)
+    if m.browsing = browsing then return
+    m.browsing = browsing
+    m.top.findNode("heroTitle").maxLines = 1
+    if not browsing then m.top.findNode("heroTitle").maxLines = 2
+    targets = {
+        railsMove: [[0, 0], [0, -200]],
+        heroLayerMove: [[0, 0], [0, -210]],
+        heroCopyMove: [[112, 200], [112, 140]],
+        fadeMove: [[0, 620], [0, 688]],
+    }
+    nodes = { railsMove: "railsGroup", heroLayerMove: "heroLayer", heroCopyMove: "heroCopy", fadeMove: "bottomFade" }
+    m.browseAnim.control = "stop"
+    for each id in targets
+        target = targets[id][0]
+        if browsing then target = targets[id][1]
+        m.top.findNode(id).keyValue = [m.top.findNode(nodes[id]).translation, target]
+    end for
+    extras = 1.0
+    if browsing then extras = 0.0
+    m.top.findNode("extrasFade").keyValue = [m.top.findNode("heroExtras").opacity, extras]
+    m.browseAnim.control = "start"
+end sub
+
+' The sidebar is an icon rail until it has focus, then expands over content.
+sub setSidebarExpanded(expanded as Boolean)
+    if m.sidebarExpanded = expanded then return
+    m.sidebarExpanded = expanded
+    for index = 0 to m.nav.getChildCount() - 1
+        m.nav.getChild(index).compact = not expanded
+    end for
+    logo = m.top.findNode("logo")
+    width = 88.0
+    fadeWidth = 24
+    if expanded
+        width = 256.0
+        fadeWidth = 160
+        logo.translation = [28, 26]
+        logo.width = 136
+        logo.height = 40
+    else
+        logo.translation = [14, 30]
+        logo.width = 64
+        logo.height = 19
+    end if
+    m.top.findNode("sidebarFade").width = fadeWidth
+    m.sidebarAnim.control = "stop"
+    m.top.findNode("sidebarWidth").keyValue = [m.top.findNode("sidebarBg").width, width]
+    m.top.findNode("sidebarFadeMove").keyValue = [m.top.findNode("sidebarFade").translation, [width, 0]]
+    m.sidebarAnim.control = "start"
+end sub
+
+sub heroPlaySelected()
+    if m.heroItem = invalid then return
+    showDetail(m.heroItem, "hero")
+    startPlayback()
+end sub
+
+sub heroInfoSelected()
+    if m.heroItem <> invalid then showDetail(m.heroItem, "hero")
+end sub
+
+sub heroListSelected()
+    if m.heroItem <> invalid then toggleMyList(m.heroItem)
+end sub
+
+sub toggleMyList(item as Object)
+    if m.account = invalid
+        showNotice("Link your PROtv account in Account to save titles to My List.")
+        return
+    end if
+    id = Text(item.id)
+    favorite = not IsFavorite(m.favorites, id)
+    m.favorites = ToggleFavorite(m.favorites, id, favorite)
+    m.pendingFavorite = { videoId: id, favorite: favorite }
+    updateListButtons()
+    if favorite
+        showNotice("Added to My List.")
+    else
+        showNotice("Removed from My List.")
+    end if
+    queueAccountAction("favorite-write")
+    refreshRows()
 end sub
 
 sub titleFocused()
     pair = m.rails.rowItemFocused
-    if validPair(pair) then updateHero(m.rows[pair[0]].items[pair[1]])
+    if IsInvitePair(pair)
+        showCreatorInvite()
+        return
+    end if
+    if not validPair(pair) then return
+    updateRailCount(pair[0])
+    if m.rows[pair[0]].kind = "titles" then updateHero(m.rows[pair[0]].items[pair[1]], "rail")
 end sub
 
 function validPair(pair as Dynamic) as Boolean
@@ -138,29 +651,102 @@ function validPair(pair as Dynamic) as Boolean
     return pair[1] >= 0 and pair[1] < m.rows[pair[0]].items.Count()
 end function
 
-sub titleSelected()
-    pair = m.rails.rowItemSelected
-    if validPair(pair) then showDetail(m.rows[pair[0]].items[pair[1]])
+' The creator invite sits just past the last creator film.
+function IsInvitePair(pair as Dynamic) as Boolean
+    if not IsArray(pair) or pair.Count() <> 2 then return false
+    if pair[0] < 0 or pair[0] >= m.rows.Count() then return false
+    return m.rows[pair[0]].cta and pair[1] = m.rows[pair[0]].items.Count()
+end function
+
+sub showCreatorInvite()
+    m.heroItem = invalid
+    m.heroSource = "invite"
+    m.top.findNode("heroEyebrow").text = "PROtv CREATORS"
+    m.top.findNode("heroTitle").text = "Your story belongs here"
+    m.top.findNode("heroMeta").text = "Submit your film or series at watchprotv.com/creators"
+    m.top.findNode("heroDescription").text = "Premiere your work on PROtv across the web, Fire TV and Roku."
+    m.top.findNode("heroArtwork").visible = false
+    for each id in ["heroPlay", "heroInfo", "heroList"]
+        m.top.findNode(id).visible = false
+    end for
+    renderDots()
+    requestBackdrop("", false)
 end sub
 
-sub showDetail(item as Object)
+sub titleSelected()
+    pair = m.rails.rowItemSelected
+    if IsInvitePair(pair)
+        showNotice("On your phone or computer, visit watchprotv.com/creators to submit your film.")
+        return
+    end if
+    if not validPair(pair) then return
+    row = m.rows[pair[0]]
+    if row.kind = "moods"
+        selectMood(row.items[pair[1]].id)
+    else
+        showDetail(row.items[pair[1]], "rails")
+    end if
+end sub
+
+' PROtv Discover: picking a mood inserts its row right below the tiles;
+' picking the same mood again clears it.
+sub selectMood(moodId as String)
+    if m.mood = moodId
+        m.mood = ""
+    else
+        m.mood = moodId
+    end if
+    showRows()
+    for rowIndex = 0 to m.rows.Count() - 1
+        if m.rows[rowIndex].kind = "moods"
+            target = [rowIndex, 0]
+            if m.mood <> "" and rowIndex + 1 < m.rows.Count() then target = [rowIndex + 1, 0]
+            m.rails.jumpToRowItem = target
+            updateRailCount(target[0])
+            if m.mood <> "" then updateHero(m.rows[target[0]].items[0], "rail")
+        end if
+    end for
+    focusRails()
+end sub
+
+sub showDetail(item as Object, origin = "rails" as String)
     m.selected = item
+    m.detailOrigin = origin
     changeMode("detail")
+    if IsCreatorTitle(item)
+        m.top.findNode("detailEyebrow").text = "PROtv CREATOR ORIGINAL"
+    else
+        m.top.findNode("detailEyebrow").text = "NOW STREAMING ON PROtv"
+    end if
     m.top.findNode("detailTitle").text = item.title
     m.top.findNode("detailFallback").text = "PROtv" + Chr(10) + Chr(10) + item.title
+    backdrop = m.top.findNode("detailBackdrop")
+    if Text(item.backdrop) <> ""
+        backdrop.loadWidth = 1280
+        backdrop.loadHeight = 560
+        backdrop.uri = item.backdrop
+    else
+        backdrop.loadWidth = 56
+        backdrop.loadHeight = 24
+        backdrop.uri = item.artwork
+    end if
     art = m.top.findNode("detailArt")
     art.visible = art.uri = item.artwork and art.loadStatus = "ready"
     art.uri = item.artwork
+    showDetailFallback(not art.visible)
     m.top.findNode("detailMeta").text = TitleMetadata(item)
     if ResumePosition(m.progress, Text(item.id)) > 0
         m.top.findNode("detailPlay").text = "Resume"
     else
         m.top.findNode("detailPlay").text = "Play"
     end if
-    description = Text(item.description)
+    updateListButtons()
+    description = Synopsis(item)
+    if description = "" then description = "Synopsis coming soon."
     if Text(item.credits) <> "" then description = description + Chr(10) + Chr(10) + Text(item.credits)
+    if RightsLine(item) <> "" then description = description + Chr(10) + Chr(10) + RightsLine(item)
     m.top.findNode("detailDescription").text = description
-    m.status.text = "OK: select   Back: return to the same title"
+    m.status.text = ""
     m.detailIndex = 0
     focusDetails()
 end sub
@@ -168,29 +754,31 @@ end sub
 sub detailArtStatus()
     art = m.top.findNode("detailArt")
     art.visible = art.loadStatus = "ready"
-    if art.loadStatus = "failed" then print "PROtv: detail artwork failed; showing branded title panel"
+    showDetailFallback(not art.visible)
+    if art.loadStatus = "failed" and m.selected <> invalid
+        print "PROtv artwork: detail failed id="; m.selected.id; " (branded fallback; URL omitted)"
+    end if
+end sub
+
+sub showDetailFallback(show as Boolean)
+    m.top.findNode("detailFallbackArt").visible = show
+    m.top.findNode("detailFallback").visible = show
 end sub
 
 sub changeMode(mode as String)
     m.mode = mode
-    m.home.visible = mode = "home"
+    m.home.visible = mode = "home" or mode = "search"
     m.detail.visible = mode = "detail"
-    m.about.visible = mode = "about"
     m.account.visible = mode = "account"
+    m.sidebar.visible = mode <> "detail"
+    m.topBar.visible = mode <> "detail"
+    m.status.text = ""
+    updateNavState()
 end sub
 
 sub navSelected()
-    selected = m.navIndex
-    if selected = 0
-        m.query = ""
-        changeMode("home")
-        if not m.loaded
-            loadCatalog()
-        else
-            showRows()
-            if m.rows.Count() > 0 then m.rails.setFocus(true)
-        end if
-    else if selected = 1
+    view = m.navViews[m.navIndex]
+    if view = "search"
         changeMode("search")
         m.searchDialog = CreateObject("roSGNode", "StandardKeyboardDialog")
         m.searchDialog.title = "Search PROtv - title or genre"
@@ -200,14 +788,20 @@ sub navSelected()
         m.searchDialog.observeField("wasClosed", "searchClosed")
         m.top.dialog = m.searchDialog
         m.status.text = "Enter a title or genre, then select Show results."
-    else if selected = 2
+    else if view = "account"
         changeMode("account")
         showAccountState()
         focusAccount()
     else
-        changeMode("about")
-        m.status.text = "Development preview - not Roku certified."
-        focusNav()
+        m.view = view
+        m.mood = ""
+        changeMode("home")
+        if not m.loaded
+            loadCatalog()
+        else
+            showRows()
+            if m.heroItem <> invalid then focusHero()
+        end if
     end if
 end sub
 
@@ -216,9 +810,12 @@ sub searchSelected()
         m.query = Left(Text(m.searchDialog.text).Trim(), 200)
         m.searchDialog.unobserveField("wasClosed")
         m.searchDialog.close = true
+        m.searchDialog = invalid
+        m.view = "search"
+        if m.query = "" then m.view = "home"
         changeMode("home")
         showRows()
-        if m.rows.Count() > 0 then m.rails.setFocus(true)
+        if m.rows.Count() > 0 then focusRails()
     else
         m.searchDialog.close = true
         returnHome()
@@ -226,14 +823,19 @@ sub searchSelected()
 end sub
 
 sub searchClosed()
+    m.searchDialog = invalid
     if m.mode = "search" then returnHome()
 end sub
 
 sub returnHome()
     cancelPlaybackRequest()
+    previous = m.mode
+    origin = m.detailOrigin
     changeMode("home")
-    if m.rows.Count() > 0
-        m.rails.setFocus(true)
+    if previous = "detail" and origin = "hero" and m.heroItem <> invalid
+        focusHero()
+    else if previous = "detail" and m.rows.Count() > 0
+        focusRails()
     else
         focusNav()
     end if
@@ -242,6 +844,8 @@ end sub
 sub detailSelected()
     if m.detailIndex = 0
         startPlayback()
+    else if m.detailIndex = 1
+        if m.selected <> invalid then toggleMyList(m.selected)
     else
         returnHome()
     end if
@@ -285,6 +889,7 @@ sub playbackLoaded()
     m.lastSavedPosition = 0
     resumeAt = ResumePosition(m.progress, Text(m.selected.id))
     if resumeAt > 0 then m.video.seek = resumeAt
+    m.status.text = ""
     m.video.visible = true
     m.video.setFocus(true)
     m.video.control = "play"
@@ -303,7 +908,7 @@ sub videoState()
         saveCurrentProgress(true)
         m.progressTimer.control = "stop"
         closeVideo()
-        m.status.text = "Playback finished."
+        showNotice("Playback finished.")
     end if
 end sub
 
@@ -336,13 +941,15 @@ sub applyLaunch()
         returnHome()
         m.status.text = result.error
     else if result.item <> invalid
-        showDetail(result.item)
+        showDetail(result.item, "rails")
         startPlayback()
     end if
 end sub
 
+' Focus zones: sidebar | featured actions above the rails | account actions.
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    restartRotation()
     if m.video.visible
         if key = "back"
             closeVideo()
@@ -360,47 +967,127 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         end if
         return false
     end if
-    if key = "left" or key = "right"
-        stepValue = 1
-        if key = "left" then stepValue = -1
-        if m.nav.isInFocusChain()
-            m.navIndex = NavigationIndex(m.navIndex, stepValue, 4)
+    if m.mode = "search" then return false
+    if m.nav.isInFocusChain()
+        if key = "up" or key = "down"
+            stepValue = 1
+            if key = "up" then stepValue = -1
+            m.navIndex = NextNavIndex(m.navIndex, stepValue)
             focusNav()
             return true
-        else if m.detailButtons.isInFocusChain()
-            m.detailIndex = NavigationIndex(m.detailIndex, stepValue, 2)
+        else if key = "right"
+            if m.mode = "home" and m.heroItem <> invalid
+                focusHero()
+            else if m.mode = "home" and m.rows.Count() > 0
+                focusRails()
+            else if m.mode = "account"
+                focusAccount()
+            end if
+            return true
+        else if key = "left"
+            return true
+        end if
+        return false
+    end if
+    if m.heroButtons.isInFocusChain()
+        if key = "left" and m.heroIndex = 0
+            focusNav()
+            return true
+        else if key = "left" or key = "right"
+            stepValue = 1
+            if key = "left" then stepValue = -1
+            m.heroIndex = NavigationIndex(m.heroIndex, stepValue, m.heroButtons.getChildCount())
+            focusHero()
+            return true
+        else if key = "down" and m.rows.Count() > 0
+            focusRails()
+            return true
+        else if key = "up"
+            return true
+        end if
+        return false
+    end if
+    if m.mode = "home" and m.rails.isInFocusChain()
+        pair = m.rails.rowItemFocused
+        if key = "up" and (validPair(pair) or IsInvitePair(pair)) and pair[0] = 0
+            if m.heroItem = invalid and m.spotlight.Count() > 0 then updateHero(m.spotlight[m.spotlightIndex], "spotlight")
+            if m.heroItem = invalid then return false
+            focusHero()
+            return true
+        else if key = "left" and validPair(pair) and pair[1] = 0
+            focusNav()
+            return true
+        end if
+        return false
+    end if
+    if m.mode = "detail"
+        if (key = "left" or key = "right") and m.detailButtons.isInFocusChain()
+            stepValue = 1
+            if key = "left" then stepValue = -1
+            m.detailIndex = NavigationIndex(m.detailIndex, stepValue, m.detailButtons.getChildCount())
             focusDetails()
             return true
-        else if m.accountButtons.isInFocusChain()
-            buttons = [m.top.findNode("accountAction"), m.top.findNode("accountSignOut"), m.top.findNode("accountBack")]
-            visibleButtons = []
-            currentIndex = 0
-            for each button in buttons
-                if button.visible
-                    if button.isInFocusChain() then currentIndex = visibleButtons.Count()
-                    visibleButtons.Push(button)
-                end if
-            end for
-            if visibleButtons.Count() > 0
-                targetIndex = NavigationIndex(currentIndex, stepValue, visibleButtons.Count())
-                visibleButtons[targetIndex].setFocus(true)
-                return true
-            end if
-        end if
-    end if
-    if m.mode = "home"
-        if key = "down" and m.nav.isInFocusChain() and m.rows.Count() > 0
-            m.rails.setFocus(true)
+        else if key = "up" and m.detailButtons.isInFocusChain()
+            m.top.findNode("synopsisFocus").visible = true
+            m.top.findNode("detailDescription").setFocus(true)
             return true
-        else if key = "up" and m.rails.isInFocusChain()
-            if m.rails.rowItemFocused[0] = 0
-                focusNav()
-                return true
-            end if
+        else if key = "OK" and m.top.findNode("detailDescription").isInFocusChain()
+            focusDetails()
+            return true
         end if
+    else if m.mode = "account" and m.accountButtons.isInFocusChain() and (key = "left" or key = "right")
+        visibleButtons = []
+        currentIndex = 0
+        for each button in accountButtonList()
+            if button.visible
+                if button.isInFocusChain() then currentIndex = visibleButtons.Count()
+                visibleButtons.Push(button)
+            end if
+        end for
+        if key = "left" and currentIndex = 0
+            focusNav()
+            return true
+        end if
+        stepValue = 1
+        if key = "left" then stepValue = -1
+        visibleButtons[NavigationIndex(currentIndex, stepValue, visibleButtons.Count())].setFocus(true)
+        return true
     end if
     return false
 end function
+
+function accountButtonList() as Object
+    return [m.top.findNode("accountAction"), m.top.findNode("accountSignOut"), m.top.findNode("accountBack")]
+end function
+
+' Lays visible account actions out left to right with a 20px gap.
+sub layoutAccountButtons()
+    x = 0
+    for each button in accountButtonList()
+        if button.visible
+            button.translation = [x, 0]
+            x = x + button.width + 20
+        end if
+    end for
+end sub
+
+' Account work runs one request at a time; later actions wait their turn.
+sub queueAccountAction(action as String)
+    if not HasViewerSession(m.account) then return
+    if m.accountTask = invalid
+        beginAccountAction(action)
+        return
+    end if
+    for each queued in m.accountQueue
+        if queued = action then return
+    end for
+    m.accountQueue.Push(action)
+end sub
+
+sub drainAccountQueue()
+    if m.accountTask <> invalid or m.accountQueue.Count() = 0 then return
+    beginAccountAction(m.accountQueue.Shift())
+end sub
 
 sub showAccountState()
     code = m.top.findNode("accountCode")
@@ -412,24 +1099,30 @@ sub showAccountState()
     url.text = ""
     expiry.text = ""
     if m.account <> invalid
-        m.top.findNode("accountMessage").text = "Signed in. Continue Watching is synchronized to your PROtv account."
-        action.text = "Refresh Continue Watching"
+        m.top.findNode("accountMessage").text = "Signed in. Continue Watching and My List are synchronized with your PROtv account."
+        action.text = "Refresh my titles"
         signOut.visible = true
     else
-        m.top.findNode("accountMessage").text = "Link your PROtv account on another device to synchronize Continue Watching. Guest browsing and playback remain available."
+        m.top.findNode("accountMessage").text = "Link your PROtv account on another device to synchronize Continue Watching and My List. Guest browsing and playback remain available."
         action.text = "Link PROtv account"
         signOut.visible = false
     end if
     if m.deviceSession <> invalid
-        code.text = "Enter code: " + m.deviceSession.userCode
+        action.text = "Check approval now"
+        code.text = m.deviceSession.userCode
         url.text = m.deviceSession.verificationUrl
         expiry.text = "This code expires in about " + Int((m.deviceSession.expiresAtSeconds - CurrentEpochSeconds() + 59) / 60).ToStr().Trim() + " minute(s). Approve it using your signed-in PROtv website."
     else if FirebaseApiKey() = "" and m.account = invalid
         m.top.findNode("accountMessage").text = "Account linking needs the existing Firebase public web API key in this Roku build. Guest browsing and playback remain available."
     end if
+    m.top.findNode("accountCodePanel").visible = m.deviceSession <> invalid
+    m.top.findNode("accountSteps").visible = m.deviceSession <> invalid
+    layoutAccountButtons()
+    updateNavState()
 end sub
 
 sub focusAccount()
+    setSidebarExpanded(false)
     if m.account <> invalid
         m.top.findNode("accountSignOut").setFocus(true)
     else
@@ -462,13 +1155,14 @@ sub accountSignOutSelected()
     m.progressLoaded = false
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
+    clearFavorites()
     m.afterRefreshAction = ""
     m.accountTask = invalid
     m.authRetryAction = ""
     showAccountState()
-    if m.loaded then showRows()
+    refreshRows()
     m.top.findNode("accountMessage").text = "Signed out on this TV. You can continue watching as a guest or link another PROtv account."
-    m.status.text = "Signed out. Guest browsing and playback remain available."
+    showNotice("Signed out. Guest browsing and playback remain available.")
     focusAccount()
 end sub
 
@@ -529,6 +1223,7 @@ sub accountTaskCompleted()
     if result.error <> ""
         handleAccountTaskError(kind, result)
         if kind <> "progress-write" then drainPendingProgress()
+        drainAccountQueue()
         return
     end if
     if kind = "activation-create"
@@ -605,8 +1300,9 @@ sub accountTaskCompleted()
             m.progressLoaded = true
             m.authRetryAction = ""
             showAccountState()
-            if m.loaded then showRows()
-            m.status.text = "Continue Watching synchronized."
+            refreshRows()
+            queueAccountAction("favorites-read")
+            showNotice("Continue Watching synchronized.")
         else
             m.top.findNode("accountMessage").text = "PROtv returned an invalid Continue Watching response. Retry to load it again."
             m.status.text = "The Continue Watching response was invalid."
@@ -618,15 +1314,34 @@ sub accountTaskCompleted()
             m.lastSavedPosition = m.savingProgress.positionSeconds
             m.savingProgress = invalid
             m.authRetryAction = ""
-            if m.loaded then showRows()
-            m.status.text = "Watch progress saved."
+            refreshRows()
+            showNotice("Watch progress saved.")
         else
             if m.pendingProgressSave = invalid then m.pendingProgressSave = m.savingProgress
             m.savingProgress = invalid
             m.status.text = "PROtv returned an invalid progress confirmation."
         end if
+    else if kind = "favorites-read"
+        m.favorites = FavoriteIds(result.payload)
+        m.favoritesLoaded = true
+        m.authRetryAction = ""
+        updateListButtons()
+        refreshRows()
+    else if kind = "favorite-write"
+        m.savingFavorite = invalid
+        m.authRetryAction = ""
     end if
     drainPendingProgress()
+    drainAccountQueue()
+end sub
+
+sub clearFavorites()
+    m.favorites = []
+    m.favoritesLoaded = false
+    m.pendingFavorite = invalid
+    m.savingFavorite = invalid
+    m.accountQueue = []
+    updateListButtons()
 end sub
 
 sub handleAccountTaskError(kind as String, result as Object)
@@ -678,6 +1393,24 @@ sub handleAccountTaskError(kind as String, result as Object)
             m.top.findNode("accountMessage").text = "Continue Watching could not be loaded. Check the network or session, then retry."
             m.status.text = message + " Select Refresh Continue Watching to retry."
         end if
+    else if kind = "favorites-read" or kind = "favorite-write"
+        if kind = "favorite-write" and m.savingFavorite <> invalid and m.pendingFavorite = invalid then m.pendingFavorite = m.savingFavorite
+        m.savingFavorite = invalid
+        if statusCode = 401 and m.authRetryAction <> kind
+            m.authRetryAction = kind
+            requestFirebaseRefresh(kind)
+        else if statusCode = 401
+            authSessionFailed("PROtv rejected the refreshed account session. Sign in again.")
+        else if kind = "favorite-write" and m.pendingFavorite <> invalid
+            ' Undo the optimistic change so the screen matches the account.
+            m.favorites = ToggleFavorite(m.favorites, m.pendingFavorite.videoId, not m.pendingFavorite.favorite)
+            m.pendingFavorite = invalid
+            updateListButtons()
+            refreshRows()
+            m.status.text = "My List could not be updated. Check the network and try again."
+        else
+            m.status.text = "My List could not be loaded. Select Refresh my titles in Account to retry."
+        end if
     else if kind = "progress-write"
         if statusCode = 401
             if m.authRetryAction <> kind
@@ -720,11 +1453,12 @@ sub authSessionFailed(message as String)
     m.progressLoaded = false
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
+    clearFavorites()
     m.afterRefreshAction = ""
     m.authRetryAction = ""
     showAccountState()
     m.top.findNode("accountMessage").text = message + " Guest browsing and playback remain available."
-    if m.loaded then showRows()
+    refreshRows()
     m.status.text = message
 end sub
 
@@ -767,6 +1501,13 @@ sub executeAccountAction(action as String)
         })
         path = "/users/me/progress/" + m.savingProgress.videoId.EncodeUriComponent()
         startAccountTask("progress-write", path, "PUT", requestBody, m.account.idToken, "", "", "application/json")
+    else if action = "favorites-read"
+        startAccountTask("favorites-read", "/users/me/favorites", "GET", "", m.account.idToken, "", "", "")
+    else if action = "favorite-write" and m.pendingFavorite <> invalid
+        m.savingFavorite = m.pendingFavorite
+        m.pendingFavorite = invalid
+        path = "/users/me/favorites/" + m.savingFavorite.videoId.EncodeUriComponent()
+        startAccountTask("favorite-write", path, "PUT", FormatJson({ favorite: m.savingFavorite.favorite }), m.account.idToken, "", "", "application/json")
     end if
 end sub
 
@@ -810,9 +1551,12 @@ sub cancelAccountTask()
 end sub
 
 sub focusNav()
+    setSidebarExpanded(true)
+    setBrowseMode(false)
     m.nav.getChild(m.navIndex).setFocus(true)
 end sub
 
 sub focusDetails()
+    m.top.findNode("synopsisFocus").visible = false
     m.detailButtons.getChild(m.detailIndex).setFocus(true)
 end sub

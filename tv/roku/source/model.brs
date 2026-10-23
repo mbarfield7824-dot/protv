@@ -34,20 +34,64 @@ function NavigationIndex(current as Integer, stepValue as Integer, count as Inte
     return nextIndex
 end function
 
+' Catalog descriptions end with an internal licensing note ("Rights: ...").
+' Viewers see the synopsis; the note is kept separately for attribution.
+function RightsIndex(description as String) as Integer
+    return Instr(1, LCase(description), "rights:")
+end function
+
+function Synopsis(item as Object) as String
+    body = Text(item.description).Trim()
+    index = RightsIndex(body)
+    if index > 0 then body = Left(body, index - 1).Trim()
+    if body = "" then return ""
+    ' A synopsis that starts mid-word is a damaged record; never show a fragment.
+    first = Asc(Left(body, 1))
+    if first >= 97 and first <= 122 then return ""
+    return body
+end function
+
+function RightsLine(item as Object) as String
+    body = Text(item.description).Trim()
+    index = RightsIndex(body)
+    if index = 0 then return ""
+    return Mid(body, index).Trim()
+end function
+
+function FormatRuntime(seconds as Dynamic) as String
+    if not IsNumber(seconds) then return ""
+    if seconds < 60 then return ""
+    minutes = Int(seconds / 60)
+    if minutes < 60 then return minutes.ToStr().Trim() + " min"
+    hours = Int(minutes / 60)
+    rest = minutes - hours * 60
+    if rest = 0 then return hours.ToStr().Trim() + "h"
+    return hours.ToStr().Trim() + "h " + rest.ToStr().Trim() + "m"
+end function
+
 function TitleMetadata(item as Object) as String
     parts = []
     year = Text(item.year)
     if GetInterface(item.year, "ifInt") <> invalid then year = item.year.ToStr().Trim()
     runtime = Text(item.runtime)
-    if runtime = ""
-        if GetInterface(item.duration, "ifInt") <> invalid or GetInterface(item.duration, "ifFloat") <> invalid or GetInterface(item.duration, "ifDouble") <> invalid
-            if item.duration >= 60 then runtime = Int(item.duration / 60).ToStr().Trim() + " min"
-        end if
-    end if
+    if runtime = "" then runtime = FormatRuntime(item.duration)
     for each value in [year, runtime, Text(item.category), Text(item.maturityRating)]
         if value <> "" then parts.Push(value)
     end for
-    return parts.Join("  |  ")
+    return parts.Join("  " + Chr(183) + "  ")
+end function
+
+' Second caption line under rail artwork.
+function CardSubtitle(item as Object) as String
+    if Text(item.contentType) = "EPISODE"
+        if PositiveInteger(item.seasonNumber) and PositiveInteger(item.episodeNumber)
+            return "S" + item.seasonNumber.ToStr().Trim() + " " + Chr(183) + " E" + item.episodeNumber.ToStr().Trim()
+        end if
+        return Text(item.seriesTitle)
+    end if
+    category = Text(item.category)
+    if category <> "" then return category
+    return FormatRuntime(item.duration)
 end function
 
 function ArtworkSource(item as Object) as String
@@ -63,6 +107,15 @@ function ArtworkSource(item as Object) as String
         if Left(url, 9) = "/posters/" then return ApiBase() + url
         if Left(url, 23) = "data:image/jpeg;base64," then return url
     end for
+    return ""
+end function
+
+' Real wide hero art, when a title has it; otherwise the hero uses a wash.
+function BackdropSource(item as Object) as String
+    if HeldArtwork(Text(item.id)) then return ""
+    url = Text(item.heroImageUrl)
+    if Left(url, 8) = "https://" then return url
+    if Left(url, 9) = "/posters/" then return ApiBase() + url
     return ""
 end function
 
@@ -92,6 +145,7 @@ function NormalizeCatalog(payload as Dynamic) as Object
         kind = Text(item.contentType)
         if kind = "MOVIE" or kind = "EPISODE"
             item.artwork = ArtworkSource(item)
+            item.backdrop = BackdropSource(item)
             result.items.Push(item)
         end if
     end for
@@ -124,6 +178,226 @@ function HasGenre(item as Object, genre as String) as Boolean
     return false
 end function
 
+' Creator submissions are published by the backend with creator_ IDs
+' (creator_<projectId> movies, creator_episode_<id> episodes).
+function IsCreatorTitle(item as Object) as Boolean
+    return Left(Text(item.id), 8) = "creator_"
+end function
+
+function CreatorRows(items as Object) as Object
+    films = []
+    episodes = []
+    for each item in items
+        if IsCreatorTitle(item)
+            if item.contentType = "EPISODE"
+                episodes.Push(item)
+            else
+                films.Push(item)
+            end if
+        end if
+    end for
+    rows = []
+    if films.Count() > 0 then rows.Push({ title: "From PROtv Creators", items: films, landscape: false })
+    if episodes.Count() > 0 then rows.Push({ title: "Creator Series", items: episodes, landscape: true })
+    return rows
+end function
+
+function HasAnyGenre(item as Object, genres as Object) as Boolean
+    for each genre in genres
+        if HasGenre(item, genre) then return true
+    end for
+    return false
+end function
+
+' Creators lead every list they appear in; catalog order is kept otherwise.
+function CreatorsFirst(items as Object) as Object
+    creators = []
+    others = []
+    for each item in items
+        if IsCreatorTitle(item)
+            creators.Push(item)
+        else
+            others.Push(item)
+        end if
+    end for
+    creators.Append(others)
+    return creators
+end function
+
+' Titles the featured hero rotates through: creator films, then editorial picks.
+function SpotlightItems(items as Object) as Object
+    result = []
+    for each item in items
+        if IsCreatorTitle(item) and item.contentType = "MOVIE" and result.Count() < 3 then result.Push(item)
+    end for
+    for each id in FeaturedIds()
+        for each item in items
+            if ExactStringEquals(Text(item.id), id) and item.contentType = "MOVIE" then result.Push(item)
+        end for
+    end for
+    if result.Count() = 0
+        for each item in items
+            if item.contentType = "MOVIE" and result.Count() < 5 then result.Push(item)
+        end for
+    end if
+    return result
+end function
+
+' Editorial selections, not an invented API featured flag or release-date ranking.
+function FeaturedIds() as Object
+    return ["sCWQqVE5WIoNNN5wAGQ2", "biitnhJJnBvHGFx8TJZC", "LiMNMZWXBxJj3LoP73kU", "gbcxmtl6mAHQeBxx8Dgs"]
+end function
+
+' Sidebar destinations other than Home, Search and the account views.
+function ViewRows(items as Object, view as String) as Object
+    if view = "creators" then return CreatorRows(items)
+    rows = []
+    if view = "movies"
+        movies = []
+        categories = {}
+        order = []
+        for each item in items
+            if item.contentType = "MOVIE"
+                movies.Push(item)
+                category = Text(item.category).Trim()
+                if category <> ""
+                    key = LCase(category)
+                    if not categories.DoesExist(key)
+                        categories[key] = { title: category, items: [], landscape: false }
+                        order.Push(key)
+                    end if
+                    categories[key].items.Push(item)
+                end if
+            end if
+        end for
+        if movies.Count() > 0 then rows.Push({ title: "All Movies", items: CreatorsFirst(movies), landscape: false })
+        for each key in order
+            rows.Push({ title: categories[key].title, items: CreatorsFirst(categories[key].items), landscape: false })
+        end for
+    else if view = "series"
+        groups = {}
+        order = []
+        for each item in items
+            if item.contentType = "EPISODE"
+                name = Text(item.seriesTitle).Trim()
+                if name = "" then name = Text(item.title)
+                key = LCase(name)
+                if not groups.DoesExist(key)
+                    groups[key] = { title: name, items: [], landscape: true }
+                    order.Push(key)
+                end if
+                groups[key].items.Push(item)
+            end if
+        end for
+        for each key in order
+            rows.Push(groups[key])
+        end for
+    else if view = "blackcinema" or view = "aicinema"
+        genre = "Black Cinema"
+        if view = "aicinema" then genre = "AI Cinema"
+        found = []
+        for each item in items
+            if item.contentType = "MOVIE" and HasGenre(item, genre) then found.Push(item)
+        end for
+        if found.Count() > 0 then rows.Push({ title: genre, items: CreatorsFirst(found), landscape: false })
+    end if
+    return rows
+end function
+
+function Moods() as Object
+    return [
+        { id: "exciting", title: "Exciting", icon: "flame", genres: ["Action", "Sci-Fi", "Horror/Thriller"] },
+        { id: "funny", title: "Funny", icon: "smile", genres: ["Comedy", "Cartoons", "Classic Cartoons"] },
+        { id: "scary", title: "Scary", icon: "ghost", genres: ["Horror", "Horror/Thriller", "Supernatural horror"] },
+        { id: "thoughtful", title: "Thoughtful", icon: "bulb", genres: ["Documentary", "AI Cinema"] },
+        { id: "heartfelt", title: "Heartfelt", icon: "heart", genres: ["Drama", "Black Cinema"] },
+        { id: "escape", title: "Escape", icon: "planet", genres: ["Sci-Fi", "Cartoons", "Classic Cartoons", "AI Cinema"] },
+    ]
+end function
+
+function MoodItems(items as Object, moodId as String) as Object
+    found = []
+    for each mood in Moods()
+        if mood.id = moodId
+            for each item in items
+                if item.contentType = "MOVIE" and HasAnyGenre(item, mood.genres) then found.Push(item)
+            end for
+        end if
+    end for
+    return CreatorsFirst(found)
+end function
+
+' Only moods that currently match at least one title.
+function AvailableMoods(items as Object) as Object
+    result = []
+    for each mood in Moods()
+        if MoodItems(items, mood.id).Count() > 0 then result.Push(mood)
+    end for
+    return result
+end function
+
+function TimeLeft(entry as Dynamic) as String
+    if not ValidProgressEntry(entry) then return ""
+    remaining = entry.durationSeconds - entry.positionSeconds
+    if remaining <= 0 then return ""
+    if remaining < 60 then return "Under 1m left"
+    minutes = Int((remaining + 59) / 60)
+    if minutes < 60 then return minutes.ToStr().Trim() + "m left"
+    hours = Int(minutes / 60)
+    rest = minutes - hours * 60
+    if rest = 0 then return hours.ToStr().Trim() + "h left"
+    return hours.ToStr().Trim() + "h " + rest.ToStr().Trim() + "m left"
+end function
+
+function Greeting(hour as Integer) as String
+    if hour >= 5 and hour < 12 then return "Good morning"
+    if hour >= 12 and hour < 17 then return "Good afternoon"
+    return "Good evening"
+end function
+
+' GET /users/me/favorites returns an array of exact catalog IDs.
+function FavoriteIds(payload as Dynamic) as Object
+    result = []
+    if not IsArray(payload) then return result
+    seen = CreateObject("roAssociativeArray")
+    seen.SetModeCaseSensitive()
+    for each id in payload
+        value = Text(id)
+        if value <> "" and not seen.DoesExist(value) and result.Count() < 500
+            seen[value] = true
+            result.Push(value)
+        end if
+    end for
+    return result
+end function
+
+function IsFavorite(favorites as Object, id as String) as Boolean
+    for each value in favorites
+        if ExactStringEquals(value, id) then return true
+    end for
+    return false
+end function
+
+function ToggleFavorite(favorites as Object, id as String, favorite as Boolean) as Object
+    result = []
+    for each value in favorites
+        if not ExactStringEquals(value, id) then result.Push(value)
+    end for
+    if favorite then result.Push(id)
+    return result
+end function
+
+' Most recently added first; IDs missing from the catalog are skipped.
+function FavoriteItems(items as Object, favorites as Object) as Object
+    result = []
+    for index = favorites.Count() - 1 to 0 step -1
+        for each item in items
+            if ExactStringEquals(Text(item.id), favorites[index]) then result.Push(item)
+        end for
+    end for
+    return result
+end function
+
 function HomeRows(items as Object, query = "" as String) as Object
     rows = []
     if query <> ""
@@ -132,13 +406,13 @@ function HomeRows(items as Object, query = "" as String) as Object
             for each item in items
                 if item.contentType = kind and MatchesSearch(item, query) then found.Push(item)
             end for
-            if found.Count() > 0 then rows.Push({ title: "Search - " + LCase(kind) + "s", items: found, landscape: kind = "EPISODE" })
+            if found.Count() > 0 then rows.Push({ title: "Search - " + LCase(kind) + "s", items: CreatorsFirst(found), landscape: kind = "EPISODE" })
         end for
         return rows
     end if
+    rows = CreatorRows(items)
     featured = []
-    ' Editorial selections, not an invented API featured flag or release-date ranking.
-    for each id in ["sCWQqVE5WIoNNN5wAGQ2", "biitnhJJnBvHGFx8TJZC", "LiMNMZWXBxJj3LoP73kU", "gbcxmtl6mAHQeBxx8Dgs"]
+    for each id in FeaturedIds()
         for each item in items
             if ExactStringEquals(Text(item.id), id) and item.contentType = "MOVIE" then featured.Push(item)
         end for
@@ -162,9 +436,10 @@ function HomeRows(items as Object, query = "" as String) as Object
             end if
         end if
     end for
-    if black.Count() > 0 then rows.Push({ title: "Black Cinema", items: black, landscape: false })
+    if black.Count() > 0 then rows.Push({ title: "Black Cinema", items: CreatorsFirst(black), landscape: false })
     if movies.Count() > 0 then rows.Push({ title: "All Movies", items: movies, landscape: false })
     for each key in categories
+        categories[key].items = CreatorsFirst(categories[key].items)
         rows.Push(categories[key])
     end for
     if episodes.Count() > 0 then rows.Push({ title: "Series & Episodes", items: episodes, landscape: true })

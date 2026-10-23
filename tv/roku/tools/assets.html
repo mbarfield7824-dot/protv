@@ -1,0 +1,340 @@
+<!doctype html>
+<!-- Draws the Roku UI assets. Run `npm run assets` (tools/generate-assets.mjs). -->
+<html><head><meta charset="utf-8"></head><body><pre id="out"></pre><script>
+const BG = '#05070B';
+const PANEL = '#0B1222';
+const ROYAL = '#4169E1';
+const ELECTRIC = '#60A5FA';
+const FONT = '"Segoe UI", Arial, sans-serif';
+const out = {};
+
+function canvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return [c, c.getContext('2d')];
+}
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function save(name, c, type = 'image/png', quality) {
+  out[name] = c.toDataURL(type, quality);
+}
+
+// 9-patch: draw(ctx, w, h) paints a w x h image; one transparent border pixel
+// is added and the centre 2px row/column are marked stretchable.
+function ninePatch(name, w, h, draw) {
+  const [c, ctx] = canvas(w + 2, h + 2);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(1, 1, w, h); ctx.clip();
+  ctx.translate(1, 1);
+  draw(ctx, w, h);
+  ctx.restore();
+  ctx.fillStyle = '#000';
+  const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
+  ctx.fillRect(1 + cx - 1, 0, 2, 1);
+  ctx.fillRect(0, 1 + cy - 1, 1, 2);
+  save(name + '.9.png', c);
+}
+
+// Buttons: 12px glow margin around a 48px tall rounded rectangle.
+const M = 12;
+function button(name, h, r, paint) {
+  const w = 2 * (M + r) + 4;
+  ninePatch(name, w, h + 2 * M, (ctx) => paint(ctx, w - 2 * M, h, r));
+}
+button('btn-primary', 48, 12, (ctx, w, h, r) => {
+  const g = ctx.createLinearGradient(0, M, 0, M + h);
+  g.addColorStop(0, '#5B82F0'); g.addColorStop(1, '#3358D4');
+  ctx.shadowColor = 'rgba(65,105,225,0.45)'; ctx.shadowBlur = 10;
+  rr(ctx, M, M, w, h, r); ctx.fillStyle = g; ctx.fill();
+});
+button('btn-idle', 48, 12, (ctx, w, h, r) => {
+  rr(ctx, M + 0.75, M + 0.75, w - 1.5, h - 1.5, r);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.34)'; ctx.lineWidth = 1.5; ctx.stroke();
+});
+button('btn-focus', 48, 12, (ctx, w, h, r) => {
+  ctx.shadowColor = 'rgba(96,165,250,0.95)'; ctx.shadowBlur = 14;
+  rr(ctx, M, M, w, h, r); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+  ctx.shadowBlur = 0;
+});
+button('toast', 40, 20, (ctx, w, h, r) => {
+  rr(ctx, M + 0.5, M + 0.5, w - 1, h - 1, r);
+  ctx.fillStyle = 'rgba(12,20,38,0.96)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(96,165,250,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+});
+
+// Card focus ring: 14px margin, white 3px ring 4px outside the artwork + glow.
+{
+  const m = 14, r = 14, size = 2 * (m + r) + 4;
+  ninePatch('card-ring', size, size, (ctx, w, h) => {
+    rr(ctx, m - 5.5, m - 5.5, w - 2 * m + 11, h - 2 * m + 11, r);
+    ctx.shadowColor = 'rgba(96,165,250,1)'; ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.stroke();
+  });
+}
+
+// Corner masks round square artwork against a known flat colour.
+function mask(name, color, r) {
+  const size = 2 * r + 4;
+  ninePatch(name, size, size, (ctx, w, h) => {
+    ctx.fillStyle = color; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'destination-out';
+    rr(ctx, 0, 0, w, h, r); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  });
+}
+mask('card-mask', BG, 10);
+mask('panel-mask', PANEL, 10);
+
+{
+  const r = 22, size = 2 * r + 4;
+  ninePatch('panel', size, size, (ctx, w, h) => {
+    rr(ctx, 0.5, 0.5, w - 1, h - 1, r);
+    ctx.fillStyle = PANEL; ctx.fill();
+    ctx.strokeStyle = 'rgba(96,165,250,0.24)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+}
+
+function glow(ctx, x, y, radius, rgb, alpha) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  g.addColorStop(0, `rgba(${rgb},${alpha})`);
+  g.addColorStop(0.45, `rgba(${rgb},${alpha * 0.45})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+}
+
+function dither(ctx, w, h, rows) {
+  const img = ctx.getImageData(0, 0, w, rows);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 3;
+    img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// Full-screen ambience. Below y=330 it is exactly BG so card masks blend.
+function ambience(ctx, w, h, fadeTop, fadeBottom, noise = true) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+  glow(ctx, w * 0.84, h * 0.06, w * 0.6, '37,73,190', 0.55);
+  glow(ctx, w * 0.12, -h * 0.12, w * 0.42, '96,165,250', 0.20);
+  glow(ctx, w * 0.5, h * 0.02, w * 0.3, '65,105,225', 0.12);
+  const f = ctx.createLinearGradient(0, fadeTop, 0, fadeBottom);
+  f.addColorStop(0, 'rgba(5,7,11,0)'); f.addColorStop(1, 'rgba(5,7,11,1)');
+  ctx.fillStyle = f; ctx.fillRect(0, fadeTop, w, h - fadeTop);
+  ctx.fillStyle = BG; ctx.fillRect(0, fadeBottom, w, h - fadeBottom);
+  if (noise) dither(ctx, w, h, Math.min(h, fadeBottom));
+}
+{
+  const [c, ctx] = canvas(1280, 720);
+  ambience(ctx, 1280, 720, 180, 330);
+  save('background.jpg', c, 'image/jpeg', 0.9);
+}
+{
+  const [c, ctx] = canvas(300, 450);
+  const g = ctx.createLinearGradient(0, 0, 300, 450);
+  g.addColorStop(0, '#1F3F9E'); g.addColorStop(0.55, '#101C3C'); g.addColorStop(1, '#0A1020');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 300, 450);
+  glow(ctx, 60, 40, 260, '96,165,250', 0.28);
+  ctx.fillStyle = 'rgba(96,165,250,0.85)'; ctx.fillRect(110, 118, 80, 4);
+  save('poster-fallback.jpg', c, 'image/jpeg', 0.9);
+}
+// Icons: original line art on a 24-unit grid, rendered at 48px for FHD.
+const ICONS = {
+  home(c) { c.moveTo(3, 11); c.lineTo(12, 3.5); c.lineTo(21, 11); c.moveTo(5.5, 9.5); c.lineTo(5.5, 20.5); c.lineTo(10, 20.5); c.lineTo(10, 14.5); c.lineTo(14, 14.5); c.lineTo(14, 20.5); c.lineTo(18.5, 20.5); c.lineTo(18.5, 9.5); },
+  search(c) { c.arc(10.5, 10.5, 6.5, 0, Math.PI * 2); c.moveTo(15.5, 15.5); c.lineTo(20.5, 20.5); },
+  star(c) { star(c, 12, 12.5, 9.5, 4.2, 5); },
+  film(c) { c.rect(3.5, 4.5, 17, 15); c.moveTo(7.5, 4.5); c.lineTo(7.5, 19.5); c.moveTo(16.5, 4.5); c.lineTo(16.5, 19.5); c.moveTo(3.5, 12); c.lineTo(20.5, 12); c.moveTo(3.5, 8.2); c.lineTo(7.5, 8.2); c.moveTo(3.5, 15.8); c.lineTo(7.5, 15.8); c.moveTo(16.5, 8.2); c.lineTo(20.5, 8.2); c.moveTo(16.5, 15.8); c.lineTo(20.5, 15.8); },
+  tv(c) { c.rect(2.5, 5.5, 19, 12.5); c.moveTo(8, 21); c.lineTo(16, 21); c.moveTo(12, 18); c.lineTo(12, 21); },
+  clapper(c) { c.rect(3.5, 10, 17, 10.5); c.moveTo(3.5, 10); c.lineTo(3, 6); c.lineTo(19.5, 3.5); c.lineTo(20.2, 7.4); c.lineTo(3.4, 10); c.moveTo(8.5, 5.3); c.lineTo(10.6, 8.8); c.moveTo(14, 4.4); c.lineTo(16.2, 7.9); },
+  sparkles(c) { star(c, 10, 13, 7.5, 2, 4); star(c, 18.5, 5.5, 3.2, 0.9, 4); star(c, 18.5, 18.5, 2.4, 0.7, 4); },
+  plus(c) { c.moveTo(12, 4.5); c.lineTo(12, 19.5); c.moveTo(4.5, 12); c.lineTo(19.5, 12); },
+  check(c) { c.moveTo(4.5, 12.5); c.lineTo(9.5, 17.5); c.lineTo(19.5, 6.5); },
+  clock(c) { c.arc(12, 12, 8.5, 0, Math.PI * 2); c.moveTo(12, 7); c.lineTo(12, 12); c.lineTo(15.5, 14.5); },
+  user(c) { c.arc(12, 8, 4, 0, Math.PI * 2); c.moveTo(4.5, 20.5); c.bezierCurveTo(5, 15, 19, 15, 19.5, 20.5); },
+  info(c) { c.arc(12, 12, 8.5, 0, Math.PI * 2); c.moveTo(12, 11); c.lineTo(12, 16.5); c.moveTo(12, 7.6); c.lineTo(12, 7.7); },
+  play: { fill: true, draw(c) { c.moveTo(7, 4.5); c.lineTo(19.5, 12); c.lineTo(7, 19.5); c.closePath(); } },
+  flame(c) { c.moveTo(12, 21); c.bezierCurveTo(6.5, 21, 5, 16.5, 6.5, 13); c.bezierCurveTo(7.5, 10.5, 10, 9, 10, 4); c.bezierCurveTo(13.5, 6, 15, 9, 14.5, 11.5); c.bezierCurveTo(15.8, 10.8, 16.6, 9.6, 16.8, 8.5); c.bezierCurveTo(19.5, 12, 19, 21, 12, 21); },
+  smile(c) { c.arc(12, 12, 8.5, 0, Math.PI * 2); c.moveTo(8, 13.5); c.quadraticCurveTo(12, 18, 16, 13.5); c.moveTo(9, 9.3); c.lineTo(9, 9.4); c.moveTo(15, 9.3); c.lineTo(15, 9.4); },
+  ghost(c) { c.moveTo(5, 20.5); c.lineTo(5, 11); c.arc(12, 11, 7, Math.PI, 0); c.lineTo(19, 20.5); c.lineTo(16.7, 18.5); c.lineTo(14.3, 20.5); c.lineTo(12, 18.5); c.lineTo(9.7, 20.5); c.lineTo(7.3, 18.5); c.closePath(); c.moveTo(9.5, 10.5); c.lineTo(9.5, 10.6); c.moveTo(14.5, 10.5); c.lineTo(14.5, 10.6); },
+  bulb(c) { c.moveTo(9, 17); c.bezierCurveTo(9, 14.5, 5.5, 13, 5.5, 9.5); c.arc(12, 9.5, 6.5, Math.PI, 0); c.bezierCurveTo(18.5, 13, 15, 14.5, 15, 17); c.closePath(); c.moveTo(9.5, 20.5); c.lineTo(14.5, 20.5); },
+  heart(c) { c.moveTo(12, 20); c.bezierCurveTo(4, 14.5, 2.5, 10, 4.5, 7); c.bezierCurveTo(6.5, 4, 10.5, 4.5, 12, 7.5); c.bezierCurveTo(13.5, 4.5, 17.5, 4, 19.5, 7); c.bezierCurveTo(21.5, 10, 20, 14.5, 12, 20); },
+  planet(c) { c.arc(12, 12, 6, 0, Math.PI * 2); c.moveTo(3.4, 16.6); c.bezierCurveTo(1, 19.5, 6, 18.5, 12, 15.5); c.bezierCurveTo(18, 12.5, 22.5, 7.5, 20.6, 7.4); },
+};
+function star(c, cx, cy, outer, inner, points) {
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 ? inner : outer;
+    const a = -Math.PI / 2 + (i * Math.PI) / points;
+    const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+    if (i) c.lineTo(x, y); else c.moveTo(x, y);
+  }
+  c.closePath();
+}
+const ICON_COLORS = { light: '#FFFFFF', dim: '#8C97B0', dark: BG };
+for (const [name, spec] of Object.entries(ICONS)) {
+  const fill = typeof spec === 'object' && spec.fill;
+  const draw = typeof spec === 'function' ? spec : spec.draw;
+  for (const [variant, color] of Object.entries(ICON_COLORS)) {
+    const [c, ctx] = canvas(48, 48);
+    ctx.scale(2, 2);
+    ctx.strokeStyle = color; ctx.fillStyle = color;
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); draw(ctx);
+    if (fill) ctx.fill(); else ctx.stroke();
+    save(`icon-${name}-${variant}.png`, c);
+  }
+}
+
+// Sidebar item states: 40px tall, radius 10.
+button('nav-focus', 40, 10, (ctx, w, h, r) => {
+  ctx.shadowColor = 'rgba(65,105,225,0.85)'; ctx.shadowBlur = 12;
+  const g = ctx.createLinearGradient(0, M, 0, M + h);
+  g.addColorStop(0, '#4A78F0'); g.addColorStop(1, '#2F5BE0');
+  rr(ctx, M, M, w, h, r); ctx.fillStyle = g; ctx.fill();
+});
+button('nav-active', 40, 10, (ctx, w, h, r) => {
+  rr(ctx, M, M, w, h, r); ctx.fillStyle = 'rgba(96,165,250,0.12)'; ctx.fill();
+});
+
+// Mood tiles for PROtv Discover: exactly 99px tall, radius 12.
+function tile(name, border, top) {
+  const r = 12, w = 2 * r + 4, h = 99;
+  ninePatch(name, w, h, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, top); g.addColorStop(1, '#0E1830');
+    rr(ctx, 1, 1, w - 2, h - 2, r); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = border; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+}
+tile('mood-tile', 'rgba(96,165,250,0.30)', '#1D3A8F');
+tile('mood-tile-active', '#60A5FA', '#2E56C8');
+
+{
+  // The invite tile is portrait (120 x 180), so it gets its own height.
+  const r = 10, w = 2 * r + 4, h = 180;
+  ninePatch('cta-tile', w, h, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#2B55D6'); g.addColorStop(0.6, '#13235A'); g.addColorStop(1, '#0B1430');
+    rr(ctx, 1, 1, w - 2, h - 2, r); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(96,165,250,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+}
+
+// Fades: the expanded sidebar's right edge and the bottom of the rails.
+{
+  const [c, ctx] = canvas(160, 8);
+  const g = ctx.createLinearGradient(0, 0, 160, 0);
+  g.addColorStop(0, 'rgba(7,10,18,0.96)'); g.addColorStop(1, 'rgba(7,10,18,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 160, 8);
+  save('sidebar-fade.png', c);
+}
+{
+  const [c, ctx] = canvas(8, 100);
+  const g = ctx.createLinearGradient(0, 0, 0, 100);
+  g.addColorStop(0, 'rgba(5,7,11,0)'); g.addColorStop(0.7, 'rgba(5,7,11,0.85)'); g.addColorStop(1, 'rgba(5,7,11,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 100);
+  save('bottom-fade.png', c);
+}
+
+// Creator badge on posters: 18px tall, radius 5.
+{
+  const r = 5, w = 2 * r + 4, h = 18;
+  ninePatch('chip-creator', w, h, (ctx) => {
+    rr(ctx, 0, 0, w, h, r); ctx.fillStyle = ELECTRIC; ctx.fill();
+  });
+}
+
+// Bottom shade behind time-left text on wide cards.
+{
+  const [c, ctx] = canvas(8, 40);
+  const g = ctx.createLinearGradient(0, 0, 0, 40);
+  g.addColorStop(0, 'rgba(5,7,11,0)'); g.addColorStop(1, 'rgba(5,7,11,0.9)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, 40);
+  save('card-shade.png', c);
+}
+
+// Hero scrim over the blurred backdrop (shown at 1280 x 360): dark behind
+// the copy on the left and the status bar on top, solid BG at the bottom.
+{
+  const w = 532, h = 170;
+  const [c, ctx] = canvas(w, h);
+  const img = ctx.createImageData(w, h);
+  const smooth = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const fx = x / (w - 1), fy = y / (h - 1);
+      const left = 0.94 - 0.82 * smooth(Math.min(1, Math.max(0, fx - 0.05) / 0.72));
+      const top = 0.45 * (1 - smooth(Math.min(1, fy / 0.18)));
+      const bottom = smooth(Math.max(0, (fy - 0.55) / 0.45));
+      const a = 1 - (1 - left) * (1 - top) * (1 - bottom);
+      const i = (y * w + x) * 4;
+      img.data[i] = 5; img.data[i + 1] = 7; img.data[i + 2] = 11;
+      img.data[i + 3] = Math.round(255 * Math.min(1, a) + (Math.random() - 0.5) * 2);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  save('hero-scrim.png', c);
+}
+
+// Wordmark: white PRO + electric-blue italic tv, matching Fire TV / web.
+function wordmark(ctx, x, baseline, size) {
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `800 ${size}px ${FONT}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('PRO', x, baseline);
+  const pro = ctx.measureText('PRO').width;
+  ctx.font = `italic 800 ${size}px ${FONT}`;
+  ctx.fillStyle = '#4D9BFF';
+  ctx.fillText('tv', x + pro + size * 0.02, baseline);
+  return pro + size * 0.02 + ctx.measureText('tv').width;
+}
+function wordmarkWidth(ctx, size) {
+  ctx.font = `800 ${size}px ${FONT}`;
+  const pro = ctx.measureText('PRO').width;
+  ctx.font = `italic 800 ${size}px ${FONT}`;
+  return pro + size * 0.02 + ctx.measureText('tv').width;
+}
+{
+  const [c, ctx] = canvas(204, 60);
+  wordmark(ctx, 2, 48, 52);
+  save('logo.png', c);
+}
+
+function brandCard(w, h, tagline) {
+  const [c, ctx] = canvas(w, h);
+  ambience(ctx, w, h, h * 0.55, h * 1.2, Boolean(tagline));
+  const size = Math.round(h * (tagline ? 0.16 : 0.27));
+  const mw = wordmarkWidth(ctx, size);
+  const x = (w - mw) / 2;
+  const baseline = h * (tagline ? 0.52 : 0.6);
+  ctx.fillStyle = ELECTRIC;
+  rr(ctx, x, baseline - size * 1.12, size * 1.1, Math.max(3, size * 0.07), size * 0.035); ctx.fill();
+  wordmark(ctx, x, baseline, size);
+  if (tagline) {
+    ctx.font = `500 ${Math.round(size * 0.24)}px ${FONT}`;
+    ctx.fillStyle = 'rgba(214,224,245,0.82)';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = `${Math.round(size * 0.04)}px`;
+    ctx.fillText(tagline, w / 2, baseline + size * 0.55);
+    ctx.letterSpacing = '0px';
+    ctx.textAlign = 'left';
+  }
+  return c;
+}
+save('channel-icon-hd.png', brandCard(290, 218, ''));
+save('channel-icon-fhd.png', brandCard(540, 405, ''));
+save('splash-hd.jpg', brandCard(1280, 720, 'INDEPENDENT STORIES  ·  TIMELESS CINEMA'), 'image/jpeg', 0.92);
+save('splash-fhd.jpg', brandCard(1920, 1080, 'INDEPENDENT STORIES  ·  TIMELESS CINEMA'), 'image/jpeg', 0.92);
+
+document.getElementById('out').textContent = JSON.stringify(out);
+</script></body></html>

@@ -5,17 +5,36 @@ model, OS, build ZIP hash, title ID and actual outcome for every device session.
 
 ## First physical test
 
-- [ ] Owner approved replacing the existing sideloaded app.
+- [x] Owner approved replacing the existing sideloaded app; owner will install
+      the premium redesign manually (2026-10-22). No automated installation.
 - [ ] ZIP installs, compiles on Roku, launches without runtime errors on 8085.
 - [ ] Production catalog loads; loading, empty, malformed and offline states
       are legible; initial failure can be retried using Home.
-- [ ] Wordmark, safe areas, hero and rail labels fit 720p/1080p/4K displays.
+- [ ] Channel icon and splash screen render on the Roku home screen/launch.
+- [ ] Sidebar: Up/Down through visible destinations, hidden ones skipped;
+      Right enters the hero (or rails); Left from Play / first card returns.
+- [ ] Living hero wash crossfades smoothly while scrolling quickly; no
+      flashing, banding or frame drops; spotlight rotates only when idle.
+- [ ] Creator titles lead the spotlight and first row with CREATOR badges.
+- [ ] PROtv Discover: each mood inserts its row and focus lands on it; the
+      same mood again clears it.
+- [ ] My List: add/remove from hero and details, row updates, persists on
+      the website; guest press shows the link prompt.
+- [ ] Continue Watching wide cards show progress and time left.
+- [ ] 9-patch buttons, focus ring and rounded card corners render without
+      seams; the card zoom does not clip neighbouring cards or row labels.
+- [ ] Featured panel uses the complete contained 2:3 poster, legible title and
+      metadata, and a reachable Play action; no portrait is stretched as a hero
+      backdrop.
+- [ ] Safe areas, featured panel, rail headings/captions and status messages fit
+      720p/1080p/4K displays. Rail headings and captions do not clip at the bottom.
 - [ ] All movie frames are 2:3; episode frames 16:9; artwork not cropped.
 - [ ] 32 approved artworks match owner-approved sources, including minor
       source aspect-ratio differences; two held IDs show branded panels.
 - [ ] Creator art, embedded JPEG art, failed URLs and missing art render safely.
-- [ ] Hold Left/Right to scroll; move across long/short rows and categories.
-      No clipped focus, unexpected wrapping or memory growth.
+- [ ] D-pad Up/Down deliberately scrolls between all rails; Left/Right traverses
+      posters; Up from the first rail returns to featured actions. No clipped focus,
+      unexpected wrapping or memory growth.
 - [ ] Back restores exact title/rail after details/player; navigation remains
       reachable; Back on navigation exits; Home button returns to Roku Home.
 - [ ] Search with remote keyboard, mixed case/multiple words/genres, empty

@@ -1,7 +1,13 @@
 title=PROtv
 major_version=0
-minor_version=1
+minor_version=4
 build_version=0
 ui_resolutions=hd
+mm_icon_focus_hd=pkg:/assets/channel-icon-hd.png
+mm_icon_focus_fhd=pkg:/assets/channel-icon-fhd.png
+splash_screen_hd=pkg:/assets/splash-hd.jpg
+splash_screen_fhd=pkg:/assets/splash-fhd.jpg
+splash_color=#05070B
+splash_min_time=1200
 background_color=#05070B
 supports_input_launch=1

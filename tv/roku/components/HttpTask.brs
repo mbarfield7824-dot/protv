@@ -52,7 +52,13 @@ sub fetch()
             return
         end if
         for each item in normalized.items
-            if Left(item.artwork, 23) = "data:image/jpeg;base64,"
+            if item.artwork = ""
+                if HeldArtwork(Text(item.id))
+                    print "PROtv artwork: intentional hold id="; item.id
+                else
+                    print "PROtv artwork: no supported source id="; item.id; " (requires HTTPS, service-relative path or embedded JPEG)"
+                end if
+            else if Left(item.artwork, 23) = "data:image/jpeg;base64,"
                 bytes = CreateObject("roByteArray")
                 bytes.FromBase64String(Mid(item.artwork, 24))
                 digest = CreateObject("roEVPDigest")

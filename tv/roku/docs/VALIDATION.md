@@ -1,4 +1,166 @@
-# Phase 2 validation record
+# Roku validation record
+
+## Owner device feedback fixes (v0.4) - 2026-10-23 (local time)
+
+- Right-side space: full-width hero wash, 176 x 264 poster, wider copy,
+  rails start at x=112 and run to the screen edge.
+- Hero description: synopsis without "Rights:" notes; fragments starting
+  mid-word are hidden. **Production data issue (not changed):** His Girl
+  Friday (`LiMNMZWXBxJj3LoP73kU`) description is only
+  "na. Rights: Public domain." and needs its synopsis restored.
+- Cut-off rails: browse arrangement fits two full rails (152..684); the
+  hero arrangement fades the next rail out instead of cutting it.
+- Sidebar: collapses to icons, expands with labels on focus; "Continue".
+- Creator invite tile ends the creator row.
+- `npm test`: 8/8, 135 model assertions, 51 focus/layout regressions.
+
+## Signature home (v0.3) - 2026-10-22 (local time)
+
+Supersedes the v0.2 layout notes below. Owner decisions: blurred colour wash
+(no artwork cropping), only destinations with content, all four signature
+features, creator submissions at the forefront.
+
+- Icon sidebar, living hero (crossfading wash + 8 s spotlight rotation),
+  Play / More Info / My List, PROtv Discover moods, My List via existing
+  favorites routes, Continue Watching time left, greeting, creator-first
+  ordering and badges.
+- `npm run check`: 0 diagnostics. `npm test`: 8/8 passed, including 125
+  BrightScript model assertions and 43 SceneGraph focus regressions.
+- HTML mock-ups (headless Chrome, live public catalog) cover the creator
+  spotlight, Black Cinema browsing, Continue Watching + My List and Discover.
+  CSS blur approximates the Roku low-resolution wash; not device evidence.
+- **Production issue found (not changed):** both live creator posters,
+  `/api/posters/creator-<sha256>.{jpg,png}`, return HTTP 500, so creator
+  titles currently show branded fallback panels on every platform.
+- **Not device tested.** Confirm wash smoothness, crossfade performance,
+  9-patch seams, RowList label offsets and memory on hardware.
+
+## PROtv blue overhaul (v0.2) - 2026-10-22 (local time)
+
+Supersedes the layout, colour and sidebar notes in the section below; the
+account, progress, playback and artwork rules are unchanged.
+
+- Purple theme removed; black / royal blue / electric blue / white only.
+  The sidebar and collapse toggle are replaced by a top tab bar.
+- New `PillButton` component; redesigned `PosterCard` (140 x 210 / 256 x 144,
+  focus ring + zoom, subtitle line); new featured, detail, account and about
+  layouts; channel icon and splash screen added to the manifest.
+- `npm run check`: 0 diagnostics. `npm test`: 8/8 passed, including 103
+  BrightScript model assertions and 40 SceneGraph focus regressions (tabs ->
+  featured actions -> rails, account and detail actions, status toasts).
+- HTML mock-ups mirroring the XML geometry were rendered in headless Chrome
+  with live public catalog posters (home, featured focus, detail, account).
+  They approximate Roku fonts and 9-patch rendering; they are not device
+  evidence. `dist/layout-validation.svg` predates v0.2 and is obsolete.
+- **Not device tested.** Roku font metrics, 9-patch seams, RowList row-label
+  offset and card zoom need confirmation on hardware.
+
+## Premium UI redesign - 2026-10-22 (local time)
+
+Branch: `feature/issue-7-roku-phase-1`. Scope: Roku files only. Existing
+untracked root `audit-reports/` preserved. Owner will install manually; no
+installation was performed. No production or Fire TV files changed.
+
+### Final manual-install package
+
+- ZIP: `dist/protv-roku.zip` (**34,597 bytes**, 11 runtime entries).
+- SHA-256: `199504c7e518543e5be513c9fbcece08debf4500d9ad1eaedee6ddc73c977e1f`.
+- Final `npm run build` passed the BrightScript compiler and all seven test
+  groups. Packaging tests compare two builds byte-for-byte.
+- The ZIP contains the existing public Firebase web-client configuration,
+  injected from the local PROtv frontend environment at build time only. No
+  website, backend, Fire TV, catalog or creator-art files were changed.
+- The runtime ZIP contains only the app manifest, SceneGraph/BrightScript
+  sources and a UI-only gradient background. No installation was performed.
+
+### Layout and automated coverage
+
+- BrighterScript compiler check passes.
+- Seven Node test groups pass: **95 model assertions** and **38 controller
+  assertions**, plus XML/node references, geometry, account contracts and
+  byte-reproducible runtime-only packaging.
+- Controller tests execute the actual scene BrightScript with mock focus nodes:
+  vertical sidebar navigation, collapse-toggle reachability, sidebar/rail/hero
+  Play transitions, synopsis focus/return and status-strip visibility. They do
+  not simulate SceneGraph layout, font metrics or native scrolling.
+- Geometry checks require the expanded/collapsed content columns to end at the
+  1248px safe boundary; the 120 x 180 featured portrait clears the right safe
+  margin; eight 112 x 168 movie posters plus focus borders fit horizontally;
+  and two 242px rows fit between y=198 and the 684px bottom safe boundary.
+  Episode art is 192 x 108. Artwork remains aspect-ratio contained and
+  load-size bounded; three-line captions remain below each poster.
+- `dist/layout-validation.svg` was rendered in a local browser at 1280 x 720.
+  The preview shows the featured panel, selected sidebar, Play control and two
+  visible category rows. Its explicitly labeled generic poster frames are
+  geometry placeholders, not catalog entries or artwork.
+- Movie/episode browsing, guest playback, native Video controls, activation,
+  progress contracts and exact approved/held artwork selection are preserved.
+- Runtime images use `loadWidth`/`loadHeight` before URI assignment, bounding
+  decoded texture sizes without changing source bytes or approved URLs.
+  Large 1024 x 1536 approved sources could contribute to texture pressure in
+  the old layout; no device trace establishes that as a historical failure.
+
+### Read-only production checks
+
+The pre-layout read-only `npm run smoke` passed at `2026-10-23T00:04:05.740Z`: 56 titles (51 movies,
+5 episodes), 32 exact approved URLs, both holds, seven Black Cinema titles,
+search, detail, playback authorization and one valid HTTP 200 HLS master.
+No video segments, authentication requests or progress writes.
+
+Public image diagnostics evaluated the same source precedence as the shipped
+normalizer, without changing URLs, transforming artwork or exposing URL query
+strings. Of 56 titles, 47 image sources downloaded and decoded on the host,
+including all 32 approved posters. Two IDs are intentionally held, one has no
+supported source, and six returned HTTP errors:
+
+| Title / exact ID | Observation |
+| --- | --- |
+| The Lost Camp / `creator_20752565-9909-4c2b-9f53-c9719ca26769` | Existing watchprotv.com artwork route HTTP 500 |
+| Dead Air / `creator_89303465-51e3-46bb-bd21-ff5ed2db2c49` | Existing watchprotv.com artwork route HTTP 500 |
+| House on Haunted Hill / `p532d2Aqpb3bC2rvYkQw` | publicdomainmovie.net HTTP 429 |
+| Sita Sings the Blues / `vuvTzWOcVJJeg12CsTq9` | publicdomainmovie.net HTTP 429 |
+| The Phantom of the Opera / `WeNPJRItOH2nOdbwLkDG` | publicdomainmovie.net HTTP 429 |
+| The Bundy Chronicles / `sqKR6c5Cq7MD9lg1GDxG` | Existing fbcdn.net source HTTP 403 |
+| Merri Melodies shorts / `v_1789872561270_i3svw5cbz` | Localhost HTTP source is deliberately rejected; localhost is not this computer from Roku |
+| `MZ6Q6DI2S62pP8laH9Ku`, `XMj306OZSbomES2Zz0Fz` | Intentional artwork holds, not download failures |
+
+These HTTP responses are exact host-side observations at test time, not proof
+of the causes of every earlier Roku failure. Backend error internals, external
+403/429 policy, device TLS/decoder behavior and memory remain unverified.
+Do not replace creator art, relax holds or proxy external art to hide failures.
+The UI retains branded panels. Runtime diagnostics now identify the title ID
+and surface (rail/featured/detail) without URLs, tokens or credentials.
+Local sanitized receipts: `out/artwork-diagnostics.json` and
+`out/live-contract-report.json` (not included in the ZIP).
+
+### Comparison and remaining manual validation
+
+The implementation follows the supplied reference's compact left navigation,
+PROtv branding, purple selection/focus treatment, cinematic featured title and
+Play action, and multiple horizontal catalog rows. Only the existing functional
+Home, Search, Account and About destinations are present. Since available
+featured artwork is portrait-only, the hero uses a dark purple-to-black UI
+gradient with a contained poster rather than stretching art into a landscape.
+The preview deliberately omits actual catalog artwork and titles; runtime art
+and groupings continue to come from the approved live catalog.
+
+**No physical Roku screenshot was captured and the ZIP was not installed.** The
+local preview verifies the 720p geometry and hierarchy but not Roku font
+metrics, SceneGraph rendering or native scrolling. On the reported Streaming
+Stick 3840RW / 720p device, verify launch, sidebar collapse/expand and label fit,
+native button focus contrast, both visible rail headings/captions, vertical and
+horizontal scrolling, long-title wrapping, all artwork types, synopsis
+scrolling, featured Play, Play/Resume, native transport/subtitles and Back
+position restoration. Account activation and live Continue Watching/resume also
+need physical-device verification. The host-side HLS check is not decoded
+playback verification.
+
+The older implementation's historical validation follows; its ZIP checksum and
+counts are not the premium redesign package.
+
+---
+
+## Historical Phase 2 validation
 
 Date: 2026-10-22. Node 24.19.0, npm 11.17.0, Windows.
 

@@ -8,54 +8,205 @@
   <script type="text/brightscript" uri="ProtvScene.brs" />
   <children>
     <Rectangle width="1280" height="720" color="0x05070BFF" />
-    <Label text="PRO" translation="[64,30]" width="110" height="48" font="font:LargeBoldSystemFont" />
-    <Label text="tv" translation="[165,30]" width="65" height="48" color="0x8C70FFFF" font="font:LargeBoldSystemFont" />
-    <Label text="INDEPENDENT STORIES. TIMELESS CINEMA." translation="[250,42]" width="780" height="32" color="0x94A3B8FF" font="font:SmallSystemFont" />
-    <LayoutGroup id="nav" translation="[64,92]" layoutDirection="horiz" itemSpacings="[16]">
-      <Button id="navHome" text="Home" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
-      <Button id="navSearch" text="Search" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
-      <Button id="navAccount" text="Account" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
-      <Button id="navAbout" text="About" minWidth="160" maxWidth="210" height="40" iconUri="" focusedIconUri="" />
-    </LayoutGroup>
+    <Poster id="background" width="1280" height="720" uri="pkg:/assets/background.jpg" loadDisplayMode="scaleToFill" />
+
+    <!-- Home has two arrangements: "hero" (featured title, one full rail) and
+         "browse" (rails focused: compact title, two full rails). browseAnim
+         moves between them. -->
     <Group id="home">
-      <Rectangle translation="[64,155]" width="1152" height="174" color="0x0F1B32FF" />
-      <Rectangle translation="[64,155]" width="4" height="174" color="0x5142D4FF" />
-      <Label id="heroTitle" translation="[88,170]" width="1080" height="42" font="font:LargeBoldSystemFont" />
-      <Label id="heroMeta" translation="[88,216]" width="1080" height="28" color="0x4D9BFFFF" font="font:SmallSystemFont" />
-      <Label id="heroDescription" translation="[88,252]" width="1080" height="64" wrap="true" maxLines="2" color="0xC5CFDCFF" font="font:SmallSystemFont" />
-      <RowList id="rails" translation="[64,350]" itemComponentName="PosterCard" itemSize="[1152,310]" numRows="1" rowItemSize="[[144,266]]" rowItemSpacing="[[20,0]]" rowLabelOffset="[[0,10]]" showRowLabel="[true]" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" drawFocusFeedback="false" />
+      <!-- Living hero: the focused title's poster decoded at 56 x 16 and scaled
+           up is a soft colour wash. Two layers crossfade. -->
+      <Group id="heroLayer">
+        <Poster id="backdropA" width="1280" height="360" loadWidth="56" loadHeight="16" loadDisplayMode="scaleToZoom" opacity="0" />
+        <Poster id="backdropB" width="1280" height="360" loadWidth="56" loadHeight="16" loadDisplayMode="scaleToZoom" opacity="0" />
+        <Poster id="heroScrim" width="1280" height="360" uri="pkg:/assets/hero-scrim.png" loadDisplayMode="scaleToFill" />
+        <!-- Solid floor so the raised hero in browse mode has no seam. -->
+        <Rectangle translation="[0,360]" width="1280" height="600" color="0x05070BFF" />
+      </Group>
+      <Group id="heroExtras">
+        <Group id="heroArtwork" translation="[1040,72]" visible="false">
+          <Poster uri="pkg:/assets/panel.9.png" translation="[-6,-6]" width="188" height="276" />
+          <Poster uri="pkg:/assets/poster-fallback.jpg" width="176" height="264" loadDisplayMode="scaleToFill" />
+          <Label text="PROtv" translation="[0,116]" width="176" height="32" horizAlign="center" color="0x60A5FAFF">
+            <Font role="font" uri="font:BoldSystemFontFile" size="24" />
+          </Label>
+          <Poster id="heroArt" width="176" height="264" loadWidth="176" loadHeight="264" loadDisplayMode="scaleToFit" />
+          <Poster uri="pkg:/assets/panel-mask.9.png" width="176" height="264" />
+        </Group>
+        <Label id="heroDescription" text="Independent stories. Timeless cinema." translation="[112,210]" width="860" height="52" wrap="true" maxLines="2" color="0xD5DBE8FF">
+          <Font role="font" uri="font:SystemFontFile" size="18" />
+        </Label>
+        <Group id="heroButtons" translation="[112,276]">
+          <PillButton id="heroPlay" text="Play" style="primary" icon="play" width="140" height="48" visible="false" />
+          <PillButton id="heroInfo" text="More Info" style="secondary" icon="info" width="168" height="48" translation="[160,0]" visible="false" />
+          <PillButton id="heroList" text="My List" style="secondary" icon="plus" width="156" height="48" translation="[348,0]" visible="false" />
+        </Group>
+        <Group id="heroDots" translation="[640,297]" />
+      </Group>
+      <LayoutGroup id="heroCopy" translation="[112,200]" layoutDirection="vert" vertAlignment="bottom" itemSpacings="[6,6]">
+        <Group id="heroEyebrowRow">
+          <Rectangle translation="[0,10]" width="28" height="3" color="0x60A5FAFF" />
+          <Label id="heroEyebrow" text="PROtv" translation="[40,0]" width="820" height="24" color="0xAFC8F5FF">
+            <Font role="font" uri="font:BoldSystemFontFile" size="16" />
+          </Label>
+        </Group>
+        <Label id="heroTitle" text="Welcome to PROtv" width="860" wrap="true" maxLines="2" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="38" />
+        </Label>
+        <Label id="heroMeta" width="860" height="24" color="0xC9D9F8FF">
+          <Font role="font" uri="font:SystemFontFile" size="18" />
+        </Label>
+      </LayoutGroup>
+      <Group id="railsGroup">
+        <Label id="railCount" translation="[1016,354]" width="200" height="28" horizAlign="right" vertAlign="center" color="0x7D879EFF">
+          <Font role="font" uri="font:SystemFontFile" size="15" />
+        </Label>
+        <RowList id="rails" translation="[112,352]" width="1168" height="532" itemComponentName="PosterCard" itemSize="[1168,266]" numRows="2" rowItemSize="[[120,232]]" rowHeights="[266]" rowItemSpacing="[[16,0]]" rowLabelOffset="[[0,4]]" rowLabelColor="0xE9EEF8FF" showRowLabel="[true]" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" drawFocusFeedback="false">
+          <Font role="rowLabelFont" uri="font:BoldSystemFontFile" size="22" />
+        </RowList>
+      </Group>
+      <!-- Rows below the fold fade out instead of being cut off. -->
+      <Poster id="bottomFade" translation="[0,620]" width="1280" height="100" uri="pkg:/assets/bottom-fade.png" loadDisplayMode="scaleToFill" />
     </Group>
+
+    <!-- Collapsed: 88px icon rail. Focused: expands to 256px over the content. -->
+    <Group id="sidebar">
+      <Rectangle id="sidebarBg" width="88" height="720" color="0x070A12FF" />
+      <Poster id="sidebarFade" translation="[88,0]" width="24" height="720" uri="pkg:/assets/sidebar-fade.png" loadDisplayMode="scaleToFill" />
+      <Poster id="logo" translation="[14,30]" width="64" height="19" uri="pkg:/assets/logo.png" />
+      <Group id="nav" translation="[20,92]">
+        <PillButton id="navHome" text="Home" style="nav" icon="home" width="216" height="40" compact="true" />
+        <PillButton id="navSearch" text="Search" style="nav" icon="search" width="216" height="40" compact="true" translation="[0,46]" />
+        <PillButton id="navCreators" text="Creators" style="nav" icon="star" width="216" height="40" compact="true" translation="[0,92]" />
+        <PillButton id="navMovies" text="Movies" style="nav" icon="film" width="216" height="40" compact="true" translation="[0,138]" />
+        <PillButton id="navSeries" text="Series" style="nav" icon="tv" width="216" height="40" compact="true" translation="[0,184]" />
+        <PillButton id="navBlackCinema" text="Black Cinema" style="nav" icon="clapper" width="216" height="40" compact="true" translation="[0,230]" />
+        <PillButton id="navAiCinema" text="AI Cinema" style="nav" icon="sparkles" width="216" height="40" compact="true" translation="[0,276]" />
+        <PillButton id="navMyList" text="My List" style="nav" icon="plus" width="216" height="40" compact="true" translation="[0,322]" />
+        <PillButton id="navContinue" text="Continue" style="nav" icon="clock" width="216" height="40" compact="true" translation="[0,368]" />
+        <PillButton id="navAccount" text="Account" style="nav" icon="user" width="216" height="40" compact="true" translation="[0,414]" />
+      </Group>
+    </Group>
+    <Group id="topBar">
+      <Label id="accountBadge" translation="[960,26]" width="212" height="32" horizAlign="right" vertAlign="center" color="0xE9EEF8FF">
+        <Font role="font" uri="font:SystemFontFile" size="17" />
+      </Label>
+      <Poster uri="pkg:/assets/icon-user-light.png" translation="[1184,28]" width="28" height="28" />
+    </Group>
+
     <Group id="detail" visible="false">
-      <Rectangle translation="[64,162]" width="276" height="414" color="0x0F1B32FF" />
-      <Label id="detailFallback" translation="[78,240]" width="248" height="220" horizAlign="center" wrap="true" />
-      <Poster id="detailArt" translation="[64,162]" width="276" height="414" loadDisplayMode="scaleToFit" />
-      <Label id="detailTitle" translation="[384,165]" width="812" height="90" wrap="true" maxLines="2" font="font:LargeBoldSystemFont" />
-      <Label id="detailMeta" translation="[384,260]" width="812" height="30" color="0x4D9BFFFF" font="font:SmallSystemFont" />
-      <Label id="detailDescription" translation="[384,304]" width="812" height="190" wrap="true" maxLines="7" color="0xC5CFDCFF" />
-      <LayoutGroup id="detailButtons" translation="[384,524]" layoutDirection="horiz" itemSpacings="[16]">
-        <Button id="detailPlay" text="Play" minWidth="160" height="48" iconUri="" focusedIconUri="" />
-        <Button id="detailBack" text="Back" minWidth="160" height="48" iconUri="" focusedIconUri="" />
-      </LayoutGroup>
+      <Poster id="detailBackdrop" width="1280" height="560" loadWidth="56" loadHeight="24" loadDisplayMode="scaleToZoom" opacity="0.8" />
+      <Poster uri="pkg:/assets/hero-scrim.png" width="1280" height="560" loadDisplayMode="scaleToFill" />
+      <Poster uri="pkg:/assets/panel.9.png" translation="[52,88]" width="304" height="444" />
+      <Poster id="detailFallbackArt" uri="pkg:/assets/poster-fallback.jpg" translation="[64,100]" width="280" height="420" loadDisplayMode="scaleToFill" />
+      <Label id="detailFallback" translation="[84,220]" width="240" height="180" horizAlign="center" wrap="true" maxLines="5" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="24" />
+      </Label>
+      <Poster id="detailArt" translation="[64,100]" width="280" height="420" loadWidth="280" loadHeight="420" loadDisplayMode="scaleToFit" />
+      <Poster uri="pkg:/assets/panel-mask.9.png" translation="[64,100]" width="280" height="420" />
+      <Rectangle translation="[400,111]" width="28" height="3" color="0x60A5FAFF" />
+      <Label id="detailEyebrow" text="NOW STREAMING ON PROtv" translation="[440,100]" width="700" height="24" color="0xAFC8F5FF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="17" />
+      </Label>
+      <Label id="detailTitle" translation="[400,132]" width="816" height="104" wrap="true" maxLines="2" vertAlign="center" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="40" />
+      </Label>
+      <Label id="detailMeta" translation="[400,244]" width="816" height="28" color="0xC9D9F8FF">
+        <Font role="font" uri="font:SystemFontFile" size="19" />
+      </Label>
+      <Rectangle id="synopsisFocus" translation="[386,288]" width="3" height="214" color="0x60A5FAFF" visible="false" />
+      <ScrollableText id="detailDescription" translation="[400,292]" width="780" height="206" color="0xD5DBE8FF">
+        <Font role="font" uri="font:SystemFontFile" size="20" />
+      </ScrollableText>
+      <Group id="detailButtons" translation="[400,528]">
+        <PillButton id="detailPlay" text="Play" style="primary" icon="play" width="180" height="48" />
+        <PillButton id="detailList" text="My List" style="secondary" icon="plus" width="168" height="48" translation="[200,0]" />
+        <PillButton id="detailBack" text="Back" style="secondary" width="132" height="48" translation="[388,0]" />
+      </Group>
+      <Label text="Press Up to read the full synopsis" translation="[400,600]" width="816" height="24" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="16" />
+      </Label>
     </Group>
-    <Group id="about" visible="false">
-      <Label text="PROtv | Roku development preview" translation="[80,180]" width="1100" height="60" font="font:LargeBoldSystemFont" />
-      <Label text="Guest browsing and playback remain available. Link a PROtv account to synchronize Continue Watching and resume saved progress.&#10;&#10;Account credentials and refresh tokens stay in memory only; leaving the app requires linking again. Sign Out clears this device's session.&#10;&#10;Progress is saved while signed in and is not stored for guests.&#10;&#10;Press Back to return. Catalog retry: select Home." translation="[80,260]" width="1080" height="310" wrap="true" color="0xC5CFDCFF" />
+
+    <Group id="account" translation="[136,0]" visible="false">
+      <Label text="Your PROtv account" translation="[0,96]" width="940" height="52" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="36" />
+      </Label>
+      <Label id="accountMessage" translation="[0,152]" width="940" height="84" wrap="true" maxLines="3" color="0xC9D1E4FF">
+        <Font role="font" uri="font:SystemFontFile" size="20" />
+      </Label>
+      <Group id="accountCodePanel" translation="[0,250]" visible="false">
+        <Poster uri="pkg:/assets/panel.9.png" width="520" height="196" />
+        <Label text="ENTER THIS CODE" translation="[28,24]" width="470" height="24" color="0xAFC8F5FF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="16" />
+        </Label>
+        <Label id="accountCode" translation="[28,52]" width="470" height="80" color="0x60A5FAFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="60" />
+        </Label>
+        <Label id="accountUrl" translation="[28,140]" width="470" height="32" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
+        </Label>
+      </Group>
+      <Group id="accountSteps" translation="[556,256]" visible="false">
+        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,-12]" width="64" height="64" />
+        <Label text="1" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
+        </Label>
+        <Label text="Open the address on a phone or computer." translation="[60,-6]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
+          <Font role="font" uri="font:SystemFontFile" size="18" />
+        </Label>
+        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,52]" width="64" height="64" />
+        <Label text="2" translation="[0,64]" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
+        </Label>
+        <Label text="Sign in to your PROtv account." translation="[60,58]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
+          <Font role="font" uri="font:SystemFontFile" size="18" />
+        </Label>
+        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,116]" width="64" height="64" />
+        <Label text="3" translation="[0,128]" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
+        </Label>
+        <Label text="Enter the code. This TV links automatically." translation="[60,122]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
+          <Font role="font" uri="font:SystemFontFile" size="18" />
+        </Label>
+      </Group>
+      <Label id="accountExpiry" translation="[0,462]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="17" />
+      </Label>
+      <Group id="accountButtons" translation="[0,528]">
+        <PillButton id="accountAction" text="Link PROtv account" style="primary" width="300" height="48" />
+        <PillButton id="accountSignOut" text="Sign Out" style="secondary" width="160" height="48" visible="false" />
+        <PillButton id="accountBack" text="Back" style="secondary" width="132" height="48" />
+      </Group>
+      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. Account sessions stay in memory only, so restarting the app requires linking again. Progress and My List are never stored for guests. Roku development preview.">
+        <Font role="font" uri="font:SystemFontFile" size="15" />
+      </Label>
     </Group>
-    <Group id="account" visible="false">
-      <Label text="PROtv account" translation="[80,180]" width="1100" height="60" font="font:LargeBoldSystemFont" />
-      <Label id="accountMessage" translation="[80,260]" width="1080" height="86" wrap="true" color="0xC5CFDCFF" />
-      <Label id="accountCode" translation="[80,370]" width="1080" height="62" font="font:LargeBoldSystemFont" color="0x4D9BFFFF" />
-      <Label id="accountUrl" translation="[80,432]" width="1080" height="34" color="0xC5CFDCFF" />
-      <Label id="accountExpiry" translation="[80,474]" width="1080" height="34" color="0x94A3B8FF" />
-      <LayoutGroup id="accountButtons" translation="[80,550]" layoutDirection="horiz" itemSpacings="[16]">
-        <Button id="accountAction" text="Link PROtv account" minWidth="270" height="48" iconUri="" focusedIconUri="" />
-        <Button id="accountSignOut" text="Sign Out" minWidth="160" height="48" visible="false" iconUri="" focusedIconUri="" />
-        <Button id="accountBack" text="Back" minWidth="160" height="48" iconUri="" focusedIconUri="" />
-      </LayoutGroup>
-    </Group>
-    <Label id="status" translation="[64,666]" width="1152" height="30" color="0xC5CFDCFF" font="font:SmallSystemFont" />
+
+    <Poster id="statusPanel" uri="pkg:/assets/toast.9.png" translation="[390,624]" width="768" height="64" visible="false" />
+    <Label id="status" translation="[426,636]" width="696" height="40" horizAlign="center" vertAlign="center" color="0xE9EEF8FF">
+      <Font role="font" uri="font:SystemFontFile" size="17" />
+    </Label>
     <Video id="video" visible="false" width="1280" height="720" enableUI="true" />
+    <Animation id="backdropFade" duration="0.8" easeFunction="inOutQuad" repeat="false">
+      <FloatFieldInterpolator id="fadeIn" key="[0.0, 1.0]" keyValue="[0.0, 0.85]" fieldToInterp="backdropB.opacity" />
+      <FloatFieldInterpolator id="fadeOut" key="[0.0, 1.0]" keyValue="[0.85, 0.0]" fieldToInterp="backdropA.opacity" />
+    </Animation>
+    <Animation id="browseAnim" duration="0.35" easeFunction="inOutCubic" repeat="false">
+      <Vector2DFieldInterpolator id="railsMove" key="[0.0, 1.0]" keyValue="[[0,0],[0,-200]]" fieldToInterp="railsGroup.translation" />
+      <Vector2DFieldInterpolator id="heroLayerMove" key="[0.0, 1.0]" keyValue="[[0,0],[0,-210]]" fieldToInterp="heroLayer.translation" />
+      <Vector2DFieldInterpolator id="heroCopyMove" key="[0.0, 1.0]" keyValue="[[112,200],[112,140]]" fieldToInterp="heroCopy.translation" />
+      <Vector2DFieldInterpolator id="fadeMove" key="[0.0, 1.0]" keyValue="[[0,620],[0,688]]" fieldToInterp="bottomFade.translation" />
+      <FloatFieldInterpolator id="extrasFade" key="[0.0, 1.0]" keyValue="[1.0, 0.0]" fieldToInterp="heroExtras.opacity" />
+    </Animation>
+    <Animation id="sidebarAnim" duration="0.25" easeFunction="outCubic" repeat="false">
+      <FloatFieldInterpolator id="sidebarWidth" key="[0.0, 1.0]" keyValue="[88.0, 256.0]" fieldToInterp="sidebarBg.width" />
+      <Vector2DFieldInterpolator id="sidebarFadeMove" key="[0.0, 1.0]" keyValue="[[88,0],[256,0]]" fieldToInterp="sidebarFade.translation" />
+    </Animation>
     <Timer id="accountPollTimer" repeat="true" duration="5.0" />
     <Timer id="progressTimer" repeat="true" duration="15.0" />
+    <Timer id="statusTimer" repeat="false" duration="5.0" />
+    <Timer id="rotateTimer" repeat="true" duration="8.0" />
+    <Timer id="backdropTimer" repeat="false" duration="0.3" />
   </children>
 </component>

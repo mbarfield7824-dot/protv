@@ -14,7 +14,8 @@ export async function packageBytes() {
   }
   async function include(relative) {
     const full = path.join(root, relative);
-    if (relative === 'manifest' || /\.(brs|xml)$/.test(relative)) {
+    const isAsset = relative.startsWith(`assets${path.sep}`) && /\.(png|jpg)$/.test(relative);
+    if (relative === 'manifest' || /\.(brs|xml)$/.test(relative) || isAsset) {
       let contents = await readFile(full);
       if (relative === path.join('source', 'firebaseConfig.brs') && firebaseApiKey) {
         contents = Buffer.from(`function FirebaseApiKey() as String\n    return ${JSON.stringify(firebaseApiKey)}\nend function\n`);
@@ -26,12 +27,12 @@ export async function packageBytes() {
       return;
     }
     for (const entry of (await readdir(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (entry.isDirectory() || /\.(brs|xml)$/.test(entry.name)) {
+      if (entry.isDirectory() || /\.(brs|xml)$/.test(entry.name) || (relative === 'assets' && /\.(png|jpg)$/.test(entry.name))) {
         await include(path.join(relative, entry.name));
       }
     }
   }
-  for (const relative of ['manifest', 'source', 'components']) await include(relative);
+  for (const relative of ['manifest', 'source', 'components', 'assets']) await include(relative);
   return zipSync(files);
 }
 
