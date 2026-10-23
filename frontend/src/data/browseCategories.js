@@ -9,6 +9,7 @@ export const BROWSE_CATEGORIES = [
   { id: 'comedy', name: 'Comedy', matches: ['Comedy'] },
   { id: 'documentary', name: 'Documentaries', matches: ['Documentary'] },
   { id: 'music', name: 'Music & Hip-Hop', matches: ['Music', 'Hip-Hop'] },
+  { id: 'ai-cinema', name: 'AI Cinema', matches: ['AI Cinema'] },
 ];
 
 // Real catalog genres that also get a showcase tile, appended after the
