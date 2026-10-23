@@ -68,7 +68,8 @@ function createTvAuthService(options = {}) {
   const getAuth = options.getAuth || (() => require('../firebase').auth);
   const apiKey = options.apiKey !== undefined
     ? options.apiKey
-    : String(process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || '').trim();
+    // The website's public web key; production already defines VITE_FIREBASE_API_KEY.
+    : String(process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || '').trim();
   const fetchImpl = options.fetchImpl || fetch;
   const now = options.now || (() => Date.now());
   const identityUrl = options.identityUrl || IDENTITY_URL; // Tests point this at the Auth emulator.
