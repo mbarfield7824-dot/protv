@@ -1,5 +1,24 @@
 # Roku validation record
 
+## FB03 fix (v0.5.4) - 2026-10-23 (local time)
+- Device (v0.5.3): "FB03 refreshToken missing or not text" after an HTTP 200
+  from accounts:signInWithCustomToken; FB02 passed, so idToken was present.
+- Root cause: the request body was FormatJson({ token: ..., returnSecureToken:
+  true }). Roku lowercases unquoted AA-literal keys, so it sent
+  "returnsecuretoken". Firebase silently ignores unknown fields (verified: an
+  invalid token with returnsecuretoken / returnSecureTokenX returns the same
+  INVALID_CUSTOM_TOKEN, no unknown-field error), so returnSecureToken was
+  false and no refreshToken came back. The brs emulator preserves key case,
+  which is why tests passed.
+- Same cause, fixed with it: the progress PUT body (backend requires
+  positionSeconds/durationSeconds, else 400), the favorite body, the saved
+  sign-in JSON and guest progress entries. All now use quoted keys.
+- Static regression test: every serialized literal uses quoted keys (it flags
+  all five v0.5.3 literals). Diagnostics now also log sent/received field
+  names. npm test 10/10; smoke passed.
+- ZIP: 673,357 bytes, SHA-256
+  e2ff551e88914eb9bfda30b44d99611c883d0b2147559b726c8c3c910b30ffb5.
+
 ## Firebase sign-in fix (v0.5.2) - 2026-10-23 (local time)
 - Device result: after approval the Roku showed "Firebase returned an invalid
   account session." That message is the HTTP-success branch of the

@@ -328,6 +328,7 @@ sub Main()
     Finish({ customToken: "custom" })
     firebase = m.tasks[m.tasks.Count() - 1]
     Check(firebase.kind = "firebase-custom" and Instr(1, firebase.url, "signInWithCustomToken?key=test-public-web-key") > 0, "Firebase sign-in uses the public web key")
+    Check(Instr(1, firebase.body, Chr(34) + "returnSecureToken" + Chr(34) + ":true") > 0 and Instr(1, firebase.body, Chr(34) + "token" + Chr(34) + ":") > 0, "the Firebase request asks for a refresh token with exact field names")
     ' Exactly what Firebase returns: no localId; the UID is in the ID token.
     viewerToken = "h.eyJ1c2VyX2lkIjoidmlld2VyIiwic3ViIjoidmlld2VyIn0.s"
     Finish({ kind: "identitytoolkit#VerifyCustomTokenResponse", idToken: viewerToken, refreshToken: "refresh-token", expiresIn: "3600", isNewUser: false })

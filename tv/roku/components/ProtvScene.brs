@@ -1623,7 +1623,9 @@ sub accountTaskCompleted(event as Object)
         if customToken = ""
             activationFailed("PROtv did not return a usable sign-in token. Start again.")
         else
-            customBody = FormatJson({ token: customToken, returnSecureToken: true })
+            ' Quoted keys: Roku lowercases unquoted literal keys in FormatJson, and
+            ' Firebase silently ignores "returnsecuretoken" (then no refreshToken).
+            customBody = FormatJson({ "token": customToken, "returnSecureToken": true })
             identityUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=" + FirebaseApiKey()
             startAccountTask("firebase-custom", "", "POST", customBody, "", "", identityUrl, "application/json")
         end if
@@ -1877,8 +1879,8 @@ sub executeAccountAction(action as String)
         m.savingProgress = m.pendingProgressSave
         m.pendingProgressSave = invalid
         requestBody = FormatJson({
-            positionSeconds: m.savingProgress.positionSeconds,
-            durationSeconds: m.savingProgress.durationSeconds,
+            "positionSeconds": m.savingProgress.positionSeconds,
+            "durationSeconds": m.savingProgress.durationSeconds,
         })
         path = "/users/me/progress/" + m.savingProgress.videoId.EncodeUriComponent()
         startAccountTask("progress-write", path, "PUT", requestBody, m.account.idToken, "", "", "application/json")
@@ -1888,7 +1890,7 @@ sub executeAccountAction(action as String)
         m.savingFavorite = m.pendingFavorite
         m.pendingFavorite = invalid
         path = "/users/me/favorites/" + m.savingFavorite.videoId.EncodeUriComponent()
-        startAccountTask("favorite-write", path, "PUT", FormatJson({ favorite: m.savingFavorite.favorite }), m.account.idToken, "", "", "application/json")
+        startAccountTask("favorite-write", path, "PUT", FormatJson({ "favorite": m.savingFavorite.favorite }), m.account.idToken, "", "", "application/json")
     end if
 end sub
 

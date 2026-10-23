@@ -60,6 +60,7 @@ sub fetch()
     ' TEMPORARY diagnostics for sign-in: status, body size and shape only.
     if m.top.kind <> "catalog" and m.top.kind <> "playback"
         print "PROtv AUTH http "; m.top.kind; ": HTTP "; code; ", "; Len(body); " bytes, failure: "; event.GetFailureReason()
+        print "PROtv AUTH http "; m.top.kind; ": sent fields "; DiagnosticShape(ParseJson(m.top.body)); ", received fields "; DiagnosticShape(ParseJson(body))
     end if
     if code < 200 or code >= 300
         ' Firebase errors carry a code such as INVALID_CUSTOM_TOKEN; it holds no secret.

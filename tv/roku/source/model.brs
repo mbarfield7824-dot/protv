@@ -769,7 +769,8 @@ end function
 function LocalProgressEntry(positionSeconds as Integer, durationSeconds as Dynamic, nowSeconds as Integer) as Object
     percent = positionSeconds * 100.0 / durationSeconds
     if percent > 100 then percent = 100
-    return { positionSeconds: positionSeconds, durationSeconds: durationSeconds, progressPercent: percent, updatedAt: nowSeconds }
+    ' Serialized to the registry, so keys are quoted to keep their case.
+    return { "positionSeconds": positionSeconds, "durationSeconds": durationSeconds, "progressPercent": percent, "updatedAt": nowSeconds }
 end function
 
 ' Adds or replaces one entry and keeps only the most recently updated ones.
@@ -819,7 +820,8 @@ function ParseStoredAccount(json as String) as Dynamic
 end function
 
 function StoredAccountJson(account as Object) as String
-    return FormatJson({ viewerId: account.viewerId, idToken: account.idToken, refreshToken: account.refreshToken, expiresAtSeconds: IntValue(account.expiresAtSeconds) })
+    ' Quoted keys keep their case on the device (see the Firebase request).
+    return FormatJson({ "viewerId": account.viewerId, "idToken": account.idToken, "refreshToken": account.refreshToken, "expiresAtSeconds": IntValue(account.expiresAtSeconds) })
 end function
 
 function IntValue(value as Dynamic) as Integer

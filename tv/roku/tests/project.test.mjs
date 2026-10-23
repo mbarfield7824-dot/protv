@@ -27,7 +27,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*102(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*103(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {
@@ -138,7 +138,7 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.match(cardController, /if not m\.top\.rowListHasFocus then amount = 0/);
   assert.match(controller, /sub statusChanged\(\)[\s\S]*?visible = m\.status\.text <> ""/);
   assert.match(controller, /"\/users\/me\/favorites"/);
-  assert.match(controller, /FormatJson\(\{ favorite: m\.savingFavorite\.favorite \}\)/);
+  assert.match(controller, /FormatJson\(\{ "favorite": m\.savingFavorite\.favorite \}\)/);
   for (const code of [controller, cardController]) {
     for (const line of code.split('\n').filter(line => /\bprint\b/.test(line))) {
       assert.doesNotMatch(line, /\.uri|\.artwork|HDPosterUrl|\.url|Token|Secret/);
@@ -190,7 +190,7 @@ test('account flow uses existing contracts and does not persist or expose sessio
   assert.equal((scene.match(/forgetAccount\(\)/g) || []).length, 3, 'sign-out and rejected sessions forget the saved sign-in');
   assert.equal((scene.match(/storeAccount\(\)/g) || []).length, 3, 'saved after sign-in and after each token refresh');
   const model = await readFile(path.join(root, 'source', 'model.brs'), 'utf8');
-  assert.match(model, /function StoredAccountJson[\s\S]*?FormatJson\(\{ viewerId: account\.viewerId, idToken: account\.idToken, refreshToken: account\.refreshToken, expiresAtSeconds: IntValue\(account\.expiresAtSeconds\) \}\)/);
+  assert.match(model, /function StoredAccountJson[\s\S]*?FormatJson\(\{ "viewerId": account\.viewerId, "idToken": account\.idToken, "refreshToken": account\.refreshToken, "expiresAtSeconds": IntValue\(account\.expiresAtSeconds\) \}\)/);
   // Offline refresh keeps the sign-in; only a Firebase 4xx rejection clears it.
   assert.match(scene, /kind = "firebase-refresh"\s+if statusCode >= 400 and statusCode < 500\s+authSessionFailed/);
   assert.match(scene, /m\.account = invalid/);
@@ -232,4 +232,25 @@ test('sideload zip is byte-reproducible, root-correct and contains only runtime 
   if (configuredApiKey) assert.ok(firebaseConfig.includes(JSON.stringify(configuredApiKey)));
   else assert.match(firebaseConfig, /return ""/);
   assert.ok(names.every(name => !/key|pem|json|node_modules|test|env/i.test(name)));
+});
+
+// Device failure FB03 (2026-10-23): Roku lowercases unquoted literal keys in
+// FormatJson ("returnsecuretoken"); Firebase ignores the unknown field and
+// returns no refreshToken. The emulator keeps case, so guard the source.
+test('every serialized literal uses quoted, case-preserving keys', async () => {
+  const sources = ['components/ProtvScene.brs', 'source/model.brs'].map(name => path.join(root, name));
+  let literals = 0;
+  for (const file of sources) {
+    const code = await readFile(file, 'utf8');
+    const bodies = [...code.matchAll(/FormatJson\(\{([\s\S]*?)\}\)/g)].map(match => match[1]);
+    const entry = /function LocalProgressEntry[\s\S]*?return \{([^}]*)\}/.exec(code);
+    if (entry) bodies.push(entry[1]);
+    for (const body of bodies) {
+      literals++;
+      assert.doesNotMatch(body, /(^|[{,\n])\s*[A-Za-z_]\w*\s*:/, `unquoted key in: ${body.trim()}`);
+    }
+  }
+  assert.ok(literals >= 5, `found ${literals} serialized literals`);
+  const scene = await readFile(sources[0], 'utf8');
+  assert.match(scene, /FormatJson\(\{ "token": customToken, "returnSecureToken": true \}\)/);
 });
