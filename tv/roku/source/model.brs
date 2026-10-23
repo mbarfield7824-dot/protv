@@ -431,41 +431,6 @@ function HomeRows(items as Object, query = "" as String) as Object
     return rows
 end function
 
-function DeviceSessionDetails(payload as Dynamic, nowSeconds as Integer) as Object
-    result = { valid: false, error: "The device sign-in response was invalid." }
-    if not IsMap(payload) then return result
-    sessionId = Text(payload.sessionId)
-    deviceSecret = Text(payload.deviceSecret)
-    userCode = Text(payload.userCode)
-    verificationUrl = Text(payload.verificationUrl)
-    interval = payload.interval
-    expiresAt = Text(payload.expiresAt)
-    if not CreateObject("roRegex", "^[A-Za-z0-9_-]{43}$", "").IsMatch(sessionId) then return result
-    if not CreateObject("roRegex", "^[A-Za-z0-9_-]{43}$", "").IsMatch(deviceSecret) then return result
-    if not CreateObject("roRegex", "^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$", "").IsMatch(userCode) then return result
-    if not CreateObject("roRegex", "^https://([A-Za-z0-9-]+\.)*[A-Za-z0-9-]+(:[0-9]+)?(/[A-Za-z0-9._~-]*)*/?$", "").IsMatch(verificationUrl) then return result
-    if not CreateObject("roRegex", "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$", "").IsMatch(expiresAt) then return result
-    if GetInterface(interval, "ifInt") = invalid or interval < 1 or interval > 60 then return result
-    expiry = CreateObject("roDateTime")
-    expiry.FromISO8601String(expiresAt)
-    expiresAtSeconds = expiry.AsSeconds()
-    if expiresAtSeconds <= nowSeconds then
-        result.error = "This device sign-in code has expired. Start again."
-        return result
-    end if
-    result.valid = true
-    result.error = ""
-    result.session = {
-        sessionId: sessionId,
-        deviceSecret: deviceSecret,
-        userCode: userCode,
-        verificationUrl: verificationUrl,
-        expiresAtSeconds: expiresAtSeconds,
-        intervalSeconds: interval,
-    }
-    return result
-end function
-
 function ValidFirebaseSession(payload as Dynamic) as Boolean
     return FirebaseSessionProblem(payload) = ""
 end function
@@ -631,28 +596,6 @@ end function
 function HasViewerSession(account as Dynamic) as Boolean
     if not IsMap(account) then return false
     return Text(account.viewerId) <> "" and Text(account.idToken) <> "" and Text(account.refreshToken) <> ""
-end function
-
-function DeviceActivationState(status as String, nowSeconds as Integer, expiresAtSeconds as Integer) as String
-    if nowSeconds >= expiresAtSeconds then return "expired"
-    if status = "pending" or status = "approved" or status = "expired" or status = "consumed" or status = "rejected"
-        return status
-    end if
-    return "invalid"
-end function
-
-function ActivationPollFailure(statusCode as Integer, nowSeconds as Integer, expiresAtSeconds as Integer) as String
-    if nowSeconds >= expiresAtSeconds or statusCode = 404 or statusCode = 410 then return "expired"
-    if statusCode = 429 then return "rate-limited"
-    return "retry"
-end function
-
-function NextPollDelay(currentDelay as Integer, baseInterval as Integer) as Integer
-    delay = currentDelay
-    if delay < baseInterval then delay = baseInterval
-    delay = delay * 2
-    if delay > 60 then delay = 60
-    return delay
 end function
 
 function ProgressSaveDue(positionSeconds as Integer, lastSavedSeconds as Integer, force as Boolean) as Boolean
@@ -958,4 +901,22 @@ function SeriesMeta(seasons as Object, episodeCount as Integer) as String
         parts.Push(episodeCount.ToStr().Trim() + " episodes")
     end if
     return parts.Join("  " + Chr(183) + "  ")
+end function
+
+function ValidEmail(value as String) as Boolean
+    email = value.Trim()
+    if Len(email) < 6 or Len(email) > 254 then return false
+    return CreateObject("roRegex", "^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$", "").IsMatch(email)
+end function
+
+' Viewer-facing text for /auth/tv errors (the backend's code field).
+function TvAuthMessage(statusCode as Integer, code as String) as String
+    if code = "invalid_credentials" then return "That email and password don't match a PROtv account. Try again, or choose Forgot password."
+    if code = "email_exists" then return "An account already uses that email. Choose Sign in instead."
+    if code = "weak_password" then return "Choose a password of at least 6 characters."
+    if code = "account_disabled" then return "This PROtv account is disabled. Contact support@watchprotv.com."
+    if code = "invalid_request" then return "Check the email address and password, then try again."
+    if code = "rate_limited" or statusCode = 429 then return "Too many attempts. Wait a few minutes and try again."
+    if statusCode = 0 then return "PROtv could not be reached. Check your connection and try again."
+    return "PROtv sign-in is temporarily unavailable. Try again shortly."
 end function

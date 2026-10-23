@@ -27,7 +27,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*147(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*166(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {
@@ -175,7 +175,16 @@ test('every packaged asset referenced by the UI and manifest exists', async () =
 test('account flow uses existing contracts and does not persist or expose session secrets', async () => {
   const scene = await readFile(path.join(root, 'components', 'ProtvScene.brs'), 'utf8');
   const http = await readFile(path.join(root, 'components', 'HttpTask.brs'), 'utf8');
-  assert.match(scene, /"\/auth\/device-sessions"/);
+  // Roku certification 2.2: sign-in entirely on the TV; no website code linking.
+  for (const route of ['/auth/tv/sign-in', '/auth/tv/sign-up', '/auth/tv/password-reset']) assert.ok(scene.includes(`"${route}"`), route);
+  assert.doesNotMatch(scene, /device-sessions|activation-|deviceSession/);
+  assert.match(scene, /m\.authStore\.command = "getUserData"/);
+  assert.match(scene, /requestedUserData = "email"/);
+  assert.match(scene, /dialog\.textEditBox\.secureMode = true/);
+  // The password only ever appears in a request body, never in state, storage or logs.
+  for (const line of scene.split('\n').filter((text) => /password/i.test(text) && !/^\s*'/.test(text))) {
+    assert.doesNotMatch(line, /^\s*m\.(authFlow|account|auth\w*)[\w.]*\s*=[^=]*\bpassword\b|\bprint\b|storage\.write/i, line.trim());
+  }
   assert.match(scene, /"\/users\/me\/progress"/);
   assert.match(scene, /"PUT", requestBody, m\.account\.idToken/);
   assert.match(scene, /accounts:signInWithCustomToken\?key=/);

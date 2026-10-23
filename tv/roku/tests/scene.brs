@@ -22,10 +22,16 @@ sub Main()
     m.guestWrittenAt = 0
     m.rowsStale = false
     m.accountFromProfile = false
-    m.accountPollTimer = { control: "", duration: 0 }
     m.progressTimer = { control: "" }
     m.playTask = invalid
-    m.deviceSession = invalid
+    m.authFlow = invalid
+    m.authDialog = invalid
+    m.authStore = invalid
+    m.authNotice = ""
+    m.stores = []
+    m.dialogs = []
+    m.newStore = FakeStore
+    m.newDialog = FakeDialog
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
     m.pendingFavorite = invalid
@@ -39,7 +45,7 @@ sub Main()
     m.selected = invalid
     m.tasks = []
     m.newTask = FakeTask
-    for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "profileButton", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountSignOut", "accountBack"]
+    for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "profileButton", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountCreate", "accountReset", "accountSignOut", "accountBack"]
         m.top.nodes[id] = FocusNode()
     end for
     for each id in ["logo", "sidebarBg", "sidebarFade", "sidebarWidth", "sidebarFadeMove", "heroTitle", "railsGroup", "heroLayer", "heroCopy", "bottomFade", "heroExtras", "railsMove", "heroLayerMove", "heroCopyMove", "fadeMove", "extrasFade", "heroEyebrow", "heroMeta", "heroDescription", "heroArtwork", "heroDots"]
@@ -67,8 +73,10 @@ sub Main()
     m.detailButtons = FocusNode()
     m.detailButtons.children = [FocusNode(), m.top.nodes.detailList, FocusNode()]
     m.accountButtons = FocusNode()
-    m.accountButtons.children = [m.top.nodes.accountAction, m.top.nodes.accountSignOut, m.top.nodes.accountBack]
-    m.top.nodes.accountAction.width = 300
+    m.accountButtons.children = [m.top.nodes.accountAction, m.top.nodes.accountCreate, m.top.nodes.accountReset, m.top.nodes.accountSignOut, m.top.nodes.accountBack]
+    m.top.nodes.accountAction.width = 200
+    m.top.nodes.accountCreate.width = 220
+    m.top.nodes.accountReset.width = 230
     m.top.nodes.accountSignOut.width = 160
     m.top.nodes.accountBack.width = 132
     m.rails = FocusNode()
@@ -193,11 +201,14 @@ sub Main()
 
     m.top.nodes.accountSignOut.visible = false
     layoutAccountButtons()
-    Check(m.top.nodes.accountBack.translation[0] = 320, "hidden Sign Out leaves no gap")
+    Check(m.top.nodes.accountCreate.translation[0] = 220 and m.top.nodes.accountReset.translation[0] = 460 and m.top.nodes.accountBack.translation[0] = 710, "hidden Sign Out leaves no gap")
     ClearFocus()
     m.top.nodes.accountAction.focused = true
-    Press("right")
-    Check(m.top.nodes.accountBack.focused, "right skips the hidden Sign Out action")
+    Check(Press("right") and m.top.nodes.accountCreate.focused, "right from Sign in reaches Create account")
+    Check(Press("right") and m.top.nodes.accountReset.focused, "then Forgot password")
+    Check(Press("right") and m.top.nodes.accountBack.focused, "right skips the hidden Sign Out action")
+    Press("left")
+    Press("left")
     Press("left")
     Check(Press("left") and m.nav.children[0].focused, "left from the first account action returns to the sidebar")
     Check(Press("right") and m.top.nodes.accountAction.focused, "right from the sidebar enters account actions")
@@ -300,55 +311,145 @@ sub Main()
     Check(Press("down") and m.top.nodes.accountAction.focused, "Down returns to the account actions")
     Check(Press("back") and m.mode = "home" and m.profile.focused, "Back from Account returns to the Guest control")
 
-    ' Device bug 2: TV sign-in completes and never stalls.
+    ' Roku certification 2.2: sign-in, sign-up and recovery happen on the TV.
     m.account = invalid
     m.tasks = []
+    m.stores = []
     openAccount()
+    Check(m.top.nodes.accountAction.text = "Sign in" and m.top.nodes.accountCreate.visible and m.top.nodes.accountReset.visible and not m.top.nodes.accountSignOut.visible, "signed out: Sign in, Create account and Forgot password")
     accountActionSelected()
-    Check(m.tasks.Count() = 1 and m.tasks[0].kind = "activation-create" and m.tasks[0].method = "POST" and m.tasks[0].control = "run", "Link starts one activation request")
+    store = m.stores[0]
+    Check(store.command = "getUserData" and store.requestedUserData = "email" and store.requestedUserDataInfo.context = "signin" and store.observed = "authUserData", "Sign in first asks Roku for the viewer's email")
     accountActionSelected()
-    Check(m.tasks.Count() = 1 and m.status.text = "Contacting PROtv. One moment...", "pressing again while waiting starts no second request")
-    expires = CreateObject("roDateTime")
-    expires.FromSeconds(CurrentEpochSeconds() + 600)
-    iso = Left(expires.ToISOString(), 19) + ".000Z"
-    secret = String(43, "s")
-    Finish({ sessionId: String(43, "a"), deviceSecret: secret, userCode: "ABCD-EF23", verificationUrl: "https://watchprotv.com/activate", expiresAt: iso, interval: 5 }, "", 201)
-    Check(m.deviceSession <> invalid and m.top.nodes.accountCode.text = "ABCD-EF23" and m.top.nodes.accountUrl.text = "https://watchprotv.com/activate", "the linking code and address appear")
-    Check(m.accountPollTimer.control = "start" and m.accountPollTimer.duration = 5.0 and m.top.nodes.accountAction.focused, "approval polling starts and focus stays usable")
+    Check(m.stores.Count() = 1 and m.tasks.Count() = 0, "a second press while the flow is open starts nothing")
+    store.userData = { email: "viewer@example.com" }
+    authUserData()
+    emailBox = m.authDialog
+    Check(emailBox.keyboardDomain = "email" and emailBox.text = "viewer@example.com" and emailBox.buttons[0] = "Continue", "the shared Roku email pre-fills the email keyboard")
+    emailBox.text = "not-an-email"
+    emailBox.buttonSelected = 0
+    authEmailButton()
+    Check(Instr(1, emailBox.message[0], "full email") > 0 and m.tasks.Count() = 0 and not emailBox.close, "an incomplete email is caught on the TV")
+    emailBox.text = " viewer@example.com "
+    authEmailButton()
+    passwordBox = m.authDialog
+    Check(emailBox.close and passwordBox.keyboardDomain = "password" and passwordBox.textEditBox.secureMode and passwordBox.buttons[0] = "Sign in", "the password keyboard hides what is typed")
+    passwordBox.text = "wrong horse"
+    passwordBox.buttonSelected = 0
+    authPasswordButton()
+    signIn = m.tasks[0]
+    q = Chr(34)
+    Check(signIn.kind = "tv-sign-in" and signIn.path = "/auth/tv/sign-in" and signIn.method = "POST" and signIn.contentType = "application/json", "credentials go to PROtv's TV sign-in route")
+    Check(Instr(1, signIn.body, q + "email" + q + ":" + q + "viewer@example.com" + q) > 0 and Instr(1, signIn.body, q + "password" + q + ":" + q + "wrong horse" + q) > 0, "exact field names, trimmed email")
+    Check(m.authDialog = invalid and Instr(1, FormatJson(m.authFlow), "wrong horse") = 0, "the password is not kept in scene state")
+    Finish(invalid, "PROtv request failed (HTTP 401). Please try again.", 401, "invalid_credentials")
+    Check(Instr(1, m.top.nodes.accountMessage.text, "don't match a PROtv account") > 0 and m.authFlow = invalid and m.account = invalid and m.top.nodes.accountAction.focused, "a wrong password is explained and the viewer can try again")
     stale = FakeTask()
     accountTaskCompleted(TaskEvent(stale))
-    Check(m.deviceSession <> invalid and m.accountTask = invalid, "a late result from another request is ignored")
+    Check(m.accountTask = invalid and m.account = invalid, "a late result from another request is ignored")
+
     m.tasks = []
-    pollDeviceSession()
-    Check(m.tasks[0].kind = "activation-poll" and m.tasks[0].deviceSecret = secret, "polling sends the device secret header")
-    Finish({ status: "pending" })
-    pollDeviceSession()
-    Finish({ status: "approved" })
-    Check(m.tasks[m.tasks.Count() - 1].kind = "activation-exchange", "approval exchanges the session")
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    Check(m.authDialog.text = "", "declining Roku's request leads to typing the email")
+    m.authDialog.text = "viewer@example.com"
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    m.authDialog.text = "correct horse"
+    m.authDialog.buttonSelected = 0
+    authPasswordButton()
     Finish({ customToken: "custom" })
     firebase = m.tasks[m.tasks.Count() - 1]
-    Check(firebase.kind = "firebase-custom" and Instr(1, firebase.url, "signInWithCustomToken?key=test-public-web-key") > 0, "Firebase sign-in uses the public web key")
+    Check(firebase.kind = "firebase-custom" and Instr(1, firebase.url, "signInWithCustomToken?key=test-public-web-key") > 0, "the PROtv custom token becomes the Firebase session")
     Check(Instr(1, firebase.body, Chr(34) + "returnSecureToken" + Chr(34) + ":true") > 0 and Instr(1, firebase.body, Chr(34) + "token" + Chr(34) + ":") > 0, "the Firebase request asks for a refresh token with exact field names")
     ' Exactly what Firebase returns: no localId; the UID is in the ID token.
     viewerToken = "h.eyJ1c2VyX2lkIjoidmlld2VyIiwic3ViIjoidmlld2VyIn0.s"
     Finish({ kind: "identitytoolkit#VerifyCustomTokenResponse", idToken: viewerToken, refreshToken: "refresh-token", expiresIn: "3600", isNewUser: false })
-    Check(m.account <> invalid and m.account.viewerId = "viewer" and Instr(1, m.top.nodes.accountMessage.text, "could not finish signing in") = 0, "a real Firebase custom-token response signs the TV in")
+    Check(m.account <> invalid and m.account.viewerId = "viewer" and m.status.text = "Signed in." and m.top.nodes.accountSignOut.visible and not m.top.nodes.accountCreate.visible, "the TV is signed in to the same Firebase user")
     Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = viewerToken, "Continue Watching loads after sign-in")
     Finish({})
     Check(m.tasks[m.tasks.Count() - 1].kind = "favorites-read", "My List loads next")
     Finish([])
-    Check(HasViewerSession(m.account) and m.accountTask = invalid and m.deviceSession = invalid and m.accountPollTimer.control = "stop", "linking completes with no request left running")
-    Check(ParseStoredAccount(m.storage.values.account).viewerId = "viewer" and Instr(1, m.storage.values.account, secret) = 0, "the sign-in is saved without the device secret")
+    Check(HasViewerSession(m.account) and m.accountTask = invalid and m.authFlow = invalid, "sign-in completes with no request left running")
+    Check(ParseStoredAccount(m.storage.values.account).viewerId = "viewer" and Instr(1, m.storage.values.account, "correct horse") = 0, "the sign-in is saved; the password never is")
     Check(m.profile.text <> "Guest", "the top-right control greets the signed-in viewer")
     accountSignOutSelected()
-    Check(m.account = invalid and not m.storage.values.DoesExist("account") and m.profile.text = "Guest", "Sign Out returns to guest")
+    Check(m.account = invalid and not m.storage.values.DoesExist("account") and m.profile.text = "Guest" and m.top.nodes.accountCreate.visible, "Sign Out returns to guest")
+
+    ' Create account on the TV: email and password only.
     m.tasks = []
+    accountCreateSelected()
+    store = m.stores[m.stores.Count() - 1]
+    Check(store.requestedUserDataInfo.context = "signup", "Create account asks Roku for the email in sign-up mode")
+    store.userData = { email: "new@example.com" }
+    authUserData()
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    passwordBox = m.authDialog
+    Check(passwordBox.buttons[0] = "Create account" and passwordBox.textEditBox.secureMode, "sign-up asks for a hidden password")
+    passwordBox.text = "12345"
+    passwordBox.buttonSelected = 0
+    authPasswordButton()
+    Check(m.tasks.Count() = 0 and Instr(1, passwordBox.message[0], "6 characters") > 0, "the website's 6-character minimum is checked on the TV")
+    passwordBox.text = "long enough"
+    authPasswordButton()
+    Check(m.tasks[0].kind = "tv-sign-up" and m.tasks[0].path = "/auth/tv/sign-up", "sign-up goes to PROtv's TV sign-up route")
+    Finish(invalid, "PROtv request failed (HTTP 409). Please try again.", 409, "email_exists")
+    Check(Instr(1, m.top.nodes.accountMessage.text, "Sign in instead") > 0 and m.account = invalid, "an existing email points to Sign in")
+    accountCreateSelected()
+    m.stores[m.stores.Count() - 1].userData = { email: "fresh@example.com" }
+    authUserData()
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    m.authDialog.text = "long enough"
+    m.authDialog.buttonSelected = 0
+    authPasswordButton()
+    Finish({ customToken: "custom-2", verificationEmailSent: true })
+    Finish({ idToken: viewerToken, refreshToken: "refresh-2", expiresIn: "3600" })
+    Check(m.account <> invalid and m.status.text = "Account created. Check your email to verify it.", "a new account is signed in, with the website's verification email")
+    Finish({})
+    Finish([])
+    accountSignOutSelected()
+
+    ' Forgot password: email only, same answer for every email.
+    m.tasks = []
+    accountResetSelected()
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    m.authDialog.text = "google-only@example.com"
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    reset = m.tasks[0]
+    Check(reset.kind = "tv-password-reset" and reset.path = "/auth/tv/password-reset" and Instr(1, reset.body, "password" + Chr(34) + ":") = 0 and m.authDialog = invalid, "Forgot password sends only the email and asks for no password")
+    Finish({ status: "sent" })
+    Check(Instr(1, m.top.nodes.accountMessage.text, "If a PROtv account uses that email") > 0 and m.account = invalid and m.top.nodes.accountAction.focused, "the reset answer does not reveal whether an account exists")
+
+    ' Leaving, limits and outages never strand the viewer.
     accountActionSelected()
-    Finish(invalid, "PROtv request timed out. Please try again.")
-    Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountAction.focused and Instr(1, m.top.nodes.accountMessage.text, "retry") > 0, "a timeout leaves the account screen usable")
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    authDialogClosed()
+    Check(m.authFlow = invalid and m.authDialog = invalid and m.top.nodes.accountAction.focused and m.tasks.Count() = 1, "Back on a keyboard cancels sign-in")
     accountActionSelected()
-    Finish({ sessionId: "bad" }, "", 201)
-    Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountMessage.text = "The device sign-in response was invalid.", "a malformed response is reported, not trusted")
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    cancelBox = m.authDialog
+    cancelBox.buttonSelected = 1
+    authEmailButton()
+    Check(m.authFlow = invalid and cancelBox.close and m.tasks.Count() = 1, "Cancel on a keyboard cancels sign-in")
+    for each failure in [[429, "rate_limited", "Too many attempts"], [0, "", "could not be reached"], [503, "unavailable", "temporarily unavailable"], [403, "account_disabled", "disabled"]]
+        accountActionSelected()
+        m.stores[m.stores.Count() - 1].userData = { email: "viewer@example.com" }
+        authUserData()
+        m.authDialog.buttonSelected = 0
+        authEmailButton()
+        m.authDialog.text = "any password"
+        m.authDialog.buttonSelected = 0
+        authPasswordButton()
+        Finish(invalid, "PROtv request failed.", failure[0], failure[1])
+        Check(Instr(1, m.top.nodes.accountMessage.text, failure[2]) > 0 and m.authFlow = invalid and m.accountTask = invalid and m.top.nodes.accountAction.focused, "sign-in failure is explained: " + failure[2])
+    end for
     startAccountTask("firebase-custom", "", "POST", "{}", "", "", "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=k", "application/json")
     Finish({ idToken: "opaque", refreshToken: "r", expiresIn: "3600" })
     Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "could not finish signing in this TV (FB05)") > 0, "an invalid Firebase session names the failing check on screen")
@@ -581,11 +682,39 @@ function TaskEvent(task as Object) as Object
 end function
 
 ' Completes the newest request with a payload, as HttpTask would.
-sub Finish(payload as Dynamic, error = "" as String, statusCode = 200 as Integer)
+sub Finish(payload as Dynamic, error = "" as String, statusCode = 200 as Integer, errorCode = "" as String)
     task = m.tasks[m.tasks.Count() - 1]
-    task.result = { error: error, payload: payload, statusCode: statusCode }
+    task.result = { error: error, payload: payload, statusCode: statusCode, errorCode: errorCode }
     accountTaskCompleted(TaskEvent(task))
 end sub
+
+' Stands in for Roku's ChannelStore (getUserData).
+function FakeStore() as Object
+    store = { command: "", requestedUserData: "", requestedUserDataInfo: invalid, userData: invalid, observed: "",
+        observeField: sub(field as String, handler as String)
+            m.observed = handler
+        end sub,
+        unobserveField: sub(field as String)
+            m.observed = ""
+        end sub
+    }
+    GetGlobalAA().stores.Push(store)
+    return store
+end function
+
+' Stands in for StandardKeyboardDialog.
+function FakeDialog() as Object
+    dialog = { title: "", message: [], text: "", buttons: [], keyboardDomain: "", buttonSelected: -1, close: false, textEditBox: { secureMode: false }, handlers: {},
+        observeField: sub(field as String, handler as String)
+            m.handlers[field] = handler
+        end sub,
+        unobserveField: sub(field as String)
+            m.handlers.Delete(field)
+        end sub
+    }
+    GetGlobalAA().dialogs.Push(dialog)
+    return dialog
+end function
 
 ' Stands in for the roRegistrySection wrapper.
 function MemoryStorage() as Object

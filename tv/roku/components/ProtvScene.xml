@@ -164,50 +164,17 @@
       <Label id="accountMessage" translation="[0,152]" width="940" height="84" wrap="true" maxLines="3" color="0xC9D1E4FF">
         <Font role="font" uri="font:SystemFontFile" size="20" />
       </Label>
-      <Group id="accountCodePanel" translation="[0,250]" visible="false">
-        <Poster uri="pkg:/assets/panel.9.png" width="520" height="196" />
-        <Label text="ENTER THIS CODE" translation="[28,24]" width="470" height="24" color="0xAFC8F5FF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="16" />
-        </Label>
-        <Label id="accountCode" translation="[28,52]" width="470" height="80" color="0x60A5FAFF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="60" />
-        </Label>
-        <Label id="accountUrl" translation="[28,140]" width="470" height="32" color="0xFFFFFFFF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
-        </Label>
-      </Group>
-      <Group id="accountSteps" translation="[556,256]" visible="false">
-        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,-12]" width="64" height="64" />
-        <Label text="1" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
-        </Label>
-        <Label text="Open the address on a phone or computer." translation="[60,-6]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
-          <Font role="font" uri="font:SystemFontFile" size="18" />
-        </Label>
-        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,52]" width="64" height="64" />
-        <Label text="2" translation="[0,64]" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
-        </Label>
-        <Label text="Sign in to your PROtv account." translation="[60,58]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
-          <Font role="font" uri="font:SystemFontFile" size="18" />
-        </Label>
-        <Poster uri="pkg:/assets/nav-focus.9.png" translation="[-12,116]" width="64" height="64" />
-        <Label text="3" translation="[0,128]" width="40" height="40" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
-          <Font role="font" uri="font:BoldSystemFontFile" size="20" />
-        </Label>
-        <Label text="Enter the code. This TV links automatically." translation="[60,122]" width="352" height="52" wrap="true" vertAlign="center" color="0xC9D1E4FF">
-          <Font role="font" uri="font:SystemFontFile" size="18" />
-        </Label>
-      </Group>
-      <Label id="accountExpiry" translation="[0,462]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF">
+      <Label id="accountHint" translation="[0,250]" width="940" height="56" wrap="true" maxLines="2" color="0x7D879EFF">
         <Font role="font" uri="font:SystemFontFile" size="17" />
       </Label>
       <Group id="accountButtons" translation="[0,528]">
-        <PillButton id="accountAction" text="Link PROtv account" style="primary" width="300" height="48" />
+        <PillButton id="accountAction" text="Sign in" style="primary" width="200" height="48" />
+        <PillButton id="accountCreate" text="Create account" style="secondary" width="220" height="48" />
+        <PillButton id="accountReset" text="Forgot password" style="secondary" width="230" height="48" />
         <PillButton id="accountSignOut" text="Sign Out" style="secondary" width="160" height="48" visible="false" />
         <PillButton id="accountBack" text="Back" style="secondary" width="132" height="48" />
       </Group>
-      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays linked until you select Sign Out. Guest Continue Watching is saved on this TV only; My List needs a linked account.">
+      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays signed in until you select Sign Out. Your password is never stored on this TV. Guest Continue Watching is saved on this TV only.">
         <Font role="font" uri="font:SystemFontFile" size="15" />
       </Label>
       <!-- Installed version, for support requests. -->
@@ -255,7 +222,6 @@
       <FloatFieldInterpolator id="sidebarWidth" key="[0.0, 1.0]" keyValue="[88.0, 256.0]" fieldToInterp="sidebarBg.width" />
       <Vector2DFieldInterpolator id="sidebarFadeMove" key="[0.0, 1.0]" keyValue="[[88,0],[256,0]]" fieldToInterp="sidebarFade.translation" />
     </Animation>
-    <Timer id="accountPollTimer" repeat="true" duration="5.0" />
     <Timer id="progressTimer" repeat="true" duration="15.0" />
     <Timer id="statusTimer" repeat="false" duration="5.0" />
     <Timer id="rotateTimer" repeat="true" duration="8.0" />

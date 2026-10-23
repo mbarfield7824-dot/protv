@@ -28,12 +28,13 @@ sub init()
     m.pendingFavorite = invalid
     m.savingFavorite = invalid
     m.accountQueue = []
-    m.deviceSession = invalid
+    m.authFlow = invalid
+    m.authDialog = invalid
+    m.authStore = invalid
+    m.authNotice = ""
     m.accountTask = invalid
     m.afterRefreshAction = ""
     m.authRetryAction = ""
-    m.pollDelaySeconds = 5
-    m.exchangeRetryCount = 0
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
     m.lastSavedPosition = 0
@@ -56,9 +57,11 @@ sub init()
     m.storage = RegistryStorage()
     ' Tests substitute fake tasks; the app always uses HttpTask.
     m.newTask = HttpTaskNode
+    m.newStore = ChannelStoreNode
+    m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
@@ -77,6 +80,8 @@ sub init()
         m.top.findNode(id).observeField("buttonSelected", "detailSelected")
     end for
     m.top.findNode("accountAction").observeField("buttonSelected", "accountActionSelected")
+    m.top.findNode("accountCreate").observeField("buttonSelected", "accountCreateSelected")
+    m.top.findNode("accountReset").observeField("buttonSelected", "accountResetSelected")
     m.top.findNode("accountSignOut").observeField("buttonSelected", "accountSignOutSelected")
     m.top.findNode("accountBack").observeField("buttonSelected", "accountBackSelected")
     m.video.observeField("state", "videoState")
@@ -96,7 +101,6 @@ sub init()
     m.top.findNode("detailArt").observeField("loadStatus", "detailArtStatus")
     m.top.findNode("seriesArt").observeField("loadStatus", "seriesArtStatus")
     m.seriesEpisodes.observeField("itemSelected", "episodeSelected")
-    m.accountPollTimer.observeField("fire", "activationPollTimerFired")
     m.progressTimer.observeField("fire", "progressTimerFired")
     ' Installed version, for support requests and test reports.
     m.top.findNode("accountBuild").text = "PROtv for Roku " + CreateObject("roAppInfo").GetVersion()
@@ -114,6 +118,14 @@ end function
 
 function HttpTaskNode() as Object
     return CreateObject("roSGNode", "HttpTask")
+end function
+
+function ChannelStoreNode() as Object
+    return CreateObject("roSGNode", "ChannelStore")
+end function
+
+function KeyboardDialogNode() as Object
+    return CreateObject("roSGNode", "StandardKeyboardDialog")
 end function
 
 ' This app's registry section; tests substitute an in-memory object.
@@ -1528,7 +1540,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
 end function
 
 function accountButtonList() as Object
-    return [m.top.findNode("accountAction"), m.top.findNode("accountSignOut"), m.top.findNode("accountBack")]
+    return [m.top.findNode("accountAction"), m.top.findNode("accountCreate"), m.top.findNode("accountReset"), m.top.findNode("accountSignOut"), m.top.findNode("accountBack")]
 end function
 
 ' Lays visible account actions out left to right with a 20px gap.
@@ -1561,33 +1573,21 @@ sub drainAccountQueue()
 end sub
 
 sub showAccountState()
-    code = m.top.findNode("accountCode")
-    url = m.top.findNode("accountUrl")
-    expiry = m.top.findNode("accountExpiry")
     action = m.top.findNode("accountAction")
-    signOut = m.top.findNode("accountSignOut")
-    code.text = ""
-    url.text = ""
-    expiry.text = ""
-    if m.account <> invalid
+    signedIn = m.account <> invalid
+    if signedIn
         m.top.findNode("accountMessage").text = "Signed in. Continue Watching and My List are synchronized with your PROtv account."
         action.text = "Refresh my titles"
-        signOut.visible = true
+        m.top.findNode("accountHint").text = ""
     else
-        m.top.findNode("accountMessage").text = "Link your PROtv account on another device to synchronize Continue Watching and My List. Guest browsing and playback remain available."
-        action.text = "Link PROtv account"
-        signOut.visible = false
+        m.top.findNode("accountMessage").text = "Sign in or create a free PROtv account to keep My List and Continue Watching in sync across this TV and watchprotv.com. You can also keep watching as a guest."
+        action.text = "Sign in"
+        m.top.findNode("accountHint").text = "Use your PROtv email and password. Signed up with Google? Choose Forgot password to set a password for this email."
+        if FirebaseApiKey() = "" then m.top.findNode("accountMessage").text = "Sign-in is not configured in this Roku build. Guest browsing and playback remain available."
     end if
-    if m.deviceSession <> invalid
-        action.text = "Check approval now"
-        code.text = m.deviceSession.userCode
-        url.text = m.deviceSession.verificationUrl
-        expiry.text = "This code expires in about " + Int((m.deviceSession.expiresAtSeconds - CurrentEpochSeconds() + 59) / 60).ToStr().Trim() + " minute(s). Approve it using your signed-in PROtv website."
-    else if FirebaseApiKey() = "" and m.account = invalid
-        m.top.findNode("accountMessage").text = "Account linking needs the existing Firebase public web API key in this Roku build. Guest browsing and playback remain available."
-    end if
-    m.top.findNode("accountCodePanel").visible = m.deviceSession <> invalid
-    m.top.findNode("accountSteps").visible = m.deviceSession <> invalid
+    m.top.findNode("accountSignOut").visible = signedIn
+    m.top.findNode("accountCreate").visible = not signedIn
+    m.top.findNode("accountReset").visible = not signedIn
     layoutAccountButtons()
     updateNavState()
 end sub
@@ -1615,18 +1615,22 @@ sub accountActionSelected()
         else
             beginAccountAction("progress-read")
         end if
-    else if m.deviceSession <> invalid
-        pollDeviceSession()
     else
-        startDeviceActivation()
+        startAuthFlow("signin")
     end if
+end sub
+
+sub accountCreateSelected()
+    startAuthFlow("signup")
+end sub
+
+sub accountResetSelected()
+    startAuthFlow("reset")
 end sub
 
 sub accountSignOutSelected()
     cancelAccountTask()
-    m.accountPollTimer.control = "stop"
     m.progressTimer.control = "stop"
-    m.deviceSession = invalid
     m.account = invalid
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
@@ -1637,7 +1641,7 @@ sub accountSignOutSelected()
     m.authRetryAction = ""
     showAccountState()
     refreshRows()
-    m.top.findNode("accountMessage").text = "Signed out on this TV. You can continue watching as a guest or link another PROtv account."
+    m.top.findNode("accountMessage").text = "Signed out on this TV. You can continue watching as a guest or sign in to another PROtv account."
     showNotice("Signed out. Guest browsing and playback remain available.")
     focusAccount()
 end sub
@@ -1646,33 +1650,166 @@ sub accountBackSelected()
     returnHome()
 end sub
 
-sub startDeviceActivation()
-    if FirebaseApiKey() = ""
+' On-device sign-in, sign-up and password recovery (Roku certification 2.2).
+' The email comes from Roku's request-for-information screen when the viewer
+' shares it, otherwise from the email keyboard. The password is typed on the
+' password keyboard and exists only in that one HTTPS request body: it is
+' never saved, logged or kept in scene state.
+sub startAuthFlow(mode as String)
+    if m.accountTask <> invalid or m.authFlow <> invalid
+        showNotice("Contacting PROtv. One moment...")
+        return
+    end if
+    if FirebaseApiKey() = "" and mode <> "reset"
         showAccountState()
-        m.status.text = "Account linking is not configured in this Roku build. Guest playback is still available."
         return
     end if
-    m.accountPollTimer.control = "stop"
-    m.deviceSession = invalid
-    m.pollDelaySeconds = 5
-    m.exchangeRetryCount = 0
-    m.top.findNode("accountMessage").text = "Starting a secure PROtv TV sign-in..."
-    m.status.text = "Contacting PROtv to create a temporary activation code."
-    startAccountTask("activation-create", "/auth/device-sessions", "POST", "", "", "", "", "")
-end sub
-
-sub activationPollTimerFired()
-    if m.deviceSession = invalid then return
-    pollDeviceSession()
-end sub
-
-sub pollDeviceSession()
-    if m.deviceSession = invalid or m.accountTask <> invalid then return
-    if CurrentEpochSeconds() >= m.deviceSession.expiresAtSeconds
-        activationExpired()
+    m.authFlow = { mode: mode, email: "" }
+    m.authStore = m.newStore()
+    if m.authStore = invalid
+        showEmailDialog("")
         return
     end if
-    startAccountTask("activation-poll", "/auth/device-sessions/" + m.deviceSession.sessionId, "GET", "", "", m.deviceSession.deviceSecret, "", "")
+    info = CreateObject("roSGNode", "ContentNode")
+    context = "signin"
+    if mode = "signup" then context = "signup"
+    info.addFields({ context: context })
+    m.authStore.requestedUserData = "email"
+    m.authStore.requestedUserDataInfo = info
+    m.authStore.observeField("userData", "authUserData")
+    m.authStore.command = "getUserData"
+end sub
+
+' Roku sets userData to the shared fields, or to invalid if the viewer declines.
+sub authUserData()
+    store = m.authStore
+    m.authStore = invalid
+    if store = invalid or m.authFlow = invalid then return
+    store.unobserveField("userData")
+    email = ""
+    data = store.userData
+    if data <> invalid then email = Text(data.email)
+    showEmailDialog(email)
+end sub
+
+sub showEmailDialog(email as String)
+    dialog = openAuthDialog("email")
+    dialog.message = ["Enter the email address for your PROtv account."]
+    dialog.text = email
+    dialog.buttons = ["Continue", "Cancel"]
+    dialog.observeField("buttonSelected", "authEmailButton")
+end sub
+
+sub authEmailButton()
+    dialog = m.authDialog
+    if dialog = invalid or m.authFlow = invalid then return
+    if dialog.buttonSelected <> 0
+        endAuthFlow()
+        return
+    end if
+    email = Text(dialog.text).Trim()
+    if not ValidEmail(email)
+        dialog.message = ["Enter a full email address, for example name@example.com."]
+        return
+    end if
+    m.authFlow.email = email
+    closeAuthDialog()
+    if m.authFlow.mode = "reset"
+        submitAuth("")
+    else
+        showPasswordDialog()
+    end if
+end sub
+
+sub showPasswordDialog()
+    dialog = openAuthDialog("password")
+    if dialog.textEditBox <> invalid then dialog.textEditBox.secureMode = true
+    if m.authFlow.mode = "signup"
+        dialog.message = ["Choose a password of at least 6 characters for " + m.authFlow.email + "."]
+        dialog.buttons = ["Create account", "Cancel"]
+    else
+        dialog.message = ["Enter the password for " + m.authFlow.email + "."]
+        dialog.buttons = ["Sign in", "Cancel"]
+    end if
+    dialog.text = ""
+    dialog.observeField("buttonSelected", "authPasswordButton")
+end sub
+
+sub authPasswordButton()
+    dialog = m.authDialog
+    if dialog = invalid or m.authFlow = invalid then return
+    if dialog.buttonSelected <> 0
+        endAuthFlow()
+        return
+    end if
+    password = Text(dialog.text)
+    if password = "" then return
+    if m.authFlow.mode = "signup" and Len(password) < 6
+        dialog.message = ["Choose a password of at least 6 characters."]
+        return
+    end if
+    closeAuthDialog()
+    submitAuth(password)
+end sub
+
+' Exact-case JSON keys (quoted): Roku lowercases unquoted literal keys.
+sub submitAuth(password as String)
+    flow = m.authFlow
+    if flow.mode = "reset"
+        m.status.text = "Sending a password reset email..."
+        startAccountTask("tv-password-reset", "/auth/tv/password-reset", "POST", FormatJson({ "email": flow.email }), "", "", "", "application/json")
+    else if flow.mode = "signup"
+        m.status.text = "Creating your PROtv account..."
+        startAccountTask("tv-sign-up", "/auth/tv/sign-up", "POST", FormatJson({ "email": flow.email, "password": password }), "", "", "", "application/json")
+    else
+        m.status.text = "Signing in..."
+        startAccountTask("tv-sign-in", "/auth/tv/sign-in", "POST", FormatJson({ "email": flow.email, "password": password }), "", "", "", "application/json")
+    end if
+end sub
+
+function openAuthDialog(keyboard as String) as Object
+    closeAuthDialog()
+    dialog = m.newDialog()
+    titles = { signin: "Sign in to PROtv", signup: "Create a free PROtv account", reset: "Reset your PROtv password" }
+    dialog.title = titles[m.authFlow.mode]
+    dialog.keyboardDomain = keyboard
+    dialog.observeField("wasClosed", "authDialogClosed")
+    m.authDialog = dialog
+    m.top.dialog = dialog
+    return dialog
+end function
+
+sub closeAuthDialog()
+    dialog = m.authDialog
+    if dialog = invalid then return
+    m.authDialog = invalid
+    dialog.unobserveField("wasClosed")
+    dialog.unobserveField("buttonSelected")
+    dialog.close = true
+end sub
+
+' Back on a keyboard cancels the whole flow.
+sub authDialogClosed()
+    m.authDialog = invalid
+    if m.authFlow <> invalid then endAuthFlow()
+end sub
+
+sub endAuthFlow()
+    closeAuthDialog()
+    m.authFlow = invalid
+    m.status.text = ""
+    showAccountState()
+    focusAccount()
+end sub
+
+' Shared with any TV sign-in: the backend-issued custom token becomes the
+' restricted Firebase session used for every account request.
+sub exchangeCustomToken(customToken as String)
+    ' Quoted keys: Roku lowercases unquoted literal keys in FormatJson, and
+    ' Firebase silently ignores "returnsecuretoken" (then no refreshToken).
+    customBody = FormatJson({ "token": customToken, "returnSecureToken": true })
+    identityUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=" + FirebaseApiKey()
+    startAccountTask("firebase-custom", "", "POST", customBody, "", "", identityUrl, "application/json")
 end sub
 
 sub startAccountTask(kind as String, path as String, method as String, body as String, authorization as String, deviceSecret as String, url as String, contentType as String)
@@ -1700,74 +1837,47 @@ sub accountTaskCompleted(event as Object)
     result = task.result
     kind = task.kind
     if not IsMap(result) then result = { error: "PROtv returned an invalid response. Please try again." }
-    if (kind = "activation-poll" or kind = "activation-exchange") and m.deviceSession = invalid
-        drainAccountQueue()
-        return
-    end if
     if result.error <> ""
         handleAccountTaskError(kind, result)
         if kind <> "progress-write" then drainPendingProgress()
         drainAccountQueue()
         return
     end if
-    if kind = "activation-create"
-        details = DeviceSessionDetails(result.payload, CurrentEpochSeconds())
-        if not details.valid
-            m.top.findNode("accountMessage").text = details.error
-            m.status.text = details.error
-        else
-            m.deviceSession = details.session
-            m.pollDelaySeconds = m.deviceSession.intervalSeconds
-            m.top.findNode("accountMessage").text = "On your phone or computer, visit this address and sign in to your PROtv account. Enter the code shown here."
-            showAccountState()
-            m.accountPollTimer.duration = m.deviceSession.intervalSeconds * 1.0
-            m.accountPollTimer.control = "start"
-            m.status.text = "Waiting for approval. This TV checks at the interval provided by PROtv."
-        end if
-    else if kind = "activation-poll"
-        status = DeviceActivationState(Text(result.payload.status), CurrentEpochSeconds(), m.deviceSession.expiresAtSeconds)
-        if status = "pending"
-            m.pollDelaySeconds = m.deviceSession.intervalSeconds
-        else if status = "approved"
-            m.accountPollTimer.control = "stop"
-            m.top.findNode("accountMessage").text = "Approved. Completing secure sign-in..."
-            startAccountTask("activation-exchange", "/auth/device-sessions/" + m.deviceSession.sessionId + "/exchange", "POST", "", "", m.deviceSession.deviceSecret, "", "")
-        else if status = "expired" or status = "consumed"
-            activationExpired()
-        else
-            m.accountPollTimer.control = "stop"
-            m.deviceSession = invalid
-            showAccountState()
-            m.top.findNode("accountMessage").text = "PROtv returned an unsupported activation status. Start a new sign-in."
-        end if
-    else if kind = "activation-exchange"
+    if kind = "tv-sign-in" or kind = "tv-sign-up"
+        m.authFlow = invalid
         customToken = Text(result.payload.customToken)
         if customToken = ""
-            activationFailed("PROtv did not return a usable sign-in token. Start again.")
+            authFlowFailed("PROtv did not return a usable sign-in. Try again.")
         else
-            ' Quoted keys: Roku lowercases unquoted literal keys in FormatJson, and
-            ' Firebase silently ignores "returnsecuretoken" (then no refreshToken).
-            customBody = FormatJson({ "token": customToken, "returnSecureToken": true })
-            identityUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=" + FirebaseApiKey()
-            startAccountTask("firebase-custom", "", "POST", customBody, "", "", identityUrl, "application/json")
+            m.authNotice = "Signed in."
+            if kind = "tv-sign-up" then m.authNotice = "Account created. Check your email to verify it."
+            exchangeCustomToken(customToken)
         end if
+    else if kind = "tv-password-reset"
+        m.authFlow = invalid
+        m.status.text = ""
+        showAccountState()
+        m.top.findNode("accountMessage").text = "If a PROtv account uses that email, we sent a link to set a new password. Then choose Sign in."
+        showNotice("Password reset email requested.")
+        focusAccount()
     else if kind = "firebase-custom"
         problem = FirebaseSessionProblem(result.payload)
         if problem <> ""
-            authSessionFailed("PROtv could not finish signing in this TV (" + Left(problem, 4) + "). Link again.")
+            authSessionFailed("PROtv could not finish signing in this TV (" + Left(problem, 4) + "). Try again.")
         else
             previousViewerId = ""
             if m.account <> invalid then previousViewerId = Text(m.account.viewerId)
             m.progress = ProgressForViewer(previousViewerId, FirebaseSessionUid(result.payload), m.progress)
             m.account = { viewerId: FirebaseSessionUid(result.payload) }
-            m.deviceSession = invalid
-            m.accountPollTimer.control = "stop"
             m.account.idToken = result.payload.idToken
             m.account.refreshToken = result.payload.refreshToken
             m.account.expiresAtSeconds = CurrentEpochSeconds() + Int(Val(Text(result.payload.expiresIn)))
             m.progressLoaded = false
             storeAccount()
             showAccountState()
+            if m.authNotice <> "" then showNotice(m.authNotice)
+            m.authNotice = ""
+            focusAccount()
             beginAccountAction("progress-read")
         end if
     else if kind = "firebase-refresh"
@@ -1837,39 +1947,13 @@ sub handleAccountTaskError(kind as String, result as Object)
     message = Text(result.error)
     statusCode = 0
     if IsNumber(result.statusCode) then statusCode = result.statusCode
-    if kind = "activation-create"
-        m.top.findNode("accountMessage").text = message + " You can retry or continue as a guest."
-        m.status.text = message
-    else if kind = "activation-poll"
-        failureState = "expired"
-        if m.deviceSession <> invalid
-            failureState = ActivationPollFailure(statusCode, CurrentEpochSeconds(), m.deviceSession.expiresAtSeconds)
-        end if
-        if failureState = "expired"
-            activationExpired()
-        else
-            m.pollDelaySeconds = NextPollDelay(m.pollDelaySeconds, m.deviceSession.intervalSeconds)
-            m.accountPollTimer.duration = m.pollDelaySeconds * 1.0
-            m.accountPollTimer.control = "start"
-            retryLabel = "Network issue while checking approval."
-            if failureState = "rate-limited" then retryLabel = "PROtv is rate-limiting approval checks."
-            m.top.findNode("accountMessage").text = retryLabel + " Retrying in " + m.pollDelaySeconds.ToStr().Trim() + " seconds. Your code remains private to this TV."
-            m.status.text = message + " Retrying until the activation code expires."
-        end if
-    else if kind = "activation-exchange"
-        if m.deviceSession <> invalid and CurrentEpochSeconds() < m.deviceSession.expiresAtSeconds and m.exchangeRetryCount < 3
-            m.exchangeRetryCount++
-            m.accountPollTimer.duration = m.deviceSession.intervalSeconds * 1.0
-            m.accountPollTimer.control = "start"
-            m.top.findNode("accountMessage").text = "PROtv approved the TV, but sign-in completion was interrupted. Retrying " + m.exchangeRetryCount.ToStr().Trim() + " of 3."
-            m.status.text = message + " Retrying sign-in before this code expires."
-        else
-            activationFailed(message + " Start a new sign-in.")
-        end if
+    if kind = "tv-sign-in" or kind = "tv-sign-up" or kind = "tv-password-reset"
+        m.authFlow = invalid
+        authFlowFailed(TvAuthMessage(statusCode, Text(result.errorCode)))
     else if kind = "firebase-custom"
         detail = "HTTP " + statusCode.ToStr().Trim()
         if Text(result.errorCode) <> "" then detail = detail + " " + Text(result.errorCode)
-        activationFailed("PROtv could not finish signing in this TV (" + detail + "). Link again.")
+        authFlowFailed("PROtv could not finish signing in this TV (" + detail + "). Try again.")
     else if kind = "firebase-refresh"
         if statusCode >= 400 and statusCode < 500
             authSessionFailed("Your PROtv session could not be refreshed. Sign in again. " + message)
@@ -1928,25 +2012,19 @@ sub handleAccountTaskError(kind as String, result as Object)
     end if
 end sub
 
-sub activationExpired()
-    m.accountPollTimer.control = "stop"
-    m.deviceSession = invalid
-    showAccountState()
-    m.top.findNode("accountMessage").text = "The TV activation code expired. Select Link PROtv account to get a new code, or continue as a guest."
-    m.status.text = "TV activation expired. No account was linked."
-end sub
-
-sub activationFailed(message as String)
-    m.accountPollTimer.control = "stop"
-    m.deviceSession = invalid
+' A failed sign-in, sign-up or reset leaves the viewer on the Account screen.
+sub authFlowFailed(message as String)
+    closeAuthDialog()
+    m.authFlow = invalid
+    m.authNotice = ""
     showAccountState()
     m.top.findNode("accountMessage").text = message
     m.status.text = message
+    focusAccount()
 end sub
 
 sub authSessionFailed(message as String)
     cancelAccountTask()
-    m.accountPollTimer.control = "stop"
     m.account = invalid
     m.pendingProgressSave = invalid
     m.savingProgress = invalid

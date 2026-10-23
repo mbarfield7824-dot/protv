@@ -42,6 +42,8 @@ sub fetch()
         errorCode = ""
         failure = ParseJson(body)
         if IsMap(failure) and IsMap(failure.error) then errorCode = Text(failure.error.message)
+        ' PROtv's own routes answer { error, code }.
+        if errorCode = "" and IsMap(failure) then errorCode = Text(failure.code)
         m.top.result = { error: "PROtv request failed (HTTP " + code.ToStr() + "). Please try again.", statusCode: code, errorCode: errorCode }
         return
     end if

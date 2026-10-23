@@ -1,5 +1,28 @@
 # Roku validation record
 
+## On-device sign-in (v0.6.0 dev) - 2026-10-23 (local time)
+Branch `feature/roku-on-device-auth` from `roku-v0.5.6-tv-verified`; backend
+branch `feature/tv-on-device-auth-backend` from `origin/main` (4142f26). Not
+deployed, not pushed.
+- Replaces website code linking (Roku certification 2.2). Sign in, Create
+  account and Forgot password on the TV; Roku email request, then email and
+  password keyboards; backend-issued custom token; the existing verified
+  custom-token, saved sign-in, refresh, Continue Watching and My List path is
+  unchanged.
+- Roku: npm test 10/10, 175 model assertions, 166 scene regressions
+  (every flow, declined email request, Cancel and Back, wrong password,
+  existing email, weak password, rate limit, offline, disabled account,
+  password never in state, storage or logs).
+- Backend: 10 new tests; npm test 254/256 (the two failures are titleHtml
+  tests that fail on main or need a built frontend).
+- Firebase Auth emulator (synthetic accounts, project demo-protv-tv): a
+  Google-only account cannot sign in on the TV; Forgot password issues a
+  reset email; setting a password links it to the same UID; TV sign-in then
+  works as a custom session; Google sign-in still works; one account per
+  email. Production behavior still needs one real check.
+- ZIP: dist/releases/protv-roku-v0.6.0-dev.zip, 675,005 bytes, SHA-256
+  7abc5bc2fdd320fff3720da32d2a546cb07ba4ae8fe430faabedbdd1c90b2282. Needs the backend routes deployed before sign-in works.
+
 ## Stabilization candidate (v0.5.6) - 2026-10-23 (local time)
 - Owner device test of v0.5.5: sign-in, playback and OK pause work; the
   player progress bar stayed on browsing screens after exit.

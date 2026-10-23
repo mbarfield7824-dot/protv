@@ -90,18 +90,24 @@ ScrollableText synopsis/credits.
 The Roku implementation uses existing services only; no website/backend route,
 Firestore schema or production data was changed.
 
-### TV activation and Firebase session
+### TV sign-in and Firebase session (v0.6)
 
-- `POST /auth/device-sessions` returns `sessionId`, `deviceSecret`, `userCode`,
-  `verificationUrl`, `expiresAt`, and `interval`. The current implementation
-  issues a 10-minute session with a 5-second polling interval.
-- Show the official verification URL and short code separately. Do not put the
-  code/device secret in the URL. Poll `GET /auth/device-sessions/:sessionId`
-  using `X-Device-Secret`; exchange `POST
-  /auth/device-sessions/:sessionId/exchange` with the same header after approval.
-  The backend verifies the secret hash, one-time consumes the session and
-  returns `{customToken}`. Website approval remains an interactive signed-in
-  user action.
+- Roku certification 2.2 requires sign-in entirely on the device; Roku allows
+  website or code linking only for TVE apps. The Account screen offers Sign
+  in, Create account and Forgot password.
+- The email comes from ChannelStore `getUserData` (email only; context
+  `signin` or `signup`) or, if the viewer declines, the email keyboard. The
+  password uses StandardKeyboardDialog with `keyboardDomain = "password"` and
+  `textEditBox.secureMode`.
+- `POST /auth/tv/sign-in` and `/sign-up` (backend `auth/tvAuth.js`) check
+  the credentials with Firebase email/password and return `{customToken}` for
+  the same Firebase user, without developer claims. `/password-reset` sends
+  Firebase's reset email and always answers the same way. All three are rate
+  limited and never log bodies.
+- TV sessions are `custom` sign-ins. They carry the user's stored claims, but
+  `requireInteractiveUserSession` and `verifyAdmin` reject every provider except
+  `password` and `google.com`, so a TV session has no administrative capability
+  (backend `tvSessionRestrictions.test.js` sweeps every privileged route).
 - The Roku exchanges that Firebase custom token at
   `identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken` using the
   existing website's public Firebase client API key. That response has no

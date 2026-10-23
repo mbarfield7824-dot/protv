@@ -130,25 +130,12 @@ sub Main()
     Assert(ResolveLaunch({ contentId: "a", mediaType: "episode" }, result.items).error <> "", "wrong media type rejected")
     Assert(ResolveLaunch({ contentId: "a", mediaType: "series" }, result.items).error <> "", "unsupported series explicit")
     Assert(ResolveLaunch({}, result.items).error = "", "ordinary launch harmless")
-    activation = {
-        sessionId: String(43, "s"),
-        deviceSecret: String(43, "d"),
-        userCode: "ABCD-EFGH",
-        verificationUrl: "https://watchprotv.com/activate",
-        expiresAt: "2035-01-01T00:00:00.000Z",
-        interval: 5,
-    }
-    activationResult = DeviceSessionDetails(activation, 1700000000)
-    Assert(activationResult.valid, "device activation contract accepted")
-    Assert(activationResult.session.userCode = "ABCD-EFGH", "activation code preserved")
-    Assert(activationResult.session.intervalSeconds = 5, "backend poll interval honored")
-    activation.expiresAt = "2020-01-01T00:00:00.000Z"
-    Assert(not DeviceSessionDetails(activation, 1700000000).valid, "expired activation rejected")
-    activation.expiresAt = "2035-01-01T00:00:00.000Z"
-    activation.verificationUrl = "http://watchprotv.com/activate"
-    Assert(not DeviceSessionDetails(activation, 1700000000).valid, "insecure activation URL rejected")
-    activation.verificationUrl = "https://watchprotv.com/activate?code=ABCD-EFGH"
-    Assert(not DeviceSessionDetails(activation, 1700000000).valid, "activation URL cannot contain query tokens")
+    ' On-device sign-in (Roku certification 2.2).
+    Assert(ValidEmail("viewer@example.com") and ValidEmail("  first.last+tv@sub.example.co.uk "), "ordinary emails accepted")
+    Assert(not ValidEmail("") and not ValidEmail("viewer") and not ValidEmail("viewer@example") and not ValidEmail("a b@example.com") and not ValidEmail("@example.com"), "incomplete emails rejected before any request")
+    Assert(Instr(1, TvAuthMessage(401, "invalid_credentials"), "Forgot password") > 0, "wrong password suggests recovery")
+    Assert(Instr(1, TvAuthMessage(409, "email_exists"), "Sign in instead") > 0 and Instr(1, TvAuthMessage(400, "weak_password"), "6 characters") > 0, "sign-up errors explain the fix")
+    Assert(Instr(1, TvAuthMessage(429, ""), "Too many attempts") > 0 and Instr(1, TvAuthMessage(0, ""), "could not be reached") > 0 and Instr(1, TvAuthMessage(503, "unavailable"), "temporarily unavailable") > 0, "rate limits, offline and outages are told apart")
     ' The real accounts:signInWithCustomToken response: no localId (device failure 2026-10-23).
     claims = "eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vcHJvdHYtMmY0OGUiLCJhdWQiOiJwcm90di0yZjQ4ZSIsInVzZXJfaWQiOiJ2aWV3ZXItVWlkXzEiLCJzdWIiOiJ2aWV3ZXItVWlkXzEiLCJ4IjoiPz8-PiJ9"
     idToken = "eyJhbGciOiJSUzI1NiJ9." + claims + ".c2lnbmF0dXJl"
@@ -249,16 +236,6 @@ sub Main()
     Assert(Instr(1, StoredAccountJson(session), "deviceSecret") = 0, "only the viewer session is saved")
     Assert(CatalogStale(1000, 1900) and not CatalogStale(1000, 1899), "catalog refresh after 15 minutes")
     Assert(AllWideArtwork([{ backdrop: "https://a" }]) and not AllWideArtwork([{ backdrop: "https://a" }, { backdrop: "" }]) and not AllWideArtwork([]), "wide cards only when every title has wide art")
-    Assert(DeviceActivationState("pending", 100, 200) = "pending", "activation polling stays pending")
-    Assert(DeviceActivationState("approved", 100, 200) = "approved", "approved activation exchanges once")
-    Assert(DeviceActivationState("consumed", 100, 200) = "consumed", "consumed activation is terminal")
-    Assert(DeviceActivationState("pending", 200, 200) = "expired", "local activation expiry wins over pending state")
-    Assert(DeviceActivationState("unknown", 100, 200) = "invalid", "unknown activation state rejected")
-    Assert(ActivationPollFailure(503, 100, 200) = "retry", "network/server error retries activation polling")
-    Assert(ActivationPollFailure(429, 100, 200) = "rate-limited", "rate-limited activation polling is distinguishable")
-    Assert(ActivationPollFailure(410, 100, 200) = "expired", "server-expired activation is terminal")
-    Assert(NextPollDelay(5, 5) = 10, "activation retry delay backs off")
-    Assert(NextPollDelay(60, 5) = 60, "activation retry delay is capped")
     entry = { positionSeconds: 600, durationSeconds: 1320, progressPercent: 45, updatedAt: 1 }
     Assert(BackdropSource({ id: "a", heroImageUrl: "https://cdn/wide.jpg" }) = "https://cdn/wide.jpg", "wide hero art is used when supplied")
     Assert(BackdropSource({ id: "a", heroImageUrl: "/posters/wide.jpg" }) = ApiBase() + "/posters/wide.jpg", "service-relative hero art")

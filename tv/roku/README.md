@@ -74,10 +74,15 @@ Start with the [read-only architecture audit](docs/ARCHITECTURE.md), then the
   handling. Reauthorizes playback rather than trusting launch URLs.
 - Explicit catalog/request/playback errors; Home retries failed initial loads,
   Play retries playback. No generated offline catalog.
-- Account linking uses the existing `/auth/device-sessions` website approval and
-  Firebase custom-token flow. Roku displays the backend-issued URL and code,
-  polls at its supplied interval, validates expiry, and retries transient
-  failures with bounded backoff. No credentials are entered on the TV.
+- Sign-in happens entirely on the TV (v0.6, Roku certification 2.2): Sign in,
+  Create account and Forgot password on the Account screen. The email comes
+  from Roku's request-for-information screen (ChannelStore getUserData) or the
+  email keyboard; the password is typed on the password keyboard with hidden
+  characters. `POST /auth/tv/sign-in` (or `/sign-up`, `/password-reset`)
+  returns a custom token for the same Firebase user, which the existing
+  Firebase custom-token flow turns into the saved TV session. The password is
+  sent once and never stored or logged. Website code linking is no longer used
+  by Roku (Fire TV still uses `/auth/device-sessions`).
 - The TV stays linked across restarts (v0.5, owner-approved): the viewer ID,
   Firebase ID token, refresh token and expiry are saved in this app's Roku
   registry section (`PROtv/account`). At launch the session is refreshed
