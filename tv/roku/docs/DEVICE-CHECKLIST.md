@@ -4,14 +4,14 @@
 model, OS, build ZIP hash, title ID and actual outcome for every device session.
 
 ## First physical test
-- [ ] v0.5.6: after Back from playback (playing, paused, while seeking, after
+- [x] v0.5.6 (owner, 2026-10-23): after Back from playback (playing, paused, while seeking, after
       the controls fade), at the end of a title and after a playback error,
       no progress bar, time, Pause/Resume or thumbnail remains on Details,
       Home, Search or My List.
-- [ ] v0.5.6: signed in, watch 1 minute, Back: Continue Watching shows it on
+- [x] v0.5.6 (owner, 2026-10-23): signed in, watch 1 minute, Back: Continue Watching shows it on
       the TV and on the website; Resume starts there; restart the app and
       it is still there.
-- [ ] v0.5.6: My List add/remove on the TV appears on the website.
+- [x] v0.5.6 (owner, 2026-10-23): My List add/remove on the TV appears on the website.
 - [ ] v0.5: Series tile opens seasons/episodes; Up reaches seasons, Left/Right
       switches season, OK opens the episode, Back returns to the same episode.
 - [ ] v0.5: link, restart the app, still linked; Sign Out, restart, guest.

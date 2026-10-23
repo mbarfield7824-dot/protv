@@ -40,6 +40,23 @@ deployed, not pushed.
 - ZIP: dist/releases/protv-roku-v0.6.0-dev.zip, 675,005 bytes, SHA-256
   7abc5bc2fdd320fff3720da32d2a546cb07ba4ae8fe430faabedbdd1c90b2282. Needs the backend routes deployed before sign-in works.
 
+## Physical TV result (v0.5.6) - 2026-10-23 (local time)
+Owner installed `protv-roku-v0.5.6-candidate.zip` (SHA-256
+78805d67b6bcbb9694ea9355792a2651350e7850c917cf6299ce47545920763c) on a
+physical Roku TV. All seven tests passed:
+
+1. Playback controls (progress bar, time, Pause/Resume, thumbnail) disappear on exit.
+2. Continue Watching syncs with the website.
+3. Resume starts at the saved position.
+4. Sign-in persists after an app restart.
+5. My List syncs with the website.
+6. Episodes play.
+7. Remote playback controls work (OK, Play/Pause, seeking, Back).
+
+Still not measured on the device: launch time, memory over a long session,
+deep links via Roku's tester, seek thumbnails on a slow network, network-loss
+recovery. Tagged `roku-v0.5.6-tv-verified`.
+
 ## Stabilization candidate (v0.5.6) - 2026-10-23 (local time)
 - Owner device test of v0.5.5: sign-in, playback and OK pause work; the
   player progress bar stayed on browsing screens after exit.

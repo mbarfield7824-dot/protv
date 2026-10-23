@@ -1,15 +1,29 @@
 # Roku release checkpoints
 
-## v0.5.6 stabilization candidate (2026-10-23, not device tested)
+## roku-v0.5.6-tv-verified (2026-10-23)
+
+Owner-verified on a physical Roku TV. All seven tests passed:
+
+1. Playback controls (progress bar, time, Pause/Resume, thumbnail) disappear on exit.
+2. Continue Watching syncs with the website.
+3. Resume starts at the saved position.
+4. Sign-in persists after an app restart.
+5. My List syncs with the website.
+6. Episodes play.
+7. Remote playback controls work (OK, Play/Pause, seeking, Back).
 
 | Item | Value |
 | --- | --- |
-| Sideload ZIP | `dist/releases/protv-roku-v0.5.6-candidate.zip` |
-| SHA-256 | `78805d67b6bcbb9694ea9355792a2651350e7850c917cf6299ce47545920763c` |
+| Git tag | `roku-v0.5.6-tv-verified` (annotated, local) |
+| Commit | `c19ebea` (runtime files identical to the build commit `644ac48`) |
+| Branch | `feature/issue-7-roku-phase-1` (not pushed, not merged) |
 | Manifest | 0.5.6 |
+| Sideload ZIP | `dist/releases/protv-roku-v0.5.6-tv-verified.zip` (read-only) |
+| SHA-256 | `78805d67b6bcbb9694ea9355792a2651350e7850c917cf6299ce47545920763c` |
 
-To go back to the working build, follow the roll-back steps below with the
-v0.5.5 ZIP. The candidate does not replace it.
+`protv-roku-v0.5.6-candidate.zip` is the same file (same SHA-256), kept
+read-only. Roll back with the same steps as below, using this ZIP or the
+v0.5.5 one. Not certified or submitted to Roku.
 
 ## roku-v0.5.5-working (2026-10-23)
 
