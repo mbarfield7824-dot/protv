@@ -20,9 +20,10 @@ Values marked *owner* need the owner's decision or details.
 | Privacy policy URL | https://watchprotv.com/privacy | Review the content first (section 6) |
 | Terms URL | https://watchprotv.com/terms | |
 | Sign-in question | Yes | Required for free apps with sign-in |
-| Reviewer test account | *owner*: a dedicated non-admin PROtv account | Reviewers link it with the on-screen code at watchprotv.com/activate |
+| Reviewer test account | See section 7 | Depends on the sign-in decision |
 | Support URL | https://watchprotv.com/contact | |
-| Support email and phone | *owner* | Phone must include the country code |
+| Support email | support@watchprotv.com | From the privacy policy |
+| Support phone | *owner* | Must include the country code |
 | Admin and technical contacts | *owner* | Names, emails, phones with country codes |
 | Learn more URL | https://watchprotv.com/about | |
 | Monetization | Free (no ads in the Roku app) | Ads would require Roku's ad framework and app-ads.txt |
@@ -31,8 +32,9 @@ Values marked *owner* need the owner's decision or details.
 
 ## 2. Artwork and screenshots
 
-- **App poster:** 540x405 JPEG or PNG. Existing `assets/channel-icon-fhd.png`
-  is 540x405 and can be uploaded as-is.
+- **App poster:** 540x405 JPEG or PNG, no transparency. Upload
+  `store/app-poster-540x405.jpg` (a flattened copy of the 540x405 channel icon,
+  no alpha channel; not part of the app package).
 - **Screenshots:** up to six, 1920x1080 JPEG or PNG. The app renders at 720p
   and Roku scales it; capture on the TV in developer mode (device web page,
   Utilities, Screenshot) and upscale 1280x720 captures to 1920x1080 only by
@@ -115,10 +117,91 @@ Do this only after the owner approves a release build.
 7. If the device is reset later, restore the key with Utilities > Rekey using
    the saved `.pkg` and password. Do not run `genkey` again.
 
-## 6. Remaining release blockers
+## 6. Certification findings from Roku's official criteria (2026-10-23)
+
+Source: Roku certification criteria, authentication and linking, on-device
+authentication and deep linking guides.
+
+| Req. | Rule | PROtv | Action |
+| --- | --- | --- | --- |
+| 2.2 | All apps except TVE (cable/satellite) must sign in **entirely on the device**; website or code linking ("rendezvous") is prohibited | **Fails**: sign-in is a code approved on watchprotv.com/activate | Development or a release decision (section 8) |
+| 4.3 | Apps that *require* sign-in must use the Roku Event Dispatcher | Not required (everything plays as a guest) | None while sign-in stays optional |
+| 3.2 / 3.3 / 3.4 / 3.5 / 3.6 | Launch within 15 s; transitions within 3 s; loading indicator over 3 s; key response within 250 ms; playback start within 8 s | Beacon in place; Roku's Video node supplies playback beacons; text loading messages | TV tests 1, 3, 5 |
+| 3.7 | Package 4 MB or less | 675 KB | Done |
+| 4.1 | Updates keep sign-in and data | Same signing key keeps the registry | Keep the key (section 5) |
+| 4.4 | Options (*) during playback reserved for Roku | PROtv does not use * | None |
+| 4.5 | Do not interfere with the screensaver | Not touched | None |
+| 4.6 | Back behavior | Verified on the TV | Done |
+| 4.7 | Trick-play thumbnails, VOD over 15 min (42 titles) | Mux previews while seeking | TV test 2 |
+| 4.8 | Captions and audio description **where required by law**, following the global caption settings | No tracks today | Legal determination (content-dependent) |
+| 4.9 | Instant Replay rewinds 10–25 s | 10 s | Done |
+| 4.10 | Bookmarks, VOD over 15 min, 30+ days | Verified on the TV (signed in) | Done |
+| 4.12 | Roku voice keyboards for email, PIN, password | No such entry today | Applies if on-device sign-in is built |
+| 4.11, 4.13, 4.14, 2.3, 4.2 | Voice, Continue Watching tile, Instant Resume, Instant Signup, Automatic Account Link | Volume thresholds (millions of hours a month) | Not applicable at launch |
+| 5.1 | Deep linking: movie and episode play directly; invalid links go to Home; sample parameters per media type at submission | Implemented | TV test 3; submit movie `LiMNMZWXBxJj3LoP73kU`, episode `5FHvg3BEwBlk9qqNdZT5` |
+| 5.2 | Direct to Play for voice commands | Deep-link handling exists; voice search needs Roku Search content | Confirm with Roku at submission |
+| 6.1 | Non-zero version, incremented per submission | 0.5.6 | Use 1.0.0 for the first store build (manifest only) |
+| 6.3 | No adult content; metadata suitable for all ages | Yes | Done |
+| 6.4 | FHD and HD splash, no transparent artwork | Opaque icons, JPEG splashes | Done |
+
+## 7. Reviewer test account
+
+Only needed if the store build offers sign-in.
+
+1. On watchprotv.com create a dedicated account (for example
+   roku-review@watchprotv.com), not an admin, not a creator.
+2. Add 3 titles to My List and watch part of 2, so Continue Watching shows.
+3. Enter the email and password in the dashboard's reviewer notes, with the
+   steps: Account > Sign in (or the method the store build uses).
+4. Change the password after certification.
+
+## 8. Sign-in decision (requirement 2.2)
+
+Pick one before the store build:
+
+- **A. First release without sign-in.** Hide Account linking and My List in
+  the store build; guests keep Continue Watching on the TV. Small change
+  (about half a day plus one TV retest). Website sync returns in a later
+  update once on-device sign-in exists.
+- **B. On-device sign-in.** Email and password typed on the TV with Roku's
+  keyboard (email can be pre-filled from the viewer's Roku account), using
+  the existing Firebase sign-in. Code linking is removed. Accounts created
+  with Google sign-in have no password; Roku does not support Google sign-in,
+  so those viewers would need to set a password on the website first. If
+  the app offers account creation, that must also work on the TV. About 2–3
+  days plus TV testing.
+
+## 9. Privacy policy gaps (watchprotv.com/privacy, effective 2026-09-16)
+
+The policy covers account email and name, My List, playback measurement,
+pseudonymous identifiers, retention of playback events and support contact.
+Missing for the Roku listing:
+
+1. Continue Watching (watch progress) stored with the account.
+2. TV apps: sign-in on the TV, the sign-in saved on the TV, and guest
+   progress saved on the TV (and Roku device identifiers, if any are used).
+3. How to request access to or deletion of account data, and how long account
+   data is kept.
+4. A children's privacy statement (the service is not directed to children
+   under 13).
+5. The operator's name (Prophecy Entertainment LLC) and contact address.
+6. State privacy rights (for example California), if applicable.
+
+## 10. Content rights checklist
+
+| Basis | Titles | Keep on file |
+| --- | --- | --- |
+| Public domain (US) | 49 | Source and reason for each (no renewal, published before 1930, etc.). Status differs by country, so list only countries where it holds |
+| Creative Commons Attribution | 4 (Big Buck Bunny, Elephants Dream, Sintel, Tears of Steel) | Licence and the "Blender Foundation" credit shown in each title's details |
+| PROtv exclusive | 1 (The Bundy Chronicles) | The signed agreement |
+| Creator submissions | 2 (The Lost Camp, Dead Air) | Signed creator agreements (Creator Agent service); add a Rights note to each record |
+| Artwork | All | Poster sources; Sita Sings the Blues poster credit (CC BY-SA) is in its credits |
+
+## 11. Remaining release blockers
 
 Mandatory before submission:
 
+0. **Sign-in (2.2):** the decision in section 8, then a new store build.
 1. **Captions (4.8):** a legal determination of which titles must be
    captioned. None has caption tracks today.
 2. **Store listing details (owner):** countries, age rating, support email

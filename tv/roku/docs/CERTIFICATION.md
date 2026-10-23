@@ -8,6 +8,7 @@ anything without physical-TV evidence still needs the owner's device test.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
+| 2.2 On-device sign-in (all apps except TVE) | **Fails** | Sign-in is code linking via watchprotv.com/activate, which Roku allows only for TVE apps. See RELEASE-PREP.md section 8 |
 | 3.2 Launch beacon; home screen within 15 s | Implemented, timing unmeasured | `AppLaunchComplete` sent once (automated test). Measure launch time on the TV |
 | 4.6 Back returns to the previous screen; Back on Home exits | Implemented | Automated focus tests; owner confirmed navigation and Back from playback on the TV (v0.5.6) |
 | 4.7 Trick-play thumbnails for VOD over 15 min | Implemented, unverified | Custom player shows Mux preview thumbnails while seeking (automated test). Confirm on the TV |
