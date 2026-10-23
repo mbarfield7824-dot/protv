@@ -332,7 +332,7 @@ sub Main()
     ' Exactly what Firebase returns: no localId; the UID is in the ID token.
     viewerToken = "h.eyJ1c2VyX2lkIjoidmlld2VyIiwic3ViIjoidmlld2VyIn0.s"
     Finish({ kind: "identitytoolkit#VerifyCustomTokenResponse", idToken: viewerToken, refreshToken: "refresh-token", expiresIn: "3600", isNewUser: false })
-    Check(m.account <> invalid and m.account.viewerId = "viewer" and m.top.nodes.accountMessage.text <> "Firebase returned an invalid account session. Link again. Guest browsing and playback remain available.", "a real Firebase custom-token response signs the TV in")
+    Check(m.account <> invalid and m.account.viewerId = "viewer" and Instr(1, m.top.nodes.accountMessage.text, "could not finish signing in") = 0, "a real Firebase custom-token response signs the TV in")
     Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = viewerToken, "Continue Watching loads after sign-in")
     Finish({})
     Check(m.tasks[m.tasks.Count() - 1].kind = "favorites-read", "My List loads next")
@@ -351,7 +351,7 @@ sub Main()
     Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountMessage.text = "The device sign-in response was invalid.", "a malformed response is reported, not trusted")
     startAccountTask("firebase-custom", "", "POST", "{}", "", "", "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=k", "application/json")
     Finish({ idToken: "opaque", refreshToken: "r", expiresIn: "3600" })
-    Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "(FB05 ID token has 1 segments, expected 3)") > 0, "an invalid Firebase session names the failing check on screen")
+    Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "could not finish signing in this TV (FB05)") > 0, "an invalid Firebase session names the failing check on screen")
     Check(Press("back") and m.mode = "home", "Back always leaves the account screen")
 
     ' Device bug (v0.5.4): OK did nothing during playback. The native Video UI
@@ -373,6 +373,7 @@ sub Main()
     m.playerHideTimer = { control: "" }
     m.seekTimer = { control: "" }
     m.scrubbing = false
+    m.playbackActive = true
     m.previewBase = PreviewBase({ id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" })
     m.all.Append([m.video, m.playerKeys])
     m.playerKeys.setFocus(true)
@@ -422,8 +423,121 @@ sub Main()
     Check(ResumePosition(m.progress, "g1") = 300 and ParseStoredProgress(m.storage.values.guestProgress)["g1"].positionSeconds = 300 and m.top.nodes.detailPlay.text = "Resume", "Back preserves the resume position")
     Check(not m.rowsStale, "deferred rows refresh after playback")
     Check(PreviewBase({ muxPlaybackId: "Ab123", playbackToken: "t" }) = "" and PreviewBase({ muxPlaybackId: "bad id" }) = "", "no preview for signed or invalid streams")
+
+    ' v0.5.5 device bug: the progress bar stayed on screen after leaving playback.
+    ' Stopping the player changed its state while the Video was still visible,
+    ' and the state handler redrew the overlay. Every exit path, then every
+    ' late callback, must leave no playback UI behind.
+    for each exitPath in ["back", "back-paused", "back-seeking", "back-overlay-hidden", "finished", "error"]
+        m.progress = {}
+        m.video.seek = -1
+        StartFakePlayback({ id: "g1", title: "G1" })
+        if exitPath = "back-paused"
+            Press("OK")
+            m.video.state = "paused"
+            videoState()
+        else if exitPath = "back-seeking"
+            Press("right")
+        else if exitPath = "back-overlay-hidden"
+            playerHideTimerFired()
+        end if
+        if exitPath = "finished" or exitPath = "error"
+            m.video.state = exitPath
+            m.video.errorCode = -5
+            videoState()
+        else
+            Press("back")
+        end if
+        m.video.visible = true
+        m.video.state = "stopped"
+        videoState()
+        playerPositionChanged()
+        playerHideTimerFired()
+        commitSeek()
+        renderPlayerOverlay()
+        m.video.visible = false
+        clean = not m.playerOverlay.visible and not m.top.nodes.playerPreview.visible and m.top.nodes.playerFill.width = 0 and m.top.nodes.playerTime.text = ""
+        Check(clean and not m.playbackActive and not m.scrubbing and m.seekTimer.control = "stop" and m.playerHideTimer.control = "stop" and m.progressTimer.control = "stop" and m.video.content = invalid, "no playback UI remains after exit: " + exitPath)
+        Check(m.video.seek = -1 and ResumePosition(m.progress, "g1") = 300, "exit keeps the saved position and drops the pending seek: " + exitPath)
+    end for
+    StartFakePlayback({ id: "e9", title: "Episode Nine" })
+    Check(m.playerOverlay.visible and m.top.nodes.playerTitle.text = "Episode Nine" and m.playbackActive, "the next title gets fresh controls")
+    Press("back")
+
+    ' Signed-in Continue Watching with the real backend shape (millisecond updatedAt).
+    m.items = [{ id: "g1", title: "G1", contentType: "MOVIE", artwork: "", backdrop: "" }, { id: "g2", title: "G2", contentType: "MOVIE", artwork: "", backdrop: "" }, { id: "e9", title: "Episode Nine", contentType: "EPISODE", artwork: "", backdrop: "" }]
+    m.storage.values.guestProgress = FormatJson({ "g1": LocalProgressEntry(300, 1200, 10) })
+    m.account = { viewerId: "viewer", idToken: "id", refreshToken: "r", expiresAtSeconds: CurrentEpochSeconds() + 3600 }
+    m.progress = {}
+    m.progressLoaded = false
+    m.accountTask = invalid
+    m.accountQueue = []
+    m.tasks = []
+    beginAccountAction("progress-read")
+    Finish(ParseJson("{""g2"": {""positionSeconds"": 600, ""durationSeconds"": 1200, ""progressPercent"": 50, ""updatedAt"": 1761234567890}, ""e9"": {""positionSeconds"": 120, ""durationSeconds"": 1500, ""progressPercent"": 8, ""updatedAt"": 1761234999999}}"))
+    row = PersonalRow("continue")
+    Check(m.progressLoaded and row <> invalid and row.items.Count() = 2 and row.items[0].id = "e9", "signed-in Continue Watching shows movies and episodes from the account")
+    Check(ResumePosition(m.progress, "g1") = 0, "account progress replaces guest progress")
+    Finish([])
+    StartFakePlayback({ id: "g2", title: "G2" })
+    m.video.position = 700.0
+    m.lastSavedPosition = 600
+    m.tasks = []
+    saveCurrentProgress(true)
+    write = m.tasks[0]
+    Check(write.kind = "progress-write" and write.method = "PUT" and Instr(1, write.body, Chr(34) + "positionSeconds" + Chr(34) + ":700") > 0 and write.authorization = "id", "progress saves to the account with exact field names")
+    Finish(ParseJson("{""videoId"": ""g2"", ""positionSeconds"": 700, ""durationSeconds"": 1200, ""progressPercent"": 58, ""updatedAt"": 1761235000000}"))
+    Check(m.progress["g2"].positionSeconds = 700 and m.pendingProgressSave = invalid and m.savingProgress = invalid and m.lastSavedPosition = 700, "a confirmed save is accepted, not resent")
+    m.video.position = 760.0
+    saveCurrentProgress(true)
+    Finish(invalid, "PROtv request timed out. Please try again.", 0)
+    Check(m.pendingProgressSave <> invalid and m.pendingProgressSave.positionSeconds = 760 and m.progress["g2"].positionSeconds = 700, "a failed save is kept for retry and does not corrupt progress")
+    progressTimerFired()
+    Finish(invalid, "PROtv request failed (HTTP 401). Please try again.", 401)
+    Check(m.tasks[m.tasks.Count() - 1].kind = "firebase-refresh", "an expired session refreshes before retrying the save")
+    Finish({ user_id: "viewer", access_token: "id-2", refresh_token: "r-2", expires_in: "3600" })
+    retry = m.tasks[m.tasks.Count() - 1]
+    Check(retry.kind = "progress-write" and retry.authorization = "id-2" and ParseStoredAccount(m.storage.values.account).refreshToken = "r-2", "the save is retried with the refreshed session, which is saved")
+    Finish(ParseJson("{""videoId"": ""g2"", ""positionSeconds"": 760, ""durationSeconds"": 1200, ""progressPercent"": 63, ""updatedAt"": 1761235100000}"))
+    Check(m.progress["g2"].positionSeconds = 760 and m.pendingProgressSave = invalid, "the retried save lands")
+    Press("back")
+
+    ' My List with the existing favorites routes.
+    m.favorites = []
+    m.favoritesLoaded = true
+    m.tasks = []
+    toggleMyList({ id: "g1", title: "G1" })
+    Check(IsFavorite(m.favorites, "g1") and m.tasks[0].kind = "favorite-write" and m.tasks[0].path = "/users/me/favorites/g1" and Instr(1, m.tasks[0].body, Chr(34) + "favorite" + Chr(34) + ":true") > 0, "adding to My List writes the account")
+    Finish({ videoId: "g1", favorite: true })
+    toggleMyList({ id: "g1", title: "G1" })
+    Finish(invalid, "PROtv request failed (HTTP 500). Please try again.", 500)
+    Check(IsFavorite(m.favorites, "g1") and m.favorites.Count() = 1, "a failed removal is undone so the screen matches the account")
+    toggleMyList({ id: "g2", title: "G2" })
+    Finish(invalid, "PROtv request failed (HTTP 401). Please try again.", 401)
+    Finish({ user_id: "viewer", access_token: "id-3", refresh_token: "r-3", expires_in: "3600" })
+    Check(m.tasks[m.tasks.Count() - 1].kind = "favorite-write" and m.tasks[m.tasks.Count() - 1].authorization = "id-3", "an expired session refreshes and the My List change is retried")
+    Finish({ videoId: "g2", favorite: true })
+    Check(FavoriteItems(m.items, m.favorites).Count() = 2 and FavoriteIds(["g1", "g1", "g2"]).Count() = 2, "My List has no duplicates")
+    accountSignOutSelected()
+    Check(m.account = invalid and m.favorites.Count() = 0 and not m.favoritesLoaded and m.progress["g1"].positionSeconds = 300 and not m.progress.DoesExist("g2"), "signing out drops the account's list and progress and restores guest progress")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
+end sub
+
+' Starts a title the way playbackLoaded does, without a real stream.
+sub StartFakePlayback(item as Object)
+    m.mode = "detail"
+    m.selected = item
+    m.video.visible = true
+    m.video.state = "playing"
+    m.video.position = 300.0
+    m.video.duration = 1200.0
+    m.video.content = { url: "fake" }
+    m.lastSavedPosition = 0
+    m.playbackActive = true
+    m.progressTimer.control = "start"
+    m.playerKeys.setFocus(true)
+    renderPlayerOverlay()
 end sub
 
 ' Records each request instead of contacting PROtv.

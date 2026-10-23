@@ -523,35 +523,6 @@ function IdTokenProblem(idToken as String) as String
     return ""
 end function
 
-' TEMPORARY diagnostics: the shape of a JSON value, never its content.
-function DiagnosticShape(value as Dynamic) as String
-    kind = type(value)
-    if kind = "Invalid" or kind = "roInvalid" or kind = "<uninitialized>" then return "absent"
-    if IsMap(value)
-        keys = []
-        for each key in value
-            keys.Push(key)
-        end for
-        keys.Sort()
-        return "object{" + keys.Join(",") + "}"
-    end if
-    if IsArray(value) then return "array(" + value.Count().ToStr().Trim() + ")"
-    if GetInterface(value, "ifString") <> invalid then return "string(len " + Len(value).ToStr().Trim() + ")"
-    if GetInterface(value, "ifBoolean") <> invalid then return "boolean"
-    if IsNumber(value) then return "number"
-    return type(value)
-end function
-
-' Runs the shipped decoder on a fixed sample so a device log shows whether
-' base64url and ParseJson behave as they do in the emulator.
-function AuthSelfTest() as String
-    sample = "h.eyJ1c2VyX2lkIjoic2VsZi10ZXN0Iiwic3ViIjoic2VsZi10ZXN0IiwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6e30sInNpZ25faW5fcHJvdmlkZXIiOiJjdXN0b20ifX0.s"
-    problem = IdTokenProblem(sample)
-    if problem <> "" then return "FAIL " + problem
-    if IdTokenUid(sample) <> "self-test" then return "FAIL wrong user_id"
-    return "OK"
-end function
-
 function Base64UrlDecode(value as String) as String
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
     powers = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -588,8 +559,10 @@ function PositiveInteger(value as Dynamic) as Boolean
     return Val(Text(value)) > 0
 end function
 
+' ifLongInt matters: ParseJson returns LongInteger for the backend's
+' millisecond updatedAt (Date.now()), which exceeds 32 bits.
 function IsNumber(value as Dynamic) as Boolean
-    return GetInterface(value, "ifInt") <> invalid or GetInterface(value, "ifFloat") <> invalid or GetInterface(value, "ifDouble") <> invalid
+    return GetInterface(value, "ifInt") <> invalid or GetInterface(value, "ifLongInt") <> invalid or GetInterface(value, "ifFloat") <> invalid or GetInterface(value, "ifDouble") <> invalid
 end function
 
 function ValidProgressEntry(entry as Dynamic) as Boolean

@@ -51,6 +51,7 @@ sub init()
     m.scrubbing = false
     m.scrubTarget = 0
     m.previewBase = ""
+    m.playbackActive = false
     m.guestWrittenAt = 0
     m.storage = RegistryStorage()
     ' Tests substitute fake tasks; the app always uses HttpTask.
@@ -97,21 +98,13 @@ sub init()
     m.seriesEpisodes.observeField("itemSelected", "episodeSelected")
     m.accountPollTimer.observeField("fire", "activationPollTimerFired")
     m.progressTimer.observeField("fire", "progressTimerFired")
-    ' TEMPORARY: names the installed build and proves the token decoder on this device.
-    selfTest = AuthSelfTest()
-    version = CreateObject("roAppInfo").GetVersion()
-    AuthDiag("self-test", "build " + version + ", decoder " + selfTest)
-    m.top.findNode("accountBuild").text = "PROtv Roku " + version + " diagnostic  " + Chr(183) + "  sign-in decoder " + selfTest
+    ' Installed version, for support requests and test reports.
+    m.top.findNode("accountBuild").text = "PROtv for Roku " + CreateObject("roAppInfo").GetVersion()
     restoreSession()
     showAccountState()
     layoutNav()
     focusNav()
     loadCatalog()
-end sub
-
-' TEMPORARY sign-in diagnostics: stage and shape only, never token values.
-sub AuthDiag(stage as String, detail as String)
-    print "PROtv AUTH "; stage; ": "; detail
 end sub
 
 function NumberOr(value as Dynamic, fallback as Dynamic) as Dynamic
@@ -1171,6 +1164,7 @@ sub playbackLoaded()
     m.status.text = ""
     m.previewBase = PreviewBase(result.payload)
     m.scrubbing = false
+    m.playbackActive = true
     m.video.visible = true
     m.playerKeys.setFocus(true)
     m.video.control = "play"
@@ -1179,7 +1173,9 @@ sub playbackLoaded()
 end sub
 
 sub videoState()
-    if m.video.visible then renderPlayerOverlay()
+    ' Stopping the player changes its state; after exit that must not redraw controls.
+    if not m.playbackActive then return
+    renderPlayerOverlay()
     if m.video.state = "playing"
         signalLaunchComplete()
         schedulePlayerHide()
@@ -1259,7 +1255,7 @@ sub scrubBy(stepValue as Integer)
 end sub
 
 sub commitSeek()
-    if not m.scrubbing then return
+    if not m.playbackActive or not m.scrubbing then return
     m.scrubbing = false
     m.seekTimer.control = "stop"
     m.video.seek = m.scrubTarget
@@ -1274,14 +1270,16 @@ sub schedulePlayerHide()
 end sub
 
 sub playerHideTimerFired()
+    if not m.playbackActive then return
     if m.video.state = "playing" and not m.scrubbing then m.playerOverlay.visible = false
 end sub
 
 sub playerPositionChanged()
-    if m.playerOverlay.visible and not m.scrubbing then renderPlayerOverlay()
+    if m.playbackActive and m.playerOverlay.visible and not m.scrubbing then renderPlayerOverlay()
 end sub
 
 sub renderPlayerOverlay()
+    if not m.playbackActive then return
     m.playerOverlay.visible = true
     state = m.video.state
     toggle = m.top.findNode("playerToggle")
@@ -1318,19 +1316,30 @@ sub renderPlayerOverlay()
 end sub
 
 sub closeVideo()
+    ' Progress is saved first (it needs the live position); the UI goes after.
     saveCurrentProgress(true)
-    m.scrubbing = false
-    m.seekTimer.control = "stop"
-    m.playerHideTimer.control = "stop"
-    m.playerOverlay.visible = false
-    m.progressTimer.control = "stop"
-    m.video.control = "stop"
-    m.video.visible = false
-    m.video.content = invalid
+    endPlayback()
     updatePlayLabel()
     ' Rows deferred during playback, and guest progress, update here.
     if m.rowsStale or m.account = invalid then refreshRows()
     focusDetails()
+end sub
+
+' The one teardown for every exit (Back, end, error, deep link). Clears
+' playback-only UI and state; saved progress is untouched.
+sub endPlayback()
+    m.playbackActive = false
+    m.scrubbing = false
+    m.seekTimer.control = "stop"
+    m.playerHideTimer.control = "stop"
+    m.progressTimer.control = "stop"
+    m.video.control = "stop"
+    m.video.visible = false
+    m.video.content = invalid
+    m.playerOverlay.visible = false
+    m.top.findNode("playerPreview").visible = false
+    m.top.findNode("playerFill").width = 0
+    m.top.findNode("playerTime").text = ""
 end sub
 
 sub updatePlayLabel()
@@ -1686,7 +1695,6 @@ sub accountTaskCompleted(event as Object)
     result = task.result
     kind = task.kind
     if not IsMap(result) then result = { error: "PROtv returned an invalid response. Please try again." }
-    AuthDiag(kind, "HTTP " + Text(Str(NumberOr(result.statusCode, 0))).Trim() + ", error " + DiagnosticShape(result.error) + ", payload " + DiagnosticShape(result.payload))
     if (kind = "activation-poll" or kind = "activation-exchange") and m.deviceSession = invalid
         drainAccountQueue()
         return
@@ -1712,7 +1720,6 @@ sub accountTaskCompleted(event as Object)
             m.status.text = "Waiting for approval. This TV checks at the interval provided by PROtv."
         end if
     else if kind = "activation-poll"
-        if IsMap(result.payload) then AuthDiag("activation-poll", "status " + Text(result.payload.status))
         status = DeviceActivationState(Text(result.payload.status), CurrentEpochSeconds(), m.deviceSession.expiresAtSeconds)
         if status = "pending"
             m.pollDelaySeconds = m.deviceSession.intervalSeconds
@@ -1729,7 +1736,6 @@ sub accountTaskCompleted(event as Object)
             m.top.findNode("accountMessage").text = "PROtv returned an unsupported activation status. Start a new sign-in."
         end if
     else if kind = "activation-exchange"
-        if IsMap(result.payload) then AuthDiag("activation-exchange", "customToken " + DiagnosticShape(result.payload.customToken))
         customToken = Text(result.payload.customToken)
         if customToken = ""
             activationFailed("PROtv did not return a usable sign-in token. Start again.")
@@ -1742,16 +1748,9 @@ sub accountTaskCompleted(event as Object)
         end if
     else if kind = "firebase-custom"
         problem = FirebaseSessionProblem(result.payload)
-        if IsMap(result.payload)
-            AuthDiag("firebase-custom", "idToken " + DiagnosticShape(result.payload.idToken) + ", refreshToken " + DiagnosticShape(result.payload.refreshToken) + ", expiresIn " + DiagnosticShape(result.payload.expiresIn) + ", localId " + DiagnosticShape(result.payload.localId))
-            token = Text(result.payload.idToken)
-            AuthDiag("id-token", "segments " + token.Split(".").Count().ToStr().Trim() + ", claims " + DiagnosticShape(IdTokenClaims(token)))
-        end if
-        AuthDiag("validation", "result " + problem)
         if problem <> ""
-            authSessionFailed("Firebase returned an invalid account session (" + problem + "). Link again.")
+            authSessionFailed("PROtv could not finish signing in this TV (" + Left(problem, 4) + "). Link again.")
         else
-            AuthDiag("viewer", "viewer ID assigned, length " + Len(FirebaseSessionUid(result.payload)).ToStr().Trim())
             previousViewerId = ""
             if m.account <> invalid then previousViewerId = Text(m.account.viewerId)
             m.progress = ProgressForViewer(previousViewerId, FirebaseSessionUid(result.payload), m.progress)
@@ -1865,7 +1864,7 @@ sub handleAccountTaskError(kind as String, result as Object)
     else if kind = "firebase-custom"
         detail = "HTTP " + statusCode.ToStr().Trim()
         if Text(result.errorCode) <> "" then detail = detail + " " + Text(result.errorCode)
-        activationFailed("Firebase could not finish TV sign-in (" + detail + "). Link again.")
+        activationFailed("PROtv could not finish signing in this TV (" + detail + "). Link again.")
     else if kind = "firebase-refresh"
         if statusCode >= 400 and statusCode < 500
             authSessionFailed("Your PROtv session could not be refreshed. Sign in again. " + message)
