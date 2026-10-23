@@ -248,24 +248,38 @@ The response exposes only synthetic poster verification details. Actor/outcome a
 configuration/storage failures return non-cacheable 503 without credentials or private URLs.
 This isolated deployed-account check never writes catalog records, calls Mux or starts publishing.
 
-Production dependency preparation fixes the reported 15-package audit tree without a forced
-audit fix. Express remains on version 4, Multer on version 2, and the image decoder is patched
-`sharp` 0.35.5. The explicitly approved Firebase Admin 12-to-13.10 security upgrade removes
-the unpatched `node-forge` dependency while retaining the version-7 Firestore and Storage SDKs
-and existing namespaced Auth APIs. Firebase Admin 13 requires Node 18 or newer; `sharp` requires
-Node 20.9 or newer. The existing Vercel deployment uses Node 24.
+### Administrator poster uploads
 
-Root/backend overrides select CommonJS-compatible UUID 11.1.1 for the affected Google SDK
-chains and patched QS 6.16 for the nested body parser. UUID 12's ESM-only change is not used.
-Frontend Firebase stays on version 12 (12.19), with a same-version-family patched gRPC 1.13.7
-override; development brace-expansion/source-map dependencies also receive compatible patches.
-Root, standalone backend and frontend full/production audits report zero findings in the
-prepared dependency trees. Existing deployments remain exposed until these lockfiles are
-deployed; an audit result is not proof that every runtime vulnerability is absent.
+The Admin upload form only accepts a pasted *Poster / Thumbnail URL*, which is stored as-is in
+`thumbnailUrl`. Third-party links (social-media CDNs, image-search thumbnails, rate-limited
+archives) expire or block hotlinking, so the catalog editor now also has **Upload poster image**.
 
-`dependencyCompatibility.test.js` exercises real Firebase custom-token signing and verification
-with synthetic credentials, Firestore/Storage constructors, Google SDK CommonJS UUID behavior,
-Express query/body parsing and mapped IPv6 proxy handling without production writes.
+`PUT /api/admin/title-posters/:videoId` requires the existing interactive Administrator Bearer
+token and a raw `image/png` or `image/jpeg` body of at most 4 MiB (below Vercel's 4.5 MB request
+limit; the editor downscales larger photos in the browser first). The image is fully decoded,
+metadata-stripped and re-encoded to fit 1000×1000 by the same `normalizePosterImage` used for
+Creator transfers, then saved content-addressed in the same bucket under
+`title-posters/title-{sha256}.{png,jpg}` and served at
+`https://watchprotv.com/api/posters/title-{sha256}.{png,jpg}`. Both `posterUrl` and
+`thumbnailUrl` are set to that URL. Podcasts keep their own editor. Responses are `no-store`:
+400 invalid identifier or empty body, 401/403 authorization, 404 unknown title, 413 too large,
+415 wrong type, 422 not a valid static image, 503 storage or catalog unavailable (no catalog record
+is changed when storage fails). Each upload writes a `title_poster_uploaded` audit entry with the
+previous `posterUrl`/`thumbnailUrl`, so a replacement can be reverted. Editing a title's poster
+link later replaces both fields of an uploaded pair; distinct poster/thumbnail fields from the
+approved artwork rollout are never rewritten by a thumbnail edit.
+
+Missing posters of any filename return a non-cacheable JSON 404 (`{"error":"Poster not found."}`),
+never the generic 500. The global error handler keeps other middleware client errors as 4xx
+(malformed JSON 400, oversized bodies 413) and still hides server error details behind 500.
+
+**Dependencies on main:** this change adds only `sharp` 0.35.5 (root and backend manifests and
+locks, including the `@img/sharp-linux-x64` prebuilt binary used by Vercel). `sharp` requires Node
+20.9 or newer; the Vercel deployment uses Node 24. Firebase Admin stays on main's version 12
+(12.7.0), whose bundled `@google-cloud/storage` 7.22 provides every bucket call used here
+(`file.save` with `ifGenerationMatch`, `getMetadata`, generation-pinned `createReadStream`). The
+broader dependency refresh prepared on `protv-3.0-admin-ai` (`f08959f`: Firebase Admin 13.10,
+UUID/QS/gRPC overrides) is not part of this change.
 
 Local validation commands (no live services or credentials):
 
