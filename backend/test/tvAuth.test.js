@@ -69,7 +69,7 @@ async function startHarness(context, overrides = {}) {
   let client = '203.0.113.7';
   const app = express();
   app.use(express.json());
-  app.use('/auth/tv', createTvAuthRouter({ service, clientAddress: () => client }));
+  app.use('/auth/tv', createTvAuthRouter({ service, clientAddress: () => (typeof client === 'function' ? client() : client) }));
   // Mirrors app.js: client errors (including malformed JSON) are answered, not logged.
   app.use((err, req, res, next) => res.status(Number(err.status) || 500).json({ error: 'Invalid request.' }));
   const server = app.listen(0, '127.0.0.1');
@@ -199,4 +199,67 @@ test('nothing logged across every flow contains a credential, email or token', a
   await h.post('password-reset', { email: EMAIL });
   await h.post('sign-in', '{"email": broken json');
   assert.doesNotMatch(h.logs.join('\n'), /correct horse|wrong secret|sign up secret|example\.test|custom-token|id-token|refresh-token/i);
+});
+
+// Optimistic-transaction Firestore double (as in deviceSessions.test.js):
+// reads are versioned and a transaction whose reads changed is retried, the
+// way Firestore serializes concurrent transactions across server instances.
+function createConcurrentDb() {
+  const store = new Map();
+  let version = 0;
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+  return {
+    store,
+    collection: (name) => ({ doc: (id) => ({ path: `${name}/${id}` }) }),
+    async runTransaction(fn) {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const reads = new Map();
+        const writes = [];
+        const result = await fn({
+          get: async (ref) => {
+            await tick();
+            reads.set(ref.path, store.get(ref.path)?.version ?? 0);
+            const entry = store.get(ref.path);
+            return { exists: Boolean(entry), data: () => (entry ? structuredClone(entry.data) : undefined) };
+          },
+          set: (ref, data) => writes.push([ref.path, data]),
+        });
+        await tick();
+        if ([...reads].some(([path, seen]) => (store.get(path)?.version ?? 0) !== seen)) continue;
+        for (const [path, data] of writes) { version += 1; store.set(path, { data: structuredClone(data), version }); }
+        return result;
+      }
+      throw new Error('Transaction contention');
+    },
+  };
+}
+
+test('rate limits stay exact when many requests arrive at once', async (context) => {
+  const db = createConcurrentDb();
+  const h = await startHarness(context, { getDb: () => db });
+  // 30 simultaneous sign-ins from one TV address with different emails: the
+  // per-address limit (10) admits exactly 10.
+  const burst = await Promise.all(Array.from({ length: 30 }, (_, index) => h.post('sign-in', { email: `burst${index}@example.test`, password: 'x' })));
+  assert.equal(burst.filter((result) => result.status !== 429).length, 10);
+  assert.equal(h.identity.calls.length, 10, 'only admitted requests reach Firebase');
+  // 20 simultaneous sign-ins for one email from different addresses: the
+  // per-email limit (8) admits exactly 8.
+  let address = 0;
+  h.setClient(() => `198.51.100.${address += 1}`);
+  const spread = await Promise.all(Array.from({ length: 20 }, () => h.post('sign-in', { email: EMAIL, password: 'wrong' })));
+  assert.equal(spread.filter((result) => result.status !== 429).length, 8);
+});
+
+test('rate-limit storage is one expiring document per key', async (context) => {
+  const h = await startHarness(context);
+  for (let window = 0; window < 4; window += 1) {
+    await h.post('sign-in', { email: EMAIL, password: 'wrong' });
+    h.advance(15 * 60 * 1000);
+  }
+  const docs = [...h.db.store.entries()];
+  assert.equal(docs.length, 2, 'one per-address and one per-email document, reused across windows');
+  for (const [, data] of docs) {
+    assert.ok(data.expiresAt instanceof Date && data.expiresAt.getTime() > data.windowStart.getTime(), 'expiresAt feeds the Firestore TTL policy');
+    assert.equal(data.count, 1, 'the counter restarts in each new window');
+  }
 });

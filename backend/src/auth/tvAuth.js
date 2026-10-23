@@ -97,17 +97,22 @@ function createTvAuthService(options = {}) {
     return { ok: response.ok, data, code: response.ok ? '' : firebaseErrorCode(data) };
   }
 
-  // Fixed-window counters keyed by a hash, so no raw email or address is stored.
+  // Fixed-window counters keyed by a hash, so no raw email or address is
+  // stored. One document per key is reused across windows, so storage stays
+  // bounded by distinct keys; the Firestore TTL policy on expiresAt removes
+  // keys that go quiet. Transactions keep concurrent requests exact.
   async function consume(db, scope, key, { limit, windowMs }) {
     const windowIndex = Math.floor(now() / windowMs);
-    const ref = db.collection(RATE_LIMITS).doc(`${scope}_${sha256Hex(key)}_${windowIndex}`);
+    const ref = db.collection(RATE_LIMITS).doc(`${scope}_${sha256Hex(key)}`);
     const allowed = await db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(ref);
-      const count = snapshot.exists ? Number(snapshot.data().count) || 0 : 0;
+      const data = snapshot.exists ? snapshot.data() : null;
+      const count = data && data.windowIndex === windowIndex ? Number(data.count) || 0 : 0;
       if (count >= limit) return false;
       transaction.set(ref, {
         scope,
         count: count + 1,
+        windowIndex,
         windowStart: new Date(windowIndex * windowMs),
         expiresAt: new Date((windowIndex + 1) * windowMs),
       });
