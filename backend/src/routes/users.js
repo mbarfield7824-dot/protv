@@ -2,6 +2,7 @@ const express = require('express');
 const admin = require('firebase-admin');
 const { db } = require('../firebase');
 const { verifyToken } = require('../middleware/auth');
+const { restoredWatchProgress } = require('../watchProgress');
 
 const router = express.Router();
 
@@ -59,7 +60,9 @@ router.get('/me/progress', verifyToken, async (req, res, next) => {
   if (!requireFirestore(res)) return;
   try {
     const profile = await db.collection('users').doc(req.user.uid).get();
-    res.json(profile.exists && profile.data().watchProgress ? profile.data().watchProgress : {});
+    // Includes entries that earlier writes stored as literal "watchProgress.<id>"
+    // fields, so saved progress reappears without rewriting any record.
+    res.json(profile.exists ? restoredWatchProgress(profile.data()) : {});
   } catch (error) {
     next(error);
   }
@@ -83,9 +86,13 @@ router.put('/me/progress/:videoId', verifyToken, async (req, res, next) => {
 
   try {
     const userRef = db.collection('users').doc(req.user.uid);
-    // Dot-notation targets just this one nested key so sibling titles in
-    // watchProgress aren't clobbered by the merge.
-    await userRef.set({ [`watchProgress.${videoId}`]: entry }, { merge: true });
+    // set() treats a dotted key as a literal top-level field name (only
+    // update() reads it as a path), so write the nested map, which merge
+    // combines with sibling titles, and remove any literal legacy field.
+    await userRef.set({
+      watchProgress: { [videoId]: entry },
+      [`watchProgress.${videoId}`]: admin.firestore.FieldValue.delete(),
+    }, { merge: true });
     res.json({ videoId, ...entry });
   } catch (error) {
     next(error);
@@ -98,7 +105,10 @@ router.delete('/me/progress/:videoId', verifyToken, async (req, res, next) => {
   try {
     const userRef = db.collection('users').doc(req.user.uid);
     await userRef.set(
-      { [`watchProgress.${videoId}`]: admin.firestore.FieldValue.delete() },
+      {
+        watchProgress: { [videoId]: admin.firestore.FieldValue.delete() },
+        [`watchProgress.${videoId}`]: admin.firestore.FieldValue.delete(),
+      },
       { merge: true }
     );
     res.json({ videoId, removed: true });
