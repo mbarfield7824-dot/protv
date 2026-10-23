@@ -17,7 +17,7 @@ function mockBucket() {
   let race = false;
   const bucket = {
     file: (name, options = {}) => {
-      assert.match(name, /^creator-posters\/creator-[a-f0-9]{64}\.(png|jpg)$/);
+      assert.match(name, /^(creator-posters\/creator|title-posters\/title)-[a-f0-9]{64}\.(png|jpg)$/);
       return {
         getMetadata: async () => {
           if (fail === 'metadata') throw new Error('Synthetic metadata failure');
@@ -94,7 +94,9 @@ async function productionApi(store, storageModule) {
     './integrations/creatorPosterStore': {
       createCreatorPosterRouter: () => storageModule.createCreatorPosterRouter({ store }),
       createCreatorPosterStorageCheckRouter: router,
+      posterNotFound: storageModule.posterNotFound,
     },
+    './integrations/titlePosterUpload': { createTitlePosterRouter: router },
   });
   const handler = loadModule('../../api/index', { '../backend/src/app': app });
   const server = require('http').createServer((request, response) => {
@@ -184,6 +186,13 @@ test('Vercel bucket publishing serves validated artwork through actual API rewri
     assert.equal((await sharp(Buffer.from(await response.arrayBuffer())).metadata()).format, 'png');
     assert.equal((await fetch(url, { method: 'HEAD' })).status, 200);
     assert.equal((await fetch(`${api.base}/api/index?path=posters/creator-${'0'.repeat(64)}.png`)).status, 404);
+    // Missing posters of any name are JSON 404s, never the generic 500.
+    for (const name of [`title-${'0'.repeat(64)}.jpg`, 'legacy-poster.jpg', 'creator-short.png']) {
+      const missing = await fetch(`${api.base}/api/index?path=posters/${name}`);
+      assert.equal(missing.status, 404, name);
+      assert.equal(missing.headers.get('cache-control'), 'no-store');
+      assert.deepEqual(await missing.json(), { error: 'Poster not found.' });
+    }
     mock.fail('read');
     const failed = await fetch(url);
     assert.equal(failed.status, 503);
@@ -312,4 +321,39 @@ test('exactly 10 MiB valid PNG is accepted, resized and saved as one bounded buc
   assert.equal(metadata.width, 1000);
   assert.equal(metadata.height, 1000);
   assert.equal(mock.objects.size, 1);
+});
+
+test('global error handler keeps client errors as 4xx and hides server error details', async () => {
+  const mock = mockBucket();
+  const modules = productionModules(mock.bucket);
+  const app = loadModule('../src/app', {
+    './routes/auth': (() => { const r = express.Router(); r.post('/echo', (req, res) => res.json(req.body)); r.get('/boom', () => { throw new Error('private detail'); }); return r; })(),
+    './routes/videos': express.Router(), './routes/users': express.Router(),
+    './adminBot/router': { createAdminBotRouter: express.Router },
+    './distributorIngestion/router': { createDistributorIngestionRouter: express.Router },
+    './admin/router': { createAdminAssistantRouter: express.Router },
+    './ads/router': { createAdsRouter: express.Router },
+    './catalog/router': { createCatalogRouter: express.Router },
+    './catalog/adminPodcastRouter': { createAdminPodcastRouter: express.Router },
+    './live/router': { createLiveRouter: express.Router },
+    './live/adminRouter': { createAdminLiveRouter: express.Router },
+    './reports/router': { createReportRouters: () => ({ publicRouter: express.Router(), adminRouter: express.Router() }) },
+    './integrations/creatorPosterStore': {
+      createCreatorPosterRouter: () => modules.createCreatorPosterRouter({ store: new modules.CreatorPosterStore() }),
+      createCreatorPosterStorageCheckRouter: express.Router,
+      posterNotFound: modules.posterNotFound,
+    },
+    './integrations/titlePosterUpload': { createTitlePosterRouter: express.Router },
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  try {
+    const malformed = await fetch(`${base}/auth/echo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad' });
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(await malformed.json(), { error: 'Invalid request.' });
+    const broken = await fetch(`${base}/auth/boom`);
+    assert.equal(broken.status, 500);
+    assert.equal((await broken.text()).includes('private detail'), false);
+  } finally { server.close(); }
 });

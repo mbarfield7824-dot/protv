@@ -283,7 +283,9 @@ test('populated review and catalog preserve fields while separating routine and 
   assert.match(record.querySelector('h3').textContent, /Local review fixture/);
   assert.ok(record.querySelector('.admin-button-primary'));
   assert.ok(record.querySelector('.catalog-delete-button'));
-  assert.equal(record.querySelectorAll('input, select, textarea').length, 12);
+  // Twelve metadata fields plus the durable poster upload.
+  assert.equal(record.querySelectorAll('input, select, textarea').length, 13);
+  assert.equal(record.querySelector('input[type="file"]').getAttribute('accept'), 'image/png,image/jpeg');
 });
 
 test('unified tool styles are strictly Admin-scoped, including responsive and motion rules', () => {

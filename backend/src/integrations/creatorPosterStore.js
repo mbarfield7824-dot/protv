@@ -6,7 +6,9 @@ const { PosterService } = require('../adminBot/posterService');
 
 const MAX_STORED_POSTER_BYTES = 4 * 1024 * 1024;
 const POSTER_PREFIX = 'creator-posters/';
-const FILE_NAME = /^creator-([a-f0-9]{64})\.(png|jpg)$/;
+// Creator Studio transfers use creator-*; Administrator uploads use title-*.
+const PREFIXES = { creator: POSTER_PREFIX, title: 'title-posters/' };
+const FILE_NAME = /^(creator|title)-([a-f0-9]{64})\.(png|jpg)$/;
 
 async function validateStoredImage(bytes, mimeType) {
   const image = require('sharp')(bytes, { failOn: 'warning', limitInputPixels: 1_000_000 });
@@ -33,18 +35,18 @@ class CreatorPosterStore {
     if (!this.bucket && !this.local) throw new Error('Explicit Firebase Storage poster bucket is not configured.');
   }
 
-  async save(bytes, mimeType) {
+  async save(bytes, mimeType, kind = 'creator') {
     if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX_STORED_POSTER_BYTES
-      || !['image/png', 'image/jpeg'].includes(mimeType)) {
+      || !['image/png', 'image/jpeg'].includes(mimeType) || !Object.hasOwn(PREFIXES, kind)) {
       throw new Error('Invalid durable poster bytes or type.');
     }
     await validateStoredImage(bytes, mimeType);
     const hash = crypto.createHash('sha256').update(bytes).digest('hex');
-    const fileName = `creator-${hash}.${mimeType === 'image/png' ? 'png' : 'jpg'}`;
+    const fileName = `${kind}-${hash}.${mimeType === 'image/png' ? 'png' : 'jpg'}`;
     this.assertAvailable();
     if (this.bucket) {
       if (await this.read(fileName)) return this.urls.publicUrl(fileName);
-      const file = this.bucket.file(`${POSTER_PREFIX}${fileName}`);
+      const file = this.bucket.file(`${PREFIXES[kind]}${fileName}`);
       try {
         await file.save(bytes, {
           resumable: false, validation: 'crc32c',
@@ -75,20 +77,22 @@ class CreatorPosterStore {
       if (!this.local) throw new Error('Persistent Creator poster storage is unavailable.');
       return null; // The existing local express.static poster route handles development files.
     }
-    const file = this.bucket.file(`${POSTER_PREFIX}${fileName}`);
+    const [, kind, hash, extension] = match;
+    const objectName = `${PREFIXES[kind]}${fileName}`;
+    const file = this.bucket.file(objectName);
     let metadata;
     try { [metadata] = await file.getMetadata(); } catch (error) {
       if (Number(error.code) === 404) return null;
       throw error;
     }
-    const mimeType = match[2] === 'png' ? 'image/png' : 'image/jpeg';
+    const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
     const size = Number(metadata.size);
-    if (metadata.contentType !== mimeType || metadata.metadata?.sha256 !== match[1]
+    if (metadata.contentType !== mimeType || metadata.metadata?.sha256 !== hash
       || !/^\d+$/.test(String(metadata.size)) || !Number.isSafeInteger(size) || size <= 0
       || size > MAX_STORED_POSTER_BYTES || !/^\d+$/.test(String(metadata.generation))) {
       throw new Error('Stored poster metadata is invalid.');
     }
-    const stream = this.bucket.file(`${POSTER_PREFIX}${fileName}`, { generation: metadata.generation })
+    const stream = this.bucket.file(objectName, { generation: metadata.generation })
       .createReadStream({ validation: 'crc32c', decompress: false });
     const timer = setTimeout(() => stream.destroy(new Error('Poster storage read timed out.')), 30_000);
     const chunks = [];
@@ -105,12 +109,16 @@ class CreatorPosterStore {
     } finally { clearTimeout(timer); }
     if (actual !== size) throw new Error('Stored poster byte count is invalid.');
     const bytes = Buffer.concat(chunks, size);
-    if (crypto.createHash('sha256').update(bytes).digest('hex') !== match[1]) {
+    if (crypto.createHash('sha256').update(bytes).digest('hex') !== hash) {
       throw new Error('Stored poster integrity check failed.');
     }
     await validateStoredImage(bytes, mimeType);
     return { bytes, mimeType };
   }
+}
+
+function posterNotFound(response) {
+  return response.status(404).set('Cache-Control', 'no-store').json({ error: 'Poster not found.' });
 }
 
 function createCreatorPosterRouter({ store } = {}) {
@@ -120,7 +128,7 @@ function createCreatorPosterRouter({ store } = {}) {
     try {
       const current = store || new CreatorPosterStore();
       const image = await current.read(request.params.fileName);
-      if (!image) return current.local ? next() : response.sendStatus(404);
+      if (!image) return current.local ? next() : posterNotFound(response);
       return response.set({
         'Content-Type': image.mimeType,
         'Cache-Control': 'public, max-age=31536000, immutable',
@@ -178,4 +186,7 @@ function createCreatorPosterStorageCheckRouter({
   return router;
 }
 
-module.exports = { CreatorPosterStore, createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, MAX_STORED_POSTER_BYTES, POSTER_PREFIX };
+module.exports = {
+  CreatorPosterStore, createCreatorPosterRouter, createCreatorPosterStorageCheckRouter,
+  posterNotFound, MAX_STORED_POSTER_BYTES, POSTER_PREFIX,
+};

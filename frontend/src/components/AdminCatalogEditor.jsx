@@ -40,6 +40,7 @@ export default function AdminCatalogEditor() {
   const [ratingStatus, setRatingStatus] = useState('');
   const [savedId, setSavedId] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
+  const [posterUpload, setPosterUpload] = useState({ id: null, message: '', failed: false });
 
   const loadVideos = async () => {
     setLoading(true);
@@ -93,6 +94,22 @@ export default function AdminCatalogEditor() {
       ...current,
       [id]: validateCatalogVideo(updatedVideo),
     }));
+  };
+
+  // Stores a durable copy and updates the title immediately; the draft is
+  // synced so a later Save does not send the old link back.
+  const uploadPoster = async (video, file) => {
+    if (!file) return;
+    setPosterUpload({ id: video.id, message: 'Uploading poster...', failed: false });
+    try {
+      const { posterUrl } = await api.uploadTitlePoster(video.id, file);
+      setVideos((items) => items.map((item) => (
+        item.id === video.id ? { ...item, posterUrl, thumbnailUrl: posterUrl } : item
+      )));
+      setPosterUpload({ id: video.id, message: 'Poster uploaded and saved.', failed: false });
+    } catch (uploadError) {
+      setPosterUpload({ id: video.id, message: uploadError.message, failed: true });
+    }
   };
 
   const saveVideo = async (video) => {
@@ -256,6 +273,24 @@ export default function AdminCatalogEditor() {
               onChange={(event) => updateDraft(video.id, 'thumbnailUrl', event.target.value)}
             />
           </label>
+          <div className="admin-field-wide admin-poster-upload">
+            {video.thumbnailUrl && <img src={video.thumbnailUrl} alt="" className="admin-poster-preview" />}
+            <label>
+              Upload poster image <span className="optional">(PNG or JPEG, recommended)</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                disabled={posterUpload.id === video.id && posterUpload.message === 'Uploading poster...'}
+                onChange={(event) => { void uploadPoster(video, event.target.files?.[0]); event.target.value = ''; }}
+              />
+            </label>
+            <small>Uploaded posters are stored permanently by PROtv. Links to other sites can expire or be removed.</small>
+            {posterUpload.id === video.id && posterUpload.message && (
+              <span className={posterUpload.failed ? 'admin-error' : 'admin-subtitle'} role={posterUpload.failed ? 'alert' : 'status'}>
+                {posterUpload.message}
+              </span>
+            )}
+          </div>
           <label>
             Release Year
             <input min="1888" max="2100" type="number" value={video.year || ''} onChange={(event) => updateDraft(video.id, 'year', event.target.value)} />

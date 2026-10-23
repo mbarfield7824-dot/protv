@@ -135,16 +135,21 @@ async function transferPoster(projectId, poster, {
   if (!Buffer.isBuffer(bytes) || bytes.length !== poster.bytes || bytes.length > MAX_POSTER_BYTES) {
     throw new Error('Poster bytes do not match the declared size.');
   }
+  return storage.save(await normalizePosterImage(bytes, poster.mimeType), poster.mimeType);
+}
+
+// Shared by Creator transfers and Administrator uploads.
+async function normalizePosterImage(bytes, mimeType) {
   const image = sharp(bytes, { failOn: 'warning', limitInputPixels: 40_000_000 });
   const metadata = await image.metadata();
-  const format = poster.mimeType === 'image/png' ? 'png' : 'jpeg';
+  const format = mimeType === 'image/png' ? 'png' : 'jpeg';
   if (metadata.format !== format || (metadata.pages || 1) !== 1) throw new Error('Poster is not the declared static image format.');
   // Full decode and re-encode rejects corrupt images and strips embedded metadata.
   // Bound the public response below Vercel's payload limit, including worst-case RGBA PNGs.
   const clean = await image.resize({ width: 1000, height: 1000, fit: 'inside', withoutEnlargement: true })
     .toFormat(format).toBuffer();
   if (clean.length > MAX_STORED_POSTER_BYTES) throw new Error('Decoded poster exceeds the storage limit.');
-  return storage.save(clean, poster.mimeType);
+  return clean;
 }
 
 function promotionalBinding({ credits, poster }) {
@@ -160,5 +165,5 @@ function transferMatches(video, expected) {
 
 module.exports = {
   validatePromotional, posterSource, publicAddress, publicLookup, downloadPoster, transferPoster,
-  promotionalBinding, transferMatches, MAX_POSTER_BYTES,
+  promotionalBinding, transferMatches, MAX_POSTER_BYTES, normalizePosterImage,
 };

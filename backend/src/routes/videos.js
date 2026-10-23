@@ -417,7 +417,14 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
         : [normalizedCategory];
     }
     if (has('subgenre')) updates.subgenre = typeof req.body.subgenre === 'string' ? req.body.subgenre.trim() : '';
-    if (has('thumbnailUrl')) updates.thumbnailUrl = typeof req.body.thumbnailUrl === 'string' ? req.body.thumbnailUrl : '';
+    if (has('thumbnailUrl')) {
+      updates.thumbnailUrl = typeof req.body.thumbnailUrl === 'string' ? req.body.thumbnailUrl : '';
+      // An uploaded poster sets both fields; replacing its link replaces both.
+      if (existing.posterUrl && existing.posterUrl === existing.thumbnailUrl
+        && updates.thumbnailUrl !== existing.thumbnailUrl) {
+        updates.posterUrl = updates.thumbnailUrl;
+      }
+    }
     if (has('year')) {
       updates.year = Number.isInteger(Number(req.body.year)) && Number(req.body.year) >= 1888
         ? Number(req.body.year)

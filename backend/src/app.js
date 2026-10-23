@@ -14,7 +14,8 @@ const { createAdminPodcastRouter } = require('./catalog/adminPodcastRouter');
 const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
 const { createReportRouters } = require('./reports/router');
-const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter } = require('./integrations/creatorPosterStore');
+const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, posterNotFound } = require('./integrations/creatorPosterStore');
+const { createTitlePosterRouter } = require('./integrations/titlePosterUpload');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -30,6 +31,7 @@ app.use(express.json({
 }));
 app.use(`${apiPrefix}/posters`, createCreatorPosterRouter());
 app.use(`${apiPrefix}/admin/creator-posters`, createCreatorPosterStorageCheckRouter());
+app.use(`${apiPrefix}/admin/title-posters`, createTitlePosterRouter());
 app.use(
   `${apiPrefix}/posters`,
   express.static(path.resolve(process.env.PD_POSTER_DIRECTORY || path.join(__dirname, '../.data/posters')), {
@@ -58,9 +60,17 @@ app.use(`${apiPrefix}/distributor-ingestion`, createDistributorIngestionRouter()
 app.use(`${apiPrefix}/admin-assistant`, createAdminAssistantRouter());
 app.use(`${apiPrefix}/ads`, createAdsRouter());
 
+// Client errors raised by middleware (missing static files, oversized or
+// malformed bodies) keep their 4xx status; everything else stays a generic 500.
 app.use((err, req, res, next) => {
+  const status = Number(err.status || err.statusCode);
+  if (status === 404 && req.path.startsWith(`${apiPrefix}/posters/`)) return posterNotFound(res);
+  if (status >= 400 && status < 500) {
+    const messages = { 404: 'Not found.', 413: 'Request body is too large.' };
+    return res.status(status).json({ error: messages[status] || 'Invalid request.' });
+  }
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  return res.status(500).json({ error: 'Something went wrong!' });
 });
 
 module.exports = app;

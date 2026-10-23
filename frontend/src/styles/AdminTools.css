@@ -575,3 +575,23 @@
     .pd-upload-progress-track > div) { transition: none; }
   .admin-command__workspace :is(.admin-spinner, .admin-assistant-spinner) { animation-duration: 2s; }
 }
+
+.admin-poster-upload {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  align-items: center;
+}
+
+.admin-poster-upload > :not(.admin-poster-preview) {
+  grid-column: 2;
+}
+
+.admin-poster-preview {
+  grid-row: 1 / span 3;
+  width: 72px;
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .04);
+}
