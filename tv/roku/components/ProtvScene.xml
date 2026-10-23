@@ -128,6 +128,37 @@
       </Label>
     </Group>
 
+    <!-- Series: seasons from real season numbers, then that season's episodes. -->
+    <Group id="seriesScreen" visible="false">
+      <Poster id="seriesBackdrop" width="1280" height="560" loadWidth="56" loadHeight="24" loadDisplayMode="scaleToZoom" opacity="0.8" />
+      <Poster uri="pkg:/assets/hero-scrim.png" width="1280" height="560" loadDisplayMode="scaleToFill" />
+      <Poster uri="pkg:/assets/panel.9.png" translation="[52,88]" width="304" height="444" />
+      <Poster id="seriesFallbackArt" uri="pkg:/assets/poster-fallback.jpg" translation="[64,100]" width="280" height="420" loadDisplayMode="scaleToFill" />
+      <Label id="seriesFallback" translation="[84,220]" width="240" height="180" horizAlign="center" wrap="true" maxLines="5" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="24" />
+      </Label>
+      <Poster id="seriesArt" translation="[64,100]" width="280" height="420" loadWidth="280" loadHeight="420" loadDisplayMode="scaleToFit" />
+      <Poster uri="pkg:/assets/panel-mask.9.png" translation="[64,100]" width="280" height="420" />
+      <Rectangle translation="[400,111]" width="28" height="3" color="0x60A5FAFF" />
+      <Label text="PROtv SERIES" translation="[440,100]" width="700" height="24" color="0xAFC8F5FF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="17" />
+      </Label>
+      <Label id="seriesTitle" translation="[400,132]" width="816" height="56" maxLines="1" vertAlign="center" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="40" />
+      </Label>
+      <Label id="seriesMeta" translation="[400,192]" width="816" height="28" color="0xC9D9F8FF">
+        <Font role="font" uri="font:SystemFontFile" size="19" />
+      </Label>
+      <Group id="seriesSeasons" translation="[412,244]" />
+      <LabelList id="seriesEpisodes" translation="[400,316]" itemSize="[816,48]" numRows="5" itemSpacing="[0,4]" vertFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/assets/nav-focus.9.png" color="0xC9D1E4FF" focusedColor="0xFFFFFFFF" textHorizAlign="left">
+        <Font role="font" uri="font:SystemFontFile" size="20" />
+        <Font role="focusedFont" uri="font:BoldSystemFontFile" size="20" />
+      </LabelList>
+      <Label text="Up for seasons  ·  OK opens an episode  ·  Back returns to Series" translation="[400,600]" width="816" height="24" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="16" />
+      </Label>
+    </Group>
+
     <Group id="account" translation="[136,0]" visible="false">
       <Label text="Your PROtv account" translation="[0,96]" width="940" height="52" color="0xFFFFFFFF">
         <Font role="font" uri="font:BoldSystemFontFile" size="36" />
@@ -178,7 +209,7 @@
         <PillButton id="accountSignOut" text="Sign Out" style="secondary" width="160" height="48" visible="false" />
         <PillButton id="accountBack" text="Back" style="secondary" width="132" height="48" />
       </Group>
-      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. Account sessions stay in memory only, so restarting the app requires linking again. Progress and My List are never stored for guests. Roku development preview.">
+      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays linked until you select Sign Out. Guest Continue Watching is saved on this TV only; My List needs a linked account.">
         <Font role="font" uri="font:SystemFontFile" size="15" />
       </Label>
     </Group>

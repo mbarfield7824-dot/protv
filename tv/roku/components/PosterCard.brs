@@ -106,13 +106,21 @@ sub render()
     timeLeft.visible = progress and item.timeLeft <> ""
     timeLeft.text = item.timeLeft
     shade.width = width
-    shade.translation = [0, height - 36]
     trackWidth = width - 16
-    if timeLeft.visible then trackWidth = width - 92
+    if item.landscape
+        ' Wide cards: time left beside the bar.
+        shade.height = 36
+        if timeLeft.visible then trackWidth = width - 92
+        timeLeft.translation = [width - 78, height - 20]
+    else
+        ' Portrait cards: full-width bar with time left above it.
+        shade.height = 48
+        timeLeft.translation = [width - 78, height - 34]
+    end if
+    shade.translation = [0, height - shade.height]
     track.width = trackWidth
     track.translation = [8, height - 12]
     fill.translation = [8, height - 12]
-    timeLeft.translation = [width - 78, height - 20]
     fill.width = 0
     percent = item.progressPercent
     if progress and (GetInterface(percent, "ifInt") <> invalid or GetInterface(percent, "ifFloat") <> invalid or GetInterface(percent, "ifDouble") <> invalid)

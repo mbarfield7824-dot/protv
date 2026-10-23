@@ -28,7 +28,9 @@ Start with the [read-only architecture audit](docs/ARCHITECTURE.md), then the
   framed panel; catalog artwork is never cropped or stretched. While nobody
   is browsing the rails the spotlight rotates every 8 s, with position dots.
   Titles with a real `heroImageUrl` (HTTPS or `/posters/`) get that wide art
-  at full resolution instead of the wash, on the hero and details.
+  at full resolution instead of the wash, on the hero and details. Rail cards
+  are 2:3 portrait (v0.5), including Continue Watching and episodes; a row
+  switches to wide cards only when every title in it has real wide art.
 - Two home arrangements (v0.4): **hero** (full featured title, 176 x 264
   poster, one full rail, the next rail fading out) and **browse** (rails
   focused: compact title, two full rails). They animate in 0.35 s.
@@ -76,9 +78,13 @@ Start with the [read-only architecture audit](docs/ARCHITECTURE.md), then the
   Firebase custom-token flow. Roku displays the backend-issued URL and code,
   polls at its supplied interval, validates expiry, and retries transient
   failures with bounded backoff. No credentials are entered on the TV.
-- Firebase ID/refresh tokens are held in memory only, refreshed through Firebase
-  Auth REST, and cleared on Sign Out. No passwords or tokens are written to the
-  Roku registry or logs. Restarting the app requires linking again.
+- The TV stays linked across restarts (v0.5, owner-approved): the viewer ID,
+  Firebase ID token, refresh token and expiry are saved in this app's Roku
+  registry section (`PROtv/account`). At launch the session is refreshed
+  through Firebase Auth REST before any account request. Sign Out or a
+  Firebase 4xx rejection deletes it; an offline or 5xx refresh keeps it for a
+  retry. Device secrets, activation codes and passwords are never saved, and
+  no token is logged.
 - Continue Watching reads the signed-in viewer's existing
   `/users/me/progress` map, joins exact IDs to the current catalog, sorts by
   recent progress, and renders the existing artwork cards with a progress bar.
@@ -86,13 +92,21 @@ Start with the [read-only architecture audit](docs/ARCHITECTURE.md), then the
   position.
 - Signed-in playback saves progress after at least 20 seconds of advancement,
   and flushes on pause, Back/exit from the player, and finish. Writes update the
-  existing per-title map entry. Guest playback remains available and makes no
-  progress requests or writes.
+  existing per-title map entry. Guests get Continue Watching on this TV only
+  (`PROtv/guestProgress`, the 50 most recent titles, same 20-second
+  checkpoints); guest progress never reaches the account, and signing in
+  switches to the account's own progress. Resume uses `content.PlayStart`.
 - Continue Watching requires the existing Firebase **public web client API
   key** at packaging time. It is client configuration, not a privileged key;
   never use a Firebase Admin/service-account key here.
-- My List, persistent Roku sign-in, series smart bookmarks and favorites are
-  not implemented.
+- Series (v0.5): one tile per series; its screen lists seasons from real
+  `seasonNumber` values and episodes ordered by `episodeNumber`. Episodes
+  without a number are listed as "Episodes" (or "More episodes"); nothing is
+  invented. Public streams add `roku_trick_play=true` so Mux supplies Roku
+  trick-play thumbnails; signed streams would need it inside the token.
+- The Home catalog reloads quietly when the viewer returns Home after 15
+  minutes, keeping their place. `AppLaunchComplete` is signalled once per
+  launch: home rendered, error shown, or deep-linked playback started.
 
 ## Reproducible local build (Windows PowerShell)
 
@@ -147,9 +161,10 @@ are covered by offline contract/simulation tests only.
 - The backend does not expose an activation rejection state or a TV-specific
   session registry/revoker. An activation code the viewer no longer wants must
   expire (10 minutes); the Roku shows only states the current service returns.
-- Roku's app runtime has no secure credential store used here. Tokens are
-  deliberately not persisted, so Continue Watching is fetched again after a
-  new activation. Progress is not cached for offline account access.
+- The Roku registry is private to this app but not encrypted. Someone with
+  the TV in hand and developer access could read the saved refresh token,
+  which grants that viewer's progress and My List until Sign Out or a
+  Firebase revocation (for example a password change).
 - The backend stores progress without a server TTL/completion marker. The
   client keeps completed entries in server history and hides entries at 95%
   from Continue Watching, matching the existing Fire TV rule. Catalog IDs no

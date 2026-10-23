@@ -1,5 +1,37 @@
 # Roku validation record
 
+## Completion sprint (v0.5) - 2026-10-23 (local time)
+- B1 account linking: the packager injects the website's existing public
+  Firebase web key (ROKU_FIREBASE_API_KEY, else the gitignored
+  frontend/.env) into the ZIP only; source keeps an empty key.
+- B2 saved sign-in in the app's registry section; refresh at launch; offline
+  refresh keeps it, Firebase 4xx or Sign Out deletes it.
+- B3 AppLaunchComplete once per launch (certification 3.2).
+- B4 resume via content.PlayStart (seek before play removed).
+- B5 Roku certification 4.7 requires trick-play thumbnails for VOD over
+  15 minutes; Mux returns EXT-X-IMAGE-STREAM-INF with roku_trick_play=true
+  (verified on the live manifest). Signed streams would need it in the token;
+  the live catalog has no signed titles.
+- D1 portrait 2:3 cards for Continue Watching and episodes; D2 quiet catalog
+  reload on returning Home after 15 minutes; D3 guest Continue Watching on
+  this TV (certification 4.10 bookmarking applies to guests too).
+- Series screen: seasons from real season numbers, episodes by number.
+- **Defect fixed (present since the first Roku commit):** the init node loop
+  assigned the Account screen node to m.account, so guests were treated as
+  signed in (Account showed "Signed in", My List writes silently dropped) and
+  m.account.visible would fail after sign-out. The screen is now
+  m.accountScreen.
+- Token expiry is kept as an integer (a Float lost ~100 s of precision).
+- npm run check: 0 diagnostics. npm test: 9/9, 162 model assertions, 67
+  scene regressions. npm run smoke (live, read-only): 56 titles, AI Cinema
+  (The Bundy Chronicles) in its view and Home row, 5 series grouped with no
+  episode lost, playback authorization 200, HLS master 200 with Roku
+  trick-play playlist.
+- ZIP: dist/protv-roku.zip, 669,391 bytes, SHA-256
+  cfb2c11bcea2cd42940e6186279a091545ebb7933a386ce12c25449e0aadb3bb.
+- **Not device tested.** Memory, focus rendering, LabelList behaviour,
+  registry persistence and trick-play thumbnails need hardware confirmation.
+
 ## Owner device feedback fixes (v0.4) - 2026-10-23 (local time)
 
 - Right-side space: full-width hero wash, 176 x 264 poster, wider copy,

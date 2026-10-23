@@ -96,11 +96,10 @@ end function
 
 function ArtworkSource(item as Object) as String
     if HeldArtwork(Text(item.id)) then return ""
-    if Text(item.contentType) = "EPISODE"
-        fields = ["heroImageUrl", "thumbnailUrl", "posterUrl"]
-    else
-        fields = ["posterUrl", "thumbnailUrl"]
-    end if
+    ' Cards are 2:3, so portrait art comes first. Wide hero art is only an
+    ' episode fallback here; all-wide rows use item.backdrop instead.
+    fields = ["posterUrl", "thumbnailUrl"]
+    if Text(item.contentType) = "EPISODE" then fields.Push("heroImageUrl")
     for each field in fields
         url = Text(item[field])
         if Left(url, 8) = "https://" then return url
@@ -275,23 +274,9 @@ function ViewRows(items as Object, view as String) as Object
             rows.Push({ title: categories[key].title, items: CreatorsFirst(categories[key].items), landscape: false })
         end for
     else if view = "series"
-        groups = {}
-        order = []
-        for each item in items
-            if item.contentType = "EPISODE"
-                name = Text(item.seriesTitle).Trim()
-                if name = "" then name = Text(item.title)
-                key = LCase(name)
-                if not groups.DoesExist(key)
-                    groups[key] = { title: name, items: [], landscape: true }
-                    order.Push(key)
-                end if
-                groups[key].items.Push(item)
-            end if
-        end for
-        for each key in order
-            rows.Push(groups[key])
-        end for
+        ' One tile per series; selecting it opens seasons and episodes.
+        list = SeriesList(items)
+        if list.Count() > 0 then rows.Push({ title: "All Series", items: list, landscape: false, kind: "series" })
     else if view = "blackcinema" or view = "aicinema"
         genre = "Black Cinema"
         if view = "aicinema" then genre = "AI Cinema"
@@ -597,7 +582,8 @@ function ProgressSaveDue(positionSeconds as Integer, lastSavedSeconds as Integer
     if positionSeconds <= 0 then return false
     if positionSeconds = lastSavedSeconds then return false
     if force then return true
-    return positionSeconds - lastSavedSeconds >= 20
+    ' Either direction: seeking back must checkpoint too.
+    return Abs(positionSeconds - lastSavedSeconds) >= 20
 end function
 
 function CurrentEpochSeconds() as Integer
@@ -631,8 +617,14 @@ function PlaybackUrl(payload as Dynamic, item as Object) as Object
             return result
         end if
     end if
+    ' roku_trick_play adds Mux's Roku thumbnail playlist (certification 4.7).
+    ' Signed URLs accept parameters only inside the token, so they stay as-is.
     result.url = "https://stream.mux.com/" + id + ".m3u8"
-    if token <> "" then result.url = result.url + "?token=" + token
+    if token <> ""
+        result.url = result.url + "?token=" + token
+    else
+        result.url = result.url + "?roku_trick_play=true"
+    end if
     return result
 end function
 
@@ -654,4 +646,197 @@ function ResolveLaunch(request as Dynamic, items as Object) as Object
     end for
     result.error = "This title is unavailable. Browse PROtv instead."
     return result
+end function
+
+' Wide cards only when every title in the row has real wide art.
+function AllWideArtwork(items as Object) as Boolean
+    if items.Count() = 0 then return false
+    for each item in items
+        if Text(item.backdrop) = "" then return false
+    end for
+    return true
+end function
+
+function CatalogStale(loadedAtSeconds as Integer, nowSeconds as Integer) as Boolean
+    return nowSeconds - loadedAtSeconds >= 900
+end function
+
+' Guest progress kept on this TV, in the same shape as /users/me/progress.
+function LocalProgressEntry(positionSeconds as Integer, durationSeconds as Dynamic, nowSeconds as Integer) as Object
+    percent = positionSeconds * 100.0 / durationSeconds
+    if percent > 100 then percent = 100
+    return { positionSeconds: positionSeconds, durationSeconds: durationSeconds, progressPercent: percent, updatedAt: nowSeconds }
+end function
+
+' Adds or replaces one entry and keeps only the most recently updated ones.
+function RecordProgress(progress as Object, videoId as String, entry as Object, limit as Integer) as Object
+    result = {}
+    result.SetModeCaseSensitive()
+    for each id in progress
+        if not ExactStringEquals(id, videoId) then result[id] = progress[id]
+    end for
+    result[videoId] = entry
+    while result.Count() > limit
+        oldest = ""
+        oldestTime = invalid
+        for each id in result
+            if oldestTime = invalid or ProgressUpdatedAt(result, id) < oldestTime
+                oldest = id
+                oldestTime = ProgressUpdatedAt(result, id)
+            end if
+        end for
+        result.Delete(oldest)
+    end while
+    return result
+end function
+
+function ParseStoredProgress(json as String) as Object
+    result = {}
+    result.SetModeCaseSensitive()
+    if json = "" then return result
+    payload = ParseJson(json)
+    if not IsMap(payload) then return result
+    for each id in payload
+        if id <> "" and Len(id) <= 255 and ValidProgressEntry(payload[id]) then result[id] = payload[id]
+    end for
+    return result
+end function
+
+' A saved TV sign-in; anything malformed is discarded, never repaired.
+function ParseStoredAccount(json as String) as Dynamic
+    if json = "" then return invalid
+    payload = ParseJson(json)
+    if not IsMap(payload) then return invalid
+    account = { viewerId: Text(payload.viewerId), idToken: Text(payload.idToken), refreshToken: Text(payload.refreshToken), expiresAtSeconds: 0 }
+    if not HasViewerSession(account) then return invalid
+    if IsNumber(payload.expiresAtSeconds) then account.expiresAtSeconds = IntValue(payload.expiresAtSeconds)
+    return account
+end function
+
+function StoredAccountJson(account as Object) as String
+    return FormatJson({ viewerId: account.viewerId, idToken: account.idToken, refreshToken: account.refreshToken, expiresAtSeconds: IntValue(account.expiresAtSeconds) })
+end function
+
+function IntValue(value as Dynamic) as Integer
+    if GetInterface(value, "ifInt") <> invalid then return value
+    if IsNumber(value) then return Int(value)
+    return Int(Val(Text(value)))
+end function
+
+' Episodes group by series title; one without a series title stands alone
+' under its own title.
+function SeriesName(item as Object) as String
+    name = Text(item.seriesTitle).Trim()
+    if name = "" then name = Text(item.title)
+    return name
+end function
+
+function SeriesList(items as Object) as Object
+    groups = {}
+    order = []
+    for each item in items
+        if item.contentType = "EPISODE"
+            name = SeriesName(item)
+            key = LCase(name)
+            if not groups.DoesExist(key)
+                groups[key] = { id: "series:" + key, title: name, episodes: [], artwork: "", backdrop: "" }
+                order.Push(key)
+            end if
+            series = groups[key]
+            series.episodes.Push(item)
+            if series.artwork = "" then series.artwork = Text(item.artwork)
+            if series.backdrop = "" then series.backdrop = Text(item.backdrop)
+        end if
+    end for
+    result = []
+    for each key in order
+        result.Push(groups[key])
+    end for
+    return result
+end function
+
+' Seasons come only from real season numbers. Episodes without one are
+' listed as "Episodes", or "More episodes" beside numbered seasons.
+function SeriesSeasons(episodes as Object) as Object
+    numbered = {}
+    numbers = []
+    loose = []
+    for each episode in episodes
+        if PositiveInteger(episode.seasonNumber)
+            key = IntValue(episode.seasonNumber).ToStr().Trim()
+            if not numbered.DoesExist(key)
+                numbered[key] = []
+                numbers.Push(IntValue(episode.seasonNumber))
+            end if
+            numbered[key].Push(episode)
+        else
+            loose.Push(episode)
+        end if
+    end for
+    numbers.Sort()
+    seasons = []
+    for each number in numbers
+        key = number.ToStr().Trim()
+        seasons.Push({ title: "Season " + key, episodes: SortEpisodes(numbered[key]) })
+    end for
+    if loose.Count() > 0
+        label = "Episodes"
+        if seasons.Count() > 0 then label = "More episodes"
+        seasons.Push({ title: label, episodes: SortEpisodes(loose) })
+    end if
+    return seasons
+end function
+
+' Numbered episodes in order, then unnumbered ones in catalog order.
+function SortEpisodes(episodes as Object) as Object
+    numbered = []
+    loose = []
+    for each episode in episodes
+        if PositiveInteger(episode.episodeNumber)
+            numbered.Push(episode)
+        else
+            loose.Push(episode)
+        end if
+    end for
+    if numbered.Count() > 1
+        for first = 0 to numbered.Count() - 2
+            for second = first + 1 to numbered.Count() - 1
+                if IntValue(numbered[second].episodeNumber) < IntValue(numbered[first].episodeNumber)
+                    swap = numbered[first]
+                    numbered[first] = numbered[second]
+                    numbered[second] = swap
+                end if
+            end for
+        end for
+    end if
+    numbered.Append(loose)
+    return numbered
+end function
+
+function EpisodeLabel(episode as Object) as String
+    parts = []
+    if PositiveInteger(episode.episodeNumber) then parts.Push("E" + IntValue(episode.episodeNumber).ToStr().Trim())
+    name = Text(episode.episodeTitle).Trim()
+    if name = "" then name = Text(episode.title)
+    parts.Push(name)
+    runtime = Text(episode.runtime)
+    if runtime = "" then runtime = FormatRuntime(episode.duration)
+    if runtime <> "" then parts.Push(runtime)
+    return parts.Join("  " + Chr(183) + "  ")
+end function
+
+function SeriesMeta(seasons as Object, episodeCount as Integer) as String
+    parts = []
+    numbered = 0
+    for each season in seasons
+        if Left(season.title, 7) = "Season " then numbered++
+    end for
+    if numbered = 1 then parts.Push("1 season")
+    if numbered > 1 then parts.Push(numbered.ToStr().Trim() + " seasons")
+    if episodeCount = 1
+        parts.Push("1 episode")
+    else
+        parts.Push(episodeCount.ToStr().Trim() + " episodes")
+    end if
+    return parts.Join("  " + Chr(183) + "  ")
 end function

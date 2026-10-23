@@ -6,9 +6,22 @@ import { zipSync } from 'fflate';
 
 export const root = fileURLToPath(new URL('..', import.meta.url));
 
+// The existing public Firebase web key: ROKU_FIREBASE_API_KEY, otherwise the
+// website's gitignored frontend/.env. It is injected into the ZIP only and
+// never written to source.
+export async function resolveFirebaseApiKey() {
+  if (process.env.ROKU_FIREBASE_API_KEY !== undefined) return process.env.ROKU_FIREBASE_API_KEY;
+  try {
+    const env = await readFile(path.join(root, '..', '..', 'frontend', '.env'), 'utf8');
+    return /^VITE_FIREBASE_API_KEY=["']?([^"'\r\n]*)/m.exec(env)?.[1] || '';
+  } catch {
+    return '';
+  }
+}
+
 export async function packageBytes() {
   const files = {};
-  const firebaseApiKey = process.env.ROKU_FIREBASE_API_KEY || '';
+  const firebaseApiKey = await resolveFirebaseApiKey();
   if (firebaseApiKey && !/^[A-Za-z0-9_-]{20,256}$/.test(firebaseApiKey)) {
     throw new Error('ROKU_FIREBASE_API_KEY must be a Firebase public client API key.');
   }
@@ -43,5 +56,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   await writeFile(output, bytes);
   const hash = createHash('sha256').update(bytes).digest('hex');
   await writeFile(`${output}.sha256`, `${hash}  protv-roku.zip\n`);
-  console.log(`Built ${output}\nSHA256 ${hash}\nNo deployment or device verification performed.`);
+  const linking = (await resolveFirebaseApiKey()) ? 'Account linking: enabled (public Firebase web key injected).' : 'Account linking: DISABLED (no public Firebase web key found).';
+  console.log(`Built ${output}\nSHA256 ${hash}\n${linking}\nNo deployment or device verification performed.`);
 }

@@ -39,11 +39,21 @@ sub init()
     m.lastSavedPosition = 0
     m.browsing = false
     m.sidebarExpanded = false
+    m.refreshing = false
+    m.catalogLoadedAt = 0
+    m.launchSignaled = false
+    m.seriesItem = invalid
+    m.seasons = []
+    m.seasonIndex = 0
+    m.seriesEpisodeIndex = 0
+    m.storage = RegistryStorage()
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "account", "accountButtons", "video", "status", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim"]
         m[id] = m.top.findNode(id)
     end for
+    ' Not m.account: that holds the viewer session (invalid for guests).
+    m.accountScreen = m.top.findNode("account")
     for index = 0 to m.nav.getChildCount() - 1
         m.nav.getChild(index).observeField("buttonSelected", "navSelected")
     end for
@@ -69,18 +79,84 @@ sub init()
     m.backdropFront = m.top.findNode("backdropA")
     m.top.findNode("heroArt").observeField("loadStatus", "heroArtStatus")
     m.top.findNode("detailArt").observeField("loadStatus", "detailArtStatus")
+    m.top.findNode("seriesArt").observeField("loadStatus", "seriesArtStatus")
+    m.seriesEpisodes.observeField("itemSelected", "episodeSelected")
     m.accountPollTimer.observeField("fire", "activationPollTimerFired")
     m.progressTimer.observeField("fire", "progressTimerFired")
+    restoreSession()
     showAccountState()
     layoutNav()
     focusNav()
     loadCatalog()
 end sub
 
+' This app's registry section; tests substitute an in-memory object.
+function RegistryStorage() as Object
+    return {
+        section: CreateObject("roRegistrySection", "PROtv"),
+        read: function(key as String) as String
+            if m.section.Exists(key) then return m.section.Read(key)
+            return ""
+        end function,
+        write: sub(key as String, value as String)
+            m.section.Write(key, value)
+            m.section.Flush()
+        end sub,
+        remove: sub(key as String)
+            m.section.Delete(key)
+            m.section.Flush()
+        end sub
+    }
+end function
+
+' Guests resume from progress kept on this TV. A saved sign-in is restored
+' and refreshed through Firebase before any account request.
+sub restoreSession()
+    m.progress = ParseStoredProgress(m.storage.read("guestProgress"))
+    m.progressLoaded = true
+    if FirebaseApiKey() = "" then return
+    stored = ParseStoredAccount(m.storage.read("account"))
+    if stored = invalid
+        m.storage.remove("account")
+        return
+    end if
+    m.account = stored
+    m.progress = {}
+    m.progressLoaded = false
+    beginAccountAction("progress-read")
+end sub
+
+sub storeAccount()
+    if HasViewerSession(m.account) then m.storage.write("account", StoredAccountJson(m.account))
+end sub
+
+' After sign-out or a rejected session: forget the account, return to guest progress.
+sub forgetAccount()
+    m.storage.remove("account")
+    m.progress = ParseStoredProgress(m.storage.read("guestProgress"))
+    m.progressLoaded = true
+end sub
+
+' Roku measures launch time to this beacon (certification 3.2): the home
+' screen, an error screen, or deep-linked playback starting.
+sub signalLaunchComplete()
+    if m.launchSignaled then return
+    m.launchSignaled = true
+    m.top.signalBeacon("AppLaunchComplete")
+end sub
+
+' Returning Home after 15 minutes quietly reloads the catalog.
+sub refreshCatalogIfStale()
+    if not m.loaded or m.loading then return
+    if not CatalogStale(m.catalogLoadedAt, CurrentEpochSeconds()) then return
+    m.refreshing = true
+    loadCatalog()
+end sub
+
 sub loadCatalog()
     if m.loading then return
     m.loading = true
-    m.status.text = "Loading PROtv..."
+    if not m.refreshing then m.status.text = "Loading PROtv..."
     m.catalogTask = CreateObject("roSGNode", "HttpTask")
     m.catalogTask.kind = "catalog"
     m.catalogTask.path = "/v1/catalog?view=all"
@@ -91,22 +167,37 @@ end sub
 sub catalogLoaded()
     m.loading = false
     result = m.catalogTask.result
+    refreshing = m.refreshing
+    m.refreshing = false
     if result.error <> ""
+        if refreshing
+            ' Keep browsing the catalog already on screen; the next return Home retries.
+            print "PROtv: catalog refresh failed; current catalog kept"
+            return
+        end if
         showHeroMessage("PROtv is unavailable", result.error + " Select Home to retry.")
         m.status.text = result.error + " Select Home to retry."
+        signalLaunchComplete()
         return
     end if
     m.items = result.items
+    m.catalogLoadedAt = CurrentEpochSeconds()
     firstLoad = not m.loaded
     m.loaded = true
     layoutNav()
-    showRows()
+    if refreshing
+        refreshRows()
+    else
+        showRows()
+    end if
     if m.pendingLaunch <> invalid
         applyLaunch()
     else if firstLoad and m.mode = "home" and m.navIndex = 0 and m.nav.isInFocusChain() and m.heroItem <> invalid
         ' Land on the featured title, not on the menu.
         focusHero()
     end if
+    ' A deep link signals once its playback starts or fails.
+    if m.playTask = invalid and not m.video.visible then signalLaunchComplete()
 end sub
 
 ' Hides destinations that have nothing to show and restacks the rest.
@@ -139,12 +230,12 @@ function NextNavIndex(current as Integer, stepValue as Integer) as Integer
     return current
 end function
 
+' Continue Watching uses account progress when signed in, otherwise this TV's.
 function PersonalRow(kind as String) as Dynamic
-    if m.account = invalid then return invalid
     if kind = "continue" and m.progressLoaded
         items = ContinueWatchingItems(m.items, m.progress)
         if items.Count() > 0 then return { title: "Continue Watching", items: items, landscape: true, kind: "titles", progress: true }
-    else if kind = "mylist" and m.favoritesLoaded
+    else if kind = "mylist" and m.account <> invalid and m.favoritesLoaded
         items = FavoriteItems(m.items, m.favorites)
         if items.Count() > 0 then return { title: "My List", items: items, landscape: false, kind: "titles" }
     end if
@@ -187,6 +278,8 @@ function BuildRows() as Object
     end if
     for each row in rows
         if row.kind = invalid then row.kind = "titles"
+        ' 2:3 portrait cards unless every title has real wide artwork.
+        if row.landscape = true and row.kind = "titles" then row.landscape = AllWideArtwork(row.items)
         row.cta = row.title = "From PROtv Creators" and (m.view = "home" or m.view = "creators")
     end for
     return rows
@@ -205,8 +298,12 @@ sub showRows()
             child.title = item.title
             if row.kind = "moods"
                 child.addFields({ kind: "mood", id: item.id, icon: item.icon, active: item.id = m.mood, landscape: false })
+            else if row.kind = "series"
+                child.HDPosterUrl = item.artwork
+                child.addFields({ kind: "series", id: item.id, landscape: false, creator: false, subtitle: SeriesMeta(SeriesSeasons(item.episodes), item.episodes.Count()), continueWatching: false, progressPercent: 0, timeLeft: "" })
             else
                 child.HDPosterUrl = item.artwork
+                if row.landscape then child.HDPosterUrl = item.backdrop
                 cardFields = { kind: "title", id: item.id, landscape: row.landscape, creator: IsCreatorTitle(item), subtitle: CardSubtitle(item), continueWatching: false, progressPercent: 0, timeLeft: "" }
                 if row.DoesExist("progress") and m.progress.DoesExist(item.id)
                     cardFields.continueWatching = true
@@ -244,7 +341,11 @@ sub showRows()
         showEmptyView()
     else
         m.status.text = ""
-        if m.spotlight.Count() > 0 then updateHero(m.spotlight[0], "spotlight")
+        if m.spotlight.Count() > 0
+            updateHero(m.spotlight[0], "spotlight")
+        else if m.rows[0].kind = "series"
+            showSeriesHero(m.rows[0].items[0])
+        end if
         updateRailCount(0)
     end if
     restartRotation()
@@ -296,7 +397,7 @@ sub showEmptyView()
     if m.view = "search"
         m.status.text = "No matching titles. Select Search or Home."
         showHeroMessage("Nothing found", "Try another title or genre, or select Home to browse everything on PROtv.")
-    else if (m.view = "mylist" or m.view = "continue") and m.account = invalid
+    else if m.view = "mylist" and m.account = invalid
         showHeroMessage("Link your account", "Select Account in the menu to link this TV. My List and Continue Watching follow you across the PROtv website, Fire TV and Roku.")
     else if m.view = "mylist"
         showHeroMessage("My List is empty", "Select + My List on any title to save it here.")
@@ -315,6 +416,7 @@ sub updateRailCount(rowIndex as Integer)
     if rowIndex < 0 or rowIndex >= m.rows.Count() then return
     row = m.rows[rowIndex]
     if row.kind = "titles" and row.items.Count() > 1 then label.text = row.items.Count().ToStr().Trim() + " titles"
+    if row.kind = "series" and row.items.Count() > 1 then label.text = row.items.Count().ToStr().Trim() + " series"
 end sub
 
 sub showHeroMessage(title as String, description as String)
@@ -642,6 +744,107 @@ sub titleFocused()
     if not validPair(pair) then return
     updateRailCount(pair[0])
     if m.rows[pair[0]].kind = "titles" then updateHero(m.rows[pair[0]].items[pair[1]], "rail")
+    if m.rows[pair[0]].kind = "series" then showSeriesHero(m.rows[pair[0]].items[pair[1]])
+end sub
+
+' The hero describes a focused series; selecting the tile opens it.
+sub showSeriesHero(series as Object)
+    m.heroItem = invalid
+    m.heroSource = "series"
+    m.top.findNode("heroEyebrow").text = "PROtv SERIES"
+    m.top.findNode("heroTitle").text = series.title
+    m.top.findNode("heroMeta").text = SeriesMeta(SeriesSeasons(series.episodes), series.episodes.Count())
+    m.top.findNode("heroDescription").text = "Select to see seasons and episodes."
+    m.top.findNode("heroArtwork").visible = true
+    for each id in ["heroPlay", "heroInfo", "heroList"]
+        m.top.findNode(id).visible = false
+    end for
+    art = m.top.findNode("heroArt")
+    art.visible = art.uri = series.artwork and art.loadStatus = "ready"
+    art.uri = series.artwork
+    renderDots()
+    if series.backdrop <> ""
+        requestBackdrop(series.backdrop, true)
+    else
+        requestBackdrop(series.artwork, false)
+    end if
+end sub
+
+sub showSeries(series as Object)
+    m.seriesItem = series
+    m.seasons = SeriesSeasons(series.episodes)
+    m.seriesEpisodeIndex = 0
+    changeMode("series")
+    m.top.findNode("seriesTitle").text = series.title
+    m.top.findNode("seriesMeta").text = SeriesMeta(m.seasons, series.episodes.Count())
+    m.top.findNode("seriesFallback").text = "PROtv" + Chr(10) + Chr(10) + series.title
+    m.top.findNode("seriesBackdrop").uri = series.artwork
+    art = m.top.findNode("seriesArt")
+    art.visible = art.uri = series.artwork and art.loadStatus = "ready"
+    art.uri = series.artwork
+    showSeriesFallback(not art.visible)
+    pills = m.seriesSeasons
+    while pills.getChildCount() > 0
+        pills.removeChildIndex(0)
+    end while
+    x = 0
+    for each season in m.seasons
+        pill = pills.createChild("PillButton")
+        pill.text = season.title
+        pill.height = 44
+        pill.width = Len(season.title) * 11 + 48
+        pill.translation = [x, 0]
+        x = x + pill.width + 16
+    end for
+    selectSeason(0, false)
+    m.seriesEpisodes.setFocus(true)
+end sub
+
+' Back from an episode's details lands on the same episode.
+sub returnToSeries()
+    changeMode("series")
+    ' Rebuild labels so time left reflects what was just watched.
+    selectSeason(m.seasonIndex, false)
+    m.seriesEpisodes.jumpToItem = m.seriesEpisodeIndex
+    m.seriesEpisodes.setFocus(true)
+end sub
+
+sub selectSeason(index as Integer, focusPill as Boolean)
+    m.seasonIndex = index
+    for pillIndex = 0 to m.seriesSeasons.getChildCount() - 1
+        pill = m.seriesSeasons.getChild(pillIndex)
+        pill.style = "secondary"
+        if pillIndex = index then pill.style = "primary"
+    end for
+    content = CreateObject("roSGNode", "ContentNode")
+    for each episode in m.seasons[index].episodes
+        row = content.createChild("ContentNode")
+        row.title = EpisodeLabel(episode)
+        remaining = ""
+        if ResumePosition(m.progress, Text(episode.id)) > 0 then remaining = TimeLeft(m.progress[episode.id])
+        if remaining <> "" then row.title = row.title + "  " + Chr(183) + "  " + remaining
+    end for
+    m.seriesEpisodes.content = content
+    if focusPill then m.seriesSeasons.getChild(index).setFocus(true)
+end sub
+
+sub episodeSelected()
+    index = m.seriesEpisodes.itemSelected
+    episodes = m.seasons[m.seasonIndex].episodes
+    if index < 0 or index >= episodes.Count() then return
+    m.seriesEpisodeIndex = index
+    showDetail(episodes[index], "series")
+end sub
+
+sub seriesArtStatus()
+    art = m.top.findNode("seriesArt")
+    art.visible = art.loadStatus = "ready"
+    showSeriesFallback(not art.visible)
+end sub
+
+sub showSeriesFallback(show as Boolean)
+    m.top.findNode("seriesFallbackArt").visible = show
+    m.top.findNode("seriesFallback").visible = show
 end sub
 
 function validPair(pair as Dynamic) as Boolean
@@ -683,6 +886,8 @@ sub titleSelected()
     row = m.rows[pair[0]]
     if row.kind = "moods"
         selectMood(row.items[pair[1]].id)
+    else if row.kind = "series"
+        showSeries(row.items[pair[1]])
     else
         showDetail(row.items[pair[1]], "rails")
     end if
@@ -735,11 +940,7 @@ sub showDetail(item as Object, origin = "rails" as String)
     art.uri = item.artwork
     showDetailFallback(not art.visible)
     m.top.findNode("detailMeta").text = TitleMetadata(item)
-    if ResumePosition(m.progress, Text(item.id)) > 0
-        m.top.findNode("detailPlay").text = "Resume"
-    else
-        m.top.findNode("detailPlay").text = "Play"
-    end if
+    updatePlayLabel()
     updateListButtons()
     description = Synopsis(item)
     if description = "" then description = "Synopsis coming soon."
@@ -769,9 +970,10 @@ sub changeMode(mode as String)
     m.mode = mode
     m.home.visible = mode = "home" or mode = "search"
     m.detail.visible = mode = "detail"
-    m.account.visible = mode = "account"
-    m.sidebar.visible = mode <> "detail"
-    m.topBar.visible = mode <> "detail"
+    m.seriesScreen.visible = mode = "series"
+    m.accountScreen.visible = mode = "account"
+    m.sidebar.visible = mode <> "detail" and mode <> "series"
+    m.topBar.visible = mode <> "detail" and mode <> "series"
     m.status.text = ""
     updateNavState()
 end sub
@@ -801,6 +1003,7 @@ sub navSelected()
         else
             showRows()
             if m.heroItem <> invalid then focusHero()
+            refreshCatalogIfStale()
         end if
     end if
 end sub
@@ -829,16 +1032,22 @@ end sub
 
 sub returnHome()
     cancelPlaybackRequest()
+    signalLaunchComplete()
     previous = m.mode
     origin = m.detailOrigin
+    if previous = "detail" and origin = "series" and m.seriesItem <> invalid
+        returnToSeries()
+        return
+    end if
     changeMode("home")
     if previous = "detail" and origin = "hero" and m.heroItem <> invalid
         focusHero()
-    else if previous = "detail" and m.rows.Count() > 0
+    else if (previous = "detail" or previous = "series") and m.rows.Count() > 0
         focusRails()
     else
         focusNav()
     end if
+    refreshCatalogIfStale()
 end sub
 
 sub detailSelected()
@@ -874,21 +1083,24 @@ sub playbackLoaded()
     result = m.playTask.result
     if result.error <> ""
         m.status.text = result.error + " Select Play to retry."
+        signalLaunchComplete()
         return
     end if
     playback = PlaybackUrl(result.payload, m.selected)
     if playback.error <> ""
         m.status.text = playback.error
+        signalLaunchComplete()
         return
     end if
     content = CreateObject("roSGNode", "ContentNode")
     content.url = playback.url
     content.streamFormat = "hls"
     content.title = m.selected.title
-    m.video.content = content
-    m.lastSavedPosition = 0
+    ' PlayStart is the supported start offset; a seek before play is ignored.
     resumeAt = ResumePosition(m.progress, Text(m.selected.id))
-    if resumeAt > 0 then m.video.seek = resumeAt
+    if resumeAt > 0 then content.PlayStart = resumeAt
+    m.video.content = content
+    m.lastSavedPosition = resumeAt
     m.status.text = ""
     m.video.visible = true
     m.video.setFocus(true)
@@ -897,11 +1109,14 @@ sub playbackLoaded()
 end sub
 
 sub videoState()
-    if m.video.state = "error"
+    if m.video.state = "playing"
+        signalLaunchComplete()
+    else if m.video.state = "error"
         code = m.video.errorCode
         m.progressTimer.control = "stop"
         closeVideo()
         m.status.text = "Playback failed (Roku " + code.ToStr() + "). Select Play to retry."
+        signalLaunchComplete()
     else if m.video.state = "paused"
         saveCurrentProgress(true)
     else if m.video.state = "finished"
@@ -918,7 +1133,18 @@ sub closeVideo()
     m.video.control = "stop"
     m.video.visible = false
     m.video.content = invalid
+    updatePlayLabel()
+    ' Guest progress is local, so rows update here rather than after a request.
+    if m.account = invalid then refreshRows()
     focusDetails()
+end sub
+
+sub updatePlayLabel()
+    if m.selected <> invalid and ResumePosition(m.progress, Text(m.selected.id)) > 0
+        m.top.findNode("detailPlay").text = "Resume"
+    else
+        m.top.findNode("detailPlay").text = "Play"
+    end if
 end sub
 
 sub onLaunch()
@@ -968,6 +1194,24 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         return false
     end if
     if m.mode = "search" then return false
+    if m.mode = "series"
+        ' Seasons row above the episode list; Left/Right changes season.
+        if m.seriesSeasons.isInFocusChain()
+            if key = "left" or key = "right"
+                stepValue = 1
+                if key = "left" then stepValue = -1
+                selectSeason(NavigationIndex(m.seasonIndex, stepValue, m.seasons.Count()), true)
+                return true
+            else if key = "down" or key = "OK"
+                m.seriesEpisodes.setFocus(true)
+                return true
+            end if
+        else if key = "up" and m.seriesEpisodes.isInFocusChain() and m.seriesSeasons.getChildCount() > 0
+            m.seriesSeasons.getChild(m.seasonIndex).setFocus(true)
+            return true
+        end if
+        return false
+    end if
     if m.nav.isInFocusChain()
         if key = "up" or key = "down"
             stepValue = 1
@@ -1151,10 +1395,9 @@ sub accountSignOutSelected()
     m.progressTimer.control = "stop"
     m.deviceSession = invalid
     m.account = invalid
-    m.progress = {}
-    m.progressLoaded = false
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
+    forgetAccount()
     clearFavorites()
     m.afterRefreshAction = ""
     m.accountTask = invalid
@@ -1277,8 +1520,9 @@ sub accountTaskCompleted()
             m.accountPollTimer.control = "stop"
             m.account.idToken = result.payload.idToken
             m.account.refreshToken = result.payload.refreshToken
-            m.account.expiresAtSeconds = CurrentEpochSeconds() + Val(Text(result.payload.expiresIn))
+            m.account.expiresAtSeconds = CurrentEpochSeconds() + Int(Val(Text(result.payload.expiresIn)))
             m.progressLoaded = false
+            storeAccount()
             showAccountState()
             beginAccountAction("progress-read")
         end if
@@ -1288,7 +1532,8 @@ sub accountTaskCompleted()
         else
             m.account.idToken = result.payload.access_token
             m.account.refreshToken = result.payload.refresh_token
-            m.account.expiresAtSeconds = CurrentEpochSeconds() + Val(Text(result.payload.expires_in))
+            m.account.expiresAtSeconds = CurrentEpochSeconds() + Int(Val(Text(result.payload.expires_in)))
+            storeAccount()
             action = m.afterRefreshAction
             m.afterRefreshAction = ""
             executeAccountAction(action)
@@ -1380,7 +1625,15 @@ sub handleAccountTaskError(kind as String, result as Object)
     else if kind = "firebase-custom"
         activationFailed("Firebase could not finish TV sign-in. Check the Roku Firebase client configuration and try again.")
     else if kind = "firebase-refresh"
-        authSessionFailed("Your PROtv session could not be refreshed. Sign in again. " + message)
+        if statusCode >= 400 and statusCode < 500
+            authSessionFailed("Your PROtv session could not be refreshed. Sign in again. " + message)
+        else
+            ' Offline or a server fault: keep the saved sign-in for a later retry.
+            m.afterRefreshAction = ""
+            m.authRetryAction = ""
+            m.top.findNode("accountMessage").text = "PROtv could not refresh your sign-in. Check the network, then select Refresh my titles."
+            m.status.text = message + " Your sign-in is kept on this TV."
+        end if
     else if kind = "progress-read"
         if statusCode = 401
             if m.authRetryAction <> kind
@@ -1449,10 +1702,9 @@ sub authSessionFailed(message as String)
     cancelAccountTask()
     m.accountPollTimer.control = "stop"
     m.account = invalid
-    m.progress = {}
-    m.progressLoaded = false
     m.pendingProgressSave = invalid
     m.savingProgress = invalid
+    forgetAccount()
     clearFavorites()
     m.afterRefreshAction = ""
     m.authRetryAction = ""
@@ -1521,12 +1773,17 @@ sub progressTimerFired()
 end sub
 
 sub saveCurrentProgress(force as Boolean)
-    if not m.video.visible or not HasViewerSession(m.account) or m.selected = invalid then return
+    if not m.video.visible or m.selected = invalid then return
     position = m.video.position
     duration = m.video.duration
     if not IsNumber(position) or not IsNumber(duration) or duration <= 0 then return
     positionSeconds = Int(position)
     videoId = Text(m.selected.id)
+    if m.account = invalid
+        if ProgressSaveDue(positionSeconds, m.lastSavedPosition, force) then saveGuestProgress(videoId, positionSeconds, duration)
+        return
+    end if
+    if not HasViewerSession(m.account) then return
     if m.savingProgress <> invalid and m.savingProgress.videoId = videoId and m.savingProgress.positionSeconds = positionSeconds then return
     if m.pendingProgressSave <> invalid and m.pendingProgressSave.videoId = videoId and m.pendingProgressSave.positionSeconds = positionSeconds then return
     if not ProgressSaveDue(positionSeconds, m.lastSavedPosition, force) then return
@@ -1536,6 +1793,13 @@ sub saveCurrentProgress(force as Boolean)
         durationSeconds: duration,
     }
     drainPendingProgress()
+end sub
+
+' Guests keep their 50 most recent titles on this TV only; nothing is sent.
+sub saveGuestProgress(videoId as String, positionSeconds as Integer, duration as Dynamic)
+    m.progress = RecordProgress(m.progress, videoId, LocalProgressEntry(positionSeconds, duration, CurrentEpochSeconds()), 50)
+    m.lastSavedPosition = positionSeconds
+    m.storage.write("guestProgress", FormatJson(m.progress))
 end sub
 
 sub drainPendingProgress()

@@ -5,7 +5,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { unzipSync, strFromU8 } from 'fflate';
-import { root, packageBytes } from '../tools/package.mjs';
+import { root, packageBytes, resolveFirebaseApiKey } from '../tools/package.mjs';
 
 test('actual BrightScript model executes offline contract regressions', () => {
   const output = execFileSync(process.execPath, [
@@ -22,11 +22,12 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
   const output = execFileSync(process.execPath, [
     path.join(root, 'node_modules', 'brs', 'bin', 'cli.js'),
     path.join(root, 'source', 'model.brs'),
+    path.join(root, 'source', 'firebaseConfig.brs'),
     path.join(root, 'components', 'ProtvScene.brs'),
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*51(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*67(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {
@@ -76,11 +77,11 @@ test('uniform 2:3 movie and 16:9 episode frames preserve complete artwork', asyn
   assert.match(scene, /<Video[^>]+enableUI="true"/);
   assert.match(scene, /id="detailArt"[^>]+width="280" height="420" loadWidth="280" loadHeight="420" loadDisplayMode="scaleToFit"/);
   assert.match(scene, /id="heroArt" width="176" height="264" loadWidth="176" loadHeight="264" loadDisplayMode="scaleToFit"/);
-  for (const match of `${scene}\n${xml}`.matchAll(/<Poster id="(?:art|heroArt|detailArt)"[^>]*>/g)) {
+  for (const match of `${scene}\n${xml}`.matchAll(/<Poster id="(?:art|heroArt|detailArt|seriesArt)"[^>]*>/g)) {
     assert.doesNotMatch(match[0], /scaleToFill|scaleToZoom|zoomToFill/, 'catalog artwork is never cropped or stretched');
   }
   // Blurred colour washes decode artwork at a tiny size; they are ambience, not artwork display.
-  for (const match of `${scene}\n${xml}`.matchAll(/<Poster id="(?:backdropA|backdropB|detailBackdrop|wash)"[^>]*>/g)) {
+  for (const match of `${scene}\n${xml}`.matchAll(/<Poster id="(?:backdropA|backdropB|detailBackdrop|seriesBackdrop|wash)"[^>]*>/g)) {
     const [, w, h] = /loadWidth="(\d+)" loadHeight="(\d+)"/.exec(match[0]);
     assert.ok(Number(w) <= 64 && Number(h) <= 32, `${match[0]} must stay a low-resolution wash`);
   }
@@ -180,9 +181,31 @@ test('account flow uses existing contracts and does not persist or expose sessio
   assert.match(http, /AddHeader\("X-Device-Secret", m\.top\.deviceSecret\)/);
   assert.match(http, /AddHeader\("Authorization", "Bearer " \+ m\.top\.authorization\)/);
   assert.match(http, /m\.top\.result = normalized\s+return/);
-  assert.doesNotMatch(`${scene}\n${http}`, /roRegistrySection|registrySection|WriteAsciiFile/);
+  // Persistence: one registry section, two keys, written only through m.storage.
+  assert.equal((`${scene}\n${http}`.match(/roRegistrySection/g) || []).length, 1);
+  assert.doesNotMatch(`${scene}\n${http}`, /WriteAsciiFile/);
+  const keys = new Set([...scene.matchAll(/m\.storage\.(?:read|write|remove)\("(\w+)"/g)].map(match => match[1]));
+  assert.deepEqual([...keys].sort(), ['account', 'guestProgress']);
+  assert.match(scene, /sub forgetAccount\(\)\s+m\.storage\.remove\("account"\)/);
+  assert.equal((scene.match(/forgetAccount\(\)/g) || []).length, 3, 'sign-out and rejected sessions forget the saved sign-in');
+  assert.equal((scene.match(/storeAccount\(\)/g) || []).length, 3, 'saved after sign-in and after each token refresh');
+  const model = await readFile(path.join(root, 'source', 'model.brs'), 'utf8');
+  assert.match(model, /function StoredAccountJson[\s\S]*?FormatJson\(\{ viewerId: account\.viewerId, idToken: account\.idToken, refreshToken: account\.refreshToken, expiresAtSeconds: IntValue\(account\.expiresAtSeconds\) \}\)/);
+  // Offline refresh keeps the sign-in; only a Firebase 4xx rejection clears it.
+  assert.match(scene, /kind = "firebase-refresh"\s+if statusCode >= 400 and statusCode < 500\s+authSessionFailed/);
   assert.match(scene, /m\.account = invalid/);
   assert.match(scene, /m\.progress = \{\}/);
+});
+
+test('launch beacon, resume and trick play use supported Roku features', async () => {
+  const scene = await readFile(path.join(root, 'components', 'ProtvScene.brs'), 'utf8');
+  assert.equal((scene.match(/signalBeacon\(/g) || []).length, 1, 'one beacon call site');
+  assert.match(scene, /sub signalLaunchComplete\(\)\s+if m\.launchSignaled then return\s+m\.launchSignaled = true\s+m\.top\.signalBeacon\("AppLaunchComplete"\)/);
+  assert.match(scene, /if m\.video\.state = "playing"\s+signalLaunchComplete\(\)/);
+  assert.match(scene, /content\.PlayStart = resumeAt/);
+  assert.doesNotMatch(scene, /m\.video\.seek\s*=/, 'no seek before playback starts');
+  const model = await readFile(path.join(root, 'source', 'model.brs'), 'utf8');
+  assert.match(model, /"\?roku_trick_play=true"/);
 });
 
 test('sideload zip is byte-reproducible, root-correct and contains only runtime files', async () => {
@@ -204,7 +227,8 @@ test('sideload zip is byte-reproducible, root-correct and contains only runtime 
   assert.ok(first.length < 1024 * 1024, 'sideload stays under 1 MB');
   assert.match(strFromU8(files.manifest), /^supports_input_launch=1$/m);
   const firebaseConfig = strFromU8(files['source/firebaseConfig.brs']);
-  const configuredApiKey = process.env.ROKU_FIREBASE_API_KEY || '';
+  const configuredApiKey = await resolveFirebaseApiKey();
+  assert.match(await readFile(path.join(root, 'source', 'firebaseConfig.brs'), 'utf8'), /return ""/, 'the key is never written to source');
   if (configuredApiKey) assert.ok(firebaseConfig.includes(JSON.stringify(configuredApiKey)));
   else assert.match(firebaseConfig, /return ""/);
   assert.ok(names.every(name => !/key|pem|json|node_modules|test|env/i.test(name)));

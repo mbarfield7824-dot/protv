@@ -105,10 +105,11 @@ Firestore schema or production data was changed.
 - The Roku exchanges that Firebase custom token at
   `identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken` using the
   existing website's public Firebase client API key. Firebase ID and rotating
-  refresh tokens are kept in memory; a refresh uses the existing Firebase
-  Secure Token REST contract. The ID token is sent only as
+  refresh tokens are saved in this app's registry section so the TV stays
+  linked (v0.5); a refresh uses the existing Firebase Secure Token REST
+  contract and runs at launch before any account request. The ID token is sent only as
   `Authorization: Bearer ...` to existing user-scoped API routes. No password,
-  Firebase Admin key or token is logged or persisted in a Roku registry.
+  device secret or Firebase Admin key is saved, and no token is logged.
 - Polling uses the backend interval and retries transient network/HTTP failures
   with capped backoff, bounded by the backend expiry. Invalid/expired codes,
   rate limits, unavailable responses, and Firebase/session failures have
@@ -144,11 +145,10 @@ Firestore schema or production data was changed.
    user-bound, per-device server session with an opaque refresh credential and
    authenticated revoke endpoint; never change the existing viewer routes to
    trust unauthenticated device IDs.
-2. **No secure Roku credential store in this implementation.** To avoid
-   storing refresh tokens or activation secrets in an ordinary registry, Roku
-   sign-in does not persist across process restart. A viewer must link again;
-   progress is reloaded from the server. Do not add registry persistence unless
-   Roku provides a verified protected-storage facility for the target OS.
+2. **Saved sign-in uses the ordinary Roku registry (owner-approved, v0.5).**
+   It is private to this app but not encrypted. Only the viewer session is
+   saved (never activation secrets); Sign Out and Firebase 4xx rejections
+   delete it. Revisit if Roku offers verified protected storage.
 3. **No activation cancel/reject contract.** The current service reports
    pending/approved/consumed/expired. It has no reject state or TV cancel
    endpoint; an unwanted code expires after 10 minutes.

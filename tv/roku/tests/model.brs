@@ -38,7 +38,9 @@ sub Main()
     creator = { id: "creator_1", title: "Creator", contentType: "MOVIE", category: "AI Cinema", posterUrl: "data:image/jpeg;base64,YQ==" }
     Assert(ArtworkSource(creator) = creator.posterUrl, "creator JPEG bytes preserved")
     episode = { id: "ep_1", title: "Episode", contentType: "EPISODE", heroImageUrl: "https://creator/still.jpg", posterUrl: "https://creator/portrait.jpg" }
-    Assert(ArtworkSource(episode) = episode.heroImageUrl, "episode prefers dedicated landscape")
+    Assert(ArtworkSource(episode) = episode.posterUrl, "episode cards prefer 2:3 portrait art")
+    Assert(ArtworkSource({ id: "ep_w", title: "W", contentType: "EPISODE", heroImageUrl: "https://creator/still.jpg" }) = "https://creator/still.jpg", "wide art is only the episode fallback")
+    Assert(ArtworkSource({ id: "m_w", title: "W", contentType: "MOVIE", heroImageUrl: "https://creator/still.jpg" }) = "", "movies never use wide art as a poster")
     episode.heroImageUrl = ""
     episode.posterUrl = "http://localhost:5000/bad.jpg"
     Assert(ArtworkSource(episode) = "", "insecure local art rejected")
@@ -77,7 +79,24 @@ sub Main()
     Assert(creatorView.Count() = 2 and creatorView[1].landscape and creatorView[1].items[0].id = "creator_episode_2", "creators view separates films and series")
     Assert(ViewRows([approved, creator], "movies")[0].items[0].id = "creator_1", "movies view puts creators first")
     seriesView = ViewRows([episode, creatorEpisode, { id: "ep_2", title: "Episode 2", contentType: "EPISODE", seriesTitle: "Camp" }], "series")
-    Assert(seriesView.Count() = 2 and seriesView[1].title = "Camp" and seriesView[1].items.Count() = 2, "series view groups episodes by series")
+    Assert(seriesView.Count() = 1 and seriesView[0].kind = "series" and seriesView[0].items.Count() = 2, "series view is one row of series tiles")
+    Assert(seriesView[0].items[1].title = "Camp" and seriesView[0].items[1].episodes.Count() = 2, "series tiles group episodes by series title")
+    Assert(seriesView[0].items[0].title = "Episode" and seriesView[0].items[0].episodes.Count() = 1, "an episode without a series title stands alone")
+    Assert(ViewRows([approved], "series").Count() = 0, "no series row without episodes")
+    ' Seasons and episode order come only from real metadata.
+    s2e3 = { id: "x3", title: "Three", contentType: "EPISODE", seriesTitle: "Show", seasonNumber: 2, episodeNumber: 3, episodeTitle: "The Storm", duration: 1500 }
+    s2e1 = { id: "x1", title: "One", contentType: "EPISODE", seriesTitle: "Show", seasonNumber: 2, episodeNumber: 1 }
+    s1e9 = { id: "x9", title: "Nine", contentType: "EPISODE", seriesTitle: "Show", seasonNumber: "1", episodeNumber: "9" }
+    loose = { id: "x0", title: "Special", contentType: "EPISODE", seriesTitle: "Show" }
+    seasons = SeriesSeasons([s2e3, loose, s2e1, s1e9])
+    Assert(seasons.Count() = 3 and seasons[0].title = "Season 1" and seasons[1].title = "Season 2" and seasons[2].title = "More episodes", "seasons sorted by number; unnumbered last")
+    Assert(seasons[1].episodes[0].id = "x1" and seasons[1].episodes[1].id = "x3", "episodes sorted by episode number")
+    Assert(SeriesSeasons([loose]).Count() = 1 and SeriesSeasons([loose])[0].title = "Episodes", "no season invented when none is numbered")
+    Assert(SeriesSeasons([{ id: "z", title: "Z", contentType: "EPISODE", seasonNumber: 0 }])[0].title = "Episodes", "season 0 is not a season")
+    Assert(EpisodeLabel(s2e3) = "E3" + dot + "The Storm" + dot + "25 min", "episode label uses number, episode title and runtime")
+    Assert(EpisodeLabel(loose) = "Special", "unnumbered episode label has no invented number")
+    Assert(SeriesMeta(seasons, 4) = "2 seasons" + dot + "4 episodes" and SeriesMeta(SeriesSeasons([loose]), 1) = "1 episode", "series metadata counts only real seasons")
+    Assert(SeriesList([s2e3, approved, s2e1])[0].episodes.Count() = 2, "series list ignores movies")
     Assert(ViewRows([approved, creator], "aicinema")[0].items[0].id = "creator_1", "AI Cinema view from category")
     Assert(ViewRows([approved], "blackcinema").Count() = 1, "Black Cinema view from genres")
     Assert(MoodItems([approved, creator], "heartfelt").Count() = 1 and MoodItems([approved, creator], "thoughtful")[0].id = "creator_1" and MoodItems([approved], "scary").Count() = 0, "moods map to catalog genres")
@@ -89,7 +108,7 @@ sub Main()
     featured = { id: "sCWQqVE5WIoNNN5wAGQ2", title: "Sintel", contentType: "MOVIE", category: "Animation" }
     Assert(HomeRows([featured])[0].title = "Featured on PROtv", "editorial IDs resolved from live catalog")
     public = { id: "a", streamType: "on-demand", muxPlaybackId: "Ab123" }
-    Assert(PlaybackUrl(public, approved).url = "https://stream.mux.com/Ab123.m3u8", "public Mux HLS")
+    Assert(PlaybackUrl(public, approved).url = "https://stream.mux.com/Ab123.m3u8?roku_trick_play=true", "public Mux HLS requests Roku trick-play thumbnails")
     Assert(PlaybackUrl(invalid, approved).error <> "", "invalid playback rejected")
     Assert(PlaybackUrl({ id: "wrong" }, approved).error <> "", "wrong playback title rejected")
     Assert(PlaybackUrl({ id: "A", streamType: "on-demand", muxPlaybackId: "Ab123" }, approved).error <> "", "playback title IDs are case-sensitive")
@@ -169,6 +188,32 @@ sub Main()
     Assert(not ProgressSaveDue(19, 0, false), "progress writes are debounced")
     Assert(ProgressSaveDue(3, 100, true), "pause/exit forces progress flush after seek")
     Assert(not ProgressSaveDue(0, 0, true), "zero position never creates progress")
+    Assert(ProgressSaveDue(980, 1000, false) and not ProgressSaveDue(990, 1000, false), "seeking back checkpoints after 20 seconds of movement")
+    ' Guest progress on this TV.
+    entry = LocalProgressEntry(600, 1200.5, 1700000000)
+    Assert(ValidProgressEntry(entry) and entry.progressPercent > 49.9 and entry.progressPercent < 50, "local progress matches the account progress shape")
+    Assert(LocalProgressEntry(1300, 1200, 1).progressPercent = 100, "local progress percent is capped")
+    kept = {}
+    for index = 1 to 5
+        kept = RecordProgress(kept, "v" + index.ToStr(), LocalProgressEntry(60, 1200, 1000 + index), 3)
+    end for
+    Assert(kept.Count() = 3 and not kept.DoesExist("v1") and not kept.DoesExist("v2") and kept.DoesExist("v5"), "local progress keeps only the most recent titles")
+    kept = RecordProgress(kept, "v3", LocalProgressEntry(90, 1200, 2000), 3)
+    Assert(kept.Count() = 3 and kept.v3.positionSeconds = 90, "re-watching replaces rather than duplicates")
+    stored = ParseStoredProgress(FormatJson(kept))
+    Assert(stored.Count() = 3 and ContinueWatchingItems([{ id: "v3" }, { id: "v5" }], stored)[0].id = "v3", "stored progress round-trips into Continue Watching")
+    Assert(ParseStoredProgress("not json").Count() = 0 and ParseStoredProgress("").Count() = 0, "corrupt stored progress is ignored")
+    Assert(ParseStoredProgress(FormatJson({ good: entry, bad: { positionSeconds: "x" } })).Count() = 1, "invalid stored entries are dropped")
+    ' Saved TV sign-in.
+    expiry = CurrentEpochSeconds() + 3600
+    session = { viewerId: "viewer", idToken: "id", refreshToken: "refresh", expiresAtSeconds: expiry }
+    restored = ParseStoredAccount(StoredAccountJson(session))
+    Assert(restored <> invalid and restored.viewerId = "viewer" and restored.refreshToken = "refresh" and restored.expiresAtSeconds = expiry, "saved sign-in round-trips")
+    Assert(NeedsFirebaseRefresh(restored, expiry) and not NeedsFirebaseRefresh(restored, expiry - 120), "an expired saved sign-in refreshes before use")
+    Assert(ParseStoredAccount("") = invalid and ParseStoredAccount("{") = invalid and ParseStoredAccount(FormatJson({ viewerId: "v", idToken: "i" })) = invalid, "incomplete saved sign-ins are discarded")
+    Assert(Instr(1, StoredAccountJson(session), "deviceSecret") = 0, "only the viewer session is saved")
+    Assert(CatalogStale(1000, 1900) and not CatalogStale(1000, 1899), "catalog refresh after 15 minutes")
+    Assert(AllWideArtwork([{ backdrop: "https://a" }]) and not AllWideArtwork([{ backdrop: "https://a" }, { backdrop: "" }]) and not AllWideArtwork([]), "wide cards only when every title has wide art")
     Assert(DeviceActivationState("pending", 100, 200) = "pending", "activation polling stays pending")
     Assert(DeviceActivationState("approved", 100, 200) = "approved", "approved activation exchanges once")
     Assert(DeviceActivationState("consumed", 100, 200) = "consumed", "consumed activation is terminal")

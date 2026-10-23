@@ -4,6 +4,13 @@
 model, OS, build ZIP hash, title ID and actual outcome for every device session.
 
 ## First physical test
+- [ ] v0.5: Series tile opens seasons/episodes; Up reaches seasons, Left/Right
+      switches season, OK opens the episode, Back returns to the same episode.
+- [ ] v0.5: link, restart the app, still linked; Sign Out, restart, guest.
+- [ ] v0.5: as a guest, watch 1 minute, Back, restart: Continue Watching shows
+      it and Resume starts at the saved position.
+- [ ] v0.5: fast-forward shows thumbnails on a long title.
+- [ ] v0.5: Continue Watching and episode rows use 2:3 portrait cards.
 
 - [x] Owner approved replacing the existing sideloaded app; owner will install
       the premium redesign manually (2026-10-22). No automated installation.
@@ -58,7 +65,7 @@ model, OS, build ZIP hash, title ID and actual outcome for every device session.
       no account-progress requests and sign-out clears the Roku session.
 - [ ] Verify Firebase ID-token refresh while the app remains active and
       expired/invalid-session recovery. Account credentials are intentionally
-      memory-only; after a Roku process restart the viewer must link again.
+      saved on this TV; after a restart the TV stays linked until Sign Out.
 - [ ] Confirm account linking was built with the existing public Firebase web
       client key, not a service-account/Admin credential.
 - [ ] Signed eligible media tested when a suitable test title exists. Live

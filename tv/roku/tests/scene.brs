@@ -6,8 +6,12 @@ sub Main()
         dialog: invalid,
         findNode: function(id as String) as Object
             return m.nodes[id]
-        end function
+        end function,
+        signalBeacon: sub(name as String)
+            GetGlobalAA().beacons.Push(name)
+        end sub
     }
+    m.beacons = []
     for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "accountBadge", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountSignOut", "accountBack"]
         m.top.nodes[id] = FocusNode()
     end for
@@ -186,9 +190,78 @@ sub Main()
     Check(m.status.text = "", "confirmations dismiss themselves")
     statusChanged()
     Check(not m.top.nodes.statusPanel.visible, "healthy UI has no persistent footer")
+
+    ' Guest Continue Watching on this TV; the saved sign-in is forgotten on sign-out.
+    m.accountTask = invalid
+    m.storage = MemoryStorage()
+    m.storage.values.guestProgress = FormatJson({ g1: { positionSeconds: 60, durationSeconds: 1200, progressPercent: 5, updatedAt: 10 } })
+    restoreSession()
+    Check(m.account = invalid and m.progressLoaded and m.progress.DoesExist("g1"), "guests start with progress saved on this TV")
+    m.items = [{ id: "g1", title: "G1", contentType: "MOVIE" }, { id: "g2", title: "G2", contentType: "MOVIE" }]
+    Check(PersonalRow("continue") <> invalid and PersonalRow("continue").items[0].id = "g1", "guests get Continue Watching")
+    Check(PersonalRow("mylist") = invalid, "My List still needs a linked account")
+    m.video = { visible: true, position: 130.6, duration: 1200.0 }
+    m.selected = { id: "g2" }
+    m.lastSavedPosition = 0
+    saveCurrentProgress(false)
+    saved = ParseStoredProgress(m.storage.values.guestProgress)
+    Check(saved.DoesExist("g2") and saved["g2"].positionSeconds = 130 and m.accountTask = invalid, "guest playback saves on this TV and sends nothing")
+    m.video.position = 140.0
+    saveCurrentProgress(false)
+    Check(ParseStoredProgress(m.storage.values.guestProgress)["g2"].positionSeconds = 130, "guest checkpoints are debounced")
+    m.video.position = 141.0
+    saveCurrentProgress(true)
+    Check(ParseStoredProgress(m.storage.values.guestProgress)["g2"].positionSeconds = 141, "pause and Back flush guest progress")
+    m.video = { visible: false }
+    m.storage.values.account = "saved"
+    m.progress = {}
+    forgetAccount()
+    Check(not m.storage.values.DoesExist("account") and m.progress.DoesExist("g2") and m.progressLoaded, "forgetting a sign-in removes it and restores guest progress")
+
+    m.launchSignaled = false
+    signalLaunchComplete()
+    signalLaunchComplete()
+    Check(m.beacons.Count() = 1 and m.beacons[0] = "AppLaunchComplete", "AppLaunchComplete is sent exactly once")
+
+    ' Series screen: season tabs above the episode list.
+    m.mode = "series"
+    m.seasons = SeriesSeasons([{ id: "e2", title: "Two", contentType: "EPISODE", seasonNumber: 2, episodeNumber: 1 }, { id: "e1", title: "One", contentType: "EPISODE", seasonNumber: 1, episodeNumber: 1 }])
+    m.seriesSeasons = FocusNode()
+    m.seriesSeasons.children = [FocusNode(), FocusNode()]
+    m.seriesEpisodes = FocusNode()
+    m.all.Append([m.seriesSeasons, m.seriesSeasons.children[0], m.seriesSeasons.children[1], m.seriesEpisodes])
+    selectSeason(0, false)
+    m.seriesEpisodes.setFocus(true)
+    Check(m.seriesSeasons.children[0].style = "primary" and m.seriesEpisodes.content.getChild(0).title = "E1  " + Chr(183) + "  One", "Season 1 opens with its own episodes")
+    Check(Press("up") and m.seriesSeasons.children[0].focused, "up from the episode list reaches the season tabs")
+    Check(Press("right") and m.seasonIndex = 1 and m.seriesSeasons.children[1].focused and m.seriesSeasons.children[1].style = "primary", "right switches to the next season")
+    Check(m.seriesEpisodes.content.getChild(0).title = "E1  " + Chr(183) + "  Two" and m.seriesSeasons.children[0].style = "secondary", "the episode list follows the season")
+    Check(Press("right") and m.seasonIndex = 1, "seasons clamp at the last one")
+    Check(Press("down") and m.seriesEpisodes.focused, "down returns to the episode list")
+    Check(not Press("left") and not Press("down"), "list movement is left to the LabelList")
+    m.progress = { e2: { positionSeconds: 600, durationSeconds: 1500, progressPercent: 40, updatedAt: 5 } }
+    selectSeason(1, false)
+    Check(m.seriesEpisodes.content.getChild(0).title = "E1  " + Chr(183) + "  Two  " + Chr(183) + "  15m left", "episodes in progress show time left")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub
+
+' Stands in for the roRegistrySection wrapper.
+function MemoryStorage() as Object
+    return {
+        values: {},
+        read: function(key as String) as String
+            if m.values.DoesExist(key) then return m.values[key]
+            return ""
+        end function,
+        write: sub(key as String, value as String)
+            m.values[key] = value
+        end sub,
+        remove: sub(key as String)
+            m.values.Delete(key)
+        end sub
+    }
+end function
 
 function Press(key as String) as Boolean
     return onKeyEvent(key, true)
