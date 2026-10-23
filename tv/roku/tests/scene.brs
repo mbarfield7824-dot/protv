@@ -666,9 +666,76 @@ sub Main()
     Check(FavoriteItems(m.items, m.favorites).Count() = 2 and FavoriteIds(["g1", "g1", "g2"]).Count() = 2, "My List has no duplicates")
     accountSignOutSelected()
     Check(m.account = invalid and m.favorites.Count() = 0 and not m.favoritesLoaded and m.progress["g1"].positionSeconds = 300 and not m.progress.DoesExist("g2"), "signing out drops the account's list and progress and restores guest progress")
+
+    ' v0.6.1 device report: after closing and reopening the app, Continue
+    ' Watching vanished. Each case is a fresh launch with the saved sign-in.
+    for each order in ["catalog-first", "progress-first", "expired-token", "server-empty"]
+        LaunchFresh(order = "expired-token")
+        Check(m.account <> invalid and m.account.viewerId = "viewer" and not m.progressLoaded, "relaunch restores the saved sign-in before any progress: " + order)
+        firstTask = m.tasks[m.tasks.Count() - 1]
+        if order = "expired-token"
+            Check(firstTask.kind = "firebase-refresh", "an expired saved sign-in refreshes before loading progress")
+            Finish({ user_id: "viewer", access_token: "id-fresh", refresh_token: "r-fresh", expires_in: "3600" })
+            Check(m.tasks[m.tasks.Count() - 1].kind = "progress-read" and m.tasks[m.tasks.Count() - 1].authorization = "id-fresh", "progress loads with the refreshed session")
+        else
+            Check(firstTask.kind = "progress-read" and firstTask.authorization = "id-saved", "progress loads with the saved session")
+        end if
+        if order = "catalog-first"
+            DeliverCatalog()
+            Check(not HasRow("Continue Watching"), "no Continue Watching row before progress arrives (not a guest row either)")
+        end if
+        if order = "server-empty"
+            Finish({})
+        else
+            Finish(ParseJson("{""g2"": {""positionSeconds"": 600, ""durationSeconds"": 1200, ""progressPercent"": 50, ""updatedAt"": 1761234567890}}"))
+        end if
+        if order <> "catalog-first" then DeliverCatalog()
+        if order = "server-empty"
+            Check(not HasRow("Continue Watching"), "with no saved progress from the server there is no row, and guest progress is never shown to an account")
+        else
+            Check(HasRow("Continue Watching") and PersonalRow("continue").items[0].id = "g2" and ResumePosition(m.progress, "g2") = 600, "Continue Watching returns after relaunch: " + order)
+        end if
+        Finish([])
+    end for
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub
+
+' Simulates closing and reopening the app with a saved sign-in.
+sub LaunchFresh(expired as Boolean)
+    m.account = invalid
+    m.progress = {}
+    m.progressLoaded = false
+    m.loaded = false
+    m.loading = false
+    m.items = []
+    m.rows = []
+    m.view = "home"
+    m.mode = "home"
+    m.tasks = []
+    m.accountTask = invalid
+    m.accountQueue = []
+    m.favorites = []
+    m.favoritesLoaded = false
+    expiry = CurrentEpochSeconds() + 3600
+    if expired then expiry = CurrentEpochSeconds() - 60
+    m.storage.values.account = StoredAccountJson({ viewerId: "viewer", idToken: "id-saved", refreshToken: "r-saved", expiresAtSeconds: expiry })
+    m.storage.values.guestProgress = FormatJson({ "guest-only": LocalProgressEntry(300, 1200, 10) })
+    restoreSession()
+end sub
+
+sub DeliverCatalog()
+    m.loading = true
+    m.catalogTask = { result: { error: "", items: [{ id: "g2", title: "G2", contentType: "MOVIE", category: "Drama", artwork: "", backdrop: "" }, { id: "guest-only", title: "Guest", contentType: "MOVIE", category: "Drama", artwork: "", backdrop: "" }] } }
+    catalogLoaded()
+end sub
+
+function HasRow(title as String) as Boolean
+    for each row in m.rows
+        if row.title = title then return true
+    end for
+    return false
+end function
 
 ' Starts a title the way playbackLoaded does, without a real stream.
 sub StartFakePlayback(item as Object)
