@@ -220,7 +220,26 @@
     <Label id="status" translation="[426,636]" width="696" height="40" horizAlign="center" vertAlign="center" color="0xE9EEF8FF">
       <Font role="font" uri="font:SystemFontFile" size="17" />
     </Label>
-    <Video id="video" visible="false" width="1280" height="720" enableUI="true" />
+    <!-- The native player UI consumes OK without pausing, so PROtv owns the
+         remote during playback: playerKeys holds focus, the overlay shows state. -->
+    <Video id="video" visible="false" width="1280" height="720" enableUI="false" />
+    <Group id="playerKeys" focusable="true" />
+    <Group id="playerOverlay" visible="false">
+      <Poster uri="pkg:/assets/bottom-fade.png" translation="[0,420]" width="1280" height="300" loadDisplayMode="scaleToFill" />
+      <Group id="playerPreview" visible="false">
+        <Rectangle translation="[-4,-4]" width="264" height="152" color="0x05070BFF" />
+        <Poster id="playerPreviewArt" width="256" height="144" loadWidth="256" loadHeight="144" loadDisplayMode="scaleToFit" />
+      </Group>
+      <Label id="playerTitle" translation="[112,540]" width="1056" height="36" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="28" />
+      </Label>
+      <Rectangle id="playerTrack" translation="[112,588]" width="1056" height="6" color="0xFFFFFF40" />
+      <Rectangle id="playerFill" translation="[112,588]" width="0" height="6" color="0x60A5FAFF" />
+      <PillButton id="playerToggle" text="Pause" style="secondary" icon="pause" width="160" height="44" translation="[112,620]" />
+      <Label id="playerTime" translation="[868,626]" width="300" height="32" horizAlign="right" vertAlign="center" color="0xE9EEF8FF">
+        <Font role="font" uri="font:SystemFontFile" size="20" />
+      </Label>
+    </Group>
     <Animation id="backdropFade" duration="0.8" easeFunction="inOutQuad" repeat="false">
       <FloatFieldInterpolator id="fadeIn" key="[0.0, 1.0]" keyValue="[0.0, 0.85]" fieldToInterp="backdropB.opacity" />
       <FloatFieldInterpolator id="fadeOut" key="[0.0, 1.0]" keyValue="[0.85, 0.0]" fieldToInterp="backdropA.opacity" />
@@ -241,5 +260,7 @@
     <Timer id="statusTimer" repeat="false" duration="5.0" />
     <Timer id="rotateTimer" repeat="true" duration="8.0" />
     <Timer id="backdropTimer" repeat="false" duration="0.3" />
+    <Timer id="playerHideTimer" repeat="false" duration="3.0" />
+    <Timer id="seekTimer" repeat="false" duration="0.8" />
   </children>
 </component>

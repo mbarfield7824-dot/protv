@@ -27,7 +27,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*103(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*118(?:\r?\n|$)/);
 });
 
 test('SceneGraph XML, scripts, node lookups, and component references are consistent', async () => {
@@ -74,7 +74,9 @@ test('uniform 2:3 movie and 16:9 episode frames preserve complete artwork', asyn
   assert.match(xml, /id="progressTrack"/);
   assert.match(xml, /loadWidth="120" loadHeight="180"/);
   const scene = await readFile(path.join(root, 'components', 'ProtvScene.xml'), 'utf8');
-  assert.match(scene, /<Video[^>]+enableUI="true"/);
+  // The native UI consumes OK without pausing; PROtv's overlay owns playback keys.
+  assert.match(scene, /<Video[^>]+enableUI="false"/);
+  assert.match(scene, /<Group id="playerKeys" focusable="true" \/>/);
   assert.match(scene, /id="detailArt"[^>]+width="280" height="420" loadWidth="280" loadHeight="420" loadDisplayMode="scaleToFit"/);
   assert.match(scene, /id="heroArt" width="176" height="264" loadWidth="176" loadHeight="264" loadDisplayMode="scaleToFit"/);
   for (const match of `${scene}\n${xml}`.matchAll(/<Poster id="(?:art|heroArt|detailArt|seriesArt)"[^>]*>/g)) {
@@ -203,7 +205,9 @@ test('launch beacon, resume and trick play use supported Roku features', async (
   assert.match(scene, /sub signalLaunchComplete\(\)\s+if m\.launchSignaled then return\s+m\.launchSignaled = true\s+m\.top\.signalBeacon\("AppLaunchComplete"\)/);
   assert.match(scene, /if m\.video\.state = "playing"\s+signalLaunchComplete\(\)/);
   assert.match(scene, /content\.PlayStart = resumeAt/);
-  assert.doesNotMatch(scene, /m\.video\.seek\s*=/, 'no seek before playback starts');
+  const start = /sub playbackLoaded\(\)[\s\S]*?\nend sub/.exec(scene)[0];
+  assert.doesNotMatch(start, /m\.video\.seek\s*=/, 'no seek before playback starts');
+  assert.match(start, /m\.playerKeys\.setFocus\(true\)/, 'the scene, not the native Video, receives playback keys');
   const model = await readFile(path.join(root, 'source', 'model.brs'), 'utf8');
   assert.match(model, /"\?roku_trick_play=true"/);
 });

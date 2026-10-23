@@ -1,5 +1,25 @@
 # Roku validation record
 
+## Playback remote (v0.5.5) - 2026-10-23 (local time)
+- Device (v0.5.4): sign-in works; OK neither paused nor showed controls.
+- Root cause: the native Video node held focus and consumed OK (it uses OK
+  only to confirm a trick-play position), so the scene never received it;
+  v0.5.1's scene-level OK fallback could not run.
+- Fix: Video enableUI="false"; a focusable playerKeys node holds focus during
+  playback so every key reaches the scene. OK / Play-Pause pause and resume;
+  a PROtv overlay shows title, progress, position/duration and a Pause /
+  highlighted Resume control, and hides 3 s after resuming. Left/Right step
+  10 s, Rewind/Fast Forward 30 s, Replay -10 s, with a Mux thumbnail preview
+  of the seek target (public streams); the seek lands 0.8 s after the last
+  press or on OK. Back exits and saves progress.
+- Known limitation: the in-player Options (*) caption/audio panel belonged to
+  the native UI and is no longer offered; the live catalog has no caption or
+  alternate audio tracks.
+- npm test 10/10: 185 model assertions, 118 scene regressions (remote keys
+  OK, Play/Pause, Left, Right, Rewind, Fast Forward, Replay, Back). Smoke passed.
+- ZIP: 676,034 bytes, SHA-256
+  8e5cb5fba0548a103658f84ca9f79dd6ca3a205f98eee321eb233c633db61331.
+
 ## FB03 fix (v0.5.4) - 2026-10-23 (local time)
 - Device (v0.5.3): "FB03 refreshToken missing or not text" after an HTTP 200
   from accounts:signInWithCustomToken; FB02 passed, so idToken was present.

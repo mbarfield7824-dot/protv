@@ -752,6 +752,45 @@ function ResolveLaunch(request as Dynamic, items as Object) as Object
     return result
 end function
 
+' Player overlay: "1:05:09" or "4:07".
+function FormatClock(seconds as Dynamic) as String
+    total = 0
+    if IsNumber(seconds) and seconds > 0 then total = Int(seconds)
+    hours = Int(total / 3600)
+    minutes = Int((total - hours * 3600) / 60)
+    rest = total - hours * 3600 - minutes * 60
+    if hours > 0 then return hours.ToStr().Trim() + ":" + TwoDigits(minutes) + ":" + TwoDigits(rest)
+    return minutes.ToStr().Trim() + ":" + TwoDigits(rest)
+end function
+
+function TwoDigits(value as Integer) as String
+    if value < 10 then return "0" + value.ToStr().Trim()
+    return value.ToStr().Trim()
+end function
+
+function PlayerTimeText(position as Dynamic, duration as Dynamic) as String
+    if not IsNumber(duration) or duration <= 0 then return FormatClock(position)
+    return FormatClock(position) + " / " + FormatClock(duration)
+end function
+
+' Seek targets stay inside the title, short of the very end.
+function ClampSeek(target as Integer, duration as Dynamic) as Integer
+    limit = 0
+    if IsNumber(duration) and duration > 5 then limit = Int(duration) - 5
+    if target < 0 then return 0
+    if target > limit then return limit
+    return target
+end function
+
+' Preview thumbnails come from Mux's public thumbnail endpoint; signed
+' streams would need a thumbnail token, so they show no preview.
+function PreviewBase(payload as Dynamic) as String
+    if not IsMap(payload) or Text(payload.playbackToken) <> "" then return ""
+    id = Text(payload.muxPlaybackId)
+    if not CreateObject("roRegex", "^[A-Za-z0-9]+$", "").IsMatch(id) then return ""
+    return "https://image.mux.com/" + id + "/thumbnail.jpg"
+end function
+
 ' Wide cards only when every title in the row has real wide art.
 function AllWideArtwork(items as Object) as Boolean
     if items.Count() = 0 then return false

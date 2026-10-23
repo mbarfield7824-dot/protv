@@ -354,7 +354,8 @@ sub Main()
     Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "(FB05 ID token has 1 segments, expected 3)") > 0, "an invalid Firebase session names the failing check on screen")
     Check(Press("back") and m.mode = "home", "Back always leaves the account screen")
 
-    ' Device bug 1: the player keeps focus and the remote controls pause.
+    ' Device bug (v0.5.4): OK did nothing during playback. The native Video UI
+    ' consumed it, so the scene now owns the remote while a title plays.
     m.mode = "detail"
     m.detailIndex = 0
     m.selected = { id: "g1", title: "G1" }
@@ -365,26 +366,62 @@ sub Main()
     m.video.control = "play"
     m.video.position = 300.0
     m.video.duration = 1200.0
-    m.all.Push(m.video)
-    m.video.setFocus(true)
-    Check(Press("OK") and m.video.control = "pause" and m.video.focused, "OK pauses when the player passes it on")
+    m.video.seek = -1
+    m.playerKeys = FocusNode()
+    m.playerOverlay = FocusNode()
+    m.playerOverlay.visible = false
+    m.playerHideTimer = { control: "" }
+    m.seekTimer = { control: "" }
+    m.scrubbing = false
+    m.previewBase = PreviewBase({ id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" })
+    m.all.Append([m.video, m.playerKeys])
+    m.playerKeys.setFocus(true)
+    toggle = m.top.findNode("playerToggle")
+    Check(Press("OK") and m.video.control = "pause" and m.playerOverlay.visible and m.playerKeys.focused, "OK pauses and shows the controls")
+    m.video.state = "paused"
+    videoState()
+    Check(toggle.text = "Resume" and toggle.icon = "play" and toggle.style = "primary" and m.playerHideTimer.control = "stop", "paused controls highlight Resume and stay up")
+    Check(m.top.nodes.playerTitle.text = "G1" and m.top.nodes.playerTime.text = "5:00 / 20:00" and m.top.nodes.playerFill.width = 264, "controls show the title, position and duration")
+    Check(Press("OK") and m.video.control = "resume", "OK again resumes")
+    m.video.state = "playing"
+    videoState()
+    Check(toggle.text = "Pause" and toggle.icon = "pause" and m.playerHideTimer.control = "start", "resumed controls fade after a short delay")
+    playerHideTimerFired()
+    Check(not m.playerOverlay.visible, "the overlay hides while playing")
+    Check(Press("play") and m.video.control = "pause" and m.playerOverlay.visible, "Play/Pause pauses")
     m.video.state = "paused"
     Check(Press("play") and m.video.control = "resume", "Play/Pause resumes")
     m.video.state = "playing"
-    Check(not Press("left") and not Press("right") and not Press("fastforward") and not Press("rewind"), "seek and trick play stay with the native player")
+    Check(Press("right") and Press("right") and Press("right") and m.scrubbing and m.scrubTarget = 330 and m.seekTimer.control = "start", "Right steps the seek target forward 10 s at a time")
+    Check(m.top.nodes.playerTime.text = "5:30 / 20:00" and m.top.nodes.playerPreview.visible and Instr(1, m.top.nodes.playerPreviewArt.uri, "image.mux.com/Ab123/thumbnail.jpg?time=330") > 0, "seeking shows the target time and a thumbnail")
+    commitSeek()
+    Check(not m.scrubbing and m.video.seek = 330 and not m.top.nodes.playerPreview.visible, "the seek lands after the presses stop")
+    Check(Press("left") and m.scrubTarget = 290 and Press("OK") and m.video.seek = 290 and m.video.control <> "pause", "Left seeks back; OK confirms the seek without pausing")
+    Check(Press("rewind") and m.scrubTarget = 270 and Press("fastforward") and m.scrubTarget = 300, "Rewind and Fast Forward step 30 s")
+    commitSeek()
+    m.video.position = 4.0
+    Check(Press("left") and m.scrubTarget = 0, "seeking never goes before the start")
+    commitSeek()
+    m.video.position = 1195.0
+    Check(Press("right") and m.scrubTarget = 1195, "seeking stops short of the end")
+    commitSeek()
+    m.video.position = 300.0
+    Check(Press("replay") and m.video.seek = 290, "Instant Replay jumps back 10 s")
+    Check(not Press("options"), "the Options key is left to Roku")
     focusRails()
     focusNav()
     focusHero()
     focusDetails()
     focusAccount()
     focusProfile()
-    Check(m.video.focused, "nothing takes focus from the playing video")
+    Check(m.playerKeys.focused, "nothing takes focus from playback")
     m.rowsStale = false
     refreshRows()
     Check(m.rowsStale, "rail rebuilds wait until playback ends")
-    Check(Press("back") and not m.video.visible and m.video.control = "stop" and m.detailButtons.children[0].focused, "Back exits playback to the details")
+    Check(Press("back") and not m.video.visible and m.video.control = "stop" and not m.playerOverlay.visible and m.detailButtons.children[0].focused, "Back exits playback to the details")
     Check(ResumePosition(m.progress, "g1") = 300 and ParseStoredProgress(m.storage.values.guestProgress)["g1"].positionSeconds = 300 and m.top.nodes.detailPlay.text = "Resume", "Back preserves the resume position")
     Check(not m.rowsStale, "deferred rows refresh after playback")
+    Check(PreviewBase({ muxPlaybackId: "Ab123", playbackToken: "t" }) = "" and PreviewBase({ muxPlaybackId: "bad id" }) = "", "no preview for signed or invalid streams")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub

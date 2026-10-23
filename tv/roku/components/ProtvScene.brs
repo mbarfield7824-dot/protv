@@ -48,23 +48,22 @@ sub init()
     m.seriesEpisodeIndex = 0
     m.rowsStale = false
     m.accountFromProfile = false
+    m.scrubbing = false
+    m.scrubTarget = 0
+    m.previewBase = ""
     m.guestWrittenAt = 0
     m.storage = RegistryStorage()
     ' Tests substitute fake tasks; the app always uses HttpTask.
     m.newTask = HttpTaskNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "accountPollTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
     m.accountScreen = m.top.findNode("account")
     m.profile = m.top.findNode("profileButton")
     m.profile.observeField("buttonSelected", "profileSelected")
-    ' Native player bars in PROtv blue so position and pause state read clearly.
-    for each bar in [m.video.trickPlayBar, m.video.bufferingBar, m.video.retrievingBar]
-        if bar <> invalid then bar.filledBarBlendColor = "0x60A5FAFF"
-    end for
     for index = 0 to m.nav.getChildCount() - 1
         m.nav.getChild(index).observeField("buttonSelected", "navSelected")
     end for
@@ -84,6 +83,10 @@ sub init()
     m.statusTimer.observeField("fire", "statusTimerFired")
     m.rotateTimer.observeField("fire", "rotateTimerFired")
     m.backdropTimer.observeField("fire", "backdropTimerFired")
+    m.playerHideTimer.observeField("fire", "playerHideTimerFired")
+    m.seekTimer.observeField("fire", "commitSeek")
+    m.video.notificationInterval = 0.5
+    m.video.observeField("position", "playerPositionChanged")
     for each id in ["backdropA", "backdropB"]
         m.top.findNode(id).observeField("loadStatus", "backdropLoaded")
     end for
@@ -1166,15 +1169,20 @@ sub playbackLoaded()
     m.video.content = content
     m.lastSavedPosition = resumeAt
     m.status.text = ""
+    m.previewBase = PreviewBase(result.payload)
+    m.scrubbing = false
     m.video.visible = true
-    m.video.setFocus(true)
+    m.playerKeys.setFocus(true)
     m.video.control = "play"
+    renderPlayerOverlay()
     m.progressTimer.control = "start"
 end sub
 
 sub videoState()
+    if m.video.visible then renderPlayerOverlay()
     if m.video.state = "playing"
         signalLaunchComplete()
+        schedulePlayerHide()
     else if m.video.state = "error"
         code = m.video.errorCode
         m.progressTimer.control = "stop"
@@ -1191,18 +1199,130 @@ sub videoState()
     end if
 end sub
 
+' Remote during playback. The native Video UI is off: it consumes OK without
+' pausing, so these keys are handled here and shown on the PROtv overlay.
+function playerKey(key as String) as Boolean
+    if key = "back"
+        closeVideo()
+        return true
+    else if key = "OK" or key = "play"
+        if m.scrubbing
+            commitSeek()
+        else
+            togglePause()
+        end if
+        return true
+    else if key = "left" or key = "right" or key = "rewind" or key = "fastforward"
+        stepValue = 10
+        if key = "rewind" or key = "fastforward" then stepValue = 30
+        if key = "left" or key = "rewind" then stepValue = -stepValue
+        scrubBy(stepValue)
+        return true
+    else if key = "replay"
+        scrubBy(-10)
+        commitSeek()
+        return true
+    else if key = "up" or key = "down"
+        renderPlayerOverlay()
+        schedulePlayerHide()
+        return true
+    end if
+    return false
+end function
+
 sub togglePause()
     state = m.video.state
     if state = "paused"
         m.video.control = "resume"
     else if state = "playing" or state = "buffering"
         m.video.control = "pause"
+        m.playerHideTimer.control = "stop"
     end if
-    m.video.setFocus(true)
+    m.playerKeys.setFocus(true)
+    renderPlayerOverlay()
+end sub
+
+' Left/Right move a seek target in 10 s steps (Rewind/Fast Forward 30 s);
+' the seek happens after a short pause in key presses or on OK.
+sub scrubBy(stepValue as Integer)
+    duration = NumberOr(m.video.duration, 0)
+    if duration <= 0 then return
+    if not m.scrubbing
+        m.scrubbing = true
+        m.scrubTarget = Int(NumberOr(m.video.position, 0))
+    end if
+    m.scrubTarget = ClampSeek(m.scrubTarget + stepValue, duration)
+    m.playerHideTimer.control = "stop"
+    m.seekTimer.control = "stop"
+    m.seekTimer.control = "start"
+    renderPlayerOverlay()
+end sub
+
+sub commitSeek()
+    if not m.scrubbing then return
+    m.scrubbing = false
+    m.seekTimer.control = "stop"
+    m.video.seek = m.scrubTarget
+    renderPlayerOverlay()
+    schedulePlayerHide()
+end sub
+
+' Controls stay up while paused, loading or seeking; otherwise they fade.
+sub schedulePlayerHide()
+    m.playerHideTimer.control = "stop"
+    if m.video.state = "playing" and not m.scrubbing then m.playerHideTimer.control = "start"
+end sub
+
+sub playerHideTimerFired()
+    if m.video.state = "playing" and not m.scrubbing then m.playerOverlay.visible = false
+end sub
+
+sub playerPositionChanged()
+    if m.playerOverlay.visible and not m.scrubbing then renderPlayerOverlay()
+end sub
+
+sub renderPlayerOverlay()
+    m.playerOverlay.visible = true
+    state = m.video.state
+    toggle = m.top.findNode("playerToggle")
+    if state = "paused"
+        toggle.text = "Resume"
+        toggle.icon = "play"
+        toggle.style = "primary"
+    else if (state = "buffering" or state = "none" or state = "") and not m.scrubbing
+        toggle.text = "Loading"
+        toggle.icon = ""
+        toggle.style = "secondary"
+    else
+        toggle.text = "Pause"
+        toggle.icon = "pause"
+        toggle.style = "secondary"
+    end if
+    position = Int(NumberOr(m.video.position, 0))
+    if m.scrubbing then position = m.scrubTarget
+    duration = NumberOr(m.video.duration, 0)
+    if m.selected <> invalid then m.top.findNode("playerTitle").text = Text(m.selected.title)
+    m.top.findNode("playerTime").text = PlayerTimeText(position, duration)
+    fill = m.top.findNode("playerFill")
+    fill.width = 0
+    if duration > 0 then fill.width = Int(1056 * position / duration)
+    preview = m.top.findNode("playerPreview")
+    preview.visible = m.scrubbing and m.previewBase <> ""
+    if preview.visible
+        m.top.findNode("playerPreviewArt").uri = m.previewBase + "?time=" + position.ToStr().Trim() + "&width=256"
+        previewX = 112 + fill.width - 128
+        if previewX < 112 then previewX = 112
+        if previewX > 1168 - 256 then previewX = 1168 - 256
+        preview.translation = [previewX, 380]
+    end if
 end sub
 
 sub closeVideo()
     saveCurrentProgress(true)
+    m.scrubbing = false
+    m.seekTimer.control = "stop"
+    m.playerHideTimer.control = "stop"
+    m.playerOverlay.visible = false
     m.progressTimer.control = "stop"
     m.video.control = "stop"
     m.video.visible = false
@@ -1251,16 +1371,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
     restartRotation()
     if m.video.visible
-        ' The native player handles transport keys it uses. OK and Play/Pause
-        ' that reach the scene toggle pause, so the remote never goes dead.
-        if key = "back"
-            closeVideo()
-            return true
-        else if key = "OK" or key = "play"
-            togglePause()
-            return true
-        end if
-        return false
+        return playerKey(key)
     end if
     if key = "back"
         if m.mode <> "home"
