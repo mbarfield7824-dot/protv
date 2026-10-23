@@ -467,36 +467,89 @@ function DeviceSessionDetails(payload as Dynamic, nowSeconds as Integer) as Obje
 end function
 
 function ValidFirebaseSession(payload as Dynamic) as Boolean
-    if not IsMap(payload) then return false
-    if Text(payload.idToken) = "" or Text(payload.refreshToken) = "" then return false
-    if FirebaseSessionUid(payload) = "" then return false
-    return PositiveInteger(payload.expiresIn)
+    return FirebaseSessionProblem(payload) = ""
+end function
+
+' Which check a signInWithCustomToken response fails; "" when valid. Each
+' code is shown on screen and logged so a device failure names its cause.
+function FirebaseSessionProblem(payload as Dynamic) as String
+    if not IsMap(payload) then return "FB01 response is not a JSON object"
+    if Text(payload.idToken) = "" then return "FB02 idToken missing or not text"
+    if Text(payload.refreshToken) = "" then return "FB03 refreshToken missing or not text"
+    if not PositiveInteger(payload.expiresIn) then return "FB04 expiresIn missing or not positive"
+    problem = IdTokenProblem(Text(payload.idToken))
+    if problem <> "" then return problem
+    localId = Text(payload.localId)
+    if localId <> "" and not ExactStringEquals(localId, IdTokenUid(Text(payload.idToken))) then return "FB09 localId differs from the ID token"
+    return ""
 end function
 
 ' accounts:signInWithCustomToken returns idToken, refreshToken and expiresIn
 ' but no localId, so the viewer is the ID token's user_id / sub claim (the
 ' Firebase UID). A localId, when present, must agree.
 function FirebaseSessionUid(payload as Object) as String
-    uid = IdTokenUid(Text(payload.idToken))
-    if uid = "" then return ""
-    localId = Text(payload.localId)
-    if localId <> "" and not ExactStringEquals(localId, uid) then return ""
-    return uid
+    if FirebaseSessionProblem(payload) <> "" then return ""
+    return IdTokenUid(Text(payload.idToken))
 end function
 
 ' Reads, without verifying, the claims of a token this TV just received from
 ' Firebase over HTTPS; PROtv's API verifies the token on every request.
 function IdTokenUid(idToken as String) as String
+    if IdTokenProblem(idToken) <> "" then return ""
+    claims = IdTokenClaims(idToken)
+    userId = Text(claims.user_id)
+    if userId = "" then userId = Text(claims.sub)
+    return userId
+end function
+
+function IdTokenClaims(idToken as String) as Dynamic
     parts = idToken.Split(".")
-    if parts.Count() <> 3 then return ""
-    claims = ParseJson(Base64UrlDecode(parts[1]))
-    if not IsMap(claims) then return ""
+    if parts.Count() <> 3 then return invalid
+    return ParseJson(Base64UrlDecode(parts[1]))
+end function
+
+function IdTokenProblem(idToken as String) as String
+    parts = idToken.Split(".")
+    if parts.Count() <> 3 then return "FB05 ID token has " + parts.Count().ToStr().Trim() + " segments, expected 3"
+    decoded = Base64UrlDecode(parts[1])
+    if decoded = "" then return "FB06 ID token claims are not base64url"
+    claims = ParseJson(decoded)
+    if not IsMap(claims) then return "FB07 ID token claims are not JSON"
     userId = Text(claims.user_id)
     subject = Text(claims.sub)
     if userId = "" then userId = subject
-    if userId = "" or Len(userId) > 128 then return ""
-    if subject <> "" and not ExactStringEquals(userId, subject) then return ""
-    return userId
+    if userId = "" or Len(userId) > 128 then return "FB08 ID token has no usable user_id or sub"
+    if subject <> "" and not ExactStringEquals(userId, subject) then return "FB08 ID token user_id and sub differ"
+    return ""
+end function
+
+' TEMPORARY diagnostics: the shape of a JSON value, never its content.
+function DiagnosticShape(value as Dynamic) as String
+    kind = type(value)
+    if kind = "Invalid" or kind = "roInvalid" or kind = "<uninitialized>" then return "absent"
+    if IsMap(value)
+        keys = []
+        for each key in value
+            keys.Push(key)
+        end for
+        keys.Sort()
+        return "object{" + keys.Join(",") + "}"
+    end if
+    if IsArray(value) then return "array(" + value.Count().ToStr().Trim() + ")"
+    if GetInterface(value, "ifString") <> invalid then return "string(len " + Len(value).ToStr().Trim() + ")"
+    if GetInterface(value, "ifBoolean") <> invalid then return "boolean"
+    if IsNumber(value) then return "number"
+    return type(value)
+end function
+
+' Runs the shipped decoder on a fixed sample so a device log shows whether
+' base64url and ParseJson behave as they do in the emulator.
+function AuthSelfTest() as String
+    sample = "h.eyJ1c2VyX2lkIjoic2VsZi10ZXN0Iiwic3ViIjoic2VsZi10ZXN0IiwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6e30sInNpZ25faW5fcHJvdmlkZXIiOiJjdXN0b20ifX0.s"
+    problem = IdTokenProblem(sample)
+    if problem <> "" then return "FAIL " + problem
+    if IdTokenUid(sample) <> "self-test" then return "FAIL wrong user_id"
+    return "OK"
 end function
 
 function Base64UrlDecode(value as String) as String
@@ -728,10 +781,11 @@ function RecordProgress(progress as Object, videoId as String, entry as Object, 
     end for
     result[videoId] = entry
     while result.Count() > limit
+        ' No number-to-invalid comparison: Roku OS can reject it at runtime.
         oldest = ""
-        oldestTime = invalid
+        oldestTime = 0
         for each id in result
-            if oldestTime = invalid or ProgressUpdatedAt(result, id) < oldestTime
+            if oldest = "" or ProgressUpdatedAt(result, id) < oldestTime
                 oldest = id
                 oldestTime = ProgressUpdatedAt(result, id)
             end if

@@ -348,6 +348,9 @@ sub Main()
     accountActionSelected()
     Finish({ sessionId: "bad" }, "", 201)
     Check(m.accountTask = invalid and m.deviceSession = invalid and m.top.nodes.accountMessage.text = "The device sign-in response was invalid.", "a malformed response is reported, not trusted")
+    startAccountTask("firebase-custom", "", "POST", "{}", "", "", "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=k", "application/json")
+    Finish({ idToken: "opaque", refreshToken: "r", expiresIn: "3600" })
+    Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "(FB05 ID token has 1 segments, expected 3)") > 0, "an invalid Firebase session names the failing check on screen")
     Check(Press("back") and m.mode = "home", "Back always leaves the account screen")
 
     ' Device bug 1: the player keeps focus and the remote controls pause.

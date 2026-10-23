@@ -2,6 +2,26 @@ sub init()
     m.top.functionName = "fetch"
 end sub
 
+' TEMPORARY: on the real ID token, compares the shipped decoder with Roku's
+' native base64 (unavailable in the emulator). Lengths and shapes only.
+sub DiagnoseIdToken(token as String)
+    parts = token.Split(".")
+    print "PROtv AUTH token: length "; Len(token); ", segments "; parts.Count()
+    if parts.Count() < 2 then return
+    segment = parts[1]
+    standard = segment.Replace("-", "+").Replace("_", "/")
+    while Len(standard) MOD 4 <> 0
+        standard = standard + "="
+    end while
+    bytes = CreateObject("roByteArray")
+    bytes.FromBase64String(standard)
+    native = bytes.ToAsciiString()
+    shipped = Base64UrlDecode(segment)
+    print "PROtv AUTH token: claims segment "; Len(segment); " chars, native "; bytes.Count(); " bytes, shipped "; Len(shipped); " chars, identical "; native = shipped
+    print "PROtv AUTH token: native claims "; DiagnosticShape(ParseJson(native)); ", shipped claims "; DiagnosticShape(ParseJson(shipped))
+    print "PROtv AUTH token: check "; IdTokenProblem(token)
+end sub
+
 sub fetch()
     transfer = CreateObject("roUrlTransfer")
     port = CreateObject("roMessagePort")
@@ -36,15 +56,27 @@ sub fetch()
         return
     end if
     code = event.GetResponseCode()
+    body = event.GetString()
+    ' TEMPORARY diagnostics for sign-in: status, body size and shape only.
+    if m.top.kind <> "catalog" and m.top.kind <> "playback"
+        print "PROtv AUTH http "; m.top.kind; ": HTTP "; code; ", "; Len(body); " bytes, failure: "; event.GetFailureReason()
+    end if
     if code < 200 or code >= 300
-        m.top.result = { error: "PROtv request failed (HTTP " + code.ToStr() + "). Please try again.", statusCode: code }
+        ' Firebase errors carry a code such as INVALID_CUSTOM_TOKEN; it holds no secret.
+        errorCode = ""
+        failure = ParseJson(body)
+        if IsMap(failure) and IsMap(failure.error) then errorCode = Text(failure.error.message)
+        if errorCode <> "" then print "PROtv AUTH http "; m.top.kind; ": error code "; errorCode
+        m.top.result = { error: "PROtv request failed (HTTP " + code.ToStr() + "). Please try again.", statusCode: code, errorCode: errorCode }
         return
     end if
-    payload = ParseJson(event.GetString())
+    payload = ParseJson(body)
     if not IsMap(payload) and not IsArray(payload)
-        m.top.result = { error: "PROtv returned an invalid response." }
+        print "PROtv AUTH http "; m.top.kind; ": body is not JSON"
+        m.top.result = { error: "PROtv returned an invalid response.", statusCode: code }
         return
     end if
+    if m.top.kind = "firebase-custom" and IsMap(payload) then DiagnoseIdToken(Text(payload.idToken))
     if m.top.kind = "catalog"
         normalized = NormalizeCatalog(payload)
         if normalized.error <> ""

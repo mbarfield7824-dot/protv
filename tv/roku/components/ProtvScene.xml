@@ -210,6 +210,10 @@
       <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays linked until you select Sign Out. Guest Continue Watching is saved on this TV only; My List needs a linked account.">
         <Font role="font" uri="font:SystemFontFile" size="15" />
       </Label>
+      <!-- TEMPORARY diagnostic build label. -->
+      <Label id="accountBuild" translation="[0,656]" width="940" height="22" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="14" />
+      </Label>
     </Group>
 
     <Poster id="statusPanel" uri="pkg:/assets/toast.9.png" translation="[390,624]" width="768" height="64" visible="false" />

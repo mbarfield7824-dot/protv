@@ -7,7 +7,8 @@
     "test": "node --test tests/*.test.mjs",
     "build": "npm run check && npm test && node tools/package.mjs",
     "smoke": "node tools/smoke.mjs",
-    "assets": "node tools/generate-assets.mjs"
+    "assets": "node tools/generate-assets.mjs",
+    "console": "node tools/console.mjs"
   },
   "devDependencies": {
     "brighterscript": "0.73.7",

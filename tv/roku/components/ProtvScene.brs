@@ -94,12 +94,27 @@ sub init()
     m.seriesEpisodes.observeField("itemSelected", "episodeSelected")
     m.accountPollTimer.observeField("fire", "activationPollTimerFired")
     m.progressTimer.observeField("fire", "progressTimerFired")
+    ' TEMPORARY: names the installed build and proves the token decoder on this device.
+    selfTest = AuthSelfTest()
+    version = CreateObject("roAppInfo").GetVersion()
+    AuthDiag("self-test", "build " + version + ", decoder " + selfTest)
+    m.top.findNode("accountBuild").text = "PROtv Roku " + version + " diagnostic  " + Chr(183) + "  sign-in decoder " + selfTest
     restoreSession()
     showAccountState()
     layoutNav()
     focusNav()
     loadCatalog()
 end sub
+
+' TEMPORARY sign-in diagnostics: stage and shape only, never token values.
+sub AuthDiag(stage as String, detail as String)
+    print "PROtv AUTH "; stage; ": "; detail
+end sub
+
+function NumberOr(value as Dynamic, fallback as Dynamic) as Dynamic
+    if IsNumber(value) then return value
+    return fallback
+end function
 
 function HttpTaskNode() as Object
     return CreateObject("roSGNode", "HttpTask")
@@ -1560,6 +1575,7 @@ sub accountTaskCompleted(event as Object)
     result = task.result
     kind = task.kind
     if not IsMap(result) then result = { error: "PROtv returned an invalid response. Please try again." }
+    AuthDiag(kind, "HTTP " + Text(Str(NumberOr(result.statusCode, 0))).Trim() + ", error " + DiagnosticShape(result.error) + ", payload " + DiagnosticShape(result.payload))
     if (kind = "activation-poll" or kind = "activation-exchange") and m.deviceSession = invalid
         drainAccountQueue()
         return
@@ -1585,6 +1601,7 @@ sub accountTaskCompleted(event as Object)
             m.status.text = "Waiting for approval. This TV checks at the interval provided by PROtv."
         end if
     else if kind = "activation-poll"
+        if IsMap(result.payload) then AuthDiag("activation-poll", "status " + Text(result.payload.status))
         status = DeviceActivationState(Text(result.payload.status), CurrentEpochSeconds(), m.deviceSession.expiresAtSeconds)
         if status = "pending"
             m.pollDelaySeconds = m.deviceSession.intervalSeconds
@@ -1601,6 +1618,7 @@ sub accountTaskCompleted(event as Object)
             m.top.findNode("accountMessage").text = "PROtv returned an unsupported activation status. Start a new sign-in."
         end if
     else if kind = "activation-exchange"
+        if IsMap(result.payload) then AuthDiag("activation-exchange", "customToken " + DiagnosticShape(result.payload.customToken))
         customToken = Text(result.payload.customToken)
         if customToken = ""
             activationFailed("PROtv did not return a usable sign-in token. Start again.")
@@ -1610,9 +1628,17 @@ sub accountTaskCompleted(event as Object)
             startAccountTask("firebase-custom", "", "POST", customBody, "", "", identityUrl, "application/json")
         end if
     else if kind = "firebase-custom"
-        if not ValidFirebaseSession(result.payload)
-            authSessionFailed("Firebase returned an invalid account session. Link again.")
+        problem = FirebaseSessionProblem(result.payload)
+        if IsMap(result.payload)
+            AuthDiag("firebase-custom", "idToken " + DiagnosticShape(result.payload.idToken) + ", refreshToken " + DiagnosticShape(result.payload.refreshToken) + ", expiresIn " + DiagnosticShape(result.payload.expiresIn) + ", localId " + DiagnosticShape(result.payload.localId))
+            token = Text(result.payload.idToken)
+            AuthDiag("id-token", "segments " + token.Split(".").Count().ToStr().Trim() + ", claims " + DiagnosticShape(IdTokenClaims(token)))
+        end if
+        AuthDiag("validation", "result " + problem)
+        if problem <> ""
+            authSessionFailed("Firebase returned an invalid account session (" + problem + "). Link again.")
         else
+            AuthDiag("viewer", "viewer ID assigned, length " + Len(FirebaseSessionUid(result.payload)).ToStr().Trim())
             previousViewerId = ""
             if m.account <> invalid then previousViewerId = Text(m.account.viewerId)
             m.progress = ProgressForViewer(previousViewerId, FirebaseSessionUid(result.payload), m.progress)
@@ -1724,7 +1750,9 @@ sub handleAccountTaskError(kind as String, result as Object)
             activationFailed(message + " Start a new sign-in.")
         end if
     else if kind = "firebase-custom"
-        activationFailed("Firebase could not finish TV sign-in. Check the Roku Firebase client configuration and try again.")
+        detail = "HTTP " + statusCode.ToStr().Trim()
+        if Text(result.errorCode) <> "" then detail = detail + " " + Text(result.errorCode)
+        activationFailed("Firebase could not finish TV sign-in (" + detail + "). Link again.")
     else if kind = "firebase-refresh"
         if statusCode >= 400 and statusCode < 500
             authSessionFailed("Your PROtv session could not be refreshed. Sign in again. " + message)
