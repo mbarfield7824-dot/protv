@@ -1,6 +1,6 @@
 # PROtv Fire TV 0.2.0-rc1 handoff
 
-**Status: installable debug candidate built; physical verification pending. Not an Amazon submission.**
+**Status: owner-confirmed RC1 physical checks passed; release/submission blockers remain. Not an Amazon submission.**
 
 ## Candidate identity and artifacts
 
@@ -125,12 +125,50 @@ Set `PROTV_TV_API_BASE_URL=https://watchprotv.com/api/` for the HTTPS release en
 - Corrected debug APK SHA-256: `5C3926EA217AE08D2B828F09F685510D5420509F0084501673B8BAE04CC76CE7` (same debug signer fingerprint listed above).
 - ADB D-pad traversal reached the bottom row and returned to the top; device screenshots showed the full hero, featured content, and first rail. Opening and dismissing the drawer from the lower rows preserved the scroll position. The owner then physically verified scrolling and drawer behavior on the Firestick and confirmed the fix looks good.
 
+## RC1 freeze and Amazon readiness review (2026-10-24)
+
+### Owner-reported physical validation
+
+The owner confirmed **9/9** checks passed on the Firestick:
+
+1. Homepage and posters
+2. Featured titles
+3. Sidebar navigation
+4. OK pause/resume
+5. Play/Pause button
+6. Seeking and Back
+7. Playback overlay dismissal
+8. Continue Watching after restart
+9. My List and login
+
+These are owner-reported results, not independently repeated during this release audit. The scroll and drawer behavior were separately verified on the device and confirmed by the owner.
+
+### Freeze and build evidence
+
+- Frozen source: `d2a6965250a9cc928c38c99f175332dbaa04c788` on `feature/firetv-final-rc-20261024`.
+- Rollback tag: `firetv-rc1-rollback-20261024`, pushed to `origin` at the frozen source commit.
+- Re-ran `:app:testDebugUnitTest`: **104 tests, 17 suites, 0 failures, 0 errors, 0 skipped**.
+- `:app:lintRelease` completed with **0 errors and 10 warnings**. `:app:assembleRelease` completed, but its APK is unsigned. No `testReleaseUnitTest` task is configured.
+- Current unsigned release APK SHA-256: `16D637CF361E16091E4C6531C1954CB8807ED3F50421C864E3F9B0FCFEEB543A`. It passes zip alignment and does not pass APK signature verification.
+- No signing keystore or release signing configuration was found in the Fire TV project. A separately preserved signed APK in the other local checkout is package `com.protv.firetv`, version `0.1.0` / code `1`; it is not the current RC1 build and its private signing key is not present in the project. Do not use it as the release candidate.
+- The installed RC1 app and app data were not changed during this audit. No catalog records, production services, Roku files, or signed APKs were changed.
+
+### Amazon Appstore checklist
+
+Official references: [presubmission checklist](https://developer.amazon.com/docs/app-submission/presubmission-checklist.html), [device filtering](https://developer.amazon.com/docs/app-submission/device-filtering-and-compatibility.html), [listing details and image requirements](https://developer.amazon.com/docs/app-submission/appstore-details.html), [privacy labels](https://developer.amazon.com/docs/app-submission/appstore-privacy-labels.html), and [account/data deletion information](https://developer.amazon.com/docs/app-submission/user-account-and-data-deletion.html).
+
+- **Identity and compatibility:** package `com.protv.firetv`; current RC is `0.2.0-rc1` / code `2`, min/target/compile SDK `23/35/37`. The manifest declares the Leanback launcher, optional touchscreen, landscape, and Internet only. `minSdk 23` excludes API-22 Fire OS 5 devices; choose and verify the supported device set in Developer Console. The Amazon documentation reviewed describes manifest-based device filtering but does not establish a fixed current numeric target-SDK threshold; confirm the console's current checks. Final production version/name and version code remain to be approved and checked against the console.
+- **Amazon assets:** Amazon's Fire TV listing guide specifies a 1280x720 PNG app icon, 3–10 1920x1080 landscape screenshots, and a 1920x1080 landscape background image. The project has a 320x180 launcher banner and a vector launcher icon; these are not the required store assets. Seven authentic 1920x1080 Firestick captures exist in the local session evidence directory, but they mainly show home/scroll/drawer states; choose and approve a representative, diverse set and prepare the store icon/background. Draft listing copy is in this document; it is not approved.
+- **Rating and reviewer access:** content-rating questionnaire, marketplace/territory selection, support details, and an owner-authorized reviewer account/instructions are not completed. No rating or credentials have been invented.
+- **Privacy and deletion:** the TV app uses Firebase Authentication and backend account/favorites/watch-progress services. Amazon's privacy-label questionnaire must reflect the app and its third-party SDKs; the current published Privacy page does not explicitly cover TV watch progress or provide a clear deletion-request page. The reviewed app/backend source contains no account-deletion flow. Amazon says apps that allow account creation must provide a web page for account-deletion requests; its console deletion questions are currently optional, and apps without submitted information are identified as not sharing it. Verify an actual deletion-request process and URL, then obtain owner/legal approval before completing or publishing disclosures.
+- **Rights:** the 2026-10-24 Roku rights report records 49 titles live and seven already restricted. Preserve those seven restrictions. Among the live titles, the report still lists material open items and unresolved/re-review categories; this audit made no catalog changes. Owner/counsel must approve the actual launch catalog and territories before submission.
+- **Binary and signing:** the current release build is unsigned. Obtain the private key matching the intended Amazon package signing identity (or owner approval for a new identity only if no existing listing/update identity must be preserved), configure signing securely outside source control, rebuild, and verify the final signature. Do not submit the debug or unsigned APK.
+
 ## Known limits and blockers
 
-- The corrected RC1 APK is installed on an AFTMM Firestick, and the owner confirmed the homepage scroll fix and drawer behavior. Playback, sign-in, and the remaining physical checklist are still pending.
+- The corrected RC1 APK remains installed on an AFTMM Firestick. The owner reports all nine RC1 physical checks passed; only the scroll/drawer checks were separately reverified during the recent fix work.
 - No build artifact is production-signed; do not submit or install the unsigned release.
-- Historical physical test results in prior reports do not substitute for testing this exact version `0.2.0-rc1`.
-- Amazon reviewer account, final IP/rights checks, privacy/account deletion review, content rating, supported-device selection and marketing assets require owner action.
+- Release signing, final launch-rights approval, privacy/deletion disclosures, content rating, supported-device selection, listing assets/text, and reviewer access remain outstanding.
 - Static/unit tests cannot prove device decoding, HDMI audio, actual remote behavior, live auth acceptance, stream tracks, or Appstore acceptance.
 
 ## Rollback
