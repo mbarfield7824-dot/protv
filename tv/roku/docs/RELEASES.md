@@ -1,5 +1,26 @@
 # Roku release checkpoints
 
+## 1.0.0 release candidate 4 (2026-10-24, not yet TV-tested) — test candidate
+
+| Item | Value |
+| --- | --- |
+| Branch / commit | `fix/roku-caption-options` at `2756e20` (app code; this doc commit follows). Not merged |
+| Manifest | 1.0.0 |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc4-candidate.zip` (read-only), 681,436 bytes |
+| SHA-256 | `e6eca2793c21cdd82ddf269a16b29b288ac6fb381285b1c780aa63806d2e8d61` |
+| Caption-check ZIP | `dist/releases/protv-roku-v1.0.0-rc4-caption-test.zip` (read-only), 681,467 bytes, SHA-256 `91059398eae7345ec25e30e68c1bf23fc24c8257911409e453da7ec28bc932d2`. **TV testing only; never submit.** Same code; the manifest adds `protv_caption_test=1` and the title "PROtv CAPTION TEST" |
+| Changes since RC3 | OK during playback shows PROtv's controls again. Focus goes to `playerKeys` (new `PlayerRemote` component) nested in the Video node: PROtv's keys are caught there, and * passes up to the Video node for Roku's caption settings. Package files changed: `components/PlayerRemote.brs/.xml` (new), `ProtvScene.brs/.xml`, `source/model.brs`; every other file is byte-identical to RC3 |
+| Tests | `bsc` clean; 11/11 node tests: 228 scene checks (27 fail against RC3's controller), 23 PlayerRemote checks, model and package checks. `npm run smoke` fails on live data unrelated to this change (28 approved posters, test expects 32) |
+
+**Cause of the RC3 failure:** a focused Video node swallows OK even with
+`enableUI="false"`. RC3 focused the Video node so Roku's Options overlay could
+open, so OK never reached the scene. The scene tests called `onKeyEvent`
+directly and so could not see this; they now route keys through the focus
+chain.
+
+RC2 and RC3 are preserved unchanged. Neither RC4 ZIP is signed. TV checks:
+TV-TESTS.md section 7.
+
 ## 1.0.0 release candidate 2 (2026-10-23, not yet TV-tested) — submission candidate
 
 | Item | Value |

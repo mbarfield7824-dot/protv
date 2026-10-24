@@ -126,3 +126,42 @@ Use the router or the PC's mobile hotspot. Do not unplug the Roku.
    focus during playback, and Roku documents that the overlay then does not
    open (store/captions-investigation.md section 3). Either result is useful;
    no other change is needed for RC2.
+
+## 7. RC4 candidate checks (playback remote and captions)
+
+RC3 TV result (owner, 2026-10-24): * opened Roku's caption settings; OK during
+playback showed no controls; turning captions on showed no words (no PROtv
+title has a caption track, so that part was expected).
+
+Sideload `dist/releases/protv-roku-v1.0.0-rc4-candidate.zip`, play any title
+for at least 10 seconds, wait for the controls to fade, then:
+
+1. OK: the title pauses and the controls appear (Resume highlighted). OK
+   again resumes; the controls fade about 3 seconds later.
+2. Play/Pause: pauses and resumes the same way.
+3. Up or Down: the controls appear without pausing, then fade.
+4. Right three times: the time jumps ahead 30 s with a thumbnail; the seek
+   happens a moment after the last press. Left goes back. OK during a seek
+   lands it without pausing. Rewind / Fast Forward step 30 s. Instant Replay
+   jumps back 10 s.
+5. * : Roku's caption settings appear. Close them, then press OK: the
+   controls still appear (this is the RC3 failure).
+6. Back: playback ends on the title's details with Play/Resume focused;
+   Left/Right/OK work there.
+7. Sign in, play, Back, restart the app: the title is in Continue Watching and
+   resumes. Run one movie deep link from store/listing.md.
+
+Captions (sideload `dist/releases/protv-roku-v1.0.0-rc4-caption-test.zip`;
+it replaces the dev channel, so re-sideload RC4 afterwards):
+
+8. The channel is titled "PROtv CAPTION TEST". Search for "caption" (it is
+   also in All Movies after the creator films, and in a "Test" row) and play
+   "TEST ONLY - Caption check (Apple HLS sample)".
+9. Press *, set Closed captioning to On: English subtitles appear within a
+   few seconds. Set Off: they disappear. If your TV offers On mute / On
+   replay, check them too.
+10. OK, Back and the other keys behave as in steps 1-6.
+
+Record each result. If step 5's * fails on RC4 but works on RC3, report it:
+the fallback is a Captions control on PROtv's overlay
+(store/captions-investigation.md).

@@ -27,6 +27,27 @@ exemption is claimed.** Sources are quoted from the primary texts named.
    inferred from Roku's documentation, not observed, and cannot be verified
    without a captioned title.
 
+## RC4 update (2026-10-24)
+
+- **TV (RC3):** * opened Roku's caption settings, so the Options gap below is
+  closed. Turning captions on showed no words.
+- **Why no words:** no title has a caption track. All 49 live titles were
+  checked through the app's own playback authorization: every master
+  playlist declares `CLOSED-CAPTIONS=NONE` and has no `TYPE=SUBTITLES`
+  rendition (public GETs of master playlists only; no segments). This is
+  "no caption track exists", not a player or settings fault.
+- **App side:** Roku "selects a closed caption track based on the preferred
+  caption language" and apps "do not need to handle track selection"
+  (Roku closed-caption guide). PROtv sets no caption fields; a project test
+  keeps it that way.
+- **Check without Mux cost:** the caption-test package (RELEASES.md, RC4)
+  lists one "TEST ONLY" title playing Apple's public HLS sample, which has
+  English WebVTT subtitles. It never ships; candidate packages are tested to
+  lack the flag.
+- **RC3 regression fixed in RC4:** a focused Video node swallowed OK. Focus
+  now sits on a child of the Video node, which keeps the Video node in the
+  focus chain for *.
+
 ## 1. Roku certification text (criteria page, last updated October 2026)
 
 > **4.8** Apps must comply with all applicable accessibility laws and global
