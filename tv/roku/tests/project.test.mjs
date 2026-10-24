@@ -6,6 +6,15 @@ import path from 'node:path';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { unzipSync, strFromU8 } from 'fflate';
 import { root, packageBytes, resolveFirebaseApiKey } from '../tools/package.mjs';
+import { srtToVtt } from '../tools/captions.mjs';
+
+test('caption tool converts reviewed SRT to WebVTT and flags timing problems', () => {
+  const good = srtToVtt('1\r\n00:00:01,000 --> 00:00:03,500\r\nHello.\r\n\r\n2\r\n00:00:04,000 --> 00:00:06,000\r\n[door slams]\r\n', 734);
+  assert.equal(good.vtt, 'WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nHello.\n\n00:00:04.000 --> 00:00:06.000\n[door slams]\n');
+  assert.deepEqual(good.problems, []);
+  const bad = srtToVtt('1\n00:00:05,000 --> 00:00:04,000\nA\n\n2\n00:00:01,000 --> 00:20:00,000\nB\n', 734);
+  assert.equal(bad.problems.length, 3, bad.problems.join('; '));
+});
 
 test('actual BrightScript model executes offline contract regressions', () => {
   const output = execFileSync(process.execPath, [
