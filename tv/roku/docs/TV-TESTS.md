@@ -165,3 +165,17 @@ it replaces the dev channel, so re-sideload RC4 afterwards):
 Record each result. If step 5's * fails on RC4 but works on RC3, report it:
 the fallback is a Captions control on PROtv's overlay
 (store/captions-investigation.md).
+
+## 6b. RC3 candidate check (superseded: RC3 failed step 1 on the TV; see section 7)
+
+Sideload `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip`, play any title, then:
+
+1. Press **OK**: playback pauses and PROtv's controls appear. Press OK again:
+   it resumes. (This is the behavior RC3 could break.)
+2. Press **Left** three times: the seek preview moves back 30 s; wait: it seeks.
+3. Press **Instant Replay**: it jumps back 10 s.
+4. Press **\***: Roku's options overlay slides in (captions, etc.). Press Back
+   to close it; playback continues.
+5. Press **Back**: playback ends and the details screen shows Resume.
+
+All five pass: use RC3 for submission. Step 1 fails: keep RC2 and report it.

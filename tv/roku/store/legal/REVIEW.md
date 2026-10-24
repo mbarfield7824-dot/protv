@@ -1,75 +1,58 @@
-# Legal drafts: review sheet
+# Legal drafts: review sheet (review copy 3)
 
-For the owner and counsel. Covers `privacy-policy-draft.md` and
-`terms-of-use-draft.md` (review copy 2, 2026-10-23). **Nothing is published.**
-Publishing means editing `frontend/src/pages/Privacy.jsx` and `Terms.jsx` on
-the website, which is a separate, owner-approved change. Roku needs the
-updated privacy URL in the dashboard before submission.
+For the owner and counsel. Covers `privacy-policy-draft.md`,
+`terms-of-use-draft.md` and `ACCOUNT-DELETION-RUNBOOK.md`, 2026-10-23.
+**Nothing is published.** Publishing means editing
+`frontend/src/pages/Privacy.jsx` and `Terms.jsx` (an owner-approved website
+change). Roku needs the published privacy URL before submission.
 
-## 1. Decisions (each blocks publication)
+## 1. Confirmed technical gaps (facts, not legal opinions)
 
-| # | Decision | Recommendation |
-| --- | --- | --- |
-| 1 | Postal address for Prophecy Entertainment LLC | Required in practice for privacy contact; use the registered business address, not a home address if avoidable |
-| 2 | Deletion turnaround ("within [30] days") | 30 days; it is achievable by hand today (see docs/account-deletion-plan.md) |
-| 3 | Retention for safety reports and creator records | "As long as needed to handle them and meet legal obligations" (already drafted); counsel may set fixed periods |
-| 4 | State privacy laws (for example California's CCPA/CPRA "sale/share" opt-out for ad cookies) | Counsel confirms whether PROtv meets any law's thresholds. If yes: add a "Your Privacy Choices" link and honor Global Privacy Control on the website. The draft avoids claiming "we do not share" |
-| 5 | Consent banner for ads (EU/UK visitors) | No consent banner exists today. With a US-only Roku launch this mainly affects the website; counsel decides, or restrict AdSense personalization outside the US in the AdSense console |
-| 6 | Video ads | They are off in production (`/api/ads/session` returns `enabled: false`). If they are switched on, name the ad network in the policy first |
-| 7 | Disclaimers, limitation of liability, governing law, disputes | Counsel drafts; none exist in the current terms |
-| 8 | Effective date | The day both pages are published |
+| # | Gap | Evidence | Effect | Fix |
+| --- | --- | --- | --- | --- |
+| T1 | No account-deletion endpoint | No `deleteUser` route in `backend/src` | Deletion is manual | Use ACCOUNT-DELETION-RUNBOOK.md; self-service plan in docs/account-deletion-plan.md |
+| T2 | No consent banner (CMP) on the website | `frontend/index.html` loads AdSense with no CMP | Google: "a certified CMP integrated with the TCF is required when serving personalized ads to users in the EEA and UK" (since 2024-01-16; Switzerland since 2024-07-31); without one, traffic "may be eligible for non-personalized ads or limited ads" | Add a Google-certified CMP, or accept limited ads outside the US |
+| T3 | No Do Not Track / Global Privacy Control handling | No code reads `navigator.globalPrivacyControl` or `DNT` | The policy must say so (see L3) | Policy statement now; code later if L2 applies |
+| T4 | Expired device records never deleted | `deviceSessions`, `deviceActivationCodes`, `deviceRateLimits`, `safetyReportRateLimits` have `expiresAt` but **no active TTL policy** (`gcloud firestore fields ttls list`: active only on `playbackRateLimits`, `playbackViewDedup`, `playbackViewEvents`, `playbackViewSessions`, `tvAuthRateLimits`) | Data kept longer than needed | Enable TTL on `expiresAt` for the four collections (owner approval) |
+| T5 | Google sign-in was not disclosed | `frontend/src/context/AuthContext.jsx` (`signInWithPopup`, `signInWithRedirect`, Google provider) | Live policy incomplete | Disclosed in the draft |
+| T6 | The legacy public `/api/videos` route returns every unlisted Firestore field | `publicVideo()` uses a deny-list | Internal fields added later become public | Mitigated tonight: rights evidence moved to `titleRightsEvidence` (client reads denied, 403). Recommend an allow-list (backend change) |
+| T7 | Old dotted `watchProgress.<id>` fields remain in `users` documents | Firestore | Covered by the runbook (whole document deleted) | Cleaned on the next progress write since PR #12 |
 
-## 2. Fact check (every factual statement and its source)
+## 2. Legal questions (counsel)
 
-| Statement | Source |
+| # | Question | Facts and citations | Recommendation |
+| --- | --- | --- | --- |
+| L1 | Postal address | Not in project records | Owner supplies the registered business address |
+| L2 | Does the CCPA apply? | It applies to for-profit businesses doing business in California that have "gross annual revenue of over $25 million", or "buy, sell, or share the personal information of 100,000 or more California residents or households", or derive 50%+ of revenue from selling it ([California AG CCPA FAQ](https://oag.ca.gov/privacy/ccpa)). Covered businesses must offer "Do Not Sell or Share" and honor GPC | Counsel confirms. Likely below the thresholds today; ad cookies count toward "sharing" |
+| L3 | CalOPPA disclosures | Cal. Bus. & Prof. Code §22575(b)(5) requires disclosing how the site responds to "do not track" signals where it collects data across sites over time, and (b)(6) whether third parties may collect such data ([Justia, §22575](https://law.justia.com/codes/california/code-bpc/division-8/chapter-22/section-22575/); [AB 370](https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=201320140AB370)) | The draft now discloses third-party (Google) collection; decision 9 sets the DNT/GPC wording ("we do not currently respond" is accurate today) |
+| L4 | EEA/UK visitors and ad consent | See T2 | Commercial decision: a CMP, or non-personalized ads outside the US |
+| L5 | Deletion turnaround | Manual process (T1) | "Aim to complete within 30 days" (drafted as an aim, not a guarantee) |
+| L6 | Retention for safety reports, support email and creator records | No TTL on `safetyReports` | "As long as needed to handle them and meet legal obligations" |
+| L7 | Children | Not made for kids; no age gate | Keep the under-13 statement; counsel confirms no age gate is required for a general-audience service |
+| L8 | Terms: disclaimers, liability, governing law, disputes | None in the current terms | Counsel drafts |
+| L9 | Video ads | Built (Google IMA) but off: `/api/ads/session` returns `{"enabled":false}` | Name the ad network in the policy before enabling |
+| L10 | Effective date | — | The day both pages are published |
+
+## 3. Fact check (each statement and its source)
+
+| Statement in the draft | Source |
 | --- | --- |
-| Email and display name stored; password held by Firebase | Firebase Authentication; `backend/src/auth/tvAuth.js` (passwords pass through to Firebase and are not stored) |
-| Verification email on sign-up, including on a TV | `tvAuth.js` sends `VERIFY_EMAIL` after TV sign-up |
-| My List and watch progress stored with the account | `backend/src/routes/users.js`, `watchProgress.js` |
-| Guest progress stays on the TV, up to 50 titles | Roku `source/model.brs` (`LocalProgressEntry`, registry), not sent to the server |
-| TV keeps a sign-in token; sign-out deletes it | Roku `storeAccount` / `forgetAccount` (registry) |
-| Activation code at watchprotv.com/activate | `frontend/src/pages/Activate.jsx` → `api.approveDeviceSession(code)` |
-| Roku email request, email only | Roku `ChannelStore` `getUserData`, `requestedUserData="email"` |
-| Rate-limit counters: hashed keys, expire in about an hour | `tvAuth.js` (`tvAuthRateLimits`, hashed key, `expiresAt`); Firestore TTL policy active |
-| Safety reports keep contact email and description | `frontend/src/pages/SafetyReport.jsx` (`contactEmail`, `description`, target fields) → `backend/src/reports/store.js` (`safetyReports`) |
-| Vercel Analytics on the website | `frontend/src/App.jsx` (`@vercel/analytics`) |
-| Mux playback-quality data with the title watched | `frontend/src/components/VastMuxPlayer.jsx` (`@mux/mux-player-react`, `metadata={{ video_id, video_title }}`); Mux Player's monitoring is not disabled in code |
-| Google AdSense on the website | `frontend/index.html` (`adsbygoogle`, `ca-pub` client) |
-| Video ads via Google IMA, currently off | `VastMuxPlayer.jsx` (IMA SDK); `backend/src/ads/router.js` requires `VAST_AD_TAG_URL`; live response `{"enabled":false}` |
-| Roku app shows no ads | Roku source: no ad framework |
-| Support email | support@watchprotv.com (published on the current privacy page and Contact page) |
-| No account-deletion endpoint today | No `deleteUser` route in `backend/src`; deletion is by email request |
+| Email and display name; password held by Firebase; verification and reset emails | `backend/src/routes/auth.js` (`createUser` with `displayName`); `AuthContext.jsx` (`sendEmailVerification`, `sendPasswordResetEmail`); `tvAuth.js` (`VERIFY_EMAIL`, `PASSWORD_RESET`) |
+| Google sign-in shares name, email, picture | `AuthContext.jsx` Google provider (Firebase's standard profile scope) |
+| My List, progress, watch history with the account | `users/{uid}` (`favoriteVideoIds`, `watchProgress`); `frontend/src/pages/WatchHistory.jsx` reads progress |
+| Guest progress on the TV only, 50 titles | Roku `source/model.brs` (registry) |
+| TV token storage; sign-out deletes it | Roku `storeAccount` / `forgetAccount` |
+| Activation codes | `Activate.jsx` → `approveDeviceSession`; `deviceSessions` (`approvedByUid`) |
+| Roku email request, email only | Roku `ChannelStore.getUserData`, `requestedUserData="email"` |
+| Rate-limit counters hashed, expire in about an hour | `tvAuth.js`; TTL active on `tvAuthRateLimits` |
+| Safety reports keep contact email | `SafetyReport.jsx` → `safetyReports.contactEmail` |
+| Vercel Web Analytics: no cookies, page/referrer/location/device, 24-hour hash | `App.jsx`; [Vercel privacy doc](https://vercel.com/docs/analytics/privacy-policy) |
+| Mux playback quality with title | `VastMuxPlayer.jsx` (`metadata={{ video_id, video_title }}`) |
+| AdSense; Google may collect across sites | `frontend/index.html` (`adsbygoogle`) |
+| Video ads possible, currently off | `VastMuxPlayer.jsx` (IMA); live `{"enabled":false}` |
+| This Roku version shows no ads | No ad framework in the Roku source |
+| Deletion removes account, list, progress, TV links | ACCOUNT-DELETION-RUNBOOK.md steps 1, 2 and 4 |
 
-Not verified from code (owner to confirm): the e-signature provider's name
-(the Creator Agent is outside this repository) and whether any other email
-or analytics provider is used.
-
-## 3. What changes from the live pages
-
-**Privacy (live text is five short paragraphs):**
-- Adds the operator name, address, effective date and contact.
-- Adds TV sign-in, TV guest progress, activation codes and the Roku email
-  request (needed for the Roku submission).
-- Adds watch progress, safety reports, creators and abuse prevention.
-- **Discloses advertising (AdSense, and possible video ads) and analytics
-  (Vercel, Mux).** The live page mentions "analytics" only generally and
-  does not mention advertising.
-- Adds retention and deletion, children, rights and changes.
-- Keeps "we do not sell personal information", narrowed to "for money"
-  pending decision 4.
-
-**Terms (live text has four sections):** keeps all four; adds TV accounts and
-activation, links the Acceptable Use and DMCA policies, adds copyright,
-reports and changes sections, and leaves a placeholder for counsel's
-liability and dispute terms.
-
-## 4. Roku-specific checks
-
-- **Privacy policy URL** in the dashboard: https://watchprotv.com/privacy,
-  after publication.
-- **Sign-in disclosure:** the draft covers on-device sign-in, Roku's email
-  request and token storage, matching what the app does.
-- **Account deletion:** the Roku app tells signed-in viewers to email
-  support@watchprotv.com, and the draft says the same.
-- **Children:** the app is not "made for kids" (listing); the draft's under-13
-  statement is consistent with that.
+Not verifiable from code: the e-signature provider's name (Creator Agent is
+outside this repository), and whether support email is handled by another
+provider.

@@ -1,5 +1,19 @@
 # Roku validation record
 
+## 2026-10-23 launch run (local time; production catalog changes)
+- RC2 unchanged: rebuild reproduces SHA-256 471f12dd0cc9974acc3351e2988433bc289dbca8ee7a09b59d1db361095c5bf8 byte for byte;
+  all 9 release ZIP checksums verified.
+- npm run check: 0 diagnostics. npm test 10/10 (211 scene regressions).
+  npm run smoke (live) passed, now asserting the 7 rights restrictions.
+  Production checks 21/21.
+- Catalog: 52 metadata writes on 18 titles (groups 1–5), 7 rights
+  restrictions, rights records on 43 titles; each verified after writing.
+  Live catalog: 49 titles, all 49 playable; the 7 restricted titles return
+  404 on title, playback and legacy routes and are absent from the catalog.
+- RC3 candidate (branch fix/roku-caption-options, d023f0a): 215 scene
+  regressions pass; package differs from RC2 only in ProtvScene.brs/.xml.
+  **Not device tested.**
+
 ## 1.0.0 RC2 - 2026-10-23 (local time)
 - Fixes: deep link while a sign-in keyboard/email request is open ends the
   flow first (no focus trap); deletion contact on the signed-in Account

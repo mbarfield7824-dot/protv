@@ -21,6 +21,16 @@ chain.
 RC2 and RC3 are preserved unchanged. Neither RC4 ZIP is signed. TV checks:
 TV-TESTS.md section 7.
 
+## 1.0.0 RC3 candidate (2026-10-23, NOT TV-tested; RC2 remains the stable candidate)
+
+| Item | Value |
+| --- | --- |
+| Branch / commit | `fix/roku-caption-options` at `d023f0a` (pushed; not merged) |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip` (read-only), 679,768 bytes |
+| SHA-256 | `da6e1057b47070fa57cdf1dc57d1e17a80a30c6d72cd9408f8380f8f56b3c2d6` |
+| Change from RC2 | The Video node keeps focus during playback, so Roku's Options (*) overlay (captions) can open; package differs from RC2 only in ProtvScene.brs/.xml |
+| Promote to stable only if | TV-TESTS.md section 7 passes on a physical Roku |
+
 ## 1.0.0 release candidate 2 (2026-10-23, not yet TV-tested) — submission candidate
 
 | Item | Value |

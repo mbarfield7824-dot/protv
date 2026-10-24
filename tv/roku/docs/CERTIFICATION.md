@@ -37,7 +37,7 @@ check; **owner** = needs the owner.
 | 6.1 | Non-zero version, incremented per submission | Met | 1.0.0 |
 | 6.2 | Kids & Family rules | Not applicable | |
 | 6.3 | No pornographic content; listing suitable for all ages | Met (owner confirms listing text) | |
-| 6.4 | FHD + HD splash; no transparent artwork | Met | 1920x1080 / 1280x720 splash; opaque 540x405 poster |
+| 6.4 | FHD + HD splash; no transparent artwork | Met | 1920x1080 / 1280x720 splash; opaque 540x405 poster; channel icons have an alpha channel but every pixel is opaque (alpha 255, checked) |
 
 ## Dashboard (owner)
 

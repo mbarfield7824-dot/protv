@@ -3,10 +3,14 @@
 Reviewed 2026-10-23 against the live catalog (56 titles), Firestore, Wikidata,
 Wikipedia, the BFI and US Copyright Office records. Exact before/after values
 for every change below are in `docs/catalog-corrections.json` (45 field
-changes in 5 groups). **Nothing in this file has been applied.** Approve by
-group; each approved change is written with an `adminAudit` entry holding the
-previous value, as was done for the year corrections. Creator-owned records
-are not touched.
+changes in 5 groups). **Groups 1–5 were APPLIED on 2026-10-23** (owner-approved): 52 field
+writes on 18 titles, each verified after writing, with one `adminAudit`
+entry per title (type `title_metadata_updated`, actor
+`owner-approved-catalog-corrections-2026-10-23`, previous values in
+`details.previous`). Category changes also set `genre` and `categories`, as
+the admin edit route does. The Brain from Planet Arous was restricted with
+the rights workflow instead (store/RIGHTS-REPORT.md). Creator-owned records
+were not touched. Rollback: write `details.previous` back for the title.
 
 ## Already applied (2026-10-23, audited)
 

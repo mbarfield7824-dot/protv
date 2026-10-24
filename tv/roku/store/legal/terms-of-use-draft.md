@@ -1,4 +1,4 @@
-# PROtv Terms of Use — full replacement draft (review copy 2)
+# PROtv Terms of Use — full replacement draft (review copy 3)
 
 **DRAFT for owner and counsel review. Not published. Not legal advice.**
 Revised 2026-10-23. Keeps every section of the current terms
@@ -58,7 +58,7 @@ information you provide is accurate and that you have permission to share it.
 ## [Disclaimers, limitation of liability, governing law and disputes]
 
 [Counsel to draft or decide to omit. None are in the current terms. See
-REVIEW.md decision 7.]
+REVIEW.md question L8.]
 
 ## Changes
 
