@@ -23,11 +23,11 @@ check; **owner** = needs the owner.
 | 3.7 | Package 4 MB or less | Met | 1.0.0 ZIP 0.68 MB |
 | 4.1 | Updates keep sign-in and data | Met if the same signing key is reused | RELEASE-PREP.md section 5 |
 | 4.3 | Roku Event Dispatcher for apps that require sign-in | Not applicable | Sign-in optional; everything plays as a guest |
-| 4.4 | Options (*) reserved during playback | Met | Not used |
+| 4.4 | Options (*) reserved during playback | Met (app does not use *); **TV check pending** | PROtv controls hold focus during playback, so Roku's overlay may not open; TV-TESTS.md section 6 step 8 |
 | 4.5 | Screensaver untouched | Met | |
 | 4.6 | Back returns to the previous screen; Back on Home exits | Met | TV, auto |
 | 4.7 | Trick-play thumbnails, VOD over 15 min (42 titles) | Implemented; unverified on TV | Mux previews while seeking (auto); TV |
-| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live). 47 CFR 79.4 analysis and recommended path in store/rights-matrix.md; the app shows HLS WebVTT tracks with no code change |
+| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live). No captions today, so the Options-menu clause does not yet apply. Before captions are added, RC3 must make Roku's caption settings reachable during playback (store/captions-investigation.md) |
 | 4.9 | Instant Replay 10–25 s | Met | 10 s (auto) |
 | 4.10 | Bookmarks, VOD over 15 min, 30+ days | Met | Continue Watching and resume after restart (TV, v0.6.1 + backend fix b123f03) |
 | 4.12 | Roku voice keyboards for email and password | Met | StandardKeyboardDialog (DynamicKeyboard), email/password domains (TV) |

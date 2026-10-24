@@ -121,3 +121,8 @@ Use the router or the PC's mobile hotspot. Do not unplug the Roku.
    closes and His Girl Friday plays; Back works normally afterwards.
 7. RC2: signed in, the Account screen says to email support@watchprotv.com to
    delete the account.
+8. Options (*) during playback: start any title and press * once. Record
+   whether Roku's options overlay appears. RC2 does not give the Video node
+   focus during playback, and Roku documents that the overlay then does not
+   open (store/captions-investigation.md section 3). Either result is useful;
+   no other change is needed for RC2.

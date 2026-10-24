@@ -28,26 +28,16 @@ unresolved issues per title: `store/rights-matrix.csv`.
 
 ## Unresolved (owner / counsel)
 
-1. **43 titles rely only on a description note.** Before choosing countries,
-   record the source copy and the basis (e.g. not renewed, pre-1929, US
-   government work, CC license) for each, as the 11 structured titles already
-   do. Public-domain status is country-specific: a film that is public domain
-   in the US may be protected elsewhere.
-2. **The Bundy Chronicles ("PROtv exclusive")** has no rights holder, license
-   type or agreement on record. Confirm the agreement exists and its territory.
-3. **Compilations** (Looney Tunes Classics: Collection, Merri Melodies
-   shorts) are marked Public Domain Mark, but public-domain status is per
-   short; confirm every short in each video.
-4. **Elephants Dream** is published by the Blender Foundation under CC BY 2.5
-   (the other three under CC BY 3.0); the note says 3.0. Confirm and correct
-   the note if so.
-5. **Creator titles:** confirm the territory clause in each signed schedule
-   covers Roku distribution in the chosen countries. Dead Air carries TV-MA;
-   The Lost Camp has no rating.
-6. **Restored editions:** where a source is a modern restoration (e.g.
-   Woman on the Run, D.O.A., Night of the Living Dead have well-known
-   restorations), confirm the copy used is the original public-domain release
-   and not a newly copyrighted restoration or soundtrack.
+**Superseded by the evidence review (2026-10-23):**
+`store/evidence/rights-evidence.md` classifies the 43 titles without structured
+records into tiers A (9), B (19), C (7) and D (8), with sources, Copyright
+Office findings and a recommendation for each. Most urgent: *The Brain from
+Planet Arous* was renewed (RE0000258469, 1985) and should be hidden pending
+counsel; the four silent features carry modern scores of unknown origin; the
+Thomson scores on The Plow That Broke the Plains and The River; and the
+foreign-footage, foreign-production or novel-based titles in tier D.
+Structured values for tiers A and B are proposed in
+`store/evidence/proposed-rights-fields.json` (not applied).
 
 ## Territory recommendation
 
@@ -57,38 +47,9 @@ item 1 is resolved per country. This is a recommendation, not a declaration.
 
 ## Captions (certification 4.8 "where required by law")
 
-Roku requires captions where the law requires them. The US rule is the FCC's
-IP closed-captioning rule, 47 CFR 79.4:
-
-- It covers nonexempt **full-length video programming that is "published or
-  exhibited on television in the United States with captions"** (79.4(b)(1)).
-  "Video programming" is programming comparable to a TV broadcast station's
-  and excludes consumer-generated media (79.4(a)(1)).
-- **Archival programming:** once a title already online is shown on US
-  television with captions, the online version must be captioned within
-  **15 days** (for showings on or after March 30, 2016; 79.4(b)(1)(iv)).
-- There is a de minimis provision (79.4(c)(3)) and an economic-burden
-  exemption only by FCC petition (79.4(d)). **No exemption is claimed here.**
-
-What this means for PROtv (needs counsel to confirm):
-
-- Classic films and TV episodes in the catalog (for example Night of the
-  Living Dead, His Girl Friday, the Fleischer Superman cartoons, One Step
-  Beyond, Cavalcade of Stars) are the kind of programming that may have aired
-  on US television with captions. If any has, the rule can apply to PROtv's
-  copy. PROtv has no record either way.
-- Independent creator films and Blender shorts that never aired on TV with
-  captions are likely outside the trigger, but this is not established.
-- Beyond the legal minimum, Roku reviewers and accessibility expectations
-  favor captions on all long-form titles.
-
-**Recommended path (no cost incurred by this review):** generate captions for
-every title. Mux can add text tracks to existing assets (uploaded WebVTT/SRT,
-or Mux auto-generated captions — the owner should confirm current Mux pricing
-before enabling). The Roku app needs **no change**: the Roku Video node shows
-WebVTT tracks from the HLS manifest automatically when the viewer turns on
-captions in Roku settings or the * menu (left to Roku, certification 4.4).
-Verify one captioned title on the TV once tracks exist.
+**Superseded by `store/captions-investigation.md`** (47 CFR 79.4 text and
+how it maps to the catalog, audio description, ADA risk, Roku 4.8/4.4 wording,
+the Options-menu gap found in the app, and the no-extra-charge Mux path).
 
 ## Per-title matrix
 

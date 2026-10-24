@@ -1,0 +1,506 @@
+{
+ "status": "PROPOSAL - not applied; apply only after owner approval",
+ "generated": "2026-10-23",
+ "note": "Tier C and D titles are excluded on purpose: their status should not be recorded until resolved.",
+ "titles": [
+  {
+   "id": "u3dXF1OlGIXiRPAHz3hE",
+   "title": "A Day in the Life of a Coal Miner (1910)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (pre-1931 publication)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "",
+    "publicDomainLicenseEvidence": "Published 1910 (US term expired; works published before 1931 are public domain in the US)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): Published 1910 (US term expired; works published before 1931 are public domain in the US). Open: British film (Kineto, Charles Urban; sponsored by the London & North Western Railway): BFI Screenonline http://www.screenonline.org.uk/film/id/809895/ . US status rests on the 1910 date; UK status not reviewed (US-only launch); PROtv synopsis wrongly describes it as American. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "British film (Kineto, Charles Urban; sponsored by the London & North Western Railway): BFI Screenonline http://www.screenonline.org.uk/film/id/809895/ . US status rests on the 1910 date; UK status not reviewed (US-only launch)",
+    "PROtv synopsis wrongly describes it as American"
+   ]
+  },
+  {
+   "id": "hKPU3JNJ4faWLgWE6ZSq",
+   "title": "Big Buck Bunny (2008)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "creative-commons",
+    "licenseType": "CC BY 3.0",
+    "rightsHolder": "Blender Foundation",
+    "attributionRequired": true,
+    "attributionText": "(c) copyright 2008, Blender Foundation / www.bigbuckbunny.org. Licensed under CC BY 3.0.",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_4K.webm",
+    "publicDomainLicenseEvidence": "CC BY 3.0, stated by the copyright holder (Blender Foundation)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): CC BY 3.0, stated by the copyright holder (Blender Foundation). Open: The separately released score is CC BY-NC-ND 3.0; the film as released (with its soundtrack) is CC BY 3.0. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "The separately released score is CC BY-NC-ND 3.0; the film as released (with its soundtrack) is CC BY 3.0"
+   ]
+  },
+  {
+   "id": "biitnhJJnBvHGFx8TJZC",
+   "title": "Body and Soul (1925)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (pre-1931 publication)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Body_and_Soul_(1925).webm",
+    "publicDomainLicenseEvidence": "Published 1925 (US term expired)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): Published 1925 (US term expired). Open: PROtv copy has a music soundtrack (measured); the score is not 1925 and its source and rights are unknown. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "PROtv copy has a music soundtrack (measured); the score is not 1925 and its source and rights are unknown"
+   ]
+  },
+  {
+   "id": "6wWGoL2qWRqtCmCTSRQY",
+   "title": "Elephants Dream (2006)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "creative-commons",
+    "licenseType": "CC BY 2.5",
+    "rightsHolder": "Blender Foundation / Netherlands Media Art Institute",
+    "attributionRequired": true,
+    "attributionText": "Elephants Dream (c) 2006 Blender Foundation / Netherlands Media Art Institute / www.elephantsdream.org. Licensed under CC BY 2.5.",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Elephants_Dream_(2006).webm",
+    "publicDomainLicenseEvidence": "CC BY 2.5, stated by the copyright holder (Wikidata, Commons)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): CC BY 2.5, stated by the copyright holder (Wikidata, Commons). Open: Public Rights note says CC BY 3.0; the license is 2.5. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Public Rights note says CC BY 3.0; the license is 2.5"
+   ]
+  },
+  {
+   "id": "sCWQqVE5WIoNNN5wAGQ2",
+   "title": "Sintel (2010)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "creative-commons",
+    "licenseType": "CC BY 3.0",
+    "rightsHolder": "Blender Foundation",
+    "attributionRequired": true,
+    "attributionText": "(c) copyright Blender Foundation | durian.blender.org. Licensed under CC BY 3.0.",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Sintel_movie_4K.webm",
+    "publicDomainLicenseEvidence": "CC BY 3.0 (Wikidata, Commons)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): CC BY 3.0 (Wikidata, Commons). Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "gbcxmtl6mAHQeBxx8Dgs",
+   "title": "Tears of Steel (2012)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "creative-commons",
+    "licenseType": "CC BY 3.0",
+    "rightsHolder": "Blender Foundation",
+    "attributionRequired": true,
+    "attributionText": "(CC) Blender Foundation | mango.blender.org. Licensed under CC BY 3.0.",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Tears_of_Steel_in_4k_-_Official_Blender_Foundation_release.webm",
+    "publicDomainLicenseEvidence": "CC BY 3.0 (Wikidata, Commons)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): CC BY 3.0 (Wikidata, Commons). Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (pre-1931 publication)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Phantom_of_the_Opera_(1925)_reissue_1929.webm",
+    "publicDomainLicenseEvidence": "Published 1925 (Wikidata: \"published more than 95 years ago\", US); Wikipedia: Universal did not renew in 1953",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): Published 1925 (Wikidata: \"published more than 95 years ago\", US); Wikipedia: Universal did not renew in 1953. Open: PROtv copy has a music soundtrack; restorations with modern scores are registered (e.g. Film Preservation Associates 1996, PA0000802742); Catalog links the wrong IMDb title (2004 film) and shows its 7.2 rating on the website. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "PROtv copy has a music soundtrack; restorations with modern scores are registered (e.g. Film Preservation Associates 1996, PA0000802742)",
+    "Catalog links the wrong IMDb title (2004 film) and shows its 7.2 rating on the website"
+   ]
+  },
+  {
+   "id": "tuwoR1lZN8VnSTCSEiTc",
+   "title": "The Scar of Shame (1927)",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (pre-1931 publication)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Scar_of_Shame_(1929)_by_Frank_Peregini.webm",
+    "publicDomainLicenseEvidence": "Published 1927 (US term expired); Commons \"PD US expired\"",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): Published 1927 (US term expired); Commons \"PD US expired\". Open: PROtv copy has a music soundtrack; Video Yesteryear registered a 1995 edition (PA0000741769) that may include a copyrighted score. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "PROtv copy has a music soundtrack; Video Yesteryear registered a 1995 edition (PA0000741769) that may include a copyrighted score"
+   ]
+  },
+  {
+   "id": "XMj306OZSbomES2Zz0Fz",
+   "title": "Within Our Gates [1920]",
+   "tier": "A",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (pre-1931 publication)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Within_Our_Gates_HQ.webm",
+    "publicDomainLicenseEvidence": "Published 1920 (Wikidata: \"published more than 95 years ago\", US)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier A): Published 1920 (Wikidata: \"published more than 95 years ago\", US). Open: PROtv copy has a music soundtrack of unknown source; Catalog year is wrong (1927; the film is 1920). Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "PROtv copy has a music soundtrack of unknown source",
+    "Catalog year is wrong (1927; the film is 1920)"
+   ]
+  },
+  {
+   "id": "uvRcBLWVKxLyHsswVZOo",
+   "title": "Africa Screams (1949)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Africa_Screams_(1949).webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: \"fell into the public domain in 1977\"; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: \"fell into the public domain in 1977\"; Commons; Wikipedia PD list). Open: Colorized versions registered (1988, 2005): use the black-and-white original. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Colorized versions registered (1988, 2005): use the black-and-white original"
+   ]
+  },
+  {
+   "id": "aIZ4FeTCPjuTlycMgxiK",
+   "title": "Angel and the Badman (1947)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Angel_and_the_Badman_(1947)_by_James_Edward_Grant.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: NTA did not renew in 1975; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: NTA did not renew in 1975; Commons; Wikipedia PD list). Open: Colorized version registered 1991 (PA0000523396): use the black-and-white original. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Colorized version registered 1991 (PA0000523396): use the black-and-white original"
+   ]
+  },
+  {
+   "id": "KS5fwSoYxy8h3FkrTWW3",
+   "title": "Angel on My Shoulder (1946)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Angel_on_My_Shoulder_(1946).webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: \"U.S. copyright expired in 1973\"); Commons file dedicated CC0",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: \"U.S. copyright expired in 1973\"); Commons file dedicated CC0. Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "ZIWIKF2lyh7hJCcRkPLr",
+   "title": "Attack of the Giant Leeches (1959)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Attack_of_the_Giant_Leeches_(1959)_by_Bernard_L._Kowalski.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia; Commons; Wikipedia PD list). No renewal in the online Copyright Office records (renewal due 1987). Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "CmN3oev0txAoerdvsjCb",
+   "title": "Captain Kidd (1945)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Captain_Kidd_(1945)_by_Rowland_V._Lee%2C_colorized.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: \"producers neglected to renew the copyright in 1972\"; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: \"producers neglected to renew the copyright in 1972\"; Commons; Wikipedia PD list). Open: Renewal RE0000568672 (1992) is a UPA cartoon, not this film. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Renewal RE0000568672 (1992) is a UPA cartoon, not this film"
+   ]
+  },
+  {
+   "id": "WIVB9NPQQzvtvjTBsiKw",
+   "title": "Carnival of Souls (1962)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: no notice)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Carnival_of_Souls_(1962)_by_Herk_Harvey.webm",
+    "publicDomainLicenseEvidence": "US release prints lacked a copyright notice (Wikipedia; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): US release prints lacked a copyright notice (Wikipedia; Wikipedia PD list). Open: Foreign release carried a notice and was protected overseas (Wikipedia): US only; Rights dispute 1990–95; Criterion lists copyright by Harold Harvey and John Clifford; 1996 director's version registered (PA0000827002): use the 1962 theatrical cut. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Foreign release carried a notice and was protected overseas (Wikipedia): US only",
+    "Rights dispute 1990–95; Criterion lists copyright by Harold Harvey and John Clifford; 1996 director's version registered (PA0000827002): use the 1962 theatrical cut"
+   ]
+  },
+  {
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:DOA%2C_1949.ogv",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: \"due to a filing error\"; Commons; Wikipedia PD list, renewal year 1977)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: \"due to a filing error\"; Commons; Wikipedia PD list, renewal year 1977). Open: Catalog links the wrong IMDb title (Darah dan Doa, 1950) and shows its rating on the website. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Catalog links the wrong IMDb title (Darah dan Doa, 1950) and shows its rating on the website"
+   ]
+  },
+  {
+   "id": "IHkqDr5bGIY0Nw5Lhkky",
+   "title": "Detour (1945)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Detour_(1945)_by_Edgar_G._Ulmer.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Commons; Wikipedia PD list; Wikipedia: \"today is in the public domain\")",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Commons; Wikipedia PD list; Wikipedia: \"today is in the public domain\"). Open: Academy Film Archive 2018 restoration: confirm PROtv copy is not the restoration; Based on the 1939 novel by Martin Goldsmith; the novel's renewal status is not established (derivative-work risk). Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Academy Film Archive 2018 restoration: confirm PROtv copy is not the restoration",
+    "Based on the 1939 novel by Martin Goldsmith; the novel's renewal status is not established (derivative-work risk)"
+   ]
+  },
+  {
+   "id": "t6Ii7hflAigcefjBRz3r",
+   "title": "Gulliver’s Travels (1939)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Gulliver's_Travels_(1939).webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikipedia: \"failed to be renewed in 1967\"; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikipedia: \"failed to be renewed in 1967\"; Commons; Wikipedia PD list). Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "p532d2Aqpb3bC2rvYkQw",
+   "title": "House on Haunted Hill 1959",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://www.wikidata.org/wiki/Q263583",
+    "publicDomainLicenseEvidence": "Public domain per Wikidata; no renewal found",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Public domain per Wikidata; no renewal found. No renewal in the online Copyright Office records (renewal due 1986–87). Open: No Wikipedia statement; colorized (Legend Films 2007) and 2025 Grandave Renew registrations: use the black-and-white original. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "No Wikipedia statement; colorized (Legend Films 2007) and 2025 Grandave Renew registrations: use the black-and-white original"
+   ]
+  },
+  {
+   "id": "aFRblRPxcp3LEm1lf4ye",
+   "title": "Jungle Book 1942",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Jungle_Book_(1942).webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Commons; Wikipedia: \"the film is in public domain\")",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Commons; Wikipedia: \"the film is in public domain\"). Open: Produced by the US company Alexander Korda Films, Inc. (no foreign-restoration issue indicated); Maturity rating PG has no recorded source (the film predates MPAA ratings). Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Produced by the US company Alexander Korda Films, Inc. (no foreign-restoration issue indicated)",
+    "Maturity rating PG has no recorded source (the film predates MPAA ratings)"
+   ]
+  },
+  {
+   "id": "zGpbFWvSaup6ioUaoqsN",
+   "title": "Night of the Living Dead (1968)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: no notice)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Night_Of_The_Living_Dead_(1968)_-_trailer.webm",
+    "publicDomainLicenseEvidence": "Published without a copyright notice (Wikidata, Commons, Wikipedia, Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Published without a copyright notice (Wikidata, Commons, Wikipedia, Wikipedia PD list). Open: Image Ten registered a 2017 restoration (PA0002026041): confirm PROtv copy is not the restoration. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Image Ten registered a 2017 restoration (PA0002026041): confirm PROtv copy is not the restoration"
+   ]
+  },
+  {
+   "id": "B2MDEH2b25NknMQMEhoM",
+   "title": "Plan 9 from Outer Space (1957)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:Plan_9_from_Outer_Space_(1959_film).webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Wikidata, US and rule-of-shorter-term countries; Commons; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Wikidata, US and rule-of-shorter-term countries; Commons; Wikipedia PD list). No renewal in the online Copyright Office records (renewal due 1985–87). Open: Legend Films registered a colorized version (2007); use the black-and-white original. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Legend Films registered a colorized version (2007); use the black-and-white original"
+   ]
+  },
+  {
+   "id": "evCYYCPlc23BKzpmt2ug",
+   "title": "The Amazing Mr. X (1948)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Amazing_Mr._X_(1948)_by_Bernard_Vorhaus.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Commons; Wikipedia: \"The film is in the public domain\"; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Commons; Wikipedia: \"The film is in the public domain\"; Wikipedia PD list). Source copy not yet confirmed by the owner."
+   },
+   "conditions": []
+  },
+  {
+   "id": "2OTfk1MA9SNAJcXQajCl",
+   "title": "The Battle of Midway (1942)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US government work)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://www.wikidata.org/wiki/Q1795389",
+    "publicDomainLicenseEvidence": "Work of the US government: filmed by the US Navy under Commander John Ford (Wikipedia); distributed by 20th Century Fox",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Work of the US government: filmed by the US Navy under Commander John Ford (Wikipedia); distributed by 20th Century Fox. Open: Confirm Fox did not hold copyright in the released version (renewal window 1969–70 is not online). Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Confirm Fox did not hold copyright in the released version (renewal window 1969–70 is not online)"
+   ]
+  },
+  {
+   "id": "PqGsChF8xtTQdaQFEWQI",
+   "title": "The Blood of Jesus (1941)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Blood_of_Jesus_(1941)_by_Spencer_Williams.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Commons \"PD US not renewed\"; Wikipedia links the PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Commons \"PD US not renewed\"; Wikipedia links the PD list). Open: Renewal window (1968–69) is not in the online records; not independently checked. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Renewal window (1968–69) is not in the online records; not independently checked"
+   ]
+  },
+  {
+   "id": "RwDe3WkIWoHQ1EUzfWn9",
+   "title": "The Brain That Wouldn't Die (1962)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: no notice)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Brain_That_Wouldn't_Die_(1962)_by_Joseph_Green.webm",
+    "publicDomainLicenseEvidence": "Published without a valid notice (Wikipedia; Commons \"PD US no notice\"; Wikipedia PD list)",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Published without a valid notice (Wikipedia; Commons \"PD US no notice\"; Wikipedia PD list). Open: Rex Carlton Productions registered the film in 1988 (PA0000399511); Synapse (2013) and Flagship (2021) registered new versions. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Rex Carlton Productions registered the film in 1988 (PA0000399511); Synapse (2013) and Flagship (2021) registered new versions"
+   ]
+  },
+  {
+   "id": "goOpjlfjJF3YWw5dlHqe",
+   "title": "The Bronze Buckaroo (1939)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: not renewed)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Bronze_Buckaroo_(1939)_by_Richard_C._Kahn.webm",
+    "publicDomainLicenseEvidence": "Copyright not renewed (Commons \"PD US not renewed\")",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Copyright not renewed (Commons \"PD US not renewed\"). Open: Single reviewed source; Viking Entertainment registered a 1990 video edition (PA0000548771). Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Single reviewed source; Viking Entertainment registered a 1990 video edition (PA0000548771)"
+   ]
+  },
+  {
+   "id": "3NAU6BldsmCNs9wjM08a",
+   "title": "The Little Shop of Horrors (1960)",
+   "tier": "B",
+   "set": {
+    "copyrightStatus": "public-domain",
+    "licenseType": "Public domain (US: no notice)",
+    "rightsHolder": "Public Domain",
+    "attributionRequired": false,
+    "attributionText": "",
+    "publicDomainSourceUrl": "https://commons.wikimedia.org/wiki/File:The_Little_Shop_of_Horrors_(1960)_by_Roger_Corman.webm",
+    "publicDomainLicenseEvidence": "Published without notice (Commons \"PD US no notice\"; Wikipedia: Corman \"did not bother to copyright it\"); also listed as not renewed",
+    "rightsVerificationNotes": "Evidence review 2026-10-23 (tier B): Published without notice (Commons \"PD US no notice\"; Wikipedia: Corman \"did not bother to copyright it\"); also listed as not renewed. Open: Santa Clara Productions registered the film in 1985 (PA0000301210); a later registration cannot restore a work published without notice, but it signals a claimant; 2025 registration by Grandave Renew, LLC (PAu004285538) covers a new version only. Source copy not yet confirmed by the owner."
+   },
+   "conditions": [
+    "Santa Clara Productions registered the film in 1985 (PA0000301210); a later registration cannot restore a work published without notice, but it signals a claimant",
+    "2025 registration by Grandave Renew, LLC (PAu004285538) covers a new version only"
+   ]
+  }
+ ]
+}

@@ -1,122 +1,117 @@
-# Live catalog: proposed corrections for owner review
+# Live catalog: metadata corrections (final proposal for owner approval)
 
-Read-only review of the live public catalog (56 titles) on 2026-10-23.
-**Nothing here has been applied.** Each change would be made in Admin >
-Catalog & Metadata after approval. Creator-owned records are listed for
-information only and need the creator's or owner's approval.
+Reviewed 2026-10-23 against the live catalog (56 titles), Firestore, Wikidata,
+Wikipedia, the BFI and US Copyright Office records. Exact before/after values
+for every change below are in `docs/catalog-corrections.json` (45 field
+changes in 5 groups). **Nothing in this file has been applied.** Approve by
+group; each approved change is written with an `adminAudit` entry holding the
+previous value, as was done for the year corrections. Creator-owned records
+are not touched.
 
-## Healthy
+## Already applied (2026-10-23, audited)
 
-- All 56 titles authorize playback; all 56 HLS manifests load.
-- No duplicate titles. Every poster is 2:3 (sizes from 454x675 to 1024x1536).
-- Two posters are below the preferred 1000 px height:
-  The Incredible Petrified World (held, do not modify) and The Lost Camp
-  (creator-owned; would need the creator's artwork at 900x1350).
+- `year` filled on 40 titles from the year in their title.
+- His Girl Friday synopsis restored (was "na."), Rights note kept.
+- Audit: `adminAudit` entries of type `title_metadata_updated`, actor
+  `roku-launch-catalog-metadata-2026-10-23`, with previous values.
+- Live check: 51 of 56 titles now have a year.
 
-## 1. His Girl Friday (1940), `LiMNMZWXBxJj3LoP73kU`
+## Group 1 — Identity and factual errors (verified; recommended)
 
-The description is only "na. Rights: Public domain.", so no synopsis shows on
-any platform. Proposed (keep the existing Rights note after it):
+| Title | Change | Evidence |
+| --- | --- | --- |
+| The Phantom of the Opera | `imdbId` tt0293508 → **tt0016220**; clear the six stored IMDb fields; `year` → **1925** | The stored ID is the 2004 film; the website shows its **7.2** rating (136,113 votes). PROtv's copy is the 1925 film (106 min, 1925 artwork; Wikidata Q927919) |
+| D.O.A. (1950) | `imdbId` tt0042378 → **tt0042369**; clear the six stored IMDb fields | The stored ID is *Darah dan Doa* (Indonesia, 1950); the website shows its **6.7** rating (46 votes) |
+| Within Our Gates [1920] | `year` 1927 → **1920** | Wikidata Q2517806: released 1920-01-12 |
+| One Step Beyond - The Storm | `year` → **1960** | Wikipedia episode list: S2 E39, first aired 1960-06-21 (matches stored season/episode) |
+| A Day in the Life of a Coal Miner (1910) | Synopsis rewritten; Rights note kept | BFI Screenonline: a **British** Kineto film sponsored by the London & North Western Railway. The current text says it shows "America's working class" |
 
-> Newspaper editor Walter Burns will use every trick he knows to stop his
-> star reporter, and ex-wife, Hildy Johnson from quitting to remarry, and to
-> get her to cover one last story: a condemned man's escape on the eve of his
-> execution. Directed by Howard Hawks, starring Cary Grant and Rosalind Russell.
+Proposed Coal Miner synopsis:
 
-## 2. Episodes without a series name
+> An early British documentary from Charles Urban's Kineto company, sponsored
+> by the London & North Western Railway. It follows a coal miner through a
+> full working day, from his early-morning goodbyes to the journey home, and
+> shows the women who worked at the pit. Some scenes were staged, because
+> filming underground was not yet possible.
 
-These are stored as single episodes (S1 E1) with an empty `seriesTitle`, so
-each appears as its own one-episode series.
+**Root cause and caution:** the admin IMDb-rating lookup
+(`backend/src/omdb.js`) searches OMDb by **title and year**, not by IMDb ID.
+That is how both mismatches happened: the Phantom had no year, and "D.O.A." +
+1950 returns *Darah dan Doa*. Do **not** re-run the lookup for D.O.A.; leave
+its rating empty, or later change the lookup to use the stored `imdbId` (a
+backend change, not proposed here). For the Phantom, the lookup is only safe
+after the year (1925) is set, and its result must be checked before saving.
+The Roku app does not show IMDb ratings, so the Roku build is not affected;
+the website is.
 
-| Title | ID | Proposed seriesTitle | Note |
+## Group 2 — Public rights notes (needs a decision)
+
+| Title | Change | Why | Needs |
 | --- | --- | --- | --- |
-| Cavalcade of Stars | `FOn1pIGiBKaUb89oE6Gm` | Cavalcade of Stars | |
-| Fleischer Studios' Superman | `iUX01XuVHd9okFW4gmqR` | Superman (Fleischer Studios) | |
-| Looney Tunes Classics: Collection | `lussNXvK08RN9xtfq4wN` | Looney Tunes Classics | |
-| Merri Melodies shorts | `v_1789872561270_i3svw5cbz` | Merrie Melodies | The series is spelled "Merrie Melodies"; consider renaming the title too |
+| Elephants Dream (2006) | Note "CC BY 3.0" → **"CC BY 2.5"** | Wikidata and Commons record CC BY 2.5, stated by the copyright holder | Nothing further |
+| Sita Sings the Blues (2008) | Note "Public domain." → **"Film dedicated to the public domain (CC0) by Nina Paley."** | The film is CC0; its music has separate rights | The owner confirms the music license covers PROtv streaming; if not, request rights verification instead |
+| The Brain from Planet Arous (1957) | **Admin > Request rights verification** (hides the title; approving it restores it) | Copyright renewal RE0000258469 (1985); likely protected until 2052 | Owner decision |
 
-Alternative: if each of these is really a compilation (one video of several
-shorts), store them as movies in Cartoons rather than as episodes. That is a
-content decision. One Step Beyond - The Storm already has a series name and
-S2 E39.
+Other titles in tier D of `tv/roku/store/evidence/rights-evidence.md` (Voyage
+to the Planet of Prehistoric Women, The Last Man on Earth, Beat the Devil, The
+Plow That Broke the Plains, The River, The Bundy Chronicles) should use the
+same action if counsel cannot clear them before launch.
 
-## 3. Missing year field
+## Group 3 — Title formatting
 
-45 titles have no `year`, so the year is missing from the metadata line on
-Roku and the website. 40 carry the year in their title; proposed values:
+| Current | Proposed |
+| --- | --- |
+| House on Haunted Hill 1959 | House on Haunted Hill (1959) |
+| Woman On The Run 1950 | Woman on the Run (1950) |
+| The Phantom of the Opera | The Phantom of the Opera (1925) |
+| Within Our Gates [1920] | Within Our Gates (1920) |
 
-| Title | ID | Proposed year |
+## Group 4 — Series names
+
+Stored as single episodes (S1 E1) with an empty `seriesTitle`, so each shows
+as its own one-episode series.
+
+| Title | Proposed `seriesTitle` | Note |
 | --- | --- | --- |
-| The Duke Is Tops (1938) | `1l1uGB4v8CaUr9p4TTGv` | 1938 |
-| The Battle of Midway (1942) | `2OTfk1MA9SNAJcXQajCl` | 1942 |
-| The Little Shop of Horrors (1960) | `3NAU6BldsmCNs9wjM08a` | 1960 |
-| Murder in Harlem (1935) | `6h3blkiA6LTeLv66jj1v` | 1935 |
-| Elephants Dream (2006) | `6wWGoL2qWRqtCmCTSRQY` | 2006 |
-| Woman On The Run 1950 | `9P2whdYluJRAJeI6cOuh` | 1950 |
-| Angel and the Badman (1947) | `aIZ4FeTCPjuTlycMgxiK` | 1947 |
-| The Plow That Broke the Plains (1936) | `APlVZLmiQPIczS9uEbEd` | 1936 |
-| Plan 9 from Outer Space (1957) | `B2MDEH2b25NknMQMEhoM` | 1957 |
-| Body and Soul (1925) | `biitnhJJnBvHGFx8TJZC` | 1925 |
-| Captain Kidd (1945) | `CmN3oev0txAoerdvsjCb` | 1945 |
-| Big Timers (1945) | `dKxiQCeBcuT92BKv9dgJ` | 1945 |
-| The Amazing Mr. X (1948) | `evCYYCPlc23BKzpmt2ug` | 1948 |
-| Tears of Steel (2012) | `gbcxmtl6mAHQeBxx8Dgs` | 2012 |
-| The Bronze Buckaroo (1939) | `goOpjlfjJF3YWw5dlHqe` | 1939 |
-| Big Buck Bunny (2008) | `hKPU3JNJ4faWLgWE6ZSq` | 2008 |
-| Detour (1945) | `IHkqDr5bGIY0Nw5Lhkky` | 1945 |
-| Angel on My Shoulder (1946) | `KS5fwSoYxy8h3FkrTWW3` | 1946 |
-| His Girl Friday (1940) | `LiMNMZWXBxJj3LoP73kU` | 1940 |
-| The Incredible Petrified World (1959) | `MZ6Q6DI2S62pP8laH9Ku` | 1959 |
-| House on Haunted Hill 1959 | `p532d2Aqpb3bC2rvYkQw` | 1959 |
-| The Blood of Jesus (1941) | `PqGsChF8xtTQdaQFEWQI` | 1941 |
-| The Brain That Wouldn't Die (1962) | `RwDe3WkIWoHQ1EUzfWn9` | 1962 |
-| The Last Man on Earth (1964) | `s0Eu00ADQQZnAoknUpxx` | 1964 |
-| Sintel (2010) | `sCWQqVE5WIoNNN5wAGQ2` | 2010 |
-| Voyage to the Planet of Prehistoric Women (1968) | `SWSvCl89kxWp2qMXHT3w` | 1968 |
-| Gulliver’s Travels (1939) | `t6Ii7hflAigcefjBRz3r` | 1939 |
-| The Girl from Chicago (1932) | `Ts881xyfGAz4E4TZHIeg` | 1932 |
-| The River (1938) | `tsq6EVuAjU7hf95yuGl8` | 1938 |
-| The Scar of Shame (1927) | `tuwoR1lZN8VnSTCSEiTc` | 1927 |
-| A Day in the Life of a Coal Miner (1910) | `u3dXF1OlGIXiRPAHz3hE` | 1910 |
-| Beat the Devil (1953) | `UPq8eJixIfLiKXPIOXRm` | 1953 |
-| Africa Screams (1949) | `uvRcBLWVKxLyHsswVZOo` | 1949 |
-| The Exile (1931) | `uzZVSNOg0sOZaTk4tlV6` | 1931 |
-| Sita Sings the Blues (2008) | `vuvTzWOcVJJeg12CsTq9` | 2008 |
-| The Brain from Planet Arous (1957) | `vyjpYtuEpOlCWzyzlaxM` | 1957 |
-| Carnival of Souls (1962) | `WIVB9NPQQzvtvjTBsiKw` | 1962 |
-| D.O.A. (1950) | `WMmLodEvI2gpEVW9v6yL` | 1950 |
-| Night of the Living Dead (1968) | `zGpbFWvSaup6ioUaoqsN` | 1968 |
-| Attack of the Giant Leeches (1959) | `ZIWIKF2lyh7hJCcRkPLr` | 1959 |
+| Cavalcade of Stars | Cavalcade of Stars | |
+| Fleischer Studios' Superman | Superman (Fleischer Studios) | |
+| Looney Tunes Classics: Collection | Looney Tunes Classics | |
+| Merri Melodies shorts | Merrie Melodies | The video is one 7-minute short from a 439-minute collection. The owner should identify which short it is, set its name as the title, and check it is not one of the unofficially redrawn colorized versions, which can carry their own copyright. The source collection warns that some shorts contain racial stereotypes |
 
-No year is proposed for the other 5 (The Phantom of the Opera, Looney Tunes
-Classics: Collection, One Step Beyond - The Storm, Dead Air, The Lost Camp);
-the owner should supply them.
+Alternative: if these are compilations rather than episodes, store them as
+movies in Cartoons (a content decision).
 
-## 4. Title formatting
+## Group 5 — Categories (`category`, and `genre` where it equals the category today)
 
-- "House on Haunted Hill 1959" -> "House on Haunted Hill (1959)"
-- "Woman On The Run 1950" -> "Woman on the Run (1950)"
-- "The Phantom of the Opera" -> "The Phantom of the Opera (1925)" (matches its
-  public-domain 1925 artwork)
+| Title | Current | Proposed | Reason |
+| --- | --- | --- | --- |
+| Sita Sings the Blues (2008) | Action | Cartoons | Animated musical |
+| Elephants Dream (2006) | Action | Sci-Fi | Animated science-fiction short |
+| Gulliver's Travels (1939) | Action | Cartoons | Animated feature |
+| The Amazing Mr. X (1948) | Action | Drama | Film noir |
+| A Day in the Life of a Coal Miner (1910) | Comedy | Documentary | BFI: early documentary |
+| Angel and the Badman (1947) | Comedy | Drama | Western |
+| Captain Kidd (1945) | Comedy | Action | Pirate adventure |
+| 50 Classic Cartoons (Silver Screen Video) | Documentary | Cartoons | A collection of 50 cartoons |
 
-## 5. Category review (suggestions)
+Creator titles (for information only; the creator or owner decides): Dead Air
+("Supernatural horror") and The Lost Camp ("Horror/Thriller") would join the
+Horror row and the Scary mood as "Horror".
 
-| Title | Current | Suggested |
-| --- | --- | --- |
-| Sita Sings the Blues (2008) | Action | Cartoons (animated musical) |
-| Elephants Dream (2006) | Action | Sci-Fi (animated short) |
-| Gulliver's Travels (1939) | Action | Cartoons (animated feature) |
-| The Amazing Mr. X (1948) | Action | Drama (film noir) |
-| A Day in the Life of a Coal Miner (1910) | Comedy | Documentary |
-| Angel and the Badman (1947) | Comedy | Drama (western) |
-| Captain Kidd (1945) | Comedy | Action (adventure) |
-| Dead Air (creator) | Supernatural horror | Horror (creator approval) |
-| The Lost Camp (creator) | Horror/Thriller | Horror (creator approval) |
+## Not proposed (owner input needed)
 
-Merging the two creator categories into Horror puts them in the Horror row and
-the Scary mood with the rest of the catalog.
+- **Years:** Looney Tunes Classics: Collection (a compilation; leave blank or
+  use the short's year once identified); Dead Air and The Lost Camp (creators
+  supply). "Superman cartoons" says 1994, the year of the Wayzata CD-ROM
+  compilation; the shorts are 1941–43. It may also duplicate "Fleischer
+  Studios' Superman"; the owner should compare the two videos.
+- **Maturity ratings:** none invented. Only Dead Air (TV-MA) and Jungle Book
+  1942 (PG) are rated. Jungle Book predates MPAA ratings, so the PG source
+  should be confirmed. Roku does not require per-title ratings.
+- **Healthy:** all 56 titles authorize playback; all manifests load; no
+  duplicate titles by name; every poster is 2:3.
 
-## 6. Captions
+## Captions
 
-No title has subtitle, closed-caption or alternate audio tracks in its
-stream. See the Roku validation record for the captions plan.
+No title has caption, subtitle or alternate-audio tracks. See
+`tv/roku/store/captions-investigation.md`.

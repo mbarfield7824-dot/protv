@@ -1,0 +1,415 @@
+{
+ "status": "PROPOSAL - nothing applied; apply only the groups the owner approves, with adminAudit entries",
+ "generated": "2026-10-23",
+ "changes": [
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "imdbId",
+   "from": "tt0293508",
+   "to": "tt0016220",
+   "evidence": "Wikidata Q927919 (1925 film); stored tt0293508 is the 2004 film (Wikidata Q276407); PROtv copy runs 106 min with 1925 artwork"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "imdbTitle",
+   "from": "The Phantom of the Opera",
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "imdbYear",
+   "from": "2004",
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "rating",
+   "from": 7.2,
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "ratingCount",
+   "from": 136113,
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "ratingSource",
+   "from": "IMDb",
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "ratingUpdatedAt",
+   "from": "2026-09-16T19:21:13.015Z",
+   "to": null,
+   "evidence": "Belongs to the 2004 film; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "year",
+   "from": null,
+   "to": 1925,
+   "evidence": "Wikidata Q927919 publication 1925; Commons PD-old"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "imdbId",
+   "from": "tt0042378",
+   "to": "tt0042369",
+   "evidence": "Wikidata Q585983 (D.O.A., 1950, Rudolph Maté); stored tt0042378 is Darah dan Doa (1950, Wikidata Q2857746)"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "imdbTitle",
+   "from": "Darah dan doa",
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "imdbYear",
+   "from": "1950",
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "rating",
+   "from": 6.7,
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "ratingCount",
+   "from": 46,
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "ratingSource",
+   "from": "IMDb",
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "WMmLodEvI2gpEVW9v6yL",
+   "title": "D.O.A. (1950)",
+   "field": "ratingUpdatedAt",
+   "from": "2026-09-16T19:21:10.060Z",
+   "to": null,
+   "evidence": "Belongs to Darah dan Doa; cleared; the OMDb lookup matches by title+year, so do not re-run it for this title without checking the result"
+  },
+  {
+   "group": "1-identity",
+   "id": "XMj306OZSbomES2Zz0Fz",
+   "title": "Within Our Gates [1920]",
+   "field": "year",
+   "from": 1927,
+   "to": 1920,
+   "evidence": "Wikidata Q2517806: published 1920-01-12; the title already says 1920"
+  },
+  {
+   "group": "1-identity",
+   "id": "5FHvg3BEwBlk9qqNdZT5",
+   "title": "One Step Beyond - The Storm",
+   "field": "year",
+   "from": null,
+   "to": 1960,
+   "evidence": "Wikipedia episode list: \"The Storm\", season 2 episode 39, first aired 1960-06-21 (matches stored S2 E39)"
+  },
+  {
+   "group": "1-identity",
+   "id": "u3dXF1OlGIXiRPAHz3hE",
+   "title": "A Day in the Life of a Coal Miner (1910)",
+   "field": "description",
+   "from": "A rare early‑20th‑century industrial documentary showing the harsh, dangerous, and demanding work of coal miners. Short, raw, and historically valuable, it offers a glimpse into the labor conditions that shaped America’s working class. Rights: Public domain.",
+   "to": "An early British documentary from Charles Urban's Kineto company, sponsored by the London & North Western Railway. It follows a coal miner through a full working day, from his early-morning goodbyes to the journey home, and shows the women who worked at the pit. Some scenes were staged, because filming underground was not yet possible. Rights: Public domain.",
+   "evidence": "BFI Screenonline: British Kineto film (Charles Urban), sponsored by the London & North Western Railway; the current text calls it American"
+  },
+  {
+   "group": "2-rights-notes",
+   "id": "6wWGoL2qWRqtCmCTSRQY",
+   "title": "Elephants Dream (2006)",
+   "field": "description",
+   "from": "Elephants Dream is the story of two strange characters exploring a capricious and seemingly infinite machine. The elder, Proog, acts as a tour-guide and protector, happily showing off the sights and dangers of the machine to his initially curious but increasingly skeptical protege Emo. As their journey unfolds we discover signs that the machine is not all Proog thinks it is, and his guiding takes on a more desperate aspect. Rights: Creative Commons Attribution 3.0 (CC BY 3.0). Credit: Blender Foundation.",
+   "to": "Elephants Dream is the story of two strange characters exploring a capricious and seemingly infinite machine. The elder, Proog, acts as a tour-guide and protector, happily showing off the sights and dangers of the machine to his initially curious but increasingly skeptical protege Emo. As their journey unfolds we discover signs that the machine is not all Proog thinks it is, and his guiding takes on a more desperate aspect. Rights: Creative Commons Attribution 2.5 (CC BY 2.5). Credit: Blender Foundation.",
+   "evidence": "Wikidata Q825197 and Commons: CC BY 2.5 (stated by the copyright holder)",
+   "requires": "none"
+  },
+  {
+   "group": "2-rights-notes",
+   "id": "vuvTzWOcVJJeg12CsTq9",
+   "title": "Sita Sings the Blues (2008)",
+   "field": "description",
+   "from": "Sita is a goddess separated from her beloved Lord and husband Rama. Nina is an  animator whose husband moves to India, then dumps her by email. Three hilarious shadow puppets narrate both ancient tragedy and modern comedy in this beautifully  animated interpretation of the Indian epic Ramayana. Set to the 1920's jazz vocals of Annette Hanshaw, Sita Sings the Blues earns its tagline as \"the Greatest Break-Up Story Ever Told.\". Rights: Public domain.",
+   "to": "Sita is a goddess separated from her beloved Lord and husband Rama. Nina is an  animator whose husband moves to India, then dumps her by email. Three hilarious shadow puppets narrate both ancient tragedy and modern comedy in this beautifully  animated interpretation of the Indian epic Ramayana. Set to the 1920's jazz vocals of Annette Hanshaw, Sita Sings the Blues earns its tagline as \"the Greatest Break-Up Story Ever Told.\". Rights: Film dedicated to the public domain (CC0) by Nina Paley.",
+   "evidence": "Wikipedia: CC0 since 2013-01-18; music licensed in 2009",
+   "requires": "Owner confirms the music license covers PROtv streaming (rights-evidence.md); otherwise unpublish instead"
+  },
+  {
+   "group": "2-rights-notes",
+   "id": "vyjpYtuEpOlCWzyzlaxM",
+   "title": "The Brain from Planet Arous (1957)",
+   "field": "approvalStatus",
+   "from": "approved",
+   "to": "rights-verification-required",
+   "evidence": "Renewal RE0000258469 (1985-09-03, Howco Productions): likely protected until 2052",
+   "requires": "Owner decision. Apply with Admin > Request rights verification (PATCH /videos/admin/:id/verify), which hides the title and is reversed by approving it again"
+  },
+  {
+   "group": "3-titles",
+   "id": "p532d2Aqpb3bC2rvYkQw",
+   "title": "House on Haunted Hill 1959",
+   "field": "title",
+   "from": "House on Haunted Hill 1959",
+   "to": "House on Haunted Hill (1959)",
+   "evidence": "Formatting consistent with the rest of the catalog"
+  },
+  {
+   "group": "3-titles",
+   "id": "9P2whdYluJRAJeI6cOuh",
+   "title": "Woman On The Run 1950",
+   "field": "title",
+   "from": "Woman On The Run 1950",
+   "to": "Woman on the Run (1950)",
+   "evidence": "Formatting; Wikidata Q1307071 \"Woman on the Run\""
+  },
+  {
+   "group": "3-titles",
+   "id": "WeNPJRItOH2nOdbwLkDG",
+   "title": "The Phantom of the Opera",
+   "field": "title",
+   "from": "The Phantom of the Opera",
+   "to": "The Phantom of the Opera (1925)",
+   "evidence": "Distinguishes it from later versions; matches its 1925 poster"
+  },
+  {
+   "group": "3-titles",
+   "id": "XMj306OZSbomES2Zz0Fz",
+   "title": "Within Our Gates [1920]",
+   "field": "title",
+   "from": "Within Our Gates [1920]",
+   "to": "Within Our Gates (1920)",
+   "evidence": "Formatting (square brackets elsewhere unused)"
+  },
+  {
+   "group": "4-series",
+   "id": "FOn1pIGiBKaUb89oE6Gm",
+   "title": "Cavalcade of Stars",
+   "field": "seriesTitle",
+   "from": "",
+   "to": "Cavalcade of Stars",
+   "evidence": "Empty series name makes it a one-episode series"
+  },
+  {
+   "group": "4-series",
+   "id": "iUX01XuVHd9okFW4gmqR",
+   "title": "Fleischer Studios' Superman",
+   "field": "seriesTitle",
+   "from": "",
+   "to": "Superman (Fleischer Studios)",
+   "evidence": "Empty series name"
+  },
+  {
+   "group": "4-series",
+   "id": "lussNXvK08RN9xtfq4wN",
+   "title": "Looney Tunes Classics: Collection",
+   "field": "seriesTitle",
+   "from": "",
+   "to": "Looney Tunes Classics",
+   "evidence": "Empty series name"
+  },
+  {
+   "group": "4-series",
+   "id": "v_1789872561270_i3svw5cbz",
+   "title": "Merri Melodies shorts",
+   "field": "seriesTitle",
+   "from": "",
+   "to": "Merrie Melodies",
+   "evidence": "Empty series name; the series is spelled \"Merrie Melodies\"",
+   "requires": "Owner identifies which short the 7-minute video is, then set episodeTitle/title to it"
+  },
+  {
+   "group": "5-categories",
+   "id": "vuvTzWOcVJJeg12CsTq9",
+   "title": "Sita Sings the Blues (2008)",
+   "field": "category",
+   "from": "Action",
+   "to": "Cartoons",
+   "evidence": "Animated musical feature"
+  },
+  {
+   "group": "5-categories",
+   "id": "vuvTzWOcVJJeg12CsTq9",
+   "title": "Sita Sings the Blues (2008)",
+   "field": "genre",
+   "from": "Action",
+   "to": "Cartoons",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "6wWGoL2qWRqtCmCTSRQY",
+   "title": "Elephants Dream (2006)",
+   "field": "category",
+   "from": "Action",
+   "to": "Sci-Fi",
+   "evidence": "Animated science-fiction short"
+  },
+  {
+   "group": "5-categories",
+   "id": "6wWGoL2qWRqtCmCTSRQY",
+   "title": "Elephants Dream (2006)",
+   "field": "genre",
+   "from": "Action",
+   "to": "Sci-Fi",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "t6Ii7hflAigcefjBRz3r",
+   "title": "Gulliver’s Travels (1939)",
+   "field": "category",
+   "from": "Action",
+   "to": "Cartoons",
+   "evidence": "Animated feature (Fleischer Studios)"
+  },
+  {
+   "group": "5-categories",
+   "id": "t6Ii7hflAigcefjBRz3r",
+   "title": "Gulliver’s Travels (1939)",
+   "field": "genre",
+   "from": "Action",
+   "to": "Cartoons",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "evCYYCPlc23BKzpmt2ug",
+   "title": "The Amazing Mr. X (1948)",
+   "field": "category",
+   "from": "Action",
+   "to": "Drama",
+   "evidence": "Film noir"
+  },
+  {
+   "group": "5-categories",
+   "id": "evCYYCPlc23BKzpmt2ug",
+   "title": "The Amazing Mr. X (1948)",
+   "field": "genre",
+   "from": "Action",
+   "to": "Drama",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "u3dXF1OlGIXiRPAHz3hE",
+   "title": "A Day in the Life of a Coal Miner (1910)",
+   "field": "category",
+   "from": "Comedy",
+   "to": "Documentary",
+   "evidence": "BFI: early documentary"
+  },
+  {
+   "group": "5-categories",
+   "id": "u3dXF1OlGIXiRPAHz3hE",
+   "title": "A Day in the Life of a Coal Miner (1910)",
+   "field": "genre",
+   "from": "Comedy",
+   "to": "Documentary",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "aIZ4FeTCPjuTlycMgxiK",
+   "title": "Angel and the Badman (1947)",
+   "field": "category",
+   "from": "Comedy",
+   "to": "Drama",
+   "evidence": "Western"
+  },
+  {
+   "group": "5-categories",
+   "id": "aIZ4FeTCPjuTlycMgxiK",
+   "title": "Angel and the Badman (1947)",
+   "field": "genre",
+   "from": "Comedy",
+   "to": "Drama",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "CmN3oev0txAoerdvsjCb",
+   "title": "Captain Kidd (1945)",
+   "field": "category",
+   "from": "Comedy",
+   "to": "Action",
+   "evidence": "Pirate adventure"
+  },
+  {
+   "group": "5-categories",
+   "id": "CmN3oev0txAoerdvsjCb",
+   "title": "Captain Kidd (1945)",
+   "field": "genre",
+   "from": "Comedy",
+   "to": "Action",
+   "evidence": "Kept equal to category, as stored today"
+  },
+  {
+   "group": "5-categories",
+   "id": "1uuUM2H0SzmcKeOpIe3V",
+   "title": "50 Classic Cartoons (Silver Screen Video)",
+   "field": "category",
+   "from": "Documentary",
+   "to": "Cartoons",
+   "evidence": "Its description calls it a collection of 50 classic cartoons"
+  },
+  {
+   "group": "5-categories",
+   "id": "1uuUM2H0SzmcKeOpIe3V",
+   "title": "50 Classic Cartoons (Silver Screen Video)",
+   "field": "genre",
+   "from": "Documentary",
+   "to": "Cartoons",
+   "evidence": "Kept equal to category, as stored today"
+  }
+ ]
+}

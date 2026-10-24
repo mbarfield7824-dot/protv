@@ -60,8 +60,8 @@ First release of PROtv for Roku: browse the PROtv catalog, sign in or create a f
 - **Screenshots (up to 6, 1920x1080, capture on the developer TV):** OWNER.
   Device web page (http://<roku-ip>) > Utilities > Screenshot while the
   dev app runs. A 1280x720 capture scales evenly by 1.5x; never stretch or
-  crop. Recommended set, using only titles with structured rights evidence
-  (rights-matrix.md "source" rows or creator titles):
+  crop. Recommended set, using only tier A or B titles from
+  store/evidence/rights-evidence.md, or creator titles:
   1. Home with the hero and first rows
   2. A category row (e.g. Horror) in focus
   3. Title details with Play / Resume / My List
@@ -109,8 +109,8 @@ dist/releases is not signed.
 | 1 | RC sideloaded on a physical Roku; docs/TV-TESTS.md sections 1–6 pass | OWNER |
 | 2 | 2-hour playback soak without a crash | OWNER |
 | 3 | Privacy policy and terms updates published on watchprotv.com | OWNER + counsel |
-| 4 | Rights decisions in store/rights-matrix.md "Unresolved" (countries) | OWNER + counsel |
-| 5 | Captions decision (rights-matrix.md "Captions") | OWNER + counsel |
+| 4 | Rights decisions: tiers C and D in store/evidence/rights-evidence.md (hide The Brain from Planet Arous first) | OWNER + counsel |
+| 5 | Captions decision (store/captions-investigation.md) | OWNER + counsel |
 | 6 | Reviewer test account created and verified on the TV | OWNER |
 | 7 | Support phone, administrative and technical contacts | OWNER |
 | 8 | 6 screenshots captured on the TV | OWNER |
