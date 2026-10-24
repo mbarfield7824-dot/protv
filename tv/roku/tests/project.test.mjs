@@ -283,6 +283,10 @@ test('sideload zip is byte-reproducible, root-correct and contains only runtime 
   assert.ok(first.length <= 4 * 1024 * 1024, 'certification 3.7: the app is 4 MB or less');
   assert.match(strFromU8(files.manifest), /^title=PROtv$/m);
   assert.match(strFromU8(files.manifest), /^major_version=1$/m);
+  // Roku Static Analysis: rsg_version=1.3 is required for certification from
+  // 2026-10-01, and the deprecated InitClientCertificates() is flagged.
+  assert.match(strFromU8(files.manifest), /^rsg_version=1\.3$/m);
+  assert.doesNotMatch(strFromU8(files['components/HttpTask.brs']), /InitClientCertificates/);
   // Release builds carry no test-only content, debug hosts or restricted titles.
   const restricted = ['vyjpYtuEpOlCWzyzlaxM', 'UPq8eJixIfLiKXPIOXRm', 's0Eu00ADQQZnAoknUpxx', 'APlVZLmiQPIczS9uEbEd', 'tsq6EVuAjU7hf95yuGl8', '1uuUM2H0SzmcKeOpIe3V', 'SWSvCl89kxWp2qMXHT3w'];
   for (const name of names.filter(name => !name.startsWith('assets/'))) {

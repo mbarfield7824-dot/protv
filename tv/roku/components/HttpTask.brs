@@ -7,7 +7,6 @@ sub fetch()
     port = CreateObject("roMessagePort")
     transfer.SetMessagePort(port)
     transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
-    transfer.InitClientCertificates()
     requestUrl = m.top.url
     if requestUrl = "" then requestUrl = ApiBase() + m.top.path
     transfer.SetUrl(requestUrl)
