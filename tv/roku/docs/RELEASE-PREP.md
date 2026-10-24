@@ -171,58 +171,18 @@ Pick one before the store build:
   the app offers account creation, that must also work on the TV. About 2–3
   days plus TV testing.
 
-## 9. Privacy policy gaps (watchprotv.com/privacy, effective 2026-09-16)
+## 9. Privacy and legal (status 2026-10-23)
 
-The policy covers account email and name, My List, playback measurement,
-pseudonymous identifiers, retention of playback events and support contact.
-Missing for the Roku listing:
+Superseded by store/legal/: privacy and terms drafts (review copy 3,
+fact-checked against code), REVIEW.md (7 confirmed technical gaps, 10 legal
+questions with citations) and ACCOUNT-DELETION-RUNBOOK.md (the manual
+deletion process). Nothing is published.
 
-1. Continue Watching (watch progress) stored with the account.
-2. TV apps: sign-in on the TV, the sign-in saved on the TV, and guest
-   progress saved on the TV (and Roku device identifiers, if any are used).
-3. How to request access to or deletion of account data, and how long account
-   data is kept.
-4. A children's privacy statement (the service is not directed to children
-   under 13).
-5. The operator's name (Prophecy Entertainment LLC) and contact address.
-6. State privacy rights (for example California), if applicable.
+## 10. Content rights (status 2026-10-23)
 
-## 10. Content rights checklist
-
-| Basis | Titles | Keep on file |
-| --- | --- | --- |
-| Public domain (US) | 49 | Source and reason for each (no renewal, published before 1930, etc.). Status differs by country, so list only countries where it holds |
-| Creative Commons Attribution | 4 (Big Buck Bunny, Elephants Dream, Sintel, Tears of Steel) | Licence and the "Blender Foundation" credit shown in each title's details |
-| PROtv exclusive | 1 (The Bundy Chronicles) | The signed agreement |
-| Creator submissions | 2 (The Lost Camp, Dead Air) | Signed creator agreements (Creator Agent service); add a Rights note to each record |
-| Artwork | All | Poster sources; Sita Sings the Blues poster credit (CC BY-SA) is in its credits |
+Superseded by store/RIGHTS-REPORT.md and store/evidence/. 49 titles live,
+7 restricted with the reversible rights-verification workflow, US only.
 
 ## 11. Remaining release blockers
 
-Mandatory before submission:
-
-0. ~~Sign-in (2.2)~~ **Resolved in v0.6** (on-device sign-in, Option B), owner-verified on the TV in v0.6.1.
-1. **Captions (4.8):** a legal determination of which titles must be
-   captioned. None has caption tracks today.
-2. **Store listing details (owner):** countries, age rating, support email
-   and phone, admin and technical contacts, reviewer test account.
-3. **Privacy policy review:** confirm watchprotv.com/privacy describes TV
-   sign-in codes, the sign-in and guest progress saved on the TV, and how to
-   request deletion.
-4. **Device checks still to run:** launch time, deep links, seek thumbnails,
-   network loss, extended playback and memory (tests 1, 3, 5, 6, 7 above).
-5. **Signed package** with a backed-up key (section 5).
-6. **Distribution rights:** keep the public-domain and Creative Commons
-   evidence and the creator agreements ready; list only countries where the
-   rights hold.
-
-Strongly recommended:
-
-- Account deletion on the website (`docs/account-deletion-plan.md`). It is
-  not listed in Roku's publishing guide, but privacy law expects it and
-  Google Play and Apple require it.
-- Catalog fixes in `docs/catalog-corrections-proposal.md` (His Girl Friday
-  synopsis, series names, years, categories), so the store review shows
-  complete metadata.
-- Private backup of the code before release work continues (the GitHub
-  repository is currently public).
+See store/FINAL-LAUNCH-HANDOFF.md (the single, current list).

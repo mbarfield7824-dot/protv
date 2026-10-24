@@ -23,11 +23,11 @@ check; **owner** = needs the owner.
 | 3.7 | Package 4 MB or less | Met | 1.0.0 ZIP 0.68 MB |
 | 4.1 | Updates keep sign-in and data | Met if the same signing key is reused | RELEASE-PREP.md section 5 |
 | 4.3 | Roku Event Dispatcher for apps that require sign-in | Not applicable | Sign-in optional; everything plays as a guest |
-| 4.4 | Options (*) reserved during playback | Met (app does not use *); **TV check pending** | PROtv controls hold focus during playback, so Roku's overlay may not open; TV-TESTS.md section 6 step 8 |
+| 4.4 | Options (*) reserved during playback | RC2: app never uses *, but per Roku docs the overlay cannot open while PROtv's key catcher holds focus. **RC3 candidate fixes this (not TV-tested)** | RC3 `d023f0a`: Video node keeps focus; 215 scene tests; TV-TESTS.md section 7 |
 | 4.5 | Screensaver untouched | Met | |
 | 4.6 | Back returns to the previous screen; Back on Home exits | Met | TV, auto |
 | 4.7 | Trick-play thumbnails, VOD over 15 min (42 titles) | Implemented; unverified on TV | Mux previews while seeking (auto); TV |
-| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live). No captions today, so the Options-menu clause does not yet apply. Before captions are added, RC3 must make Roku's caption settings reachable during playback (store/captions-investigation.md) |
+| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live). No captions today, so the Options-menu clause does not yet apply. Ship captions only with the TV-verified RC3 (store/captions-investigation.md, rollout plan section 4) |
 | 4.9 | Instant Replay 10–25 s | Met | 10 s (auto) |
 | 4.10 | Bookmarks, VOD over 15 min, 30+ days | Met | Continue Watching and resume after restart (TV, v0.6.1 + backend fix b123f03) |
 | 4.12 | Roku voice keyboards for email and password | Met | StandardKeyboardDialog (DynamicKeyboard), email/password domains (TV) |
@@ -37,7 +37,7 @@ check; **owner** = needs the owner.
 | 6.1 | Non-zero version, incremented per submission | Met | 1.0.0 |
 | 6.2 | Kids & Family rules | Not applicable | |
 | 6.3 | No pornographic content; listing suitable for all ages | Met (owner confirms listing text) | |
-| 6.4 | FHD + HD splash; no transparent artwork | Met | 1920x1080 / 1280x720 splash; opaque 540x405 poster |
+| 6.4 | FHD + HD splash; no transparent artwork | Met | 1920x1080 / 1280x720 splash; opaque 540x405 poster; channel icons have an alpha channel but every pixel is opaque (alpha 255, checked) |
 
 ## Dashboard (owner)
 

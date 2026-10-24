@@ -126,3 +126,17 @@ Use the router or the PC's mobile hotspot. Do not unplug the Roku.
    focus during playback, and Roku documents that the overlay then does not
    open (store/captions-investigation.md section 3). Either result is useful;
    no other change is needed for RC2.
+
+## 7. RC3 candidate check (3 minutes; decides RC2 vs RC3)
+
+Sideload `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip`, play any title, then:
+
+1. Press **OK**: playback pauses and PROtv's controls appear. Press OK again:
+   it resumes. (This is the behavior RC3 could break.)
+2. Press **Left** three times: the seek preview moves back 30 s; wait: it seeks.
+3. Press **Instant Replay**: it jumps back 10 s.
+4. Press **\***: Roku's options overlay slides in (captions, etc.). Press Back
+   to close it; playback continues.
+5. Press **Back**: playback ends and the details screen shows Resume.
+
+All five pass: use RC3 for submission. Step 1 fails: keep RC2 and report it.
