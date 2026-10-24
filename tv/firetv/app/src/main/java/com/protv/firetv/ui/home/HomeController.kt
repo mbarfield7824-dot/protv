@@ -8,11 +8,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.protv.firetv.account.ViewerAccountState
 import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogRepository
 import com.protv.firetv.data.api.artworkModel
 import com.protv.firetv.data.api.descriptionText
+import com.protv.firetv.data.api.landscapeArtworkModel
 import com.protv.firetv.data.api.muxStillArtwork
+import com.protv.firetv.data.api.searchText
+import com.protv.firetv.data.api.contentTypeText
+import com.protv.firetv.data.api.catalogAddedAt
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,7 +33,19 @@ class HomeTile(
     val artwork: Any?,
     val artworkCacheKey: String?,
     val fallbackArtwork: Any?,
+    val searchText: String = "",
+    val resumePositionSeconds: Double? = null,
+    val contentType: String = "MOVIE",
+    val category: String = "",
+    val addedAt: Long? = null,
+    val progressFraction: Float? = null,
+    /** Prefer a full-height poster tile when dedicated catalog poster artwork exists. */
+    val posterStyle: Boolean = false,
 )
+
+/** Prefer genuine catalog key art; use film stills only as a fallback. */
+internal fun preferredRailArtwork(catalogArtwork: Any?, landscapeStill: String?): Pair<Any?, Any?> =
+    if (catalogArtwork != null) catalogArtwork to landscapeStill else landscapeStill to null
 
 @Immutable
 data class HomeRail(val key: String, val title: String, val tiles: List<HomeTile>)
@@ -42,7 +59,19 @@ class HomeFeatured(
     val metadata: List<String>,
     /** Landscape Mux still; [HomeTile.artwork] is the fallback when it is missing or fails. */
     val stillUrl: String?,
+    /** The catalog's dedicated landscape backdrop (`heroImageUrl`), preferred when present. */
+    val backdropArtwork: Any? = null,
+    /** The metadata entry that is the category, shown as the highlighted chip. */
+    val category: String? = null,
 )
+
+/**
+ * Hero backdrop candidates, best first: the catalog's landscape backdrop, then the landscape Mux
+ * still, then the card artwork (usually a poster). Each later entry is tried only if the previous
+ * one is missing or fails to load; the branded atmosphere shows when none loads.
+ */
+fun heroBackdropSources(featured: HomeFeatured): List<Any> =
+    listOfNotNull(featured.backdropArtwork, featured.stillUrl, featured.tile.artwork).distinct()
 
 sealed interface HomeState {
     data object Loading : HomeState
@@ -61,6 +90,19 @@ sealed interface HomeState {
  */
 @Stable
 class HomeController(private val repository: CatalogRepository?, private val apiBaseUrl: String) {
+    var destination by mutableStateOf(HomeDestination.Home)
+        private set
+    var navigationToken by mutableIntStateOf(0)
+        private set
+    fun selectDestination(next: HomeDestination) {
+        navigationToken++
+        destination = next
+        focusedTileId = null
+        focusedRailKey = null
+        heroFocused = next == HomeDestination.Home
+        restorePending = true
+        listState.requestScrollToItem(0)
+    }
     var state by mutableStateOf<HomeState>(if (repository == null) HomeState.Unconfigured else HomeState.Loading)
         private set
     var reloadToken by mutableIntStateOf(0)
@@ -68,19 +110,22 @@ class HomeController(private val repository: CatalogRepository?, private val api
     var restorePending by mutableStateOf(false)
     var focusedTileId: String? = null
         private set
+    var focusedRailKey: String? = null
+        private set
 
     /** True when the hero Play button, rather than a rail card, is the focus to restore. */
-    var heroFocused: Boolean = false
+    var heroFocused by mutableStateOf(false)
         private set
     var featuredIndex by mutableIntStateOf(0)
         private set
     var rotationResetToken by mutableIntStateOf(0)
         private set
 
-    val listState = LazyListState()
+    private val listStates = HashMap<HomeDestination, LazyListState>()
+    val listState: LazyListState get() = listStates.getOrPut(destination) { LazyListState() }
     private val rowStates = HashMap<String, LazyListState>()
 
-    fun rowState(railKey: String): LazyListState = rowStates.getOrPut(railKey) { LazyListState() }
+    fun rowState(railKey: String): LazyListState = rowStates.getOrPut("${destination.name}:$railKey") { LazyListState() }
 
     fun retry() {
         reloadToken++
@@ -90,8 +135,9 @@ class HomeController(private val repository: CatalogRepository?, private val api
         restorePending = true
     }
 
-    fun onTileFocused(id: String) {
+    fun onTileFocused(id: String, railKey: String? = null) {
         focusedTileId = id
+        focusedRailKey = railKey
         heroFocused = false
         restorePending = false
     }
@@ -141,7 +187,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
             rowStates.clear()
             listState.requestScrollToItem(0)
             focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
-            heroFocused = next.featured != null
+            focusedRailKey = null
+            heroFocused = destination == HomeDestination.Home && next.featured != null
             featuredIndex = 0
             restorePending = true
         }
@@ -156,6 +203,13 @@ class HomeController(private val repository: CatalogRepository?, private val api
                 description = sanitizeDescription(item.descriptionText),
                 metadata = featuredMetadata(item),
                 stillUrl = heroStillUrl(item),
+                backdropArtwork = try {
+                    item.landscapeArtworkModel(apiBaseUrl)
+                } catch (error: IllegalArgumentException) {
+                    Log.w(TAG, "Invalid embedded backdrop for catalog ID ${item.id}", error)
+                    null
+                },
+                category = item.category.trim().takeIf { it.isNotEmpty() },
             )
         }
         return HomeState.Loaded(buildHomeRails(items), featuredTitles.firstOrNull(), featuredTitles)
@@ -176,17 +230,101 @@ class HomeController(private val repository: CatalogRepository?, private val api
         // Verified catalog art (poster/thumbnail) is primary; an unreviewed Mux still is only a
         // fallback for titles whose catalog artwork is missing or fails to load.
         val landscapeArtwork = item.muxStillArtwork()
+        // Preserve genuine movie artwork rather than replacing posters with film stills.
+        // When source artwork is missing or fails, use an authorized Mux still.
+        val (railArtwork, railFallback) = preferredRailArtwork(artwork, landscapeArtwork)
         return HomeTile(
             id = item.id,
             title = item.title,
             meta = item.category.trim().takeIf { showCategory && it.isNotEmpty() },
-            artwork = artwork,
-            artworkCacheKey = if (artwork is ByteArray) "protv-artwork:${item.id}" else null,
-            fallbackArtwork = landscapeArtwork,
+            artwork = railArtwork,
+            artworkCacheKey = if (railArtwork is ByteArray) "protv-artwork:${item.id}" else null,
+            fallbackArtwork = railFallback,
+            posterStyle = item.posterUrl.isNotBlank(),
+            searchText = "${item.category} ${item.searchText}".trim(),
+            contentType = item.contentTypeText ?: "MOVIE",
+            category = item.category,
+            addedAt = item.catalogAddedAt,
         )
     }
 
     private companion object {
         const val TAG = "PROtvCatalog"
+    }
+}
+
+fun searchCatalog(tiles: List<HomeTile>, query: String): List<HomeTile> {
+    val terms = query.trim().lowercase().split(Regex("\\s+")).filter(String::isNotBlank)
+    if (terms.isEmpty()) return emptyList()
+    return tiles.filter { tile ->
+        val searchableText = listOf(tile.title, tile.meta.orEmpty(), tile.searchText)
+            .joinToString(" ")
+            .lowercase()
+        terms.all(searchableText::contains)
+    }
+}
+
+fun buildPersonalizedRails(
+    catalogRails: List<HomeRail>,
+    account: ViewerAccountState,
+    signedIn: Boolean,
+): List<HomeRail> {
+    if (!signedIn) return catalogRails
+    val tilesById = catalogRails.flatMap(HomeRail::tiles).associateBy(HomeTile::id)
+    val continueWatching = account.progress.entries
+        .filter { (_, progress) -> progress.positionSeconds > 0 && progress.progressPercent < 95 }
+        .sortedByDescending { (_, progress) -> progress.updatedAt }
+        .mapNotNull { (id, progress) ->
+            tilesById[id]?.let { tile ->
+                HomeTile(
+                    id = tile.id,
+                    title = tile.title,
+                    meta = "${formatRuntime((progress.durationSeconds - progress.positionSeconds).toInt()) ?: "0m"} left",
+                    artwork = tile.artwork,
+                    artworkCacheKey = tile.artworkCacheKey,
+                    fallbackArtwork = tile.fallbackArtwork,
+                    searchText = tile.searchText,
+                    resumePositionSeconds = progress.positionSeconds,
+                    contentType = tile.contentType,
+                    category = tile.category,
+                    addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
+                    progressFraction = (progress.positionSeconds / progress.durationSeconds).toFloat().coerceIn(0f, 1f),
+                )
+            }
+        }
+    val favorites = account.favorites.mapNotNull(tilesById::get)
+    val history = account.progress.entries
+        .filter { (_, progress) -> progress.positionSeconds > 0 }
+        .sortedByDescending { (_, progress) -> progress.updatedAt }
+        .mapNotNull { (id, progress) ->
+            tilesById[id]?.let { tile ->
+                HomeTile(
+                    id = tile.id,
+                    title = tile.title,
+                    meta = if (progress.progressPercent >= 95) "Watched" else "${progress.progressPercent}% watched",
+                    artwork = tile.artwork,
+                    artworkCacheKey = tile.artworkCacheKey,
+                    fallbackArtwork = tile.fallbackArtwork,
+                    searchText = tile.searchText,
+                    resumePositionSeconds = progress.positionSeconds.takeIf { progress.progressPercent < 95 },
+                    contentType = tile.contentType,
+                    category = tile.category,
+                    addedAt = tile.addedAt,
+                    posterStyle = tile.posterStyle,
+                )
+            }
+        }
+    return buildList {
+        if (continueWatching.isNotEmpty()) {
+            add(HomeRail("continue-watching", "Continue Watching", continueWatching))
+        }
+        if (favorites.isNotEmpty()) {
+            add(HomeRail("my-list", "My List", favorites))
+        }
+        if (history.isNotEmpty()) {
+            add(HomeRail("watch-history", "Watch History", history))
+        }
+        addAll(catalogRails)
     }
 }

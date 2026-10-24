@@ -9,6 +9,7 @@ build/
 .idea/
 serviceAccountKey.json
 protv-2f48e-*.json
+**/google-services.json
 .vercel
 .env*
 !.env.example

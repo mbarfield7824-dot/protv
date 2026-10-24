@@ -2,9 +2,12 @@ package com.protv.firetv.data.api
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import java.time.Instant
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -30,6 +33,14 @@ data class CatalogItem(
     val year: JsonElement? = null,
     val maturityRating: JsonElement? = null,
     val muxPlaybackId: JsonElement? = null,
+    val muxPlaybackPolicy: JsonElement? = null,
+    val subgenre: JsonElement? = null,
+    val genres: JsonElement? = null,
+    val musicFormat: JsonElement? = null,
+    val publishedAt: JsonElement? = null,
+    val approvedAt: JsonElement? = null,
+    val createdAt: JsonElement? = null,
+    val submittedAt: JsonElement? = null,
 )
 
 private val JsonElement?.primitive: JsonPrimitive?
@@ -43,13 +54,40 @@ private fun JsonElement?.positiveInt(): Int? =
 
 val CatalogItem.descriptionText: String? get() = description.text()
 val CatalogItem.contentTypeText: String? get() = contentType.text()
+val CatalogItem.catalogAddedAt: Long?
+    get() = sequenceOf(publishedAt, approvedAt, createdAt, submittedAt)
+        .mapNotNull(::catalogTimestamp).firstOrNull()
+
+internal fun catalogTimestamp(value: JsonElement?): Long? {
+    val primitive = value as? JsonPrimitive
+    primitive?.content?.toLongOrNull()?.takeIf { it > 0 }?.let { return it }
+    if (primitive?.isString == true) {
+        try {
+            return Instant.parse(primitive.content).toEpochMilli().takeIf { it > 0 }
+        } catch (_: java.time.format.DateTimeParseException) {
+            return null
+        }
+    }
+    val obj = value as? JsonObject ?: return null
+    val seconds = ((obj["_seconds"] ?: obj["seconds"]) as? JsonPrimitive)?.content?.toLongOrNull()
+    return seconds?.takeIf { it > 0 && it <= Long.MAX_VALUE / 1000 }?.times(1000)
+}
 val CatalogItem.durationSeconds: Int? get() = duration.positiveInt()
 val CatalogItem.releaseYear: Int? get() = year.positiveInt()
 val CatalogItem.maturityRatingText: String? get() = maturityRating.text()
+val CatalogItem.searchText: String
+    get() = buildList {
+        descriptionText?.let(::add)
+        subgenre.text()?.let(::add)
+        (genres as? JsonArray)?.forEach { it.text()?.let(::add) }
+        musicFormat.text()?.let(::add)
+    }.joinToString(" ")
 
 /** The public Mux playback ID, only when it has the expected public-ID shape. */
 val CatalogItem.publicMuxPlaybackId: String?
-    get() = muxPlaybackId.text()?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }
+    get() = muxPlaybackId.text()?.takeIf {
+        muxPlaybackPolicy.text() != "signed" && it.matches(Regex("[A-Za-z0-9]+"))
+    }
 
 interface CatalogApi {
     @GET("v1/catalog?view=all")

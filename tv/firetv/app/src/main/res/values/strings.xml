@@ -3,19 +3,17 @@
     <string name="app_name">PROtv</string>
     <string name="wordmark_pro" translatable="false">PRO</string>
     <string name="wordmark_tv" translatable="false">tv</string>
-    <string name="tagline_lead">Independent Stories.</string>
-    <string name="tagline_emphasis">Unlimited Possibilities.</string>
     <string name="catalog_loading">Loading catalog…</string>
     <string name="catalog_empty">No titles are available right now.</string>
     <string name="catalog_error">Unable to load the catalog. Check your connection and try again.</string>
     <string name="catalog_unconfigured">Catalog API origin is not configured. Set protvApiBaseUrl or PROTV_TV_API_BASE_URL when building.</string>
     <string name="catalog_retry">Retry</string>
-    <string name="artwork_unavailable">Artwork unavailable</string>
     <string name="title_unavailable">Title unavailable</string>
-    <string name="hero_kicker">Featured on PROtv</string>
+    <string name="hero_kicker_lead">Featured on</string>
+    <string name="hero_kicker_new">New on</string>
     <string name="hero_play">Play</string>
-    <string name="category_home">Home</string>
     <string name="playback_loading">Loading playback…</string>
     <string name="playback_buffering">Buffering…</string>
     <string name="playback_error">Playback is unavailable. Try again or press Back.</string>
+    <string name="account_sign_in">Sign in</string>
 </resources>

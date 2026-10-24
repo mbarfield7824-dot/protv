@@ -6,6 +6,7 @@ import com.protv.firetv.data.api.durationSeconds
 import com.protv.firetv.data.api.maturityRatingText
 import com.protv.firetv.data.api.publicMuxPlaybackId
 import com.protv.firetv.data.api.releaseYear
+import com.protv.firetv.data.api.catalogAddedAt
 import kotlin.math.roundToInt
 
 /** The same curated hero titles, in the same order, as the PROtv 2.0 web home (`FEATURED_PROTV_TITLE_IDS`). */
@@ -22,11 +23,20 @@ private val curatedStillTimes = mapOf("WIVB9NPQQzvtvjTBsiKw" to 1174)
 private const val HERO_STILL_WIDTH = 1280
 private const val HERO_STILL_HEIGHT = 720
 
-/** Returns the usable curated titles in curated order, with one deterministic fallback if needed. */
-fun selectFeaturedTitles(items: List<CatalogItem>): List<CatalogItem> {
-    val titled = items.filter { it.title.isNotBlank() }
-    val curated = FEATURED_TITLE_IDS.mapNotNull { id -> titled.firstOrNull { it.id == id } }
-    if (curated.isNotEmpty()) return curated
+/** The viewer catalog is already publication/playability gated by the server. */
+fun selectFeaturedTitles(items: List<CatalogItem>, now: Long = System.currentTimeMillis()): List<CatalogItem> {
+    val titled = items.filter { it.title.isNotBlank() && (it.catalogAddedAt ?: 0) <= now }
+    val films = titled.filter { it.contentTypeText?.uppercase() in listOf(null, "MOVIE", "ORIGINAL") }
+    val recent = films.filter { it.catalogAddedAt != null && requireNotNull(it.catalogAddedAt) <= now }.sortedWith(
+        compareByDescending<CatalogItem> {
+            (it.category.equals("Originals", true) || it.contentTypeText.equals("ORIGINAL", true)) &&
+                requireNotNull(it.catalogAddedAt) >= now - 30L * 24 * 60 * 60 * 1000
+        }
+            .thenByDescending { it.catalogAddedAt },
+    )
+    val curated = FEATURED_TITLE_IDS.mapNotNull { id -> films.firstOrNull { it.id == id } }
+    val preferred = (recent + curated).distinctBy { it.id }.take(6)
+    if (preferred.isNotEmpty()) return preferred
     return listOf(titled.firstOrNull { !it.contentTypeText.equals("EPISODE", ignoreCase = true) }
         ?: titled.firstOrNull() ?: return emptyList())
 }
