@@ -16,16 +16,20 @@ exemption is claimed.** Sources are quoted from the primary texts named.
    horror, noir and comedy features, and the TV episodes) are the kind of
    programming that does air on US TV. Counsel should decide; this file does
    not assume the rule is inapplicable.
-3. **Recommended:** caption every long-form title before or soon after
-   launch. Mux documents auto-generated captions at **no additional charge**
-   for existing assets; they need human review. 42 titles (55.1 of 57.3
-   hours) are over 15 minutes.
-4. **App finding:** during playback, focus is on PROtv's own controls, not
-   the Video node, so Roku's Options (*) overlay probably cannot open. This
-   needs fixing **before captions are added**, and needs one TV check now
-   (TV-TESTS.md section 6, step 8). RC2 is not changed because the defect is
-   inferred from Roku's documentation, not observed, and cannot be verified
-   without a captioned title.
+3. **Recommended:** caption every long-form title, starting with the most
+   plausibly covered. Mux's pricing page lists "On-demand auto-generated
+   captions" as **included with Mux Video ("free")**. Its docs add that
+   contract customers must contact Mux support for assets older than 7 days
+   (the owner confirms the account type). Captions need human review before
+   viewers see them (section 4).
+4. **App finding, fixed in an RC3 candidate (not TV-tested):** in RC2,
+   focus during playback sits on a separate key catcher, and Roku documents
+   that "when the Video node is not in focus, the options overlay does not
+   slide in". Branch `fix/roku-caption-options` (commit `d023f0a`) keeps
+   focus on the Video node, with 215 scene tests (RC2 fails them). Package:
+   `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip`. **RC2 stays the
+   stable candidate** until the 3-minute TV check in TV-TESTS.md section 7
+   passes.
 
 ## 1. Roku certification text (criteria page, last updated October 2026)
 
@@ -113,45 +117,70 @@ repeat this review.
 | --- | --- | --- |
 | Caption format | Ready | Roku: WebVTT "in a separate stream described in the manifest playlist" is supported for HLS VOD; Mux adds text tracks to the HLS manifest |
 | Rendering and global setting | Expected to work | The Video node handles captions and follows the system caption setting; the app sets no caption fields |
-| Options (*) menu during playback | **Gap (inferred)** | `playerKeys` holds focus during playback ([ProtvScene.brs:1219](../components/ProtvScene.brs#L1219), [:1288](../components/ProtvScene.brs#L1288)); per Roku, the overlay does not open when the Video node is not focused |
+| Options (*) menu during playback | RC2: **gap** (per Roku docs; `playerKeys` holds focus). RC3 candidate: **fixed in code, not TV-tested** | RC2 [ProtvScene.brs:1219](../components/ProtvScene.brs#L1219), [:1288](../components/ProtvScene.brs#L1288); RC3 commit `d023f0a` |
 | Caption sync | Depends on track timing | QA each title |
 
-**Fix design (for RC3, together with the first captioned titles):**
+**RC3 candidate (implemented):** the Video node holds focus during playback
+with `enableUI="false"`. PROtv's controls stay in the scene's `onKeyEvent`,
+which receives the keys the Video node does not handle, and `options` is
+never handled. The package differs from RC2 only in `ProtvScene.brs` and
+`ProtvScene.xml`.
 
-- **Preferred:** give the Video node focus during playback and keep PROtv's
-  key handling in the scene's `onKeyEvent` (keys bubble up from the focused
-  Video node). Return `false` for `options` so Roku's overlay opens. Verify on
-  the TV that OK, Left/Right, Replay and Back still reach PROtv with
-  `enableUI="false"`. The v0.5.4 OK-button problem came from the native UI,
-  which stays off.
-- **Fallback:** a Captions control on the PROtv overlay offering On, Off,
-  On instant replay and On mute, writing the Video node's global caption mode.
-  This is the "equal levels of functionality" route.
-- **Tests:** scene regressions that `options` is not consumed during playback
-  and that focus returns to PROtv controls after Back; TV check with one
-  captioned title.
+**The one thing only a TV can prove:** with the Video node focused, OK still
+reaches PROtv (pause and controls). v0.5.4's OK problem happened with the
+native UI on; it stays off here. If OK does not pause on the TV, use the
+fallback below and keep RC2.
 
-**TV check now (no build change):** during playback, press * once. If
-Roku's overlay appears, the gap does not exist. If nothing happens, RC2 still
-passes 4.8 (no captions), but a reviewer may question 4.4. Record the result
-in TV-TESTS.md.
+**Fallback (not built):** a Captions control on the PROtv overlay offering
+On, Off, On instant replay and On mute, writing the Video node's global
+caption mode. Roku accepts this route if it offers "equal levels of
+functionality".
 
-## 4. Producing captions (no cost has been incurred)
+**RC2 TV check (no build change):** during playback, press * once and
+record whether Roku's overlay appears (TV-TESTS.md section 6, step 8).
 
-1. **Auto-generate in Mux:** POST
-   `/video/v1/assets/{ASSET_ID}/tracks/{AUDIO_TRACK_ID}/generate-subtitles`.
-   Per Mux's docs: "There is no additional charge for this feature."
-   "Languages labeled as beta may have lower accuracy", and mixed-language
-   content is not recommended. Contract customers must contact Mux support
-   for assets older than 7 days, so the owner should confirm the account type
-   and current pricing before starting.
-2. **Review:** old soundtracks (1930s–60s) will produce errors. Correct each
-   WebVTT file and re-upload it with Mux's create-track API.
-3. **Order:** classic features and TV episodes first (possibly legally
-   covered), then everything else over 15 minutes, then shorts.
-4. **Silent films:** caption music and sound cues (for example, "[orchestral
-   music]"); intertitles are already on screen.
-5. **Blender films:** check for official subtitle files under the same
-   license before generating.
-6. **Then:** ship the Options-menu fix as RC3, verify on the TV, and update
-   CERTIFICATION.md 4.8.
+## 4. Caption rollout strategy (no cost incurred; nothing generated)
+
+**Rule: no unreviewed automatic captions reach viewers.** Mux's docs do not
+say whether a generated track is withheld until reviewed, so assume it goes
+live as soon as it is ready.
+
+1. **Prove the Mux behavior once, safely:** run `generate-subtitles` on one
+   asset that viewers cannot reach. A restricted title works: its playback
+   ID is no longer served by PROtv. Watch whether the track appears in its
+   HLS manifest when `video.asset.track.ready` fires.
+2. **Draft method:**
+   - If tracks are withheld until reviewed, generate in Mux (POST
+     `/video/v1/assets/{ASSET_ID}/tracks/{AUDIO_TRACK_ID}/generate-subtitles`,
+     free per Mux pricing).
+   - Otherwise, make drafts away from the live asset: download the generated
+     VTT from the test asset and delete it, or transcribe locally with an
+     open-source speech-to-text tool. No paid service is needed either way.
+3. **Human review (required):** a reviewer watches each title with the
+   draft, fixes names, period vocabulary and timing, and adds speaker and
+   sound cues ("[music]", "[door slams]"). Expect heavy correction on
+   1930s–60s soundtracks.
+4. **Publish:** add the reviewed VTT with Mux's create-track API:
+   `language_code: "en"`, `name: "English CC"`, `closed_captions: true`,
+   `text_type: "subtitles"` (confirm field names against the current API
+   reference). Delete any generated draft track. Record the reviewer and
+   date in `titleRightsEvidence`.
+5. **Priority (live titles only, so none of the 7 restricted):**
+   1. classic sound features 1931–1968 and the TV episodes (most plausibly
+      covered by 47 CFR 79.4);
+   2. other titles over 15 minutes;
+   3. silent films (music and sound cues only);
+   4. shorts.
+
+   Blender films: use the official subtitle files where they exist under the
+   same license.
+6. **Roku validation:** with RC3 confirmed on the TV, play one captioned
+   title, press *, and turn captions on, off and "On instant replay"; check
+   sync at the start, middle and end.
+7. **Cost:** Mux auto-generated on-demand captions are listed as free. Mux
+   "Robots" caption workflows (translate, edit, premium) are paid per minute
+   and are **not** needed. Review time is the real cost.
+8. **Open questions for counsel:** which titles aired on US TV with captions
+   (79.4 trigger); caption-quality obligations for library titles; whether
+   audio description applies (as read, internet-only services are not
+   covered by 47 CFR 79.3); ADA risk posture.

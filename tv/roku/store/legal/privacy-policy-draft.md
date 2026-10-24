@@ -1,8 +1,8 @@
-# PROtv Privacy Policy — full replacement draft (review copy 2)
+# PROtv Privacy Policy — full replacement draft (review copy 3)
 
 **DRAFT for owner and counsel review. Not published. Not legal advice.**
 Revised 2026-10-23 after checking each statement against the production code
-(see REVIEW.md for the source of every fact). Replaces the text of
+and Firestore (see REVIEW.md for the source of every fact). Replaces the text of
 watchprotv.com/privacy (frontend/src/pages/Privacy.jsx, effective
 September 16, 2026) once approved. **[Bracketed]** items are owner or counsel
 decisions; REVIEW.md lists them with a recommendation for each.
@@ -23,12 +23,17 @@ support@watchprotv.com.
 address and, on the website, the display name you choose. Your password is
 handled by our authentication provider, Google Firebase, in protected form;
 PROtv does not store it. We send a verification email when you create an
-account.
+account, and a reset email if you ask to reset your password.
+
+**Signing in with Google.** On the website you can sign in with your Google
+account instead of a password. Google then shares your name, email address
+and profile picture with PROtv's authentication provider so we can create and
+sign in to your PROtv account.
 
 **My List and watch progress.** When you are signed in we store your My List
 and your watch progress (the title, your position and when you last watched)
-with your account, so Continue Watching stays in sync between the website and
-your TVs.
+with your account, so Continue Watching and your watch history stay in sync
+between the website and your TVs.
 
 **Watching as a guest on a TV.** Without signing in, a PROtv TV app keeps your
 recent watch progress (up to 50 titles) only on that TV so you can resume. It
@@ -70,7 +75,10 @@ expire within about an hour.
 standard technical data needed to deliver the service, such as network
 address, device, browser or app type, and playback quality. On the website:
 
-- **Vercel Analytics** measures page visits in aggregate.
+- **Vercel Web Analytics** counts page views without cookies. It records the
+  page, referring site, approximate location, and device and browser type,
+  and recognizes a visit by a short-lived hash that is discarded after
+  24 hours.
 - **Mux**, our video provider, measures playback quality (for example start
   time, buffering and errors) together with the title being watched.
 
@@ -78,9 +86,16 @@ address, device, browser or app type, and playback quality. On the website:
 AdSense**, which may use cookies or similar technologies to show and measure
 ads, including personalized ads where permitted. The website can also play
 video ads before a title, using Google's IMA technology and an ad network
-[name the network if video ads are switched on; they are off today]. Learn
+[name the network before video ads are switched on; they are off today (REVIEW.md L9)]. Learn
 about and manage Google's ad personalization at
-https://adssettings.google.com. **The PROtv Roku app shows no ads.**
+https://adssettings.google.com. Google and its partners may collect
+information about your activity on watchprotv.com and other websites over
+time. **This version of the PROtv Roku app shows no ads.** If ads are added
+to a TV app later, this policy will be updated first.
+
+**Browser signals.** [REVIEW.md question L3: describe how watchprotv.com responds to
+"Do Not Track" and Global Privacy Control signals. Today the site does not
+change its behavior in response to either.]
 
 ## How we use information
 
@@ -89,7 +104,7 @@ Continue Watching; secure accounts and prevent abuse; review reports and
 answer messages; understand and improve performance; and show ads on the
 website. **We do not sell personal information for money.**
 [Counsel: advertising cookies on the website may count as "sharing" or "sale"
-under some US state laws; see REVIEW.md decision 4.]
+under some US state laws; see REVIEW.md question L2.]
 
 ## Service providers
 
@@ -104,9 +119,11 @@ under its own privacy policy.
 
 We keep account data while your account is open. To access or delete your
 account and its data, email support@watchprotv.com from your account's email
-address. The PROtv TV app shows this on its Account screen. We delete account
-data within [30] days of a verified request, except records we must keep for
-legal reasons. Safety reports and creator records are kept [for as long as
+address. The PROtv TV app shows this on its Account screen. When we delete an
+account we remove the sign-in account, My List, watch progress and history,
+and links to TVs; we aim to complete deletion within [30] days of verifying
+the request, except records we must keep for legal reasons. Sign-in rate
+limit counters expire within about an hour. Safety reports and creator records are kept [for as long as
 needed to handle them and meet legal obligations]. [Add the self-service
 deletion link once it exists; see docs/account-deletion-plan.md.]
 
