@@ -1,7 +1,7 @@
 # Remaining Roku certification tests (owner, physical TV)
 
-Build: `dist/releases/protv-roku-v1.0.0-rc1.zip` (SHA-256
-`86571fab…5571732f`). Footer on the Account screen: **PROtv for Roku 1.0.0**. Read-only checks already run from the PC on
+Build: `dist/releases/protv-roku-v1.0.0-rc2.zip` (SHA-256
+`471f12dd…095c5bf8`). Footer on the Account screen: **PROtv for Roku 1.0.0**. Read-only checks already run from the PC on
 2026-10-23: catalog 100 KB in about 0.2 s, playback authorization about
 0.15 s, Mux seek previews 0.6–0.9 s each, deep-link targets valid.
 
@@ -116,3 +116,8 @@ Use the router or the PC's mobile hotspot. Do not unplug the Roku.
 4. Wrong password, and Back on a keyboard: no spinner is left on screen.
 5. Repeat the 7 core checks (playback controls clear on exit, Continue
    Watching, resume, sign-in after restart, My List, episodes, remote controls).
+6. RC2: open Account > Sign in, and while the email keyboard is showing run
+   the movie deep link from store/listing.md (`/input/dev?...`). The keyboard
+   closes and His Girl Friday plays; Back works normally afterwards.
+7. RC2: signed in, the Account screen says to email support@watchprotv.com to
+   delete the account.

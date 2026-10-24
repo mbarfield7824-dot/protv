@@ -1,5 +1,18 @@
 # Roku release checkpoints
 
+## 1.0.0 release candidate 2 (2026-10-23, not yet TV-tested) — submission candidate
+
+| Item | Value |
+| --- | --- |
+| Branch / commit | `release/roku-1.0` at `d99f2ef` (app code; this doc commit follows) |
+| Manifest | 1.0.0 |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc2.zip` (read-only), 679,714 bytes |
+| SHA-256 | `471f12dd0cc9974acc3351e2988433bc289dbca8ee7a09b59d1db361095c5bf8` |
+| Changes since RC1 | A deep link during sign-in ends the sign-in flow before playing (5.1); signed-in Account screen shows the deletion contact |
+
+RC1 is preserved unchanged. Neither ZIP is signed; the signed .pkg is made on
+the developer TV with Roku's Packager (store/listing.md "Signing").
+
 ## 1.0.0 release candidate 1 (2026-10-24, not yet TV-tested)
 
 | Item | Value |

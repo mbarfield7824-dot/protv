@@ -1,5 +1,18 @@
 # Roku validation record
 
+## 1.0.0 RC2 - 2026-10-23 (local time)
+- Fixes: deep link while a sign-in keyboard/email request is open ends the
+  flow first (no focus trap); deletion contact on the signed-in Account
+  screen. 7 new scene regressions; 3 of them fail against RC1 code.
+- npm run check: 0 diagnostics. npm test 10/10 (211 scene regressions).
+  npm run smoke (live) passed. Production checks 21/21.
+- Catalog (production, audited): year filled on 40 titles from their titles;
+  His Girl Friday synopsis restored with its Rights note; adminAudit
+  entries type title_metadata_updated with previous values.
+- ZIP: dist/releases/protv-roku-v1.0.0-rc2.zip, 679,714 bytes, SHA-256
+  471f12dd0cc9974acc3351e2988433bc289dbca8ee7a09b59d1db361095c5bf8. All 8 release checksums verified.
+- **Not device tested.**
+
 ## 1.0.0 RC1 - 2026-10-24 (local time)
 - Baseline: v0.6.1 owner-verified on the TV; tagged roku-v0.6.1-tv-verified.
 - Certification 3.4: BusySpinner during catalog load, playback
