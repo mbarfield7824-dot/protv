@@ -124,7 +124,7 @@ authentication and deep linking guides.
 
 | Req. | Rule | PROtv | Action |
 | --- | --- | --- | --- |
-| 2.2 | All apps except TVE (cable/satellite) must sign in **entirely on the device**; website or code linking ("rendezvous") is prohibited | **Fails**: sign-in is a code approved on watchprotv.com/activate | Development or a release decision (section 8) |
+| 2.2 | All apps except TVE (cable/satellite) must sign in **entirely on the device** | **Met** (v0.6) | Done |
 | 4.3 | Apps that *require* sign-in must use the Roku Event Dispatcher | Not required (everything plays as a guest) | None while sign-in stays optional |
 | 3.2 / 3.3 / 3.4 / 3.5 / 3.6 | Launch within 15 s; transitions within 3 s; loading indicator over 3 s; key response within 250 ms; playback start within 8 s | Beacon in place; Roku's Video node supplies playback beacons; text loading messages | TV tests 1, 3, 5 |
 | 3.7 | Package 4 MB or less | 675 KB | Done |
@@ -155,7 +155,7 @@ Only needed if the store build offers sign-in.
    steps: Account > Sign in (or the method the store build uses).
 4. Change the password after certification.
 
-## 8. Sign-in decision (requirement 2.2)
+## 8. Sign-in decision (requirement 2.2) — decided: B, shipped in v0.6
 
 Pick one before the store build:
 
@@ -201,7 +201,7 @@ Missing for the Roku listing:
 
 Mandatory before submission:
 
-0. **Sign-in (2.2):** the decision in section 8, then a new store build.
+0. ~~Sign-in (2.2)~~ **Resolved in v0.6** (on-device sign-in, Option B), owner-verified on the TV in v0.6.1.
 1. **Captions (4.8):** a legal determination of which titles must be
    captioned. None has caption tracks today.
 2. **Store listing details (owner):** countries, age rating, support email
