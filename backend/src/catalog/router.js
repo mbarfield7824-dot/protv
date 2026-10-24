@@ -2,6 +2,7 @@ const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
+const { eligibleForPlatform, platformFromRequest } = require('./platformEligibility');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 
 function createCatalogRouter({
@@ -11,7 +12,18 @@ function createCatalogRouter({
   loadHtmlTemplate = loadTitleTemplate,
 } = {}) {
   const router = express.Router();
-  const load = async () => loadApproved();
+  // Without a request (the sitemap) the full public catalog is loaded.
+  const load = async (req) => {
+    const videos = await loadApproved();
+    return req ? eligibleForPlatform(videos, platformFromRequest(req)) : videos;
+  };
+
+  // Responses differ by platform, so caches must key on the headers that pick it.
+  router.use((req, res, next) => {
+    res.vary('User-Agent');
+    res.vary('X-PROtv-Platform');
+    next();
+  });
 
   router.get('/sitemap.xml', async (req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -26,7 +38,7 @@ function createCatalogRouter({
 
   router.get('/', async (req, res) => {
     try {
-      const items = browse(await load(), req.query);
+      const items = browse(await load(req), req.query);
       res.json({ items });
     } catch (error) {
       if (!(error instanceof RangeError)) console.error('Failed to load viewer catalog:', error);
@@ -38,7 +50,7 @@ function createCatalogRouter({
 
   router.get('/series', async (req, res) => {
     try {
-      const items = seriesCatalog(await load()).map(({ seasons, ...summary }) => summary);
+      const items = seriesCatalog(await load(req)).map(({ seasons, ...summary }) => summary);
       res.json({ items });
     } catch (error) {
       console.error('Failed to load viewer series:', error);
@@ -48,7 +60,7 @@ function createCatalogRouter({
 
   router.get('/series/:key', async (req, res) => {
     try {
-      const series = seriesCatalog(await load()).find((item) => item.key === req.params.key);
+      const series = seriesCatalog(await load(req)).find((item) => item.key === req.params.key);
       if (!series) return res.status(404).json({ error: 'Series not found.' });
       return res.json(series);
     } catch (error) {
@@ -59,7 +71,7 @@ function createCatalogRouter({
 
   router.get('/podcasts', async (req, res) => {
     try {
-      const items = podcastCatalog(await load()).map(({ episodes, ...show }) => show);
+      const items = podcastCatalog(await load(req)).map(({ episodes, ...show }) => show);
       res.json({ items });
     } catch (error) {
       console.error('Failed to load viewer podcasts:', error);
@@ -69,7 +81,7 @@ function createCatalogRouter({
 
   router.get('/podcasts/:id', async (req, res) => {
     try {
-      const show = podcastCatalog(await load()).find((item) => item.id === req.params.id);
+      const show = podcastCatalog(await load(req)).find((item) => item.id === req.params.id);
       if (!show) return res.status(404).json({ error: 'Podcast show not found.' });
       return res.json(show);
     } catch (error) {
@@ -78,12 +90,12 @@ function createCatalogRouter({
     }
   });
 
-  const loadTitle = async (id) => playableCatalog(await load()).find((item) => item.id === id);
+  const loadTitle = async (req, id) => playableCatalog(await load(req)).find((item) => item.id === id);
 
   router.get('/titles/:id/html', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-      const title = await loadTitle(req.params.id);
+      const title = await loadTitle(req, req.params.id);
       if (!title) {
         return res.status(404).set('X-Robots-Tag', 'noindex')
           .type('text/plain').send('Title not found.');
@@ -98,7 +110,7 @@ function createCatalogRouter({
 
   router.get('/titles/:id', async (req, res) => {
     try {
-      const title = await loadTitle(req.params.id);
+      const title = await loadTitle(req, req.params.id);
       if (!title) return res.status(404).json({ error: 'Title not found.' });
       return res.json(title);
     } catch (error) {
@@ -109,7 +121,7 @@ function createCatalogRouter({
 
   router.get('/titles/:id/playback', async (req, res) => {
     try {
-      const title = await loadTitle(req.params.id);
+      const title = await loadTitle(req, req.params.id);
       if (!title) return res.status(404).json({ error: 'Title not found.' });
       return res.json({
         id: title.id,
