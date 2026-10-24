@@ -19,7 +19,13 @@ assert.ok(Array.isArray(catalog.items));
 const ids = new Set(catalog.items.map(item => item.id));
 assert.equal(ids.size, catalog.items.length);
 const approved = catalog.items.filter(item => /\/approved-posters\/owner32-20261021\//.test(item.posterUrl || ''));
-assert.equal(approved.length, 32, 'expected the 32 approved rollout poster URLs');
+// Rights restrictions of 2026-10-23 (store/RIGHTS-REPORT.md) remove 7 titles from the public
+// catalog; 4 of them carried owner-approved rollout posters, so 28 of the 32 stay live.
+const RESTRICTED = ['vyjpYtuEpOlCWzyzlaxM', 'UPq8eJixIfLiKXPIOXRm', 's0Eu00ADQQZnAoknUpxx', 'APlVZLmiQPIczS9uEbEd', 'tsq6EVuAjU7hf95yuGl8', '1uuUM2H0SzmcKeOpIe3V', 'SWSvCl89kxWp2qMXHT3w'];
+const RESTRICTED_APPROVED = 4;
+for (const id of RESTRICTED) assert.ok(!ids.has(id), `restricted title is public: ${id}`);
+const APPROVED_LIVE = 32 - RESTRICTED_APPROVED;
+assert.equal(approved.length, APPROVED_LIVE, `expected ${APPROVED_LIVE} live approved rollout poster URLs`);
 for (const item of approved) {
   assert.ok(item.posterUrl.includes(`/${item.id}/`), `approved poster ID mismatch: ${item.id}`);
   assert.match(item.posterUrl, /\/[a-f0-9]{64}\.(png|jpg)$/);
@@ -63,7 +69,7 @@ try {
             approvedCount++
         end if
     end for
-    if approvedCount <> 32 or heldCount <> 2 then stop
+    if approvedCount <> ${APPROVED_LIVE} or heldCount <> 2 then stop
     if HomeRows(result.items).Count() < 3 then stop
     ' Every live AI Cinema movie reaches the AI Cinema view and its Home row.
     aiCount = 0
@@ -123,7 +129,7 @@ receipt.catalog = {
   signedTitles: catalog.items.filter(item => item.muxPlaybackPolicy === 'signed').length,
 };
 receipt.playback = { titleId: sample.id, authorization: 'passed', masterPlaylist: hls.status, rokuTrickPlay: trickPlay, decoded: false };
-receipt.notes.push('Full live catalog passed shipped BrightScript normalization; 32 exact approved URLs and both artwork holds verified.');
+receipt.notes.push(`Full live catalog passed shipped BrightScript normalization; ${APPROVED_LIVE} live approved poster URLs, both artwork holds and ${RESTRICTED.length} rights restrictions verified.`);
 receipt.notes.push('No image transforms, Firestore access, authentication writes, progress writes, media segments or native Video playback performed.');
 const output = path.join(root, 'out', 'live-contract-report.json');
 await writeFile(output, JSON.stringify(receipt, null, 2) + '\n');
