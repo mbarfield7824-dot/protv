@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1350" viewBox="0 0 900 1350" role="img" aria-label="THE INCREDIBLE PETRIFIED WORLD: original illustrated PROtv poster">
+  <defs>
+    <linearGradient id="bg" x2=".8" y2="1"><stop stop-color="#0f2a3d"/><stop offset="1" stop-color="#05101c"/></linearGradient>
+    <radialGradient id="atmosphere"><stop stop-color="#5fb3c9" stop-opacity=".35"/><stop offset="1" stop-color="#0f2a3d" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop stop-color="#f6c66b" stop-opacity=".9"/><stop offset="1" stop-color="#f6c66b" stop-opacity="0"/></radialGradient>
+    <linearGradient id="metal" x2=".9" y2="1"><stop stop-color="#e9eef2"/><stop offset=".45" stop-color="#9fc5cf"/><stop offset="1" stop-color="#3f6d7c"/></linearGradient>
+    <linearGradient id="rock" x2="0" y2="1"><stop stop-color="#1d3d4f"/><stop offset="1" stop-color="#0a1a26"/></linearGradient>
+    <linearGradient id="blue" x2=".5" y2="1"><stop stop-color="#7cc0ff"/><stop offset="1" stop-color="#2f7bff"/></linearGradient>
+    <linearGradient id="fade" x2="0" y2="1"><stop stop-color="#05101c" stop-opacity="0"/><stop offset="1" stop-color="#05101c"/></linearGradient>
+    <clipPath id="cover"><rect x="24" y="36" width="852" height="1278" rx="3"/></clipPath>
+    <clipPath id="illustration"><rect x="50" y="230" width="800" height="640"/></clipPath>
+  </defs>
+  <rect width="900" height="1350" fill="#090f1e"/>
+  <g clip-path="url(#cover)">
+    <rect x="24" y="36" width="852" height="1278" fill="url(#bg)"/>
+    <ellipse cx="450" cy="492" rx="437" ry="465" fill="url(#atmosphere)"/>
+    <text x="450" y="128" text-anchor="middle" font-family="Arial" font-size="73" font-weight="900" letter-spacing="-4" fill="white">PRO<tspan fill="url(#blue)" font-style="italic">tv</tspan></text>
+    <path d="M330 160H570" stroke="#9fc5cf" stroke-width="1" opacity=".65"/>
+    <text x="450" y="203" text-anchor="middle" fill="#c5d3da" font-family="Arial" font-size="14" font-weight="700" letter-spacing="3.5">THE SCIENCE FICTION COLLECTION</text>
+    <g clip-path="url(#illustration)">
+      <!-- cavern ceiling with stalactites -->
+      <path d="M50 230H850V300L820 360L800 300L770 420L745 310L720 380L690 300L660 350L640 300L610 440L585 305L560 360L540 300H360L340 350L315 300L290 430L265 305L240 370L215 300L190 400L165 300L140 350L115 300L90 380L70 300L50 330Z" fill="url(#rock)"/>
+      <!-- cavern floor with stalagmites and crystals -->
+      <path d="M50 870V800L80 770L100 700L120 790L150 760L170 680L195 780L230 760L250 820L330 830H570L650 820L670 760L705 780L730 680L750 760L780 790L800 700L820 770L850 800V870Z" fill="url(#rock)"/>
+      <path d="M170 680L180 760H160Z M730 680L740 760H720Z M100 700L108 760H92Z M800 700L808 760H792Z" fill="#9fc5cf" opacity=".55"/>
+      <!-- volcanic light below -->
+      <ellipse cx="450" cy="800" rx="260" ry="90" fill="url(#glow)"/>
+      <!-- cable and diving bell -->
+      <path d="M450 230V420" stroke="#9fc5cf" stroke-width="3"/>
+      <g transform="translate(450 520)">
+        <path d="M-70 -95Q0 -140 70 -95L95 60H-95Z" fill="url(#metal)" stroke="#e9eef2" stroke-width="2"/>
+        <rect x="-105" y="58" width="210" height="18" rx="4" fill="#3f6d7c"/>
+        <circle cx="0" cy="-20" r="34" fill="#0a1a26" stroke="#e9eef2" stroke-width="5"/>
+        <circle cx="0" cy="-20" r="22" fill="#f6c66b" opacity=".75"/>
+        <circle cx="-62" cy="20" r="9" fill="#e9eef2"/><circle cx="62" cy="20" r="9" fill="#e9eef2"/>
+        <path d="M-40 -110H40" stroke="#e9eef2" stroke-width="4"/>
+      </g>
+      <!-- rising bubbles -->
+      <g fill="none" stroke="#c5e6ee" stroke-opacity=".7" stroke-width="2">
+        <circle cx="560" cy="430" r="9"/><circle cx="585" cy="380" r="6"/><circle cx="570" cy="335" r="4"/>
+        <circle cx="335" cy="460" r="7"/><circle cx="320" cy="410" r="4"/>
+      </g>
+      <rect x="50" y="760" width="800" height="110" fill="url(#fade)"/>
+    </g>
+    <path d="M72 891H315M585 891H828" stroke="#9fc5cf" stroke-width="1" opacity=".55"/>
+    <text x="450" y="899" text-anchor="middle" font-family="Arial" font-size="21" letter-spacing="7" fill="#9fc5cf">1959</text>
+    <text x="450" y="975" text-anchor="middle" font-family="Impact" font-size="74" fill="#f2f6f8">THE INCREDIBLE</text>
+    <text x="450" y="1060" text-anchor="middle" font-family="Impact" font-size="74" fill="#9fc5cf">PETRIFIED</text>
+    <text x="450" y="1145" text-anchor="middle" font-family="Impact" font-size="74" fill="#f6c66b">WORLD</text>
+    <path d="M362 1195H538" stroke="#9fc5cf" opacity=".6"/>
+    <text x="450" y="1236" text-anchor="middle" font-family="Arial" font-size="17" letter-spacing="4" fill="#ced8dd">SCIENCE FICTION</text>
+    <text x="450" y="1276" text-anchor="middle" font-family="Arial" font-size="11" letter-spacing="3" fill="#8291a8">AN ORIGINAL ILLUSTRATED COLLECTION</text>
+  </g>
+  <rect x="24.5" y="36.5" width="851" height="1277" fill="none" stroke="#90a1bd" stroke-opacity=".28"/>
+  <text x="450" y="1338" text-anchor="middle" fill="#8a9bb8" font-family="Arial" font-size="12" letter-spacing="4">PROtv / CINEMA COLLECTION</text>
+</svg>

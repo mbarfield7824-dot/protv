@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { root } from './package.mjs';
 
@@ -131,6 +131,21 @@ receipt.catalog = {
 receipt.playback = { titleId: sample.id, authorization: 'passed', masterPlaylist: hls.status, rokuTrickPlay: trickPlay, decoded: false };
 receipt.notes.push(`Full live catalog passed shipped BrightScript normalization; ${APPROVED_LIVE} live approved poster URLs, both artwork holds and ${RESTRICTED.length} rights restrictions verified.`);
 receipt.notes.push('No image transforms, Firestore access, authentication writes, progress writes, media segments or native Video playback performed.');
+// After the Roku launch catalog is deployed (store/OWNER-APPROVALS.md, batch 1):
+// ROKU_ELIGIBILITY_LIVE=1 npm run smoke checks what a Roku device receives.
+if (process.env.ROKU_ELIGIBILITY_LIVE === '1') {
+  const launch = JSON.parse(await readFile(path.join(root, 'store', 'roku-launch-catalog.json'), 'utf8'));
+  const allowed = new Set(launch.groups.A.map(item => item.id));
+  const response = await fetch(base + '/v1/catalog?view=all', { headers: { 'User-Agent': 'Roku/DVP-14.0 (smoke)' }, signal: AbortSignal.timeout(20000) });
+  assert.equal(response.status, 200);
+  const rokuItems = (await response.json()).items;
+  assert.deepEqual(rokuItems.map(item => item.id).sort(), [...allowed].filter(id => ids.has(id)).sort(), 'Roku receives exactly the live Group A titles');
+  for (const held of launch.groups.C) {
+    const playback = await fetch(`${base}/v1/catalog/titles/${encodeURIComponent(held.id)}/playback`, { headers: { 'User-Agent': 'Roku/DVP-14.0 (smoke)' } });
+    assert.equal(playback.status, 404, `held title playable on Roku: ${held.title}`);
+  }
+  receipt.notes.push(`Roku eligibility: ${rokuItems.length} titles for Roku; all ${launch.groups.C.length} rights-hold titles return 404 to Roku.`);
+}
 const output = path.join(root, 'out', 'live-contract-report.json');
 await writeFile(output, JSON.stringify(receipt, null, 2) + '\n');
 console.log(JSON.stringify(receipt, null, 2));
