@@ -8,9 +8,9 @@
 - Publisher: Prophecy Entertainment LLC
 - Package: `com.protv.firetv`
 - Website: https://watchprotv.com/
-- Support email proposal: support@watchprotv.com (shown on the current Privacy page; mailbox operation/monitoring is not verifiable here). The Console currently has the Amazon account-default contact selected, which is customer-accessible, at the owner's direction.
+- Support email proposal: support@watchprotv.com (shown on the current Privacy page; mailbox operation/monitoring is not verified). The Console currently has the Amazon account-default contact selected, which is customer-accessible, at the owner's direction.
 - Privacy policy: https://watchprotv.com/privacy
-- Account deletion URL: **not available**; see `privacy-data-review.md`.
+- Account deletion URL: `https://watchprotv.com/delete-account` is the proposed route, but it is not deployed or verified and must not yet be entered as a live deletion facility; see `privacy-data-review.md`.
 - Console category/subcategory: Movies & TV > On-Demand Movie Streaming. Marketplace, rating, and release version: owner to select/approve in Developer Console.
 
 ## Short description
@@ -45,7 +45,7 @@ Independent films; movies; series; streaming; Fire TV; PROtv.
 
 Provide an owner-authorized non-admin test account only after the account is created and tested. A network connection is required for account sync and streaming. The reviewer should be able to browse without signing in; sign-in is needed to test My List and cross-session Continue Watching. Do not use a real customer's account.
 
-**Not yet complete:** reviewer test credentials, content-specific test title approved for launch, territory/device targeting, rating answers, verified monitored support details, privacy labels, deletion URL, and final signed binary.
+**Not yet complete:** reviewer test credentials, content-specific test title approved for launch, territory/device targeting, rating answers, verified monitored support details, privacy labels, deployed deletion URL and fulfillment process, and final signed binary upload/physical validation.
 
 ## Store artwork
 

@@ -46,6 +46,27 @@ export const api = {
     return adminReportRequest(API_URL, authenticatedHeaders, { ...options, id, body });
   },
 
+  async getAccountDeletionRequests() {
+    const res = await fetch(`${API_URL}/admin/account-deletion-requests`, {
+      headers: await authenticatedHeaders(),
+      cache: 'no-store',
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to load account deletion requests.');
+    return response;
+  },
+
+  async reviewAccountDeletionRequest(id, body) {
+    const res = await fetch(`${API_URL}/admin/account-deletion-requests/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify(body),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to save the account deletion review.');
+    return response.request;
+  },
+
   async approveDeviceSession(code) {
     const res = await fetch(`${API_URL}/auth/device-sessions/approve`, {
       method: 'POST',

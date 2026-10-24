@@ -36,6 +36,10 @@ test('account deletion requests require recent interactive auth and remain non-d
       return {
         doc: (uid) => ({
           uid,
+          collection: (subcollection) => {
+            assert.equal(subcollection, 'decisionHistory');
+            return { doc: (id) => ({ uid, id, subcollection }) };
+          },
           get: async () => {
             const record = records.get(uid);
             return { exists: Boolean(record), data: () => record };
@@ -49,8 +53,8 @@ test('account deletion requests require recent interactive auth and remain non-d
         return { exists: Boolean(record), data: () => record };
       },
       create: (reference, record) => {
-        records.set(reference.uid, record);
-        writes.push(record);
+        if (!reference.subcollection) records.set(reference.uid, record);
+        writes.push({ reference, record });
       },
     }),
   };
@@ -101,19 +105,19 @@ test('account deletion requests require recent interactive auth and remain non-d
   assert.equal(created.status, 201);
   assert.ok(verifiedTokens.some(({ token, checkRevoked }) => token === 'recent' && checkRevoked));
   assert.equal(created.cache, 'no-store');
-  assert.equal(created.body.request.status, 'received');
+  assert.equal(created.body.request.status, 'pending_review');
   assert.equal(Number.isNaN(Date.parse(created.body.request.requestedAt)), false);
   assert.equal(records.get('viewer-1').uid, 'viewer-1');
-  assert.equal(records.get('viewer-1').status, 'received');
+  assert.equal(records.get('viewer-1').status, 'pending_review');
   assert.equal(Object.hasOwn(records.get('viewer-1'), 'email'), false);
-  assert.equal(writes.length, 1);
+  assert.equal(writes.filter((write) => !write.reference.subcollection).length, 1);
 
   const repeated = await request('recent', 'POST');
   assert.equal(repeated.status, 200);
   assert.deepEqual(repeated.body, created.body);
-  assert.equal(writes.length, 1, 'repeat submissions reuse the single request');
+  assert.equal(writes.filter((write) => !write.reference.subcollection).length, 1, 'repeat submissions reuse the single request');
   assert.deepEqual((await request('stale')).body, { request: created.body.request });
   assert.deepEqual((await request('otherViewer')).body, { request: null });
   assert.equal(records.size, 1);
-  assert.equal(records.get('viewer-1').status, 'received');
+  assert.equal(records.get('viewer-1').status, 'pending_review');
 });

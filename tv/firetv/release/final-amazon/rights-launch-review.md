@@ -6,6 +6,18 @@
 
 The report dated 2026-10-24 records 49 live titles and seven reversible restrictions. The rights report recommends US-only availability and notes commercial-use/source-copy status remains unverified across the review. It groups eight titles as having a verified film-rights basis with no open item, 22 with material open items, nine unresolved-but-live, and ten earlier admin-confirmed records recommended for re-review. These are the Roku report's evidence classifications, not legal conclusions or Appstore approval.
 
+## Owner-review title list
+
+The categories below reproduce the existing Roku report; they are evidence triage, not legal clearance, release authorization, or a request to alter the live catalog.
+
+- **Documented basis recorded (8):** Angel on My Shoulder, Attack of the Giant Leeches, The Amazing Mr. X, Gulliver's Travels, Tears of Steel, Sintel, The Lost Camp, and Dead Air. The last two are creator-owned titles whose schedules/contracts were recorded as verified in the Creator Agent. Continue checking source-copy, territory, soundtrack, attribution, and signed agreement scope as applicable.
+- **Material rights/source/soundtrack items (22):** The Battle of Midway, The Little Shop of Horrors, Elephants Dream, Plan 9 from Outer Space, Captain Kidd, Detour, The Blood of Jesus, The Brain That Wouldn't Die, Carnival of Souls, D.O.A., The Phantom of the Opera, Within Our Gates, Jungle Book 1942, Angel and the Badman, Body and Soul, The Bronze Buckaroo, Big Buck Bunny, House on Haunted Hill, The Scar of Shame, A Day in the Life of a Coal Miner, Africa Screams, and Night of the Living Dead.
+- **Unresolved and kept live (9):** The Duke Is Tops, One Step Beyond - The Storm, Murder in Harlem, The Incredible Petrified World, The Girl from Chicago, Big Timers, The Exile, The Bundy Chronicles, and Sita Sings the Blues.
+- **Earlier admin-confirmed records requiring re-review (10):** Woman on the Run, Parker Solar Probe, Cavalcade of Stars, His Girl Friday, KIPHO, Fleischer Studios' Superman, Looney Tunes Classics: Collection, Superman cartoons, Merri Melodies shorts, and NASA's Documentary Film - Hubble25.
+- **Restricted (7):** preserve the exact seven records listed above. Do not restore any based only on artwork/source candidate evidence.
+
+**Territory:** the research recommends US-only. No other territory has documented clearance. **Soundtracks and versions:** modern/unknown scores, restorations, colorizations, source copies, and underlying works require title-specific review. **Artwork/store screenshots:** authentic screenshots show catalog posters; do not use them publicly until rights to each displayed title and artwork are confirmed.
+
 ## Preserve the seven restrictions
 
 | Title | Catalog ID | Recorded blocker |

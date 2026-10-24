@@ -29,7 +29,7 @@ The production upload keystore must remain outside the repository. The Gradle re
 - Certificate SHA-256: `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f`.
 - A random signing password is stored only in `%LOCALAPPDATA%\PROtv\firetv-signing\credentials.dpapi`, encrypted using the current Windows user's DPAPI. The keystore directory and files grant access only to the current user and LocalSystem.
 - No password, private key, or plaintext credential file is in the repository. The temporary password file used by keytool was removed after key creation.
-- An independent encrypted offline keystore backup and restore test are not yet recorded; arrange them through the owner's controlled backup system before relying on this key for future releases.
+- An independent encrypted offline keystore backup and restore test are not yet recorded. On 2026-10-24, the available Windows file-system volumes were checked; no separately controlled offline destination was available, so no backup copy was created. Arrange the backup and test through the owner's controlled backup system before relying on this key for future releases.
 
 After the owner-approved signing identity is generated:
 

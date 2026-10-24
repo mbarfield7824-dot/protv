@@ -25,17 +25,32 @@
 | Frontend lint/build | PASS with warning | ESLint passed; Vite production build passed with an existing large-chunk warning. |
 | Dependency audits | PASS | Root, backend, and frontend npm audits each report 0 vulnerabilities after compatible dependency updates. |
 
+## Revalidation on 2026-10-24
+
+| Check | Result | Notes |
+|---|---|---|
+| Android `:app:testDebugUnitTest --rerun-tasks` | PASS | 104 tests, 0 failures/skips. |
+| Android `:app:lintRelease` | PASS with warnings | 0 errors; 10 existing warnings. No Android source was changed in the current account-review work. |
+| Existing signed APK | PASS | SHA-256 unchanged; `apksigner` verified v1 and v2, one signer, certificate fingerprint matches the recorded upload certificate; `zipalign -c -v 4` passed. |
+| APK package metadata | PASS | `com.protv.firetv`, versionName `1.0.0`, versionCode `3`, minSdk `23`, targetSdk `35`; Fire TV launcher feature and activity present. |
+| Merged release permissions | REVIEWED | APK declares `INTERNET`, `ACCESS_NETWORK_STATE`, Google `READ_GSERVICES`, `WAKE_LOCK`, and app-scoped `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. The source app manifest itself declares only `INTERNET`; remaining permissions are merged from dependencies. |
+| Backend full suite | PASS | 267 tests, 0 failures, including deletion admin authorization, user-only status, duplicate submission, status transitions, audit history, creator-linkage verification, and completion gating. |
+| Frontend full suite | PASS | 122 tests, 0 failures, including admin request review and requester status. |
+| Frontend lint/build | PASS with warning | Lint passed; Vite build passed with the existing large-chunk warning. |
+| Amazon assets | PASS for technical dimensions | Four real device captures are 1920x1080, 8-bit RGB PNGs; Fire TV app icon is 1280x720 and background 1920x1080, both 8-bit RGB PNGs. Catalog art rights remain an approval blocker for public use. |
+| Signing backup | PENDING | Signing files have restricted local ACLs, but no owner-controlled, separate offline backup destination was available; no backup or restore test was performed. |
+
 Signed APK: `tv/firetv/app/build/outputs/apk/release/app-release.apk`
 
 APK SHA-256: `CABFA00EDFDC0E565E5F8BD08E22DB3A4AA2A3A9ACFE19919966A14E01940301`
 
 Upload signer certificate SHA-256: `301433275FDC7D791DCFC6C436499C2B517586DE9548EEF021F7C2A8482115A7F`
 
-The signed build was checked with `apksigner`, `zipalign`, and `aapt`: `com.protv.firetv`, version `1.0.0`/code `3`, minSdk `23`, targetSdk `35`. The local upload key uses alias `protv-amazon-upload`; its private key and password were never copied to Git or printed. The APK was not uploaded to Amazon.
+The signed build was checked with `apksigner`, `zipalign`, and `aapt`: `com.protv.firetv`, version `1.0.0`/code `3`, minSdk `23`, targetSdk `35`. Amazon's current Fire OS 16 documentation identifies API 36 as the OS base and says targets below API 24 might be blocked, while API 24–27 can show a compatibility warning; target 35 is above that documented floor. The package-specific device result still cannot be confirmed in Developer Console until the binary is uploaded. The local upload key uses alias `protv-amazon-upload`; its private key and password were never copied to Git or printed. The APK was not uploaded to Amazon.
 
 The currently installed Firestick remains on the previously owner-verified debug RC1 (`0.2.0-rc1`/code `2`), last update time `2026-10-24 17:26`. Its debug certificate differs from the new production upload certificate, so this signed APK must not be sideloaded as an in-place update. No APK was installed and no app data was changed.
 
-The website request page and Fire TV account entry point are implemented in this branch. The backend records an idempotent `received` request after recent interactive authentication and revocation checking. It does not perform deletion, send an email, or claim a completion date. No deployment occurred. Actual fulfillment awaits the retention and cross-service data decisions in `privacy-data-review.md`.
+The website request page, Fire TV account entry point, and canonical Admin Command Center review section are implemented in this branch. The backend records idempotent `pending_review` requests after recent interactive authentication and revocation checking, restricts admin review to the existing Firebase admin claim, and records request/status history with actor UID, reason, and timestamps. Admin approval does not perform deletion; Completed is blocked without a fulfillment verifier. Creator project/content/contract mapping, statutory deadline, and retention are explicitly flagged for verification. No deployment occurred. Actual fulfillment awaits the decisions and cross-service data work in `privacy-data-review.md`.
 
 Android validation was rerun from the current working tree on 2026-10-24. Backend Firebase Admin usage was migrated to the v14 modular API and the backend suite passed. The frontend's vulnerable transitive `@grpc/grpc-js` dependency was pinned to a patched compatible 1.x release; no forced Firebase downgrade was used.
 

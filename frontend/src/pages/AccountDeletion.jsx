@@ -6,6 +6,14 @@ import { api } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/InfoPages.css';
 
+const requestStatusLabels = {
+  pending_review: 'Pending Review',
+  additional_information_required: 'Additional Information Required',
+  approved_for_processing: 'Approved for Processing',
+  on_hold: 'On Hold',
+  completed: 'Completed',
+};
+
 export default function AccountDeletion() {
   const { user, loading, openAuthModal, signOut } = useAuth();
   const [requestSnapshot, setRequestSnapshot] = useState(null);
@@ -104,12 +112,16 @@ export default function AccountDeletion() {
             <p>Loading your request status…</p>
           ) : request ? (
             <div className="account-deletion-panel" role="status">
-              <h2>Request received</h2>
+              <h2>Request status</h2>
               <p>
-                Status: <strong>{request.status}</strong>
+                Status: <strong>{requestStatusLabels[request.status] || request.status}</strong>
                 {request.requestedAt ? ` · ${new Date(request.requestedAt).toLocaleString()}` : ''}
               </p>
-              <p>Your account remains active while the request is awaiting review.</p>
+              {request.adminMessage && <p>Administrator message: {request.adminMessage}</p>}
+              <p>
+                Account deletion is not triggered by a review decision alone. An authorized
+                fulfillment process must be separately verified before a request is completed.
+              </p>
             </div>
           ) : (
             <form className="account-deletion-panel" onSubmit={submit} aria-busy={submitting}>

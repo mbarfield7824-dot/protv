@@ -90,7 +90,7 @@ test('authenticated viewer confirms and records a request without claiming delet
     user,
     submit: async (token) => {
       submittedToken = token;
-      return { status: 'received', requestedAt: '2026-10-24T12:00:00.000Z' };
+      return { status: 'pending_review', requestedAt: '2026-10-24T12:00:00.000Z' };
     },
   });
   const checkbox = document.querySelector('input[type="checkbox"]');
@@ -104,8 +104,8 @@ test('authenticated viewer confirms and records a request without claiming delet
   });
 
   assert.equal(submittedToken, 'test-id-token');
-  assert.match(document.body.textContent, /Request received/);
-  assert.match(document.body.textContent, /Your account remains active/);
+  assert.match(document.body.textContent, /Request status/);
+  assert.match(document.body.textContent, /deletion is not triggered by a review decision alone/i);
   assert.match(document.body.textContent, /does not immediately delete/i);
   assert.equal(document.querySelector('form'), null);
 });

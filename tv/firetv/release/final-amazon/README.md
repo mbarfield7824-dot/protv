@@ -6,7 +6,7 @@
 
 - `store-listing.md` — proposed listing copy, metadata, and reviewer notes.
 - `privacy-data-review.md` — observed Fire TV data flows and deletion/privacy blockers.
-- Account deletion request intake is implemented in the branch at website route `/delete-account` and Fire TV account screen; request/status API is authenticated and queue-only. It is not deployed and does not delete data; retention/fulfillment decisions remain open.
+- Account deletion request intake, user status, and an admin-only review queue are implemented in the branch at website route `/delete-account` and the Fire TV account screen. The review queue is status/audit-only: admin approval does not delete accounts or creator content, the workflow is not deployed, and retention/verified fulfillment remain open.
 - `rights-launch-review.md` — reuse of the Roku rights review, restricted-title list, and approval queue.
 - `rights-launch-matrix.md` — title-level owner/counsel triage with exact catalog IDs; no catalog edits.
 - `test-results.md` — latest automated and owner-reported physical test evidence.

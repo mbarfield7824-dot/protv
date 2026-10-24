@@ -6,10 +6,10 @@
 - [x] RC rollback version: `0.2.0-rc1`, code `2`; public candidate: `1.0.0`, code `3`.
 - [x] Launcher declares `android.software.leanback`; touchscreen is optional.
 - [x] Landscape orientation declared.
-- [x] Permission review: manifest declares `INTERNET` only.
+- [x] Source manifest declares `INTERNET`; merged release APK also declares `ACCESS_NETWORK_STATE`, `READ_GSERVICES`, `WAKE_LOCK`, and the app-scoped `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` contributed by dependencies. Confirm these merged permissions against the final binary before upload.
 - [x] Backend release URL guard requires HTTPS for a release build.
 - [ ] Select intended Fire OS devices in Developer Console and confirm compatibility. `minSdk 23` excludes API-22 devices.
-- [ ] Confirm current target API/SDK requirements in the Developer Console at upload; public docs reviewed here describe manifest-based device filtering but did not establish a current numeric target threshold.
+- [x] Signed candidate target SDK is 35. Amazon's Fire OS 16 guidance states Fire OS 16 is API 36 and identifies targetSdk below 24 as potentially blocked and 24–27 as warning-prone; this candidate is above that documented floor. Check the Developer Console's package-specific compatibility result after upload before selecting devices; no binary has been uploaded.
 - [x] Owner approved first public version `1.0.0`, version code `3` (above RC code 2).
 - [x] Owner authorized generation of a new production upload signing identity; no previous private key was found.
 - [x] Gradle accepts local `PROTV_RELEASE_*` environment variables for signing, rejects partial configuration, and requires the keystore outside the repository.
@@ -28,8 +28,8 @@
 - [ ] Approve exact live-catalog allowlist, soundtrack/source-copy/version and territory. Keep seven restricted titles restricted.
 - [ ] Review captions/subtitles and applicable accessibility policy.
 - [ ] Complete privacy labels based on Firebase, backend/hosting, streaming and other processor confirmations.
-- [x] Implement authenticated recent-sign-in request intake and website/Fire TV entry points; intake only, not deployed and no deletion occurs.
-- [ ] Resolve retention/fulfillment decisions and implement, test, and deploy the complete deletion workflow.
+- [x] Implement authenticated recent-sign-in request intake, user status, and an admin-only non-destructive review queue; not deployed and no deletion occurs.
+- [ ] Resolve retention/fulfillment decisions; implement, test, and deploy verified multi-service fulfillment. Admin approval alone does not delete an account, and the Completed transition is blocked without a verified fulfillment integration.
 - [ ] Verify remote navigation and playback on the signed candidate. Existing 9/9 tests are owner-reported for RC1, not a signed release.
 - [ ] Provide a tested non-admin reviewer account via Developer Console only; never include credentials in Git.
 
@@ -38,11 +38,11 @@
 - [x] Listing copy draft in `store-listing.md`.
 - [x] Original branded 1280x720 icon and 1920x1080 background concepts prepared in `artwork/`.
 - [x] Four authentic 1920x1080 Firestick screenshot captures staged in `artwork/`.
-- [x] PNG dimensions/encoding validated: 4 screenshots at 1920x1080, store icon at 1280x720, background at 1920x1080; all are 8-bit RGB without alpha.
+- [x] Fire TV-specific asset dimensions/encoding validated against Amazon's current guidance: app icon 1280x720 PNG, background 1920x1080 PNG, and four authentic screenshots at 1920x1080; all are 8-bit RGB without transparency.
 - [ ] Owner approves icon, background, screenshot selection, and any displayed third-party/catalog artwork rights.
 - [ ] Select 3–10 accurate, distinct screenshots; required Fire TV dimensions: 1920x1080 landscape, JPG or 24-bit PNG, no transparency.
 - [ ] Review listing copy, category, keywords, support contact, territories, price, rating, and release notes.
-- [ ] Deploy and verify the account deletion request URL, then enter it with the privacy URL in Developer Console.
+- [ ] Deploy and verify the account deletion request URL and its monitored fulfillment process, then enter it with the privacy URL in Developer Console.
 
 ## Amazon console
 

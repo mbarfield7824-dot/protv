@@ -32,15 +32,19 @@
 
 This inventory is source-code based, not a production database export. It does not prove that no other processor, infrastructure log, backup, support mailbox, or external creator system retains account-linked information.
 
-## Deletion status: request intake implemented locally; fulfillment remains blocked
+## Deletion status: administrator review implemented locally; fulfillment remains blocked
 
 The account is shared between web and TV. A correct deletion workflow must address Firebase Auth and all associated records, not just the known Firestore user document. The existing Roku account-deletion runbook is manual and does not establish an account UID index for `safetyReports`; do not treat it as proof that every report can be found.
 
-Local code now provides `/delete-account` on the website and an account-screen link in the Fire TV app. The API exposes authenticated request/status routes at `/users/me/deletion-request`. Submission requires an interactive password/Google sign-in and a non-revoked Firebase token whose authentication time is within five minutes. An idempotent Firestore transaction records only the account UID, `received` status, and request/update timestamps in `accountDeletionRequests`; responses are non-cacheable. The form explains that data is not deleted and no completion date is promised.
+Local code provides `/delete-account` on the website and an account-screen link in the Fire TV app. The API exposes authenticated request/status routes at `/users/me/deletion-request`. Submission requires an interactive password/Google sign-in and a non-revoked Firebase token whose authentication time is within five minutes. An idempotent Firestore transaction records the authenticated UID, `pending_review` status, request/update timestamps, and a submission audit event in `accountDeletionRequests`; responses are non-cacheable. The user can view only their own request status and any additional-information message. Legacy `received` requests are displayed as `pending_review`.
 
-This is **request intake only**: no account, profile, session, progress, favorite, report, creator record, or provider data is removed, and no completion status or email notification is available. It has not been deployed. The URL must be reachable and the request queue monitored before it can serve as a live Amazon deletion URL. The existing support email is not yet documented as a verified, monitored fulfillment channel.
+The canonical `/admin` dashboard now has an **ACCOUNT DELETION REQUESTS** section. Its API is protected by the existing backend Firebase `verifyAdmin` claim check; it displays account email, account type only when present as an allowed Firebase custom claim, request history, and a review plan. No UID-to-Creator Portal project/content/contract mapping is available in this codebase, so those links are explicitly shown as **Verification required**. Admin status changes require a reason and append actor UID, timestamps, decision, and prior/new statuses to request history. Users cannot query another UID's request.
 
-No destructive endpoint is exposed because Firestore profile/session data does not cover the separately managed Creator Portal and payment/tax records, the `safetyReports` UID association is unknown, and provider logs/backups and retention exceptions are unverified. Deleting Firebase Auth and Firestore independently could also leave a partially deleted account. Actual fulfillment therefore remains blocked pending the decisions below.
+The supported review statuses are Pending Review, Additional Information Required, Approved for Processing, On Hold, and Completed. Approval does **not** invoke deletion. The completion transition is blocked unless an authorized fulfillment verifier is configured and confirms fulfillment evidence; no such production verifier is configured. The fulfillment plan flags known personal-data review, retention/legal basis, creator dependencies, session/token revocation, provider systems, statutory deadline review, and completion evidence. It does not infer a statutory deadline or retention exception.
+
+This remains a **non-deployed request and review workflow**: no account, profile, session, progress, favorite, report, creator record, or provider data is removed; no notification is sent; and no statutory deadline/completion target is claimed. The account-deletion URL and admin queue must be deployed, tested, and monitored before they can serve as a live Amazon deletion facility. `support@watchprotv.com` is not verified as a monitored fulfillment channel.
+
+No destructive fulfillment endpoint is exposed because the Creator Portal and payment/tax records are separate, the `safetyReports` UID association is unknown, and provider logs/backups and retention exceptions are unverified. Deleting Firebase Auth and Firestore independently could also leave a partially deleted account. Actual fulfillment therefore remains blocked pending the decisions below.
 
 ## Owner/legal decisions and engineering prerequisites
 
@@ -50,8 +54,8 @@ No destructive endpoint is exposed because Firestore profile/session data does n
 4. Confirm a monitored support/deletion request address and who fulfills and audits requests.
 5. Confirm the request-only/manual-review approach or approve a fully automated workflow after the data inventory is verified.
 6. Decide whether viewer data can be deleted while retaining creator contracts, payout/tax records, and active content licenses; specify safety-report handling and any legal holds.
-7. Approve a completion target (the existing legal draft proposes an aim of 30 days) and whether a cancellation/grace period is required.
-8. For automated fulfillment, implement recent-authentication/identity verification, an idempotent multi-service deletion job, partial-failure recovery, session/token revocation, user-facing status, and synthetic-account tests before deploying.
+7. Ask owner/counsel to identify applicable statutory deadlines and decide any operational target or cancellation/grace period. The existing legal draft's 30-day aim is not approved and is not implemented as a deadline.
+8. Before fulfillment, implement an authorized, idempotent multi-service process with partial-failure recovery, session/token revocation, external-system verification, user-facing status, and synthetic-account tests.
 9. Update the website Privacy page and Amazon privacy/deletion labels only after the process and statements are approved.
 
 ## Existing legal draft

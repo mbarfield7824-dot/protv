@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const COLLECTION = 'accountDeletionRequests';
 
 function timestampToIso(value) {
@@ -10,8 +12,10 @@ function publicRequest(snapshot) {
   if (!snapshot.exists) return null;
   const data = snapshot.data();
   return {
-    status: data.status,
+    status: data.status === 'received' ? 'pending_review' : data.status,
     requestedAt: timestampToIso(data.requestedAt),
+    updatedAt: timestampToIso(data.updatedAt),
+    adminMessage: data.status === 'additional_information_required' ? data.adminMessage || '' : '',
   };
 }
 
@@ -39,14 +43,27 @@ function createAccountDeletionRequestService({ getDb, now = () => Date.now() }) 
       if (snapshot.exists) return { request: publicRequest(snapshot), created: false };
       const requestedAt = new Date(now());
       const record = {
+        requestId: uid,
         uid,
-        status: 'received',
+        status: 'pending_review',
         requestedAt,
         updatedAt: requestedAt,
       };
       transaction.create(reference, record);
+      transaction.create(reference.collection('decisionHistory').doc(crypto.randomUUID()), {
+        requestId: uid,
+        action: 'request_submitted',
+        toStatus: record.status,
+        actorUid: uid,
+        createdAt: requestedAt,
+      });
       return {
-        request: { status: record.status, requestedAt: requestedAt.toISOString() },
+        request: {
+          status: record.status,
+          requestedAt: requestedAt.toISOString(),
+          updatedAt: requestedAt.toISOString(),
+          adminMessage: '',
+        },
         created: true,
       };
     });

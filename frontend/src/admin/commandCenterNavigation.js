@@ -18,6 +18,9 @@ export const ADMIN_GROUPS = [
   { title: 'Safety', items: [
     { mode: 'safety-reports', label: 'Safety Reports', description: 'Review private reports and record review notes.' },
   ] },
+  { title: 'Account Privacy', items: [
+    { mode: 'account-deletion-requests', label: 'Account Deletion Requests', description: 'Review authenticated requests and document a non-destructive fulfillment plan.' },
+  ] },
   { title: 'Tools', items: [
     { mode: 'assistant', label: 'Administrator Assistant', description: 'Ask operational questions and confirm proposed catalog changes.' },
   ] },
