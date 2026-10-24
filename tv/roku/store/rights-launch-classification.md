@@ -1,5 +1,9 @@
 # Launch rights classification (RC5)
 
+> **Superseded on 2026-10-24 by RIGHTS-MATRIX.md** (source copies identified and
+> PROtv's own copies checked frame by frame): 7 documented clearances, 42
+> evidence incomplete (8 high risk), 7 restricted. Kept for history.
+
 **2026-10-24. Not a legal opinion.** Built from store/RIGHTS-REPORT.md,
 store/evidence/rights-evidence.md and the live catalog (49 titles). Standard:
 a film's public-domain status does not clear PROtv's particular copy,
