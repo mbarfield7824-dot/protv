@@ -1,5 +1,5 @@
 {
- "status": "PROPOSAL - nothing applied; apply only the groups the owner approves, with adminAudit entries",
+ "status": "APPLIED 2026-10-23 (groups 1-5, owner-approved; Arous approvalStatus handled by the rights workflow instead). Rollback values in adminAudit details.previous",
  "generated": "2026-10-23",
  "changes": [
   {
