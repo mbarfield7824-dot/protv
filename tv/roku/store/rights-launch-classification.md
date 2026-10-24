@@ -1,6 +1,6 @@
 # Launch rights classification (RC5)
 
-> **Superseded on 2026-10-24 by RIGHTS-MATRIX.md** (source copies identified and
+> **Superseded on 2026-10-24 by TITLE-RIGHTS-MATRIX.md** (source copies identified and
 > PROtv's own copies checked frame by frame): 7 documented clearances, 42
 > evidence incomplete (8 high risk), 7 restricted. Kept for history.
 
