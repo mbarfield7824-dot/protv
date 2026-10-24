@@ -17,7 +17,6 @@ sub Main()
     }
     m.beacons = []
     m.loaded = true
-    m.captionTest = false
     m.loading = false
     m.catalogLoadedAt = CurrentEpochSeconds()
     m.guestWrittenAt = 0
@@ -849,27 +848,30 @@ sub Main()
     Check(m.playerKeys.focused and Route("OK") = "playerKeys", "OK still works after the caption settings close")
     Check(Route("back") = "playerKeys" and not m.video.visible and m.detailButtons.children[0].focused and not m.video.isInFocusChain(), "Back exits playback and focus returns to the details")
 
-    ' Caption-check package only: a labelled sample title with WebVTT subtitles.
-    m.captionTest = true
-    DeliverCatalog()
-    Check(IsCaptionTestTitle(m.items[0]) and Left(m.items[0].title, 9) = "TEST ONLY", "caption-check packages list the labelled test title first")
-    m.captionTest = false
-    DeliverCatalog()
-    found = false
-    for each item in m.items
-        if IsCaptionTestTitle(item) then found = true
-    end for
-    Check(not found, "candidate packages never show the caption test title")
-    m.mode = "detail"
-    m.selected = CaptionTestTitle()
+    ' Rights (store/RIGHTS-REPORT.md): restricted titles are absent from the
+    ' catalog and their playback returns 404, so neither a deep link nor a
+    ' stale screen can play one. New titles need no app update.
     m.account = invalid
+    m.loading = true
+    m.catalogTask = { result: { error: "", items: [{ id: "g2", title: "G2", contentType: "MOVIE", category: "Drama", artwork: "", backdrop: "" }, { id: "added-after-release", title: "Added Later", contentType: "MOVIE", category: "Drama", artwork: "", backdrop: "" }] } }
+    catalogLoaded()
+    listed = false
+    for each row in m.rows
+        for each item in row.items
+            if item.id = "added-after-release" then listed = true
+        end for
+    end for
+    Check(listed, "a title added to the catalog after release appears without an app update")
     taskCount = m.tasks.Count()
+    m.pendingLaunch = { contentId: "vyjpYtuEpOlCWzyzlaxM", mediaType: "movie" }
+    applyLaunch()
+    Check(m.mode = "home" and Instr(1, m.status.text, "unavailable") > 0 and m.tasks.Count() = taskCount and not m.video.visible, "a deep link to a restricted title lands on Home and requests no playback")
+    m.mode = "detail"
+    m.selected = { id: "vyjpYtuEpOlCWzyzlaxM", title: "Restricted" }
     startPlayback()
-    Check(m.tasks.Count() = taskCount and m.video.content.url = CaptionTestTitle().streamUrl and m.video.content.streamFormat = "hls" and m.playerKeys.focused, "the caption test title plays Apple's sample without PROtv authorization")
-    m.video.position = 400.0
-    saveCurrentProgress(true)
-    Check(not m.progress.DoesExist("protv-caption-test"), "the caption test title never saves progress")
-    Check(Route("back") = "playerKeys" and not m.video.visible, "Back leaves the caption test title")
+    m.playTask.result = { error: "This title is not available.", payload: invalid }
+    playbackLoaded()
+    Check(not m.video.visible and not m.playbackActive and Instr(1, m.status.text, "not available") > 0, "a playback refusal from PROtv never starts the video")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub

@@ -99,7 +99,6 @@ sub init()
     m.video.notificationInterval = 0.5
     m.video.observeField("position", "playerPositionChanged")
     m.playerKeys.observeField("pressed", "playerKeyPressed")
-    m.captionTest = CreateObject("roAppInfo").GetValue("protv_caption_test") = "1"
     for each id in ["backdropA", "backdropB"]
         m.top.findNode(id).observeField("loadStatus", "backdropLoaded")
     end for
@@ -256,7 +255,6 @@ sub catalogLoaded()
         return
     end if
     m.items = result.items
-    if m.captionTest then m.items.Unshift(CaptionTestTitle())
     m.catalogLoadedAt = CurrentEpochSeconds()
     firstLoad = not m.loaded
     m.loaded = true
@@ -1181,10 +1179,6 @@ end sub
 
 sub startPlayback()
     cancelPlaybackRequest()
-    if IsCaptionTestTitle(m.selected)
-        playStream(m.selected.streamUrl, "")
-        return
-    end if
     m.status.text = "Authorizing playback..."
     setBusy("playback", true)
     m.playTask = m.newTask()
@@ -2178,7 +2172,7 @@ sub progressTimerFired()
 end sub
 
 sub saveCurrentProgress(force as Boolean)
-    if not m.video.visible or m.selected = invalid or IsCaptionTestTitle(m.selected) then return
+    if not m.video.visible or m.selected = invalid then return
     position = m.video.position
     duration = m.video.duration
     if not IsNumber(position) or not IsNumber(duration) or duration <= 0 then return

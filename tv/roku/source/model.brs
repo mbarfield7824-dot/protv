@@ -659,26 +659,6 @@ function IsPlayerKey(key as String) as Boolean
     return false
 end function
 
-' Caption-check packages only (manifest protv_caption_test=1). Apple's public
-' HLS test stream carries WebVTT subtitles; no PROtv title has a text track yet.
-function CaptionTestTitle() as Object
-    return {
-        id: "protv-caption-test",
-        title: "TEST ONLY - Caption check (Apple HLS sample)",
-        description: "Not PROtv content. Apple's public HLS sample with English WebVTT subtitles, used to check Roku caption settings in PROtv's player.",
-        contentType: "MOVIE",
-        category: "Test",
-        genres: [],
-        artwork: "",
-        backdrop: "",
-        streamUrl: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8"
-    }
-end function
-
-function IsCaptionTestTitle(item as Dynamic) as Boolean
-    return IsMap(item) and Text(item.id) = "protv-caption-test"
-end function
-
 function ResolveLaunch(request as Dynamic, items as Object) as Object
     result = { item: invalid, error: "" }
     if not IsMap(request) then return result

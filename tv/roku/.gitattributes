@@ -1,0 +1,9 @@
+# Roku sources are LF in every checkout, so tests and package bytes do not
+# depend on core.autocrlf (RC2-RC4 zips mixed CRLF and LF by checkout).
+*.brs text eol=lf
+*.xml text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+manifest text eol=lf

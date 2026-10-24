@@ -27,7 +27,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*228(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*226(?:\r?\n|$)/);
 });
 
 test('actual PlayerRemote component (playerKeys) catches player keys and passes Options up to the Video node', () => {
@@ -271,10 +271,18 @@ test('sideload zip is byte-reproducible, root-correct and contains only runtime 
   assert.deepEqual(Array.from(background.slice(0, 3)), [0xFF, 0xD8, 0xFF]);
   assert.ok(first.length < 1024 * 1024, 'sideload stays under 1 MB');
   assert.match(strFromU8(files.manifest), /^supports_input_launch=1$/m);
-  assert.doesNotMatch(strFromU8(files.manifest), /protv_caption_test/, 'candidate packages never enable the caption test title');
-  const captionManifest = strFromU8(unzipSync(await packageBytes({ captionTest: true })).manifest);
-  assert.match(captionManifest, /^protv_caption_test=1$/m);
-  assert.match(captionManifest, /^title=PROtv CAPTION TEST$/m);
+  assert.ok(first.length <= 4 * 1024 * 1024, 'certification 3.7: the app is 4 MB or less');
+  assert.match(strFromU8(files.manifest), /^title=PROtv$/m);
+  assert.match(strFromU8(files.manifest), /^major_version=1$/m);
+  // Release builds carry no test-only content, debug hosts or restricted titles.
+  const restricted = ['vyjpYtuEpOlCWzyzlaxM', 'UPq8eJixIfLiKXPIOXRm', 's0Eu00ADQQZnAoknUpxx', 'APlVZLmiQPIczS9uEbEd', 'tsq6EVuAjU7hf95yuGl8', '1uuUM2H0SzmcKeOpIe3V', 'SWSvCl89kxWp2qMXHT3w'];
+  for (const name of names.filter(name => !name.startsWith('assets/'))) {
+    const text = strFromU8(files[name]);
+    assert.doesNotMatch(text, /\r\n/, `${name}: packaged text uses LF whatever the checkout used`);
+    assert.doesNotMatch(text, /caption_test|CaptionTest|TEST ONLY|devstreaming|localhost|127\.0\.0\.1|staging/i, `${name}: no test-only or debug content`);
+    for (const id of restricted) assert.ok(!text.includes(id), `${name}: restricted title ${id}`);
+  }
+  assert.match(strFromU8(files['source/model.brs']), /return "https:\/\/watchprotv\.com\/api"/, 'production API');
   const firebaseConfig = strFromU8(files['source/firebaseConfig.brs']);
   const configuredApiKey = await resolveFirebaseApiKey();
   assert.match(await readFile(path.join(root, 'source', 'firebaseConfig.brs'), 'utf8'), /return ""/, 'the key is never written to source');

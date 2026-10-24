@@ -19,9 +19,7 @@ export async function resolveFirebaseApiKey() {
   }
 }
 
-// captionTest builds a separately named, never-submitted package whose manifest
-// adds protv_caption_test=1: the app then lists Apple's captioned HLS sample.
-export async function packageBytes({ captionTest = false } = {}) {
+export async function packageBytes() {
   const files = {};
   const firebaseApiKey = await resolveFirebaseApiKey();
   if (firebaseApiKey && !/^[A-Za-z0-9_-]{20,256}$/.test(firebaseApiKey)) {
@@ -32,11 +30,11 @@ export async function packageBytes({ captionTest = false } = {}) {
     const isAsset = relative.startsWith(`assets${path.sep}`) && /\.(png|jpg)$/.test(relative);
     if (relative === 'manifest' || /\.(brs|xml)$/.test(relative) || isAsset) {
       let contents = await readFile(full);
+      // Text is packaged with LF endings whatever the checkout used, so the
+      // ZIP is byte-identical from any clone of the same commit.
+      if (!isAsset) contents = Buffer.from(contents.toString('utf8').replace(/\r\n/g, '\n'));
       if (relative === path.join('source', 'firebaseConfig.brs') && firebaseApiKey) {
         contents = Buffer.from(`function FirebaseApiKey() as String\n    return ${JSON.stringify(firebaseApiKey)}\nend function\n`);
-      }
-      if (relative === 'manifest' && captionTest) {
-        contents = Buffer.from(contents.toString('utf8').replace(/^title=.*$/m, 'title=PROtv CAPTION TEST') + 'protv_caption_test=1\n');
       }
       files[relative.split(path.sep).join('/')] = [
         new Uint8Array(contents),
@@ -55,15 +53,12 @@ export async function packageBytes({ captionTest = false } = {}) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const captionTest = process.argv.includes('--caption-test');
-  const bytes = await packageBytes({ captionTest });
-  const name = captionTest ? 'protv-roku-caption-test.zip' : 'protv-roku.zip';
-  const output = path.join(root, 'dist', name);
+  const bytes = await packageBytes();
+  const output = path.join(root, 'dist', 'protv-roku.zip');
   await mkdir(path.dirname(output), { recursive: true });
   await writeFile(output, bytes);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  await writeFile(`${output}.sha256`, `${hash}  ${name}\n`);
-  if (captionTest) console.log('CAPTION TEST PACKAGE: for TV caption checks only. Never submit or publish it.');
+  await writeFile(`${output}.sha256`, `${hash}  protv-roku.zip\n`);
   const linking = (await resolveFirebaseApiKey()) ? 'Account linking: enabled (public Firebase web key injected).' : 'Account linking: DISABLED (no public Firebase web key found).';
   console.log(`Built ${output}\nSHA256 ${hash}\n${linking}\nNo deployment or device verification performed.`);
 }
