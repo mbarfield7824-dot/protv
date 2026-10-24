@@ -21,7 +21,17 @@ The production upload keystore must remain outside the repository. The Gradle re
 - `PROTV_RELEASE_KEY_ALIAS`
 - `PROTV_RELEASE_KEY_PASSWORD`
 
-After the owner approves a signing identity and the key is generated:
+## Current local signing identity
+
+- Generated after owner authorization on 2026-10-24.
+- Keystore: `%LOCALAPPDATA%\PROtv\firetv-signing\protv-firetv-upload.p12` (outside the checkout).
+- Alias: `protv-amazon-upload`; RSA 3072-bit; PKCS#12; SHA256withRSA; certificate validity 10,000 days.
+- Certificate SHA-256: `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f`.
+- A random signing password is stored only in `%LOCALAPPDATA%\PROtv\firetv-signing\credentials.dpapi`, encrypted using the current Windows user's DPAPI. The keystore directory and files grant access only to the current user and LocalSystem.
+- No password, private key, or plaintext credential file is in the repository. The temporary password file used by keytool was removed after key creation.
+- An independent encrypted offline keystore backup and restore test are not yet recorded; arrange them through the owner's controlled backup system before relying on this key for future releases.
+
+After the owner-approved signing identity is generated:
 
 1. Store the primary keystore in an access-controlled, encrypted release-signing location outside all checkouts. Restrict access to authorized release maintainers.
 2. Store the keystore and both passwords in the organization's approved encrypted password manager or secrets vault; do not put them in `.env`, Gradle properties committed to the repo, chat, email, or shell history.
@@ -30,4 +40,4 @@ After the owner approves a signing identity and the key is generated:
 5. Perform a controlled restore test from the backup to a temporary location outside the repository, verify the certificate fingerprint matches, and securely remove the temporary restored copy.
 6. Keep an owner-approved recovery contact/process and rotate neither the key nor alias without evaluating Amazon update compatibility.
 
-No keystore or passwords are present in this package. A new key must not be created until the owner explicitly approves the new signing identity.
+The keystore and DPAPI credential file are local-only and are not included in this package or Git. Do not regenerate or replace this identity; future Amazon updates must use the same upload key.

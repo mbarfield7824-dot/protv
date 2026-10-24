@@ -1,14 +1,23 @@
 const express = require('express');
 const { FieldValue } = require('firebase-admin/firestore');
 const { db } = require('../firebase');
-const { verifyToken } = require('../middleware/auth');
+const { requireRecentAuthentication, requireInteractiveUserSession, verifyToken } = require('../middleware/auth');
 const { restoredWatchProgress } = require('../watchProgress');
+const { createAccountDeletionRequestService } = require('../accountDeletionRequests');
+const { createAccountDeletionRequestRouter } = require('./accountDeletionRequests');
 
 const router = express.Router();
+const deletionRequests = createAccountDeletionRequestService({ getDb: () => db });
+router.use('/me/deletion-request', createAccountDeletionRequestRouter({
+  service: deletionRequests,
+  verifyToken,
+  requireInteractiveUserSession,
+  requireRecentAuthentication,
+}));
 
-function requireFirestore(res) {
+function requireFirestore(res, message = 'Favorites are temporarily unavailable.') {
   if (db) return true;
-  res.status(503).json({ error: 'Favorites are temporarily unavailable.' });
+  res.status(503).json({ error: message });
   return false;
 }
 

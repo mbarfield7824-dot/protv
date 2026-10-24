@@ -545,4 +545,31 @@ export const api = {
     if (!res.ok) throw new Error('Unable to remove watch progress.');
     return res.json();
   },
+
+  async getAccountDeletionRequest(token) {
+    const res = await fetch(`${API_URL}/users/me/deletion-request`, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const response = await res.json();
+    if (!res.ok) {
+      throw Object.assign(new Error(response.error || 'Unable to load the account deletion request.'), {
+        status: res.status,
+      });
+    }
+    return response.request;
+  },
+
+  async requestAccountDeletion(token) {
+    const res = await fetch(`${API_URL}/users/me/deletion-request`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const response = await res.json();
+    if (!res.ok) {
+      throw Object.assign(new Error(response.error || 'Unable to submit the account deletion request.'), {
+        status: res.status,
+      });
+    }
+    return response.request;
+  },
 };

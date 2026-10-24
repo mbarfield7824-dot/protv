@@ -60,6 +60,7 @@ import com.protv.firetv.ui.theme.ProTvWordmark
 import kotlinx.coroutines.delay
 
 private const val CREATOR_PORTAL_URL = "https://creators.watchprotv.com/"
+private const val ACCOUNT_DELETION_URL = "https://watchprotv.com/delete-account"
 
 @Composable
 fun SignInScreen(
@@ -182,6 +183,25 @@ fun SignInScreen(
                             onClose()
                         })
                     }
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        "Account deletion requests are reviewed on the PROtv website; submitting one does not immediately delete data.",
+                        color = ProTvColors.Muted,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    ActionButton("Request account deletion", onClick = {
+                        portalError = null
+                        try {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, ACCOUNT_DELETION_URL.toUri())
+                                    .addCategory(Intent.CATEGORY_BROWSABLE),
+                            )
+                        } catch (error: ActivityNotFoundException) {
+                            portalError = "No browser is available to open account deletion requests."
+                        }
+                    })
                     portalError?.let {
                         Spacer(Modifier.height(14.dp))
                         Text(it, color = ProTvColors.Cyan, fontSize = 16.sp)

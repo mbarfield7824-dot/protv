@@ -30,6 +30,7 @@ export default function Footer() {
             <Link to="/#my-list">My List</Link>
             <Link to="/history">Watch History</Link>
             <Link to="/profile">Settings</Link>
+            <Link to="/delete-account">Delete Account</Link>
           </div>
 
           <div className="footer-column">

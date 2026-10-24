@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/InfoPages.css';
@@ -20,7 +21,12 @@ export default function Privacy() {
           <h2>Service providers</h2>
           <p>PROtv relies on trusted services to provide authentication, data storage, hosting, analytics, and video streaming. These providers process only the information needed to deliver their services.</p>
           <h2>Your choices</h2>
-          <p>You can remove titles from My List at any time. For account or privacy questions, contact <a href="mailto:support@watchprotv.com">support@watchprotv.com</a>.</p>
+          <p>
+            You can remove titles from My List at any time. You can also{' '}
+            <Link to="/delete-account">submit an account deletion request</Link>.
+            For account or privacy questions, contact{' '}
+            <a href="mailto:support@watchprotv.com">support@watchprotv.com</a>.
+          </p>
         </section>
       </main>
       <Footer />

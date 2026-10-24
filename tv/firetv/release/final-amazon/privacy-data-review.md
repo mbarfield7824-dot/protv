@@ -11,7 +11,7 @@
 - Fire TV authentication may be initiated by email/password against Firebase Identity Toolkit and exchanged for Firebase custom tokens. TV activation records are stored in Firestore `deviceSessions` and `deviceActivationCodes`; `approvedByUid` links a session to the approving account. `deviceRateLimits` and `tvAuthRateLimits` contain hashed/rate-limit data rather than account profile content. The Fire TV client holds Firebase tokens in SDK state; no separate server-maintained playback-history collection was found in the inspected app code.
 - Firebase refresh tokens and external provider logs are outside the Firestore profile document. Revoking Firebase refresh tokens is needed to invalidate sessions across devices. The app's local preference checkpoint is only removable by the client or app-data lifecycle; deleting a server account cannot directly erase an offline device.
 - The web app includes Vercel Analytics; it is not an Android Fire TV dependency and must be separately considered if disclosures cover the website.
-- The current published Privacy page discusses email/display name, My List, service providers and support, but does not explicitly explain TV watch progress or provide a dedicated deletion-request procedure.
+- The currently published Privacy page discusses email/display name, My List, service providers and support, but does not explicitly explain TV watch progress or provide the new dedicated deletion-request flow. This branch adds a link to the request page; neither that link nor the page is deployed.
 - Backend user routes currently expose favorites and per-title watch-progress operations only. No account-deletion endpoint was found.
 
 ## Broader account-associated data inventory
@@ -32,13 +32,15 @@
 
 This inventory is source-code based, not a production database export. It does not prove that no other processor, infrastructure log, backup, support mailbox, or external creator system retains account-linked information.
 
-## Deletion status: blocked; no destructive code staged
+## Deletion status: request intake implemented locally; fulfillment remains blocked
 
-The account is shared between web and TV. A correct deletion workflow must address Firebase Auth and all associated records, not just the known Firestore user document. The existing Roku account-deletion runbook is manual and the self-service plan remains unimplemented. The runbook does not establish an account UID index for `safetyReports`; do not treat it as proof that every report can be found.
+The account is shared between web and TV. A correct deletion workflow must address Firebase Auth and all associated records, not just the known Firestore user document. The existing Roku account-deletion runbook is manual and does not establish an account UID index for `safetyReports`; do not treat it as proof that every report can be found.
 
-No authenticated recent-reauthentication flow for deletion, durable deletion queue, verified end-to-end data inventory, email delivery/verification service, or approved retention schedule was identified. Deleting the Auth identity and Firestore data independently can partially fail. For that reason, this package does not add a destructive endpoint or claim account deletion is available.
+Local code now provides `/delete-account` on the website and an account-screen link in the Fire TV app. The API exposes authenticated request/status routes at `/users/me/deletion-request`. Submission requires an interactive password/Google sign-in and a non-revoked Firebase token whose authentication time is within five minutes. An idempotent Firestore transaction records only the account UID, `received` status, and request/update timestamps in `accountDeletionRequests`; responses are non-cacheable. The form explains that data is not deleted and no completion date is promised.
 
-Amazon's current guidance says apps allowing account creation must provide a web page where users can request account deletion, and accurately answer the Developer Console deletion questions. The existing support email is not yet documented as a verified, monitored deletion workflow. A working request URL and actual fulfillment process must be established before submission.
+This is **request intake only**: no account, profile, session, progress, favorite, report, creator record, or provider data is removed, and no completion status or email notification is available. It has not been deployed. The URL must be reachable and the request queue monitored before it can serve as a live Amazon deletion URL. The existing support email is not yet documented as a verified, monitored fulfillment channel.
+
+No destructive endpoint is exposed because Firestore profile/session data does not cover the separately managed Creator Portal and payment/tax records, the `safetyReports` UID association is unknown, and provider logs/backups and retention exceptions are unverified. Deleting Firebase Auth and Firestore independently could also leave a partially deleted account. Actual fulfillment therefore remains blocked pending the decisions below.
 
 ## Owner/legal decisions and engineering prerequisites
 
@@ -46,10 +48,10 @@ Amazon's current guidance says apps allowing account creation must provide a web
 2. Approve whether accounts with creator projects/content are deleted, transferred, or require separate handling.
 3. Identify every user-linked store across Firebase, Firestore, Creator Portal, hosting logs, streaming provider, and third-party processors; obtain current retention/deletion behavior from each.
 4. Confirm a monitored support/deletion request address and who fulfills and audits requests.
-5. Approve whether to implement verified web request plus request tracking followed by reviewed fulfillment, or a fully automated workflow.
+5. Confirm the request-only/manual-review approach or approve a fully automated workflow after the data inventory is verified.
 6. Decide whether viewer data can be deleted while retaining creator contracts, payout/tax records, and active content licenses; specify safety-report handling and any legal holds.
 7. Approve a completion target (the existing legal draft proposes an aim of 30 days) and whether a cancellation/grace period is required.
-8. If automated, implement recent-authentication/identity verification, idempotent multi-service cleanup, partial-failure recovery, session/token revocation, user-facing status, and automated tests before deploying.
+8. For automated fulfillment, implement recent-authentication/identity verification, an idempotent multi-service deletion job, partial-failure recovery, session/token revocation, user-facing status, and synthetic-account tests before deploying.
 9. Update the website Privacy page and Amazon privacy/deletion labels only after the process and statements are approved.
 
 ## Existing legal draft

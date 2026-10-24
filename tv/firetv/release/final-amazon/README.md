@@ -6,6 +6,7 @@
 
 - `store-listing.md` — proposed listing copy, metadata, and reviewer notes.
 - `privacy-data-review.md` — observed Fire TV data flows and deletion/privacy blockers.
+- Account deletion request intake is implemented in the branch at website route `/delete-account` and Fire TV account screen; request/status API is authenticated and queue-only. It is not deployed and does not delete data; retention/fulfillment decisions remain open.
 - `rights-launch-review.md` — reuse of the Roku rights review, restricted-title list, and approval queue.
 - `rights-launch-matrix.md` — title-level owner/counsel triage with exact catalog IDs; no catalog edits.
 - `test-results.md` — latest automated and owner-reported physical test evidence.
@@ -14,7 +15,7 @@
 - `rollback.md` — frozen source, tag, APK identity, and recovery constraints.
 - `artwork/` — original PROtv-branded artwork and selected real Firestick screenshots.
 
-The unsigned `app-release-unsigned.apk` is **not** copied into this package as a submission binary. Do not upload it. Current backend, frontend, Android, and dependency-audit results are recorded in `test-results.md`. A production-signed build, tested deletion path, approved rights scope, and final owner authorization are still required.
+The signed `app-release.apk` is retained locally outside Git for owner review and is not uploaded. Do not upload it until the remaining rights, deletion, store, and physical validation gates are met. Current backend, frontend, Android, and dependency-audit results are recorded in `test-results.md`.
 
 ## Frozen release reference
 
@@ -22,8 +23,8 @@ The unsigned `app-release-unsigned.apk` is **not** copied into this package as a
 - Verified app source: `d2a6965250a9cc928c38c99f175332dbaa04c788`
 - Rollback tag: `firetv-rc1-rollback-20261024`
 - Documentation/package commit: see the current branch HEAD.
-- Package: `com.protv.firetv`, version `0.2.0-rc1` (code 2).
-- Owner-approved first public release target: version `1.0.0` (code 3); the candidate must still be rebuilt and signed after the owner provisions the production keystore locally.
+- RC rollback package: `com.protv.firetv`, version `0.2.0-rc1` (code 2).
+- Owner-approved first public release build: `com.protv.firetv`, version `1.0.0` (code 3); current signed APK hash and signer are in `test-results.md`.
 
 ## Amazon Developer Console checkpoint (2026-10-24)
 
@@ -33,7 +34,7 @@ The unsigned `app-release-unsigned.apk` is **not** copied into this package as a
 - The Console is at **Step 1: Upload your app file**. No file has been uploaded. The available local release APK is unsigned and must not be uploaded.
 - The **Appstore Certificate Hashes** request returned HTTP 500. The dialog explained that Amazon removes the developer signature during ingestion and applies an account-specific Amazon signature. The unavailable hashes are Amazon's distribution certificate hashes; they are not the developer upload-key fingerprints and are not a substitute for a developer-signed APK.
 - This account has no prior app entry or release history, so no prior app-specific upload certificate was found in Console. The historical signed 0.1.0 APK at `D:\protv` is not the current release; its certificate fingerprint is recorded in `test-results.md`, but its private key was not found. Do not use the debug keystore or assume the historical certificate can be reproduced.
-- A release signing configuration now accepts the four `PROTV_RELEASE_*` environment variables and rejects partial configuration or a keystore inside the repository. No keystore was created or configured because the production signing identity still needs explicit owner authorization.
+- A dedicated RSA-3072 upload key was generated after owner authorization and stored outside the repository with restrictive Windows ACLs. Its credential backup is encrypted using the current Windows user's DPAPI. Public certificate fingerprint and signed APK checksum are recorded in `test-results.md`; secret material is not in this repository.
 - No target devices, marketplace, pricing, ratings, privacy answers, deletion URL, or listing screenshots were selected. The draft remains incomplete and not published.
 
 All Firestick captures in `artwork/` are authentic AFTMM device screenshots at 1920x1080. Screenshots containing catalog art are for internal owner review only until rights clearance for those displayed titles/artwork is confirmed.

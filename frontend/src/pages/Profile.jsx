@@ -87,6 +87,7 @@ export default function Profile() {
         </section>
 
         <button className="profile-sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
+        <p><Link to="/delete-account">Request account deletion</Link></p>
       </main>
       <Footer />
     </div>
