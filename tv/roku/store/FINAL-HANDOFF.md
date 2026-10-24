@@ -1,5 +1,36 @@
 # PROtv for Roku — final handoff (production frozen)
 
+## Release status, 2026-10-24 (supersedes the build references below)
+
+- **Submit RC6, not RC5.** Roku's official Static Analysis tool reported an
+  ERROR on RC5: `rsg_version=1.3` has been required for certification since
+  2026-10-01. RC6 is RC5 plus that manifest line, with the deprecated
+  `InitClientCertificates()` call removed. **RC6 Static Analysis: 0 errors.**
+  `dist/releases/protv-roku-v1.0.0-rc6-candidate.zip`, SHA-256
+  `30ca43cc6f61d0f169710219e8ca6c3ba7b2df95ed624c33d6518c0db91e47f4`, branch
+  `release/roku-1.0-rc6`. RC5 is preserved as the TV-verified baseline.
+- **Signed .pkg: not produced.** No Roku device was reachable from this PC,
+  and signing needs your developer Roku and its genkey password.
+- **Roku 28-title catalog:** finalized on `feature/roku-launch-eligibility`
+  (`58d0f28`, based on current production `b123f03`). The four disputed
+  titles are excluded. Not deployed.
+
+### Signing (you, on the developer Roku, about 15 minutes)
+
+1. Run docs/TV-TESTS.md section 9 on RC6 first (10 minutes). Continue only if
+   it passes.
+2. On the PC, run `telnet <TV-IP> 8080` (Windows: turn on "Telnet Client" in
+   Windows Features, or use PuTTY in Telnet mode on port 8080). Type `genkey`.
+   **Copy the printed Password and DevID into your password manager
+   immediately.** Run genkey only once, ever, for PROtv.
+3. In a browser, open `http://<TV-IP>` (user `rokudev`), upload
+   `protv-roku-v1.0.0-rc6-candidate.zip` and click Install.
+4. Click **Packager**. Enter app name `PROtv`, version `1.0.0` and the genkey
+   password. Package, then download the .pkg.
+5. Record its identity with `certutil -hashfile <file>.pkg SHA256`. The
+   Packager page shows the DevID; it must match the one saved in step 2.
+6. Back up the .pkg, DevID and password together, encrypted, off this PC.
+
 Prophecy Entertainment LLC, 2026-10-24. **Nothing has been deployed, merged,
 replaced, restricted, published or submitted.** RC5 is unchanged:
 `protv-roku-v1.0.0-rc5-candidate.zip`, SHA-256

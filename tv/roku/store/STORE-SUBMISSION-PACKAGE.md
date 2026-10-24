@@ -48,7 +48,7 @@ marks values only the owner has. Nothing has been entered in the dashboard.
 The Roku app draws at 1280x720, and Roku wants 1920x1080. Capture, then scale
 by exactly 1.5×; never crop, stretch or edit what the app shows.
 
-1. Sideload `protv-roku-v1.0.0-rc5-candidate.zip` (developer mode; installer at
+1. Sideload `protv-roku-v1.0.0-rc6-candidate.zip` (developer mode; installer at
    `http://<TV-IP>`, user `rokudev`).
 2. For each screen below, open `http://<TV-IP>` > **Utilities** >
    **Screenshot** while the screen is showing, then save the image.
@@ -150,7 +150,8 @@ placeholders `script-login` and `script-password`, never real credentials.
 
 | Field | Value |
 | --- | --- |
-| Package | The **signed .pkg** made from RC5 on the developer Roku (not the ZIP) |
+| Package | The **signed .pkg** made from **RC6** (`protv-roku-v1.0.0-rc6-candidate.zip`, SHA-256 `30ca43cc…47f4`) on the developer Roku (not the ZIP) |
+| Static Analysis | Run locally with Roku's sca-cmd (Oct 2026 build) on RC6: **0 errors**. Re-run in the dashboard after upload |
 | Minimum firmware | As the dashboard requires for the package format (Squashfs needs 8.0 or higher) |
 | Static Analysis | Run; fix every error before certification |
 | Schedule | Earliest is the second business day; not Friday or weekend |

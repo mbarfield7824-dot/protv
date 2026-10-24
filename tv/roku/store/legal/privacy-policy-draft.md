@@ -1,11 +1,25 @@
-# PROtv Privacy Policy — full replacement draft (review copy 3)
+# PROtv Privacy Policy — final draft for legal approval
 
-**DRAFT for owner and counsel review. Not published. Not legal advice.**
-Revised 2026-10-23 after checking each statement against the production code
-and Firestore (see REVIEW.md for the source of every fact). Replaces the text of
-watchprotv.com/privacy (frontend/src/pages/Privacy.jsx, effective
-September 16, 2026) once approved. **[Bracketed]** items are owner or counsel
-decisions; REVIEW.md lists them with a recommendation for each.
+**FINAL DRAFT, 2026-10-24. Not published. Not legal advice.** Every factual
+statement was checked against the live site, the deployed backend and the
+Roku app (legal/LIVE-VS-DRAFT-CORRECTIONS.md); no further factual change is
+needed. It replaces the text of watchprotv.com/privacy
+(frontend/src/pages/Privacy.jsx, effective September 16, 2026) once
+approved.
+
+**Only these items need a decision before publication:**
+
+1. [postal address] of Prophecy Entertainment LLC (owner).
+2. [date of publication] (the day it goes live).
+3. Video-ad network name: leave the placeholder sentence out while video ads
+   are off (they are off today), or name the network (owner).
+4. Browser signals (Do Not Track / GPC) wording: "we do not currently
+   respond" is accurate today (counsel confirms).
+5. The "sell or share" note and state-law opt-out (CCPA applicability:
+   counsel).
+6. Deletion turnaround "[30] days" (owner/counsel).
+7. Retention of safety reports and creator records (owner/counsel).
+8. Remove all bracketed notes and this header before publishing.
 
 ---
 

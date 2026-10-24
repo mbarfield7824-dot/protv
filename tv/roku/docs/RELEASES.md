@@ -1,5 +1,20 @@
 # Roku release checkpoints
 
+## 1.0.0 release candidate 6 (2026-10-24) — submission candidate, TV recheck needed
+
+| Item | Value |
+| --- | --- |
+| Branch | `release/roku-1.0-rc6` (from RC5 `9538cb1`) |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc6-candidate.zip` (read-only), 680,915 bytes |
+| SHA-256 | `30ca43cc6f61d0f169710219e8ca6c3ba7b2df95ed624c33d6518c0db91e47f4` |
+| Why | Roku Static Analysis (official sca-cmd, Oct 2026 build) reported an **ERROR** on RC5: the manifest needs `rsg_version=1.3`. Roku: "You must set this parameter to rsg_version=1.3 by October 1, 2026, to continue passing certification testing." RC5 also used the deprecated `InitClientCertificates()` |
+| Changes from RC5 | Exactly two lines: manifest adds `rsg_version=1.3`; `components/HttpTask.brs` drops `transfer.InitClientCertificates()` (device client certificates; PROtv never requests them; server certificate checking is unchanged). Every other file is byte-identical to RC5 |
+| Static Analysis | **0 errors.** Warnings: AppDialog beacons (not applicable: no dialog before Home) and 5 memory-monitoring suggestions (advisory) |
+| Tests | bsc 0 errors; 12/12 node tests (new guards for both lines) |
+| Physical | Not yet tested on a TV: TV-TESTS.md section 9 (about 10 minutes) |
+
+RC5 (`94fc56ce…`) is preserved unchanged as the rollback baseline.
+
 ## 1.0.0 release candidate 5 (2026-10-24) — submission candidate, owner TV-tested
 
 Owner report, 2026-10-24: RC5 "works flawlessly" on a physical Roku TV.

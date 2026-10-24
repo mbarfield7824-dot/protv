@@ -219,3 +219,19 @@ Sideload `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip`, play any title, th
 5. Press **Back**: playback ends and the details screen shows Resume.
 
 All five pass: use RC3 for submission. Step 1 fails: keep RC2 and report it.
+
+## 9. RC6 recheck (about 10 minutes)
+
+RC6 = RC5 + `rsg_version=1.3` + no device client certificate. Sideload
+`dist/releases/protv-roku-v1.0.0-rc6-candidate.zip`, then confirm:
+
+1. Cold launch reaches Home with posters (catalog request works).
+2. Account > Sign in with the reviewer account; Sign Out; Create account
+   screen opens (do not finish creating one); Forgot password screen opens.
+3. Play a title: OK pauses and shows controls; Left/Right seek; * opens the
+   caption settings; OK works after closing them; Back returns to details.
+4. Restart the app: Continue Watching keeps the position.
+5. One deep link: `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"`.
+
+All pass: sign RC6. Any failure: report it and submit nothing (RC5 stays the
+TV-verified baseline, but it cannot pass Static Analysis).
