@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Holds focus during playback as a child of the Video node, so keys reach it
+     before the Video node: PROtv's player keys are reported through pressed,
+     and Options (*) passes up to the Video node for Roku's caption overlay. -->
+<component name="PlayerRemote" extends="Group">
+  <interface>
+    <field id="pressed" type="string" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/model.brs" />
+  <script type="text/brightscript" uri="PlayerRemote.brs" />
+</component>

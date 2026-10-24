@@ -17,6 +17,7 @@ sub Main()
     }
     m.beacons = []
     m.loaded = true
+    m.captionTest = false
     m.loading = false
     m.catalogLoadedAt = CurrentEpochSeconds()
     m.guestWrittenAt = 0
@@ -489,8 +490,9 @@ sub Main()
     Check(m.account = invalid and Instr(1, m.top.nodes.accountMessage.text, "could not finish signing in this TV (FB05)") > 0, "an invalid Firebase session names the failing check on screen")
     Check(Press("back") and m.mode = "home", "Back always leaves the account screen")
 
-    ' Device bug (v0.5.4): OK did nothing during playback. The native Video UI
-    ' consumed it, so the scene now owns the remote while a title plays.
+    ' Device bugs (v0.5.4 and RC3): OK did nothing during playback because the
+    ' focused Video node swallowed it. Keys are delivered with Route, as
+    ' SceneGraph does: playerKeys (a child of the Video node) holds focus.
     m.mode = "detail"
     m.detailIndex = 0
     m.selected = { id: "g1", title: "G1" }
@@ -509,51 +511,54 @@ sub Main()
     m.scrubbing = false
     m.playbackActive = true
     m.previewBase = PreviewBase({ id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" })
-    m.all.Append([m.video])
-    m.video.setFocus(true)
+    m.playerKeys = FocusNode()
+    m.video.children = [m.playerKeys]
+    m.all.Append([m.video, m.playerKeys])
+    m.playerKeys.setFocus(true)
     toggle = m.top.findNode("playerToggle")
-    Check(Press("OK") and m.video.control = "pause" and m.playerOverlay.visible and m.video.focused, "OK pauses and shows the controls; the Video node keeps focus")
+    Check(Player("OK") and m.video.control = "pause" and m.playerOverlay.visible and m.playerKeys.focused and m.video.isInFocusChain(), "OK pauses and shows the controls; the Video node stays in the focus chain")
     m.video.state = "paused"
     videoState()
     Check(toggle.text = "Resume" and toggle.icon = "play" and toggle.style = "primary" and m.playerHideTimer.control = "stop", "paused controls highlight Resume and stay up")
     Check(m.top.nodes.playerTitle.text = "G1" and m.top.nodes.playerTime.text = "5:00 / 20:00" and m.top.nodes.playerFill.width = 264, "controls show the title, position and duration")
-    Check(Press("OK") and m.video.control = "resume", "OK again resumes")
+    Check(Player("OK") and m.video.control = "resume", "OK again resumes")
     m.video.state = "playing"
     videoState()
     Check(toggle.text = "Pause" and toggle.icon = "pause" and m.playerHideTimer.control = "start", "resumed controls fade after a short delay")
     playerHideTimerFired()
     Check(not m.playerOverlay.visible, "the overlay hides while playing")
-    Check(Press("play") and m.video.control = "pause" and m.playerOverlay.visible, "Play/Pause pauses")
+    Check(Player("play") and m.video.control = "pause" and m.playerOverlay.visible, "Play/Pause pauses")
     m.video.state = "paused"
-    Check(Press("play") and m.video.control = "resume", "Play/Pause resumes")
+    Check(Player("play") and m.video.control = "resume", "Play/Pause resumes")
     m.video.state = "playing"
-    Check(Press("right") and Press("right") and Press("right") and m.scrubbing and m.scrubTarget = 330 and m.seekTimer.control = "start", "Right steps the seek target forward 10 s at a time")
+    Check(Player("right") and Player("right") and Player("right") and m.scrubbing and m.scrubTarget = 330 and m.seekTimer.control = "start", "Right steps the seek target forward 10 s at a time")
     Check(m.top.nodes.playerTime.text = "5:30 / 20:00" and m.top.nodes.playerPreview.visible and Instr(1, m.top.nodes.playerPreviewArt.uri, "image.mux.com/Ab123/thumbnail.jpg?time=330") > 0, "seeking shows the target time and a thumbnail")
     commitSeek()
     Check(not m.scrubbing and m.video.seek = 330 and not m.top.nodes.playerPreview.visible, "the seek lands after the presses stop")
-    Check(Press("left") and m.scrubTarget = 290 and Press("OK") and m.video.seek = 290 and m.video.control <> "pause", "Left seeks back; OK confirms the seek without pausing")
-    Check(Press("rewind") and m.scrubTarget = 270 and Press("fastforward") and m.scrubTarget = 300, "Rewind and Fast Forward step 30 s")
+    Check(Player("left") and m.scrubTarget = 290 and Player("OK") and m.video.seek = 290 and m.video.control <> "pause", "Left seeks back; OK confirms the seek without pausing")
+    Check(Player("rewind") and m.scrubTarget = 270 and Player("fastforward") and m.scrubTarget = 300, "Rewind and Fast Forward step 30 s")
     commitSeek()
     m.video.position = 4.0
-    Check(Press("left") and m.scrubTarget = 0, "seeking never goes before the start")
+    Check(Player("left") and m.scrubTarget = 0, "seeking never goes before the start")
     commitSeek()
     m.video.position = 1195.0
-    Check(Press("right") and m.scrubTarget = 1195, "seeking stops short of the end")
+    Check(Player("right") and m.scrubTarget = 1195, "seeking stops short of the end")
     commitSeek()
     m.video.position = 300.0
-    Check(Press("replay") and m.video.seek = 290, "Instant Replay jumps back 10 s")
-    Check(not Press("options") and m.video.focused, "the Options key is left to Roku and the Video node is focused, so Roku's caption menu can open")
+    Check(Player("replay") and m.video.seek = 290, "Instant Replay jumps back 10 s")
+    Check(Route("options") = "roku-options" and m.playerKeys.focused, "Options passes up to the Video node, so Roku's caption menu opens")
+    Check(not Press("options"), "the scene never consumes Options during playback")
     focusRails()
     focusNav()
     focusHero()
     focusDetails()
     focusAccount()
     focusProfile()
-    Check(m.video.focused, "nothing takes focus from the Video node during playback")
+    Check(m.playerKeys.focused and m.video.isInFocusChain(), "nothing takes focus from the player during playback")
     m.rowsStale = false
     refreshRows()
     Check(m.rowsStale, "rail rebuilds wait until playback ends")
-    Check(Press("back") and not m.video.visible and m.video.control = "stop" and not m.playerOverlay.visible and m.detailButtons.children[0].focused, "Back exits playback to the details")
+    Check(Player("back") and not m.video.visible and m.video.control = "stop" and not m.playerOverlay.visible and m.detailButtons.children[0].focused, "Back exits playback to the details")
     Check(ResumePosition(m.progress, "g1") = 300 and ParseStoredProgress(m.storage.values.guestProgress)["g1"].positionSeconds = 300 and m.top.nodes.detailPlay.text = "Resume", "Back preserves the resume position")
     Check(not m.rowsStale, "deferred rows refresh after playback")
     Check(PreviewBase({ muxPlaybackId: "Ab123", playbackToken: "t" }) = "" and PreviewBase({ muxPlaybackId: "bad id" }) = "", "no preview for signed or invalid streams")
@@ -813,8 +818,8 @@ sub Main()
     Check(Instr(1, m.top.nodes.accountHint.text, "delete your PROtv account") > 0 and Instr(1, m.top.nodes.accountHint.text, "support@watchprotv.com") > 0, "signed-in viewers see how to request account deletion")
     m.account = invalid
 
-    ' Certification 4.4/4.8: Roku's Options overlay needs the Video node focused during playback.
-    m.all.Append([m.video])
+    ' RC3 TV result: * opened Roku's caption settings, but OK did nothing, because
+    ' the focused Video node swallowed it. Both must work, on the real start path.
     m.mode = "detail"
     m.selected = { id: "g1", title: "G1" }
     m.video.visible = false
@@ -822,10 +827,49 @@ sub Main()
     startPlayback()
     m.playTask.result = { error: "", payload: { id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" } }
     playbackLoaded()
-    Check(m.video.visible and m.video.focused, "playback start gives the Video node focus")
-    Check(not Press("options") and m.video.focused, "Options during playback is not consumed and focus stays on the Video node")
-    Check(Press("OK") and m.video.focused, "OK still reaches PROtv's controls with the Video node focused")
-    Check(Press("back") and not m.video.visible, "Back still exits playback")
+    Check(m.video.visible and m.playerKeys.focused and m.video.isInFocusChain() and not m.video.focused, "playback start focuses playerKeys inside the Video node")
+    m.video.state = "playing"
+    videoState()
+    playerHideTimerFired()
+    Check(not m.playerOverlay.visible, "the controls hide on their own while playing")
+    Check(Route("OK") = "playerKeys" and m.video.control = "pause" and m.playerOverlay.visible, "OK during playback reaches PROtv and shows the controls")
+    m.video.state = "paused"
+    Check(Route("OK") = "playerKeys" and m.video.control = "resume", "OK again resumes")
+    m.video.state = "playing"
+    Check(Route("play") = "playerKeys" and m.video.control = "pause", "Play/Pause reaches PROtv")
+    m.video.state = "paused"
+    Route("play")
+    m.video.state = "playing"
+    playerHideTimerFired()
+    Check(Route("down") = "playerKeys" and m.playerOverlay.visible and m.playerHideTimer.control = "start", "Up/Down show the controls, which hide again after a delay")
+    Check(Route("right") = "playerKeys" and m.scrubbing and Route("left") = "playerKeys" and Route("rewind") = "playerKeys" and Route("fastforward") = "playerKeys", "seek keys reach PROtv")
+    commitSeek()
+    Check(Route("replay") = "playerKeys" and m.video.seek = 290, "Instant Replay reaches PROtv")
+    Check(Route("options") = "roku-options", "* reaches the Video node and opens Roku's caption settings")
+    Check(m.playerKeys.focused and Route("OK") = "playerKeys", "OK still works after the caption settings close")
+    Check(Route("back") = "playerKeys" and not m.video.visible and m.detailButtons.children[0].focused and not m.video.isInFocusChain(), "Back exits playback and focus returns to the details")
+
+    ' Caption-check package only: a labelled sample title with WebVTT subtitles.
+    m.captionTest = true
+    DeliverCatalog()
+    Check(IsCaptionTestTitle(m.items[0]) and Left(m.items[0].title, 9) = "TEST ONLY", "caption-check packages list the labelled test title first")
+    m.captionTest = false
+    DeliverCatalog()
+    found = false
+    for each item in m.items
+        if IsCaptionTestTitle(item) then found = true
+    end for
+    Check(not found, "candidate packages never show the caption test title")
+    m.mode = "detail"
+    m.selected = CaptionTestTitle()
+    m.account = invalid
+    taskCount = m.tasks.Count()
+    startPlayback()
+    Check(m.tasks.Count() = taskCount and m.video.content.url = CaptionTestTitle().streamUrl and m.video.content.streamFormat = "hls" and m.playerKeys.focused, "the caption test title plays Apple's sample without PROtv authorization")
+    m.video.position = 400.0
+    saveCurrentProgress(true)
+    Check(not m.progress.DoesExist("protv-caption-test"), "the caption test title never saves progress")
+    Check(Route("back") = "playerKeys" and not m.video.visible, "Back leaves the caption test title")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub
@@ -878,7 +922,7 @@ sub StartFakePlayback(item as Object)
     m.lastSavedPosition = 0
     m.playbackActive = true
     m.progressTimer.control = "start"
-    m.video.setFocus(true)
+    m.playerKeys.setFocus(true)
     renderPlayerOverlay()
 end sub
 
@@ -967,6 +1011,30 @@ end function
 
 function Press(key as String) as Boolean
     return onKeyEvent(key, true)
+end function
+
+' Delivers a key the way SceneGraph does: the focused node first, then its
+' parents. Returns who handled it. A Video node in the focus chain opens Roku's
+' caption overlay on Options, and swallows OK and the transport keys even with
+' enableUI="false" (TV: v0.5.4 and RC3); Up, Down and Back pass through it.
+function Route(key as String) as String
+    if m.playerKeys <> invalid and m.playerKeys.focused and IsPlayerKey(key)
+        m.playerKeys.pressed = key
+        playerKeyPressed()
+        return "playerKeys"
+    end if
+    if m.video.isInFocusChain()
+        if key = "options" then return "roku-options"
+        for each name in ["OK", "play", "left", "right", "rewind", "fastforward", "replay"]
+            if key = name then return "video"
+        end for
+    end if
+    if onKeyEvent(key, true) then return "scene"
+    return "none"
+end function
+
+function Player(key as String) as Boolean
+    return Route(key) = "playerKeys"
 end function
 
 ' Mirrors SceneGraph: exactly one node holds focus.

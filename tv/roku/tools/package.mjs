@@ -19,7 +19,9 @@ export async function resolveFirebaseApiKey() {
   }
 }
 
-export async function packageBytes() {
+// captionTest builds a separately named, never-submitted package whose manifest
+// adds protv_caption_test=1: the app then lists Apple's captioned HLS sample.
+export async function packageBytes({ captionTest = false } = {}) {
   const files = {};
   const firebaseApiKey = await resolveFirebaseApiKey();
   if (firebaseApiKey && !/^[A-Za-z0-9_-]{20,256}$/.test(firebaseApiKey)) {
@@ -32,6 +34,9 @@ export async function packageBytes() {
       let contents = await readFile(full);
       if (relative === path.join('source', 'firebaseConfig.brs') && firebaseApiKey) {
         contents = Buffer.from(`function FirebaseApiKey() as String\n    return ${JSON.stringify(firebaseApiKey)}\nend function\n`);
+      }
+      if (relative === 'manifest' && captionTest) {
+        contents = Buffer.from(contents.toString('utf8').replace(/^title=.*$/m, 'title=PROtv CAPTION TEST') + 'protv_caption_test=1\n');
       }
       files[relative.split(path.sep).join('/')] = [
         new Uint8Array(contents),
@@ -50,12 +55,15 @@ export async function packageBytes() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const bytes = await packageBytes();
-  const output = path.join(root, 'dist', 'protv-roku.zip');
+  const captionTest = process.argv.includes('--caption-test');
+  const bytes = await packageBytes({ captionTest });
+  const name = captionTest ? 'protv-roku-caption-test.zip' : 'protv-roku.zip';
+  const output = path.join(root, 'dist', name);
   await mkdir(path.dirname(output), { recursive: true });
   await writeFile(output, bytes);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  await writeFile(`${output}.sha256`, `${hash}  protv-roku.zip\n`);
+  await writeFile(`${output}.sha256`, `${hash}  ${name}\n`);
+  if (captionTest) console.log('CAPTION TEST PACKAGE: for TV caption checks only. Never submit or publish it.');
   const linking = (await resolveFirebaseApiKey()) ? 'Account linking: enabled (public Firebase web key injected).' : 'Account linking: DISABLED (no public Firebase web key found).';
   console.log(`Built ${output}\nSHA256 ${hash}\n${linking}\nNo deployment or device verification performed.`);
 }

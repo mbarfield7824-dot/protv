@@ -63,7 +63,7 @@ sub init()
     m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerOverlay", "playerHideTimer", "seekTimer", "loadingSpinner"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer", "loadingSpinner"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
@@ -98,6 +98,8 @@ sub init()
     m.seekTimer.observeField("fire", "commitSeek")
     m.video.notificationInterval = 0.5
     m.video.observeField("position", "playerPositionChanged")
+    m.playerKeys.observeField("pressed", "playerKeyPressed")
+    m.captionTest = CreateObject("roAppInfo").GetValue("protv_caption_test") = "1"
     for each id in ["backdropA", "backdropB"]
         m.top.findNode(id).observeField("loadStatus", "backdropLoaded")
     end for
@@ -254,6 +256,7 @@ sub catalogLoaded()
         return
     end if
     m.items = result.items
+    if m.captionTest then m.items.Unshift(CaptionTestTitle())
     m.catalogLoadedAt = CurrentEpochSeconds()
     firstLoad = not m.loaded
     m.loaded = true
@@ -1178,6 +1181,10 @@ end sub
 
 sub startPlayback()
     cancelPlaybackRequest()
+    if IsCaptionTestTitle(m.selected)
+        playStream(m.selected.streamUrl, "")
+        return
+    end if
     m.status.text = "Authorizing playback..."
     setBusy("playback", true)
     m.playTask = m.newTask()
@@ -1202,8 +1209,14 @@ sub playbackLoaded()
         signalLaunchComplete()
         return
     end if
+    playStream(playback.url, PreviewBase(result.payload))
+end sub
+
+' Captions need nothing here: Roku picks the manifest's WebVTT track from the
+' viewer's caption settings.
+sub playStream(url as String, preview as String)
     content = CreateObject("roSGNode", "ContentNode")
-    content.url = playback.url
+    content.url = url
     content.streamFormat = "hls"
     content.title = m.selected.title
     ' PlayStart is the supported start offset; a seek before play is ignored.
@@ -1212,14 +1225,18 @@ sub playbackLoaded()
     m.video.content = content
     m.lastSavedPosition = resumeAt
     m.status.text = ""
-    m.previewBase = PreviewBase(result.payload)
+    m.previewBase = preview
     m.scrubbing = false
     m.playbackActive = true
     m.video.visible = true
-    m.video.setFocus(true)
+    m.playerKeys.setFocus(true)
     m.video.control = "play"
     renderPlayerOverlay()
     m.progressTimer.control = "start"
+end sub
+
+sub playerKeyPressed()
+    onKeyEvent(m.playerKeys.pressed, true)
 end sub
 
 sub videoState()
@@ -1246,8 +1263,8 @@ sub videoState()
     end if
 end sub
 
-' Remote during playback. The native Video UI is off: it consumes OK without
-' pausing, so these keys are handled here and shown on the PROtv overlay.
+' Remote during playback, relayed by playerKeys (see IsPlayerKey) and shown on
+' the PROtv overlay. Options is not handled: it belongs to Roku.
 function playerKey(key as String) as Boolean
     if key = "back"
         closeVideo()
@@ -1285,7 +1302,7 @@ sub togglePause()
         m.video.control = "pause"
         m.playerHideTimer.control = "stop"
     end if
-    m.video.setFocus(true)
+    m.playerKeys.setFocus(true)
     renderPlayerOverlay()
 end sub
 
@@ -2161,7 +2178,7 @@ sub progressTimerFired()
 end sub
 
 sub saveCurrentProgress(force as Boolean)
-    if not m.video.visible or m.selected = invalid then return
+    if not m.video.visible or m.selected = invalid or IsCaptionTestTitle(m.selected) then return
     position = m.video.position
     duration = m.video.duration
     if not IsNumber(position) or not IsNumber(duration) or duration <= 0 then return

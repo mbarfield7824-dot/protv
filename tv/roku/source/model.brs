@@ -648,6 +648,37 @@ function PlaybackUrl(payload as Dynamic, item as Object) as Object
     return result
 end function
 
+' Remote keys PROtv's player handles during playback. A focused Video node
+' swallows OK even with its UI off (TV: v0.5.4, RC3), so these are caught by
+' playerKeys, a child of the Video node. Options (*) is never one of them: it
+' passes up to the Video node, which opens Roku's caption overlay (4.4, 4.8).
+function IsPlayerKey(key as String) as Boolean
+    for each name in ["OK", "play", "left", "right", "rewind", "fastforward", "replay", "up", "down", "back"]
+        if key = name then return true
+    end for
+    return false
+end function
+
+' Caption-check packages only (manifest protv_caption_test=1). Apple's public
+' HLS test stream carries WebVTT subtitles; no PROtv title has a text track yet.
+function CaptionTestTitle() as Object
+    return {
+        id: "protv-caption-test",
+        title: "TEST ONLY - Caption check (Apple HLS sample)",
+        description: "Not PROtv content. Apple's public HLS sample with English WebVTT subtitles, used to check Roku caption settings in PROtv's player.",
+        contentType: "MOVIE",
+        category: "Test",
+        genres: [],
+        artwork: "",
+        backdrop: "",
+        streamUrl: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8"
+    }
+end function
+
+function IsCaptionTestTitle(item as Dynamic) as Boolean
+    return IsMap(item) and Text(item.id) = "protv-caption-test"
+end function
+
 function ResolveLaunch(request as Dynamic, items as Object) as Object
     result = { item: invalid, error: "" }
     if not IsMap(request) then return result

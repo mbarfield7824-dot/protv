@@ -187,11 +187,14 @@
     <Label id="status" translation="[426,636]" width="696" height="40" horizAlign="center" vertAlign="center" color="0xE9EEF8FF">
       <Font role="font" uri="font:SystemFontFile" size="17" />
     </Label>
-    <!-- The native player UI is off (it consumed OK without pausing); PROtv's
-         overlay shows state. The Video node keeps focus during playback so
-         Roku's Options (*) overlay, with caption settings, can open; the keys it
-         does not handle reach the scene's onKeyEvent. -->
-    <Video id="video" visible="false" width="1280" height="720" enableUI="false" />
+    <!-- The native player UI is off; PROtv's overlay shows state. A focused
+         Video node swallows OK even with enableUI="false" (TV: RC3), so focus
+         goes to playerKeys, its child: PROtv's keys are caught there first, and
+         Options (*) passes up to the Video node, which stays in the focus chain
+         so Roku's caption overlay can open. -->
+    <Video id="video" visible="false" width="1280" height="720" enableUI="false">
+      <PlayerRemote id="playerKeys" />
+    </Video>
     <Group id="playerOverlay" visible="false">
       <Poster uri="pkg:/assets/bottom-fade.png" translation="[0,420]" width="1280" height="300" loadDisplayMode="scaleToFill" />
       <Group id="playerPreview" visible="false">
