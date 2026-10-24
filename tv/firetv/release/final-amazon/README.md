@@ -1,6 +1,6 @@
 # PROtv Fire TV Amazon Appstore submission package
 
-**Status: owner review package; not ready to submit.** No Amazon Developer Console changes or production deployment were made.
+**Status: incomplete Amazon draft; not ready to submit.** An owner-authorized app entry was created in the signed-in Developer Console account. No app binary was uploaded, and no listing was published or submitted.
 
 ## Contents
 
@@ -22,6 +22,15 @@ The unsigned `app-release-unsigned.apk` is **not** copied into this package as a
 - Rollback tag: `firetv-rc1-rollback-20261024`
 - Documentation/package commit: see the current branch HEAD.
 - Package: `com.protv.firetv`, version `0.2.0-rc1` (code 2).
+
+## Amazon Developer Console checkpoint (2026-10-24)
+
+- The signed-in account's App List showed 0 apps before this task; no existing PROtv listing was found in that account.
+- With owner approval, created an incomplete draft app titled **PROtv**, category **Movies & TV > On-Demand Movie Streaming**. Amazon app ID: `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`. Draft release ID: `amzn1.devportal.apprelease.ca213de1703a4a5183eb85986b936e7e`.
+- The form's account-default support contact was selected at the owner's direction; Amazon states this contact is accessible to customers. Review or replace it with an owner-approved monitored public support channel before publication.
+- The Console is at **Step 1: Upload your app file**. No file has been uploaded. The available local release APK is unsigned and must not be uploaded.
+- The **Appstore Certificate Hashes** request returned HTTP 500, so the account signing-certificate hashes remain unknown. No signing/update compatibility conclusion is possible yet.
+- No target devices, marketplace, pricing, ratings, privacy answers, deletion URL, or listing screenshots were selected. The draft remains incomplete and not published.
 
 All Firestick captures in `artwork/` are authentic AFTMM device screenshots at 1920x1080. Screenshots containing catalog art are for internal owner review only until rights clearance for those displayed titles/artwork is confirmed.
 

@@ -41,7 +41,8 @@
 
 ## Amazon console
 
-- [ ] Confirm existing listing for `com.protv.firetv`; do not create a duplicate.
+- [x] Check signed-in account for an existing listing; App List was empty. Owner approved creating an incomplete PROtv draft (Amazon app ID and release ID are in `README.md`).
+- [ ] Confirm this is the correct Amazon account and verify the intended package/signing identity before uploading any binary.
 - [ ] Review app-specific signing/update constraints and use the matching private key.
 - [ ] Complete privacy, account/data deletion, rating, device selection, listing, and asset fields.
 - [ ] Upload only the final signed, verified release binary.
