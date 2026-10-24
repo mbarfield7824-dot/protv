@@ -10,7 +10,7 @@
 - [x] Backend release URL guard requires HTTPS for a release build.
 - [ ] Select intended Fire OS devices in Developer Console and confirm compatibility. `minSdk 23` excludes API-22 devices.
 - [ ] Confirm current target API/SDK requirements in the Developer Console at upload; public docs reviewed here describe manifest-based device filtering but did not establish a current numeric target threshold.
-- [ ] Approve final public version name and increment version code above 2 as needed.
+- [x] Owner approved first public version `1.0.0`, version code `3` (above RC code 2).
 - [ ] Owner authorizes or provides the production signing identity. No reusable private key was found.
 - [x] Gradle accepts local `PROTV_RELEASE_*` environment variables for signing, rejects partial configuration, and requires the keystore outside the repository.
 - [ ] Generate/import and securely back up the owner-approved keystore outside the repository.

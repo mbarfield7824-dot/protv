@@ -23,6 +23,7 @@ The unsigned `app-release-unsigned.apk` is **not** copied into this package as a
 - Rollback tag: `firetv-rc1-rollback-20261024`
 - Documentation/package commit: see the current branch HEAD.
 - Package: `com.protv.firetv`, version `0.2.0-rc1` (code 2).
+- Owner-approved first public release target: version `1.0.0` (code 3); the candidate must still be rebuilt and signed after the owner provisions the production keystore locally.
 
 ## Amazon Developer Console checkpoint (2026-10-24)
 
