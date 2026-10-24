@@ -149,9 +149,16 @@ These are owner-reported results, not independently repeated during this release
 - Rollback tag: `firetv-rc1-rollback-20261024`, pushed to `origin` at the frozen source commit.
 - Re-ran `:app:testDebugUnitTest`: **104 tests, 17 suites, 0 failures, 0 errors, 0 skipped**.
 - `:app:lintRelease` completed with **0 errors and 10 warnings**. `:app:assembleRelease` completed, but its APK is unsigned. No `testReleaseUnitTest` task is configured.
-- Current unsigned release APK SHA-256: `16D637CF361E16091E4C6531C1954CB8807ED3F50421C864E3F9B0FCFEEB543A`. It passes zip alignment and does not pass APK signature verification.
+- Current unsigned release APK SHA-256: `28C84B6143C91A0184D29B764B4C1056ECEFFF03A542F2CEC35054D3F36278E0`. It passes zip alignment and does not pass APK signature verification.
 - No signing keystore or release signing configuration was found in the Fire TV project. A separately preserved signed APK in the other local checkout is package `com.protv.firetv`, version `0.1.0` / code `1`; it is not the current RC1 build and its private signing key is not present in the project. Do not use it as the release candidate.
 - The installed RC1 app and app data were not changed during this audit. No catalog records, production services, Roku files, or signed APKs were changed.
+
+### Local release-package validation (2026-10-24)
+
+- Fresh Android validation completed from the current worktree: **104 unit tests, 0 failures/errors/skips**; `:app:lintRelease` had 0 errors and 10 warnings; `:app:assembleRelease` succeeded. The resulting APK remains unsigned and is not for submission.
+- Backend suite: **261 tests passed, 0 failed** after updating Firebase Admin calls and test mocks to the supported v14 modular API.
+- Root, backend and frontend dependency audits each report **0 vulnerabilities**. Frontend lint passed; Vite build passed with a large-chunk warning. The frontend's transitive gRPC advisory was addressed with a compatible patched 1.x override rather than a forced Firebase downgrade.
+- These local source/build checks did not install an APK, change the Firestick, publish/deploy services, or edit the shared catalog. The release package and remaining owner approvals are listed in `tv/firetv/release/final-amazon/`.
 
 ### Amazon Appstore checklist
 

@@ -55,6 +55,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
+import com.protv.firetv.BuildConfig
 import com.protv.firetv.ui.theme.ProTvAtmosphere
 import com.protv.firetv.ui.theme.ProTvButtons
 import com.protv.firetv.ui.theme.ProTvColors
@@ -213,7 +214,7 @@ fun PremiumHome(
                                     .openDrawerOnLeft(refreshRequester, onOpenDrawer)) { Text("Refresh catalog") }
                                 Button(onClick = onAccountRetry, modifier = Modifier.focusRequester(syncRequester)
                                     .openDrawerOnLeft(syncRequester, onOpenDrawer)) { Text("Sync My List & watch progress") }
-                                Text("PROtv for Fire TV • 0.1.0\nPlayback controls hide after 2.75 seconds while playing.",
+                                Text("PROtv for Fire TV • ${BuildConfig.VERSION_NAME}\nPlayback controls hide after 2.75 seconds while playing.",
                                     color = ProTvColors.Muted, fontSize = 12.sp)
                             }
                         }

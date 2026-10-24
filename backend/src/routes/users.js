@@ -1,5 +1,5 @@
 const express = require('express');
-const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 const { db } = require('../firebase');
 const { verifyToken } = require('../middleware/auth');
 const { restoredWatchProgress } = require('../watchProgress');
@@ -91,7 +91,7 @@ router.put('/me/progress/:videoId', verifyToken, async (req, res, next) => {
     // combines with sibling titles, and remove any literal legacy field.
     await userRef.set({
       watchProgress: { [videoId]: entry },
-      [`watchProgress.${videoId}`]: admin.firestore.FieldValue.delete(),
+      [`watchProgress.${videoId}`]: FieldValue.delete(),
     }, { merge: true });
     res.json({ videoId, ...entry });
   } catch (error) {
@@ -106,8 +106,8 @@ router.delete('/me/progress/:videoId', verifyToken, async (req, res, next) => {
     const userRef = db.collection('users').doc(req.user.uid);
     await userRef.set(
       {
-        watchProgress: { [videoId]: admin.firestore.FieldValue.delete() },
-        [`watchProgress.${videoId}`]: admin.firestore.FieldValue.delete(),
+        watchProgress: { [videoId]: FieldValue.delete() },
+        [`watchProgress.${videoId}`]: FieldValue.delete(),
       },
       { merge: true }
     );

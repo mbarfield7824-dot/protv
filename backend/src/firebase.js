@@ -1,4 +1,7 @@
-const admin = require('firebase-admin');
+const { cert, getApp, initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
 const path = require('path');
 const { podcastIngestionMatches } = require('./catalog/podcasts');
 
@@ -26,15 +29,15 @@ try {
     throw new Error('Firebase service account credentials are not configured');
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+  initializeApp({
+    credential: cert(serviceAccount),
     projectId: process.env.FIREBASE_PROJECT_ID,
     ...(process.env.FIREBASE_STORAGE_BUCKET ? { storageBucket: process.env.FIREBASE_STORAGE_BUCKET } : {}),
   });
 
   // Get Firestore instance
-  db = admin.firestore();
-  auth = admin.auth();
+  db = getFirestore();
+  auth = getAuth();
   console.log('✓ Firebase Admin SDK initialized successfully');
 } catch (err) {
   firebaseError = err;
@@ -45,7 +48,7 @@ try {
 
 function getCreatorPosterBucket() {
   let app;
-  try { app = admin.app(); } catch {
+  try { app = getApp(); } catch {
     if (process.env.FIREBASE_STORAGE_BUCKET) throw new Error('Firebase Admin Storage credentials are unavailable.');
     return null;
   }
@@ -53,7 +56,7 @@ function getCreatorPosterBucket() {
   if (!name) return null;
   if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/.test(name)
     || name.includes('..')) throw new Error('An explicit valid Firebase Storage bucket name is required.');
-  return admin.storage(app).bucket(name);
+  return getStorage(app).bucket(name);
 }
 
 // Helper function to create a new user
@@ -111,12 +114,12 @@ async function addVideo(videoData) {
       attributionRequired: videoData.attributionRequired || false,
       attributionText: videoData.attributionText || '',
       rightsVerificationNotes: videoData.rightsVerificationNotes || '',
-      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      submittedAt: FieldValue.serverTimestamp(),
       approvedAt: null,
       approvedBy: null,
       approvalNotes: '',
       // Basic metadata
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return docRef.id;
   } catch (error) {
@@ -135,11 +138,11 @@ async function createCreatorVideo(creatorProjectId, videoData) {
       ...videoData,
       creatorProjectId,
       approvalStatus: videoData.approvalStatus || 'draft',
-      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      submittedAt: FieldValue.serverTimestamp(),
       approvedAt: null,
       approvedBy: null,
       approvalNotes: '',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return { id, created: true };
   } catch (error) {
@@ -364,7 +367,7 @@ async function updateVideoApproval(videoId, approvalData) {
       approvedBy: approvalData.approvedBy,
     };
     if (approvalData.approvalStatus === 'approved') {
-      updates.approvedAt = admin.firestore.FieldValue.serverTimestamp();
+      updates.approvedAt = FieldValue.serverTimestamp();
     }
     await db.collection('videos').doc(videoId).update(updates);
     return true;

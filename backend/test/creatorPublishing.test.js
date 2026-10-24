@@ -416,13 +416,24 @@ test('Firestore poster retry updates are transactional and reject stale or appro
           });
         },
       };
-      const admin = { initializeApp() {}, credential: { cert: () => ({}) }, firestore: () => db, auth: () => ({}) };
+      const adminModules = {
+        'firebase-admin/app': {
+          initializeApp() {},
+          cert: () => ({}),
+        },
+        'firebase-admin/auth': { getAuth: () => ({}) },
+        'firebase-admin/firestore': {
+          getFirestore: () => db,
+          FieldValue: require('firebase-admin/firestore').FieldValue,
+        },
+        'firebase-admin/storage': { getStorage: () => ({}) },
+      };
       const module = { exports: {} };
       vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
         module, exports: module.exports, process: { env: { FIREBASE_SERVICE_ACCOUNT_JSON: '{}' } },
         console: { log() {}, warn() {} },
         require: (name) => {
-          if (name === 'firebase-admin') return admin;
+          if (Object.hasOwn(adminModules, name)) return adminModules[name];
           if (name === './storage') throw new Error('Unexpected local storage fallback.');
           return require(name.startsWith('.') ? `../src/${name.slice(2)}` : name);
         },

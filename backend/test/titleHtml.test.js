@@ -147,7 +147,8 @@ test('catalog and template failures return explicit 503s with no metadata leakag
 
 test('production routing bundles the built template and limits the rewrite to title pages', () => {
   const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../vercel.json'), 'utf8'));
-  assert.deepEqual(config.rewrites[0], {
+  const titleRewrite = config.rewrites.find(({ source }) => source === '/title/:id');
+  assert.deepEqual(titleRewrite, {
     source: '/title/:id', destination: '/api/index?path=v1/catalog/titles/:id/html',
   });
   assert.equal(config.functions['api/index.js'].includeFiles, 'frontend/dist/index.html');

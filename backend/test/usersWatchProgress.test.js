@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const express = require('express');
-const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 
 test('progress routes write nested fields, preserve siblings, recover legacy entries and delete both shapes', async () => {
   const firebasePath = require.resolve('../src/firebase');
@@ -20,7 +20,7 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
       writes.push({ data, options });
       const nested = { ...profile.watchProgress };
       for (const [id, entry] of Object.entries(data.watchProgress || {})) {
-        if (admin.firestore.FieldValue.delete().isEqual(entry)) delete nested[id];
+        if (FieldValue.delete().isEqual(entry)) delete nested[id];
         else nested[id] = entry;
       }
       profile = { ...profile, watchProgress: nested };

@@ -272,15 +272,26 @@ test('Firebase helper uses only explicit environment or initialized-app bucket s
     let selected;
     const bucket = {};
     const app = { options: source === 'app' ? { storageBucket: 'existing-app.appspot.com' } : {} };
-    const admin = {
+    const adminApp = {
       initializeApp: (options) => { Object.assign(app.options, options); },
-      credential: { cert: () => ({}) }, firestore: () => ({}), auth: () => ({}), app: () => app,
-      storage: (value) => { assert.equal(value, app); return { bucket: (name) => { selected = name; return bucket; } }; },
+      cert: () => ({}),
+      getApp: () => app,
+    };
+    const adminStorage = {
+      getStorage: (value) => {
+        assert.equal(value, app);
+        return { bucket: (name) => { selected = name; return bucket; } };
+      },
     };
     const env = { FIREBASE_SERVICE_ACCOUNT_JSON: '{}', VERCEL: '1' };
     if (source === 'environment') env.FIREBASE_STORAGE_BUCKET = 'existing-explicit.firebasestorage.app';
     if (source === 'invalid') env.FIREBASE_STORAGE_BUCKET = 'gs://not-a-bucket';
-    const helper = loadModule('../src/firebase', { 'firebase-admin': admin }, env);
+    const helper = loadModule('../src/firebase', {
+      'firebase-admin/app': adminApp,
+      'firebase-admin/auth': { getAuth: () => ({}) },
+      'firebase-admin/firestore': { getFirestore: () => ({}), FieldValue: {} },
+      'firebase-admin/storage': adminStorage,
+    }, env);
     if (source === 'invalid') assert.throws(() => helper.getCreatorPosterBucket(), /explicit valid/);
     else if (source === 'missing') assert.equal(helper.getCreatorPosterBucket(), null);
     else assert.equal(helper.getCreatorPosterBucket(), bucket);

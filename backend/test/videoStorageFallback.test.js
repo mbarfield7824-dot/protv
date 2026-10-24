@@ -4,7 +4,9 @@ const express = require('express');
 const fs = require('node:fs');
 
 test('production video operations never load filesystem fallback and preserve Firestore results', async (context) => {
-  const admin = require('firebase-admin');
+  const adminApp = require('firebase-admin/app');
+  const adminAuth = require('firebase-admin/auth');
+  const adminFirestore = require('firebase-admin/firestore');
   const firebasePath = require.resolve('../src/firebase');
   const storagePath = require.resolve('../src/storage');
   const routePath = require.resolve('../src/routes/videos');
@@ -82,17 +84,21 @@ test('production video operations never load filesystem fallback and preserve Fi
       } }),
     }),
   };
-  context.mock.method(admin, 'initializeApp', () => ({}));
-  context.mock.method(admin.credential, 'cert', () => ({}));
-  Object.defineProperty(admin, 'auth', {
-    configurable: true, value: () => ({ verifyIdToken: async () => ({}) }),
+  const firebaseAdminMethods = [
+    [adminApp, 'initializeApp', () => ({})],
+    [adminApp, 'cert', () => ({})],
+    [adminAuth, 'getAuth', () => ({ verifyIdToken: async () => ({}) })],
+    [adminFirestore, 'getFirestore', () => db],
+  ];
+  const firebaseAdminDescriptors = firebaseAdminMethods.map(([module, name]) =>
+    Object.getOwnPropertyDescriptor(module, name));
+  firebaseAdminMethods.forEach(([module, name, implementation]) => {
+    Object.defineProperty(module, name, { configurable: true, writable: true, value: implementation });
   });
-  Object.defineProperty(admin, 'firestore', { configurable: true, value: Object.assign(() => db, {
-    FieldValue: { serverTimestamp: () => 'now' },
-  }) });
   context.after(() => {
-    delete admin.auth;
-    delete admin.firestore;
+    firebaseAdminMethods.forEach(([module, name], index) => {
+      Object.defineProperty(module, name, firebaseAdminDescriptors[index]);
+    });
   });
   const firebase = require(firebasePath);
   context.mock.method(fs, 'mkdirSync', () => { throw new Error('storage.js was loaded'); });
