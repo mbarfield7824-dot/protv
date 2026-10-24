@@ -247,6 +247,25 @@ tile('mood-tile-active', '#60A5FA', '#2E56C8');
   save('bottom-fade.png', c);
 }
 
+// Loading spinner (BusySpinner rotates it): an electric-blue arc fading
+// into royal blue on a faint full ring.
+{
+  const [c, ctx] = canvas(64, 64);
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.beginPath(); ctx.arc(32, 32, 26, 0, Math.PI * 2); ctx.stroke();
+  const steps = 24;
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / steps;
+    ctx.strokeStyle = `rgba(${Math.round(65 + (96 - 65) * t)},${Math.round(105 + (165 - 105) * t)},${Math.round(225 + (250 - 225) * t)},${0.15 + 0.85 * t})`;
+    ctx.beginPath();
+    ctx.arc(32, 32, 26, -Math.PI / 2 + t * Math.PI * 1.5, -Math.PI / 2 + (t + 1 / steps) * Math.PI * 1.5);
+    ctx.stroke();
+  }
+  save('spinner.png', c);
+}
+
 // Creator badge on posters: 18px tall, radius 5.
 {
   const r = 5, w = 2 * r + 4, h = 18;

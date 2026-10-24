@@ -33,6 +33,7 @@ sub init()
     m.authStore = invalid
     m.authNotice = ""
     m.pendingEmail = ""
+    m.busy = {}
     m.accountTask = invalid
     m.afterRefreshAction = ""
     m.authRetryAction = ""
@@ -62,12 +63,15 @@ sub init()
     m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer", "loadingSpinner"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
     m.accountScreen = m.top.findNode("account")
     m.profile = m.top.findNode("profileButton")
+    m.loadingSpinner.poster.uri = "pkg:/assets/spinner.png"
+    m.loadingSpinner.poster.width = 64
+    m.loadingSpinner.poster.height = 64
     m.profile.observeField("buttonSelected", "profileSelected")
     for index = 0 to m.nav.getChildCount() - 1
         m.nav.getChild(index).observeField("buttonSelected", "navSelected")
@@ -117,6 +121,31 @@ function NumberOr(value as Dynamic, fallback as Dynamic) as Dynamic
     if IsNumber(value) then return value
     return fallback
 end function
+
+' Certification 3.4: one spinner shows while any visible wait is in progress
+' (catalog, playback authorization, buffering, sign-in).
+sub setBusy(reason as String, busy as Boolean)
+    if busy
+        m.busy[reason] = true
+    else if m.busy.DoesExist(reason)
+        m.busy.Delete(reason)
+    end if
+    show = m.busy.Count() > 0
+    if m.loadingSpinner.visible = show then return
+    m.loadingSpinner.visible = show
+    if show
+        m.loadingSpinner.control = "start"
+    else
+        m.loadingSpinner.control = "stop"
+    end if
+end sub
+
+' Sign-in stays busy while its next step (the Firebase session) is running.
+sub syncAuthBusy()
+    kind = ""
+    if m.accountTask <> invalid then kind = Text(m.accountTask.kind)
+    setBusy("auth", Left(kind, 3) = "tv-" or kind = "firebase-custom")
+end sub
 
 function HttpTaskNode() as Object
     return CreateObject("roSGNode", "HttpTask")
@@ -196,7 +225,10 @@ end sub
 sub loadCatalog()
     if m.loading then return
     m.loading = true
-    if not m.refreshing then m.status.text = "Loading PROtv..."
+    if not m.refreshing
+        m.status.text = "Loading PROtv..."
+        setBusy("catalog", true)
+    end if
     m.catalogTask = m.newTask()
     m.catalogTask.kind = "catalog"
     m.catalogTask.path = "/v1/catalog?view=all"
@@ -206,6 +238,7 @@ end sub
 
 sub catalogLoaded()
     m.loading = false
+    setBusy("catalog", false)
     result = m.catalogTask.result
     refreshing = m.refreshing
     m.refreshing = false
@@ -1135,6 +1168,7 @@ sub detailSelected()
 end sub
 
 sub cancelPlaybackRequest()
+    setBusy("playback", false)
     if m.playTask <> invalid
         m.playTask.unobserveField("result")
         m.playTask.control = "stop"
@@ -1145,6 +1179,7 @@ end sub
 sub startPlayback()
     cancelPlaybackRequest()
     m.status.text = "Authorizing playback..."
+    setBusy("playback", true)
     m.playTask = m.newTask()
     m.playTask.kind = "playback"
     m.playTask.path = "/v1/catalog/titles/" + m.selected.id.EncodeUriComponent() + "/playback"
@@ -1153,6 +1188,7 @@ sub startPlayback()
 end sub
 
 sub playbackLoaded()
+    setBusy("playback", false)
     if m.playTask = invalid or m.mode <> "detail" then return
     result = m.playTask.result
     if result.error <> ""
@@ -1189,6 +1225,7 @@ end sub
 sub videoState()
     ' Stopping the player changes its state; after exit that must not redraw controls.
     if not m.playbackActive then return
+    setBusy("buffer", m.video.state = "buffering")
     renderPlayerOverlay()
     if m.video.state = "playing"
         signalLaunchComplete()
@@ -1348,6 +1385,7 @@ end sub
 ' playback-only UI and state; saved progress is untouched.
 sub endPlayback()
     m.playbackActive = false
+    setBusy("buffer", false)
     m.scrubbing = false
     m.seekTimer.control = "stop"
     m.playerHideTimer.control = "stop"
@@ -1766,6 +1804,7 @@ end sub
 ' Exact-case JSON keys (quoted): Roku lowercases unquoted literal keys.
 sub submitAuth(password as String)
     flow = m.authFlow
+    setBusy("auth", true)
     if flow.mode = "reset"
         m.status.text = "Sending a password reset email..."
         startAccountTask("tv-password-reset", "/auth/tv/password-reset", "POST", FormatJson({ "email": flow.email }), "", "", "", "application/json")
@@ -1813,6 +1852,7 @@ sub authDialogClosed()
 end sub
 
 sub endAuthFlow()
+    setBusy("auth", false)
     m.authDialogTimer.control = "stop"
     closeAuthDialog()
     m.authFlow = invalid
@@ -1860,6 +1900,7 @@ sub accountTaskCompleted(event as Object)
         handleAccountTaskError(kind, result)
         if kind <> "progress-write" then drainPendingProgress()
         drainAccountQueue()
+        syncAuthBusy()
         return
     end if
     if kind = "tv-sign-in" or kind = "tv-sign-up"
@@ -1951,6 +1992,7 @@ sub accountTaskCompleted(event as Object)
     end if
     drainPendingProgress()
     drainAccountQueue()
+    syncAuthBusy()
 end sub
 
 sub clearFavorites()
@@ -2157,6 +2199,7 @@ sub drainPendingProgress()
 end sub
 
 sub cancelAccountTask()
+    setBusy("auth", false)
     if m.accountTask = invalid then return
     m.accountTask.unobserveField("result")
     m.accountTask.control = "stop"

@@ -32,6 +32,8 @@ sub Main()
     m.dialogs = []
     m.newStore = FakeStore
     m.newDialog = FakeDialog
+    m.loadingSpinner = { visible: false, control: "", poster: {} }
+    m.busy = {}
     m.authDialogTimer = { control: "" }
     m.pendingEmail = ""
     m.pendingProgressSave = invalid
@@ -697,6 +699,86 @@ sub Main()
         end if
         Finish([])
     end for
+
+    ' Certification 3.4: a loading indicator during visible waits, always cleared.
+    spinner = m.loadingSpinner
+    m.busy = {}
+    spinner.visible = false
+    m.tasks = []
+    m.loading = false
+    m.refreshing = false
+    loadCatalog()
+    Check(spinner.visible and spinner.control = "start", "the spinner shows while the catalog loads")
+    m.catalogTask.result = { error: "PROtv request timed out. Please try again." }
+    catalogLoaded()
+    Check(not spinner.visible and spinner.control = "stop" and Instr(1, m.status.text, "Select Home to retry") > 0, "a failed catalog load clears the spinner and offers a retry")
+    m.refreshing = true
+    loadCatalog()
+    Check(not spinner.visible, "a quiet background catalog refresh shows no spinner")
+    m.catalogTask.result = { error: "", items: [{ id: "g1", title: "G1", contentType: "MOVIE", artwork: "", backdrop: "" }] }
+    catalogLoaded()
+
+    m.mode = "detail"
+    m.selected = { id: "g1", title: "G1", muxPlaybackPolicy: "public" }
+    startPlayback()
+    Check(spinner.visible, "the spinner shows while playback is authorized")
+    m.playTask.result = { error: "PROtv request failed (HTTP 503). Please try again." }
+    playbackLoaded()
+    Check(not spinner.visible and Instr(1, m.status.text, "Select Play to retry") > 0, "a playback authorization failure clears the spinner")
+    startPlayback()
+    cancelPlaybackRequest()
+    Check(not spinner.visible, "leaving before playback starts clears the spinner")
+
+    StartFakePlayback({ id: "g1", title: "G1" })
+    m.video.state = "buffering"
+    videoState()
+    Check(spinner.visible, "the spinner shows while the video buffers")
+    m.video.state = "playing"
+    videoState()
+    Check(not spinner.visible, "it hides when playback resumes")
+    m.video.state = "buffering"
+    videoState()
+    Press("back")
+    Check(not spinner.visible, "exiting while buffering clears the spinner")
+
+    m.account = invalid
+    m.tasks = []
+    m.accountTask = invalid
+    openAccount()
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = { email: "viewer@example.com" }
+    authUserData()
+    authDialogTimerFired()
+    Check(not spinner.visible, "no spinner while the viewer is typing")
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    m.authDialog.text = "secret"
+    m.authDialog.buttonSelected = 0
+    authPasswordButton()
+    Check(spinner.visible, "the spinner shows while PROtv checks the sign-in")
+    Finish(invalid, "PROtv request failed (HTTP 401). Please try again.", 401, "invalid_credentials")
+    Check(not spinner.visible, "a wrong password clears the spinner")
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = { email: "viewer@example.com" }
+    authUserData()
+    authDialogTimerFired()
+    m.authDialog.buttonSelected = 0
+    authEmailButton()
+    m.authDialog.text = "secret"
+    m.authDialog.buttonSelected = 0
+    authPasswordButton()
+    Finish({ customToken: "custom" })
+    Check(spinner.visible and m.tasks[m.tasks.Count() - 1].kind = "firebase-custom", "the spinner stays up while the account session is created")
+    Finish({ idToken: "h.eyJ1c2VyX2lkIjoidmlld2VyIiwic3ViIjoidmlld2VyIn0.s", refreshToken: "r", expiresIn: "3600" })
+    Check(not spinner.visible and m.account <> invalid, "the spinner clears once signed in")
+    Finish({})
+    Finish([])
+    accountSignOutSelected()
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    authDialogClosed()
+    Check(not spinner.visible and m.busy.Count() = 0, "Back on a keyboard leaves no spinner")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub

@@ -207,6 +207,8 @@
         <Font role="font" uri="font:SystemFontFile" size="20" />
       </Label>
     </Group>
+    <!-- Certification 3.4: a loading indicator for waits over 3 seconds. -->
+    <BusySpinner id="loadingSpinner" translation="[608,328]" visible="false" spinInterval="1.2" />
     <Animation id="backdropFade" duration="0.8" easeFunction="inOutQuad" repeat="false">
       <FloatFieldInterpolator id="fadeIn" key="[0.0, 1.0]" keyValue="[0.0, 0.85]" fieldToInterp="backdropB.opacity" />
       <FloatFieldInterpolator id="fadeOut" key="[0.0, 1.0]" keyValue="[0.85, 0.0]" fieldToInterp="backdropA.opacity" />
