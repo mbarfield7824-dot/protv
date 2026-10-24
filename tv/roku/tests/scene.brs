@@ -502,7 +502,6 @@ sub Main()
     m.video.position = 300.0
     m.video.duration = 1200.0
     m.video.seek = -1
-    m.playerKeys = FocusNode()
     m.playerOverlay = FocusNode()
     m.playerOverlay.visible = false
     m.playerHideTimer = { control: "" }
@@ -510,10 +509,10 @@ sub Main()
     m.scrubbing = false
     m.playbackActive = true
     m.previewBase = PreviewBase({ id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" })
-    m.all.Append([m.video, m.playerKeys])
-    m.playerKeys.setFocus(true)
+    m.all.Append([m.video])
+    m.video.setFocus(true)
     toggle = m.top.findNode("playerToggle")
-    Check(Press("OK") and m.video.control = "pause" and m.playerOverlay.visible and m.playerKeys.focused, "OK pauses and shows the controls")
+    Check(Press("OK") and m.video.control = "pause" and m.playerOverlay.visible and m.video.focused, "OK pauses and shows the controls; the Video node keeps focus")
     m.video.state = "paused"
     videoState()
     Check(toggle.text = "Resume" and toggle.icon = "play" and toggle.style = "primary" and m.playerHideTimer.control = "stop", "paused controls highlight Resume and stay up")
@@ -543,14 +542,14 @@ sub Main()
     commitSeek()
     m.video.position = 300.0
     Check(Press("replay") and m.video.seek = 290, "Instant Replay jumps back 10 s")
-    Check(not Press("options"), "the Options key is left to Roku")
+    Check(not Press("options") and m.video.focused, "the Options key is left to Roku and the Video node is focused, so Roku's caption menu can open")
     focusRails()
     focusNav()
     focusHero()
     focusDetails()
     focusAccount()
     focusProfile()
-    Check(m.playerKeys.focused, "nothing takes focus from playback")
+    Check(m.video.focused, "nothing takes focus from the Video node during playback")
     m.rowsStale = false
     refreshRows()
     Check(m.rowsStale, "rail rebuilds wait until playback ends")
@@ -813,6 +812,20 @@ sub Main()
     showAccountState()
     Check(Instr(1, m.top.nodes.accountHint.text, "delete your PROtv account") > 0 and Instr(1, m.top.nodes.accountHint.text, "support@watchprotv.com") > 0, "signed-in viewers see how to request account deletion")
     m.account = invalid
+
+    ' Certification 4.4/4.8: Roku's Options overlay needs the Video node focused during playback.
+    m.all.Append([m.video])
+    m.mode = "detail"
+    m.selected = { id: "g1", title: "G1" }
+    m.video.visible = false
+    m.rails.setFocus(true)
+    startPlayback()
+    m.playTask.result = { error: "", payload: { id: "g1", streamType: "on-demand", muxPlaybackId: "Ab123" } }
+    playbackLoaded()
+    Check(m.video.visible and m.video.focused, "playback start gives the Video node focus")
+    Check(not Press("options") and m.video.focused, "Options during playback is not consumed and focus stays on the Video node")
+    Check(Press("OK") and m.video.focused, "OK still reaches PROtv's controls with the Video node focused")
+    Check(Press("back") and not m.video.visible, "Back still exits playback")
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub
@@ -865,7 +878,7 @@ sub StartFakePlayback(item as Object)
     m.lastSavedPosition = 0
     m.playbackActive = true
     m.progressTimer.control = "start"
-    m.playerKeys.setFocus(true)
+    m.video.setFocus(true)
     renderPlayerOverlay()
 end sub
 

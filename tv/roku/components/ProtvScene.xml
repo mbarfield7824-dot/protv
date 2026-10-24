@@ -187,10 +187,11 @@
     <Label id="status" translation="[426,636]" width="696" height="40" horizAlign="center" vertAlign="center" color="0xE9EEF8FF">
       <Font role="font" uri="font:SystemFontFile" size="17" />
     </Label>
-    <!-- The native player UI consumes OK without pausing, so PROtv owns the
-         remote during playback: playerKeys holds focus, the overlay shows state. -->
+    <!-- The native player UI is off (it consumed OK without pausing); PROtv's
+         overlay shows state. The Video node keeps focus during playback so
+         Roku's Options (*) overlay, with caption settings, can open; the keys it
+         does not handle reach the scene's onKeyEvent. -->
     <Video id="video" visible="false" width="1280" height="720" enableUI="false" />
-    <Group id="playerKeys" focusable="true" />
     <Group id="playerOverlay" visible="false">
       <Poster uri="pkg:/assets/bottom-fade.png" translation="[0,420]" width="1280" height="300" loadDisplayMode="scaleToFill" />
       <Group id="playerPreview" visible="false">

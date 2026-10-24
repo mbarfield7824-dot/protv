@@ -63,7 +63,7 @@ sub init()
     m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
     m.navViews = ["home", "search", "creators", "movies", "series", "blackcinema", "aicinema", "mylist", "continue", "account"]
-    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerKeys", "playerOverlay", "playerHideTimer", "seekTimer", "loadingSpinner"]
+    for each id in ["nav", "sidebar", "topBar", "home", "rails", "heroButtons", "heroDots", "detail", "detailButtons", "accountButtons", "video", "status", "seriesScreen", "seriesSeasons", "seriesEpisodes", "authDialogTimer", "progressTimer", "statusTimer", "rotateTimer", "backdropTimer", "backdropFade", "browseAnim", "sidebarAnim", "playerOverlay", "playerHideTimer", "seekTimer", "loadingSpinner"]
         m[id] = m.top.findNode(id)
     end for
     ' Not m.account: that holds the viewer session (invalid for guests).
@@ -1216,7 +1216,7 @@ sub playbackLoaded()
     m.scrubbing = false
     m.playbackActive = true
     m.video.visible = true
-    m.playerKeys.setFocus(true)
+    m.video.setFocus(true)
     m.video.control = "play"
     renderPlayerOverlay()
     m.progressTimer.control = "start"
@@ -1285,7 +1285,7 @@ sub togglePause()
         m.video.control = "pause"
         m.playerHideTimer.control = "stop"
     end if
-    m.playerKeys.setFocus(true)
+    m.video.setFocus(true)
     renderPlayerOverlay()
 end sub
 
