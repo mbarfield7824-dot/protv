@@ -1,9 +1,12 @@
 # Rights evidence: the 43 titles without structured rights records
 
-**Research file for the owner and counsel, 2026-10-23. Not a legal opinion.
-Nothing has been changed in the catalog.** Companion files: `rights-evidence.csv`
-(one row per title) and `proposed-rights-fields.json` (structured values to
-apply only after approval).
+**Research file for the owner and counsel, 2026-10-23. Not a legal opinion.**
+Applied 2026-10-23 (owner-authorized): structured film-status fields for tiers
+A and B, evidence records for all 43 titles (Firestore
+`titleRightsEvidence`), and 7 reversible restrictions. See
+store/RIGHTS-REPORT.md. Companion files: `rights-evidence.csv` (one row per
+title) and `proposed-rights-fields.json` (the structured values that were
+applied).
 
 ## Method
 
@@ -42,24 +45,29 @@ are listed for reference only and never counted as evidence.
 
 ### Highest-priority findings
 
-1. **The Brain from Planet Arous (1957) was renewed.** Copyright Office
-   renewal **RE0000258469** (1985-09-03), claimant Howco Productions, Inc.,
-   with later assignments recorded. If valid, it is protected in the US until
-   the end of 2052. Its public note says "Public domain." **Recommend
-   unpublishing now, pending counsel.**
-2. **Silent films carry modern scores of unknown origin:** Body and Soul,
-   The Scar of Shame, Within Our Gates and The Phantom of the Opera. The films
-   are public domain by date; the music may not be.
-3. **Government documentaries with Virgil Thomson scores:** The Plow That
-   Broke the Plains and The River. The films are US government works; Thomson's
-   music for The River was renewed (R342616, 1964).
-4. **Foreign or derivative works:** Voyage to the Planet of Prehistoric Women
-   (Soviet *Planeta Bur* footage), The Last Man on Earth (Italian
-   co-production; based on *I Am Legend*, still protected), Beat the Devil
-   (UK/Italy/US; possible 1996 restoration).
-5. **Sita Sings the Blues:** the film is CC0, but some 1920s recordings in it
-   remain federally protected until 2027–2030.
-6. **The Bundy Chronicles:** "PROtv exclusive" with no agreement on record.
+1. **RESTRICTED 2026-10-23 — The Brain from Planet Arous (1957):** renewal
+   **RE0000258469** (1985-09-03, Howco Productions) renews LP0000009453
+   (1957-11-27) for this film; an assignment and an exclusive license were
+   recorded in 2025. Protected in the US through 2052.
+2. **RESTRICTED — Beat the Devil (1953):** Columbia registered the film in 2016
+   (PA0001394584, published in the UK 1953-11-26, the pattern for a URAA
+   restoration); the source novel was renewed (RE0000028779).
+3. **RESTRICTED — The Last Man on Earth (1964):** based on *I Am Legend*,
+   renewed RE0000141686 (1982), protected to 2049.
+4. **RESTRICTED — The Plow That Broke the Plains and The River:** government
+   films whose Virgil Thomson scores are renewed copyrights (R462214, 1969;
+   R342616, 1964).
+5. **RESTRICTED — Voyage to the Planet of Prehistoric Women (1968):** the
+   stated basis is invalid for 1968 works, and the footage is mostly from a
+   Soviet film eligible for URAA restoration.
+6. **RESTRICTED (structured-record title) — 50 Classic Cartoons:** contains
+   *The Unruly Hare* (Warner Bros., 1945), renewed 1972-10-25.
+7. **Open, not restricted:** silent films carry modern scores of unknown
+   origin (Body and Soul, The Scar of Shame, Within Our Gates, The Phantom of
+   the Opera); Sita Sings the Blues (CC0 film; its official terms permit
+   showing the unaltered film; recording rights are a counsel question); The
+   Bundy Chronicles (no agreement on record; consistent with PROtv's own
+   production).
 
 ### Copy checks the owner can do from the source files
 
@@ -480,9 +488,10 @@ restoration of Beat the Devil.
 - Listed in Wikipedia's [List of films in the public domain in the United States](https://en.wikipedia.org/wiki/List_of_films_in_the_public_domain_in_the_United_States)
 - Internet Archive (uploader labels, not evidence of status): [BeatTheDevil1953](https://archive.org/details/BeatTheDevil1953) CC licenses/publicdomain
 - **Copyright Office:** No renewal in the online Copyright Office records (renewal due 1981)
-- **Risk:** UK/Italy/US co-production (Wikidata); if its source country is the UK or Italy, US copyright may have been restored in 1996 (URAA)
-- **Risk:** Sony/Columbia restoration is copyrighted (Wikipedia): confirm the copy is not the restoration
-- **Recommended:** Counsel decision on URAA before launch.
+- **Risk:** Columbia Pictures registered the film in 2016 (PA0001394584), stating publication in the United Kingdom on 1953-11-26: consistent with URAA restoration of a foreign work
+- **Risk:** Columbia declaration recorded 1992 (V2677P365)
+- **Risk:** Source novel by James Helvick renewed RE0000028779 (1979); protected to 2046
+- **Recommended:** RESTRICTED 2026-10-23. Restore only with a license or a counsel opinion.
 
 #### Sita Sings the Blues (2008) — `vuvTzWOcVJJeg12CsTq9`
 
@@ -492,10 +501,9 @@ restoration of Beat the Devil.
 - Wikipedia [article](https://en.wikipedia.org/wiki/Sita_Sings_the_Blues): "=== Copyright problems === The film uses a number of 1920s Annette Hanshaw recordings."
 - Commons [file](https://commons.wikimedia.org/wiki/File:Sita_Sings_the_Blues.webm): CC0 (CC-Zero, Creative Commons-licensed films without audio, Files from external sources with reviewed licenses)
 - Internet Archive (uploader labels, not evidence of status): [Sita1080pFLAC](https://archive.org/details/Sita1080pFLAC) CC licenses/by-sa/3.0/us; [Sita_Sings_the_Blues](https://archive.org/details/Sita_Sings_the_Blues) CC publicdomain/zero/1.0
-- **Risk:** 1920s Annette Hanshaw recordings are federally protected until 100 years after publication (some into 2027–2030, per Wikipedia)
-- **Risk:** Paley's 2009 music license treated free downloads as "promotional copies"; whether it covers third-party streaming is not established
-- **Risk:** Compositions entered the public domain on 2025-01-01 (Wikipedia)
-- **Recommended:** Owner: confirm with the film's official distribution terms; remove if not covered. Correct the "Public domain" note.
+- **Risk:** Official site: film CC0; "Some of the songs in Sita Sings the Blues are not free"; 11 songs licensed so they may be heard "in the context of the original film"; others may "show" and "broadcast" the film; payments apply per DVD sold
+- **Risk:** The 1920s Hanshaw recordings remain federally protected until 2027-2030; whether streaming needs anything beyond the published terms is a question for counsel
+- **Recommended:** Kept available (official terms permit showing the unaltered film). Counsel question only.
 
 #### The Brain from Planet Arous (1957) — `vyjpYtuEpOlCWzyzlaxM`
 
@@ -504,16 +512,18 @@ restoration of Beat the Devil.
 - Wikidata [Q7719816](https://www.wikidata.org/wiki/Q7719816) (no copyright statement)
 - Wikipedia [article](https://en.wikipedia.org/wiki/The_Brain_from_Planet_Arous)
 - Internet Archive (uploader labels, not evidence of status): [brain-from-planet-arous-colorized](https://archive.org/details/brain-from-planet-arous-colorized) no license; [brain-from-planet-arous-1957](https://archive.org/details/brain-from-planet-arous-1957) no license
-- **Risk:** Renewal RE0000258469, 1985-09-03, claimant Howco Productions, Inc. (proprietor of copyright in a work made for hire); later assignments recorded to Wade Williams
-- **Risk:** If valid, US protection runs to the end of 2052
-- **Recommended:** Recommend unpublishing now, pending counsel. The public "Public domain" note is likely inaccurate.
+- **Risk:** RE0000258469 (1985-09-03, Howco Productions, Inc., PWH) is the renewal of LP0000009453 (1957-11-27), the registration of this motion picture
+- **Risk:** Assignment V15035D376 (2025-05-29) and exclusive license V15035D451 (2025-06-02) recorded: rights actively managed
+- **Risk:** Protected in the US through 2052
+- **Recommended:** RESTRICTED 2026-10-23 (rights verification required). Keep restricted unless a license is obtained.
 
 #### The Bundy Chronicles — `sqKR6c5Cq7MD9lg1GDxG`
 
 - **Basis:** Note says "PROtv exclusive"; no agreement, rights holder or license on record
 - **Origin / audio:** not recorded; audio track
-- **Risk:** No public record exists for an independent work; only the agreement can establish rights
-- **Recommended:** Owner: attach the agreement (holder, territory, term) or unpublish.
+- **Risk:** No creator request, contract reference, creator ID or agreement exists in Firestore; uploaded directly on 2026-09-13 by the admin account that also confirms public-domain sources
+- **Risk:** Labelled "PROtv exclusive" in AI Cinema: consistent with PROtv's own production, but authorship and tool terms are not recorded
+- **Recommended:** Kept available. Owner: record the rights holder (and the AI tools' commercial-use terms) or provide the agreement.
 
 #### The Last Man on Earth (1964) — `s0Eu00ADQQZnAoknUpxx`
 
@@ -524,10 +534,10 @@ restoration of Beat the Devil.
 - Listed in Wikipedia's [List of films in the public domain in the United States](https://en.wikipedia.org/wiki/List_of_films_in_the_public_domain_in_the_United_States)
 - Commons [file](https://commons.wikimedia.org/wiki/File:The_Last_Man_on_Earth_(1964)_by_Ubaldo_Ragona_and_Sidney_Salkow.webm): Public domain (PD US not renewed)
 - Internet Archive (uploader labels, not evidence of status): [TheLastManOnEarth_72](https://archive.org/details/TheLastManOnEarth_72) CC publicdomain/zero/1.0; [lastmanonearth-1964](https://archive.org/details/lastmanonearth-1964) CC publicdomain/mark/1.0
-- **Risk:** Based on Richard Matheson's 1954 novel I Am Legend, still under copyright (Wikipedia PD list footnote): derivative-work risk
-- **Risk:** Works from 1964 were renewed automatically, which conflicts with the "not renewed" basis cited
+- **Risk:** Adaptation of I Am Legend, renewed RE0000141686 (1982-11-04); literary rights assigned to Warner Bros. (V2782P253, 1992); protected to 2049
+- **Risk:** 1964 works were renewed automatically, so "not renewed" is not a valid basis
 - **Risk:** Italian co-production: possible URAA restoration
-- **Recommended:** Counsel decision before launch; remove if unresolved.
+- **Recommended:** RESTRICTED 2026-10-23. Restore only with a counsel opinion.
 
 #### The Plow That Broke the Plains (1936) — `APlVZLmiQPIczS9uEbEd`
 
@@ -536,9 +546,9 @@ restoration of Beat the Devil.
 - Wikidata [Q2480639](https://www.wikidata.org/wiki/Q2480639) (no copyright statement)
 - Wikipedia [article](https://en.wikipedia.org/wiki/The_Plow_That_Broke_the_Plains)
 - Internet Archive (uploader labels, not evidence of status): [plow_that_broke_the_plains](https://archive.org/details/plow_that_broke_the_plains) CC licenses/publicdomain
-- **Risk:** Lorentz paid for the music himself (Wikipedia); Thomson's Plow music has recorded copyright documents (1986–1991) and published suites
-- **Risk:** The soundtrack music may be protected even though the film is a government work
-- **Recommended:** Counsel: confirm the score's status or license it (G. Schirmer publishes Thomson).
+- **Risk:** Virgil Thomson score: music published 1942 (EP105394) and renewed R462214 (1969), cited in V2569P419; assignments recorded 1990-91
+- **Risk:** Streaming the soundtrack performs the protected composition
+- **Recommended:** RESTRICTED 2026-10-23. Options: license the music (G. Schirmer publishes Thomson) or a counsel opinion.
 
 #### The River (1938) — `tsq6EVuAjU7hf95yuGl8`
 
@@ -547,9 +557,9 @@ restoration of Beat the Devil.
 - Wikidata [Q2067313](https://www.wikidata.org/wiki/Q2067313): public domain [determined by GLAM institution and stated at its website]; public domain [work of the federal government of the United States]; copyrighted [determined by GLAM institution and stated at its website]
 - Wikipedia [article](https://en.wikipedia.org/wiki/The_River_(1938_film))
 - Internet Archive (uploader labels, not evidence of status): [RiverThe1937_2](https://archive.org/details/RiverThe1937_2) CC licenses/publicdomain; [RiverThe1937](https://archive.org/details/RiverThe1937) CC licenses/publicdomain
-- **Risk:** Thomson's music for The River was renewed: "The River; instrumental", R342616 (1964), cited in recorded document V2569P442
-- **Risk:** Wikidata records conflicting statuses from archives (public domain and copyrighted)
-- **Recommended:** Counsel: confirm the score's status or license it.
+- **Risk:** Virgil Thomson music: "The River; instrumental" renewal R342616 (1964), cited in V2569P442; suite renewal RE0000293855 (1986)
+- **Risk:** Streaming the soundtrack performs the protected composition
+- **Recommended:** RESTRICTED 2026-10-23. Options: license the music or a counsel opinion.
 
 #### Voyage to the Planet of Prehistoric Women (1968) — `SWSvCl89kxWp2qMXHT3w`
 
@@ -559,7 +569,7 @@ restoration of Beat the Devil.
 - Wikipedia [article](https://en.wikipedia.org/wiki/Voyage_to_the_Planet_of_Prehistoric_Women)
 - Commons [file](https://commons.wikimedia.org/wiki/File:VoyagetothePlanetofPrehistoricWomen.webm): Public domain (Files from external sources with reviewed licenses, PD US not renewed)
 - Internet Archive (uploader labels, not evidence of status): [VoyageToThePlanetOfPrehistoricWomen-WeirdnessBadMovie](https://archive.org/details/VoyageToThePlanetOfPrehistoricWomen-WeirdnessBadMovie) CC licenses/by-nd/3.0; [VoyagetothePlanetofPrehistoricWomen](https://archive.org/details/VoyagetothePlanetofPrehistoricWomen) CC licenses/publicdomain
-- **Risk:** Built from footage of the 1962 Soviet film Planeta Bur (Wikipedia); foreign works that lost US protection through formalities were generally restored in 1996 (URAA, 17 USC 104A)
-- **Risk:** Works from 1964–77 were renewed automatically, so "not renewed" (Commons) is not a valid basis; only a missing notice would be
-- **Risk:** Retromedia registered a version in 2003 (PA0001155842)
-- **Recommended:** Counsel decision before launch; remove if unresolved.
+- **Risk:** Stated basis ("not renewed") does not apply to 1968 works (automatic renewal, 17 USC 304(a)); public domain only if published without notice, which is undocumented
+- **Risk:** Most footage from the Soviet film Planeta Bur (1962), eligible for URAA restoration (17 USC 104A)
+- **Risk:** A 2020 bulk assignment (V9973D833) lists the title; the same document lists public-domain titles, so it is weak evidence on its own
+- **Recommended:** RESTRICTED 2026-10-23. Restore only with evidence of publication without notice and clearance of the Planeta Bur footage.
