@@ -11,7 +11,9 @@
 - [ ] Select intended Fire OS devices in Developer Console and confirm compatibility. `minSdk 23` excludes API-22 devices.
 - [ ] Confirm current target API/SDK requirements in the Developer Console at upload; public docs reviewed here describe manifest-based device filtering but did not establish a current numeric target threshold.
 - [ ] Approve final public version name and increment version code above 2 as needed.
-- [ ] Configure a production release signature securely; no key/config found.
+- [ ] Owner authorizes or provides the production signing identity. No reusable private key was found.
+- [x] Gradle accepts local `PROTV_RELEASE_*` environment variables for signing, rejects partial configuration, and requires the keystore outside the repository.
+- [ ] Generate/import and securely back up the owner-approved keystore outside the repository.
 - [ ] Rebuild from the approved source, verify package/version, signature, certificate, and alignment.
 - [ ] Complete final signed-build test and physical installation only after comparing with the intended package signing identity.
 
@@ -34,6 +36,7 @@
 - [x] Listing copy draft in `store-listing.md`.
 - [x] Original branded 1280x720 icon and 1920x1080 background concepts prepared in `artwork/`.
 - [x] Four authentic 1920x1080 Firestick screenshot captures staged in `artwork/`.
+- [x] PNG dimensions/encoding validated: 4 screenshots at 1920x1080, store icon at 1280x720, background at 1920x1080; all are 8-bit RGB without alpha.
 - [ ] Owner approves icon, background, screenshot selection, and any displayed third-party/catalog artwork rights.
 - [ ] Select 3–10 accurate, distinct screenshots; required Fire TV dimensions: 1920x1080 landscape, JPG or 24-bit PNG, no transparency.
 - [ ] Review listing copy, category, keywords, support contact, territories, price, rating, and release notes.
@@ -44,6 +47,7 @@
 - [x] Check signed-in account for an existing listing; App List was empty. Owner approved creating an incomplete PROtv draft (Amazon app ID and release ID are in `README.md`).
 - [ ] Confirm this is the correct Amazon account and verify the intended package/signing identity before uploading any binary.
 - [ ] Review app-specific signing/update constraints and use the matching private key.
+- [ ] Retry Amazon certificate hashes after the Console HTTP 500 is fixed if needed for platform integrations; the dialog identifies these as Amazon's post-ingestion distribution certificate, not the developer upload certificate.
 - [ ] Complete privacy, account/data deletion, rating, device selection, listing, and asset fields.
 - [ ] Upload only the final signed, verified release binary.
 - [ ] Owner explicitly authorizes submission for publication.

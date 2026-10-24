@@ -20,5 +20,14 @@ mux-access-token-*.env
 *.key
 *.p8
 *.p12
+*.jks
+*.keystore
+*.jceks
+*.apk
+*.aab
+*.apks
+*.idsig
+key.properties
+keystore.properties
 backend/.data/safety-reports.json
 backend/.data/safety-reports.json.*.tmp

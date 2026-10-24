@@ -1,6 +1,6 @@
 # Amazon Appstore listing draft
 
-**Owner approval required.** Prepared for Fire TV; no Amazon Console fields have been saved.
+**Owner approval required.** Draft listing copy is prepared. The Console app entry and initial category are saved, but the listing details below have not been entered or published.
 
 ## App identity
 
@@ -8,10 +8,10 @@
 - Publisher: Prophecy Entertainment LLC
 - Package: `com.protv.firetv`
 - Website: https://watchprotv.com/
-- Support email: support@watchprotv.com (shown on the current Privacy page; owner should verify it is monitored)
+- Support email proposal: support@watchprotv.com (shown on the current Privacy page; mailbox operation/monitoring is not verifiable here). The Console currently has the Amazon account-default contact selected, which is customer-accessible, at the owner's direction.
 - Privacy policy: https://watchprotv.com/privacy
 - Account deletion URL: **not available**; see `privacy-data-review.md`.
-- Category, marketplaces, rating, and release version: owner to select/approve in Developer Console.
+- Console category/subcategory: Movies & TV > On-Demand Movie Streaming. Marketplace, rating, and release version: owner to select/approve in Developer Console.
 
 ## Short description
 
@@ -45,7 +45,7 @@ Independent films; movies; series; streaming; Fire TV; PROtv.
 
 Provide an owner-authorized non-admin test account only after the account is created and tested. A network connection is required for account sync and streaming. The reviewer should be able to browse without signing in; sign-in is needed to test My List and cross-session Continue Watching. Do not use a real customer's account.
 
-**Not yet complete:** reviewer test credentials, content-specific test title approved for launch, category selection, territory/device targeting, rating answers, support details, privacy labels, deletion URL, and final signed binary.
+**Not yet complete:** reviewer test credentials, content-specific test title approved for launch, territory/device targeting, rating answers, verified monitored support details, privacy labels, deletion URL, and final signed binary.
 
 ## Store artwork
 

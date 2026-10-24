@@ -11,3 +11,23 @@ Do not uninstall or clear data to roll back. Android permits in-place update onl
 The historical signed 0.1.0 APK in the separate Roku checkout is not the current RC and the signing private key was not located. Do not assume it can update the current installation or use it as a recovery binary without checking signature and package version compatibility first.
 
 Before any future update, preserve the current APK and its checksum, verify the new candidate's signature against the installed app, and use a separate test device if the signature or version check fails.
+
+## Production keystore backup procedure
+
+The production upload keystore must remain outside the repository. The Gradle release configuration reads these local environment variables and never writes their values into the project:
+
+- `PROTV_RELEASE_KEYSTORE_PATH`
+- `PROTV_RELEASE_KEYSTORE_PASSWORD`
+- `PROTV_RELEASE_KEY_ALIAS`
+- `PROTV_RELEASE_KEY_PASSWORD`
+
+After the owner approves a signing identity and the key is generated:
+
+1. Store the primary keystore in an access-controlled, encrypted release-signing location outside all checkouts. Restrict access to authorized release maintainers.
+2. Store the keystore and both passwords in the organization's approved encrypted password manager or secrets vault; do not put them in `.env`, Gradle properties committed to the repo, chat, email, or shell history.
+3. Create a second encrypted offline backup on separately controlled media and record its custody/location in the owner-controlled password manager. Do not store the backup beside the primary copy.
+4. Verify the keystore can be read with `keytool -list -v` using the password prompt, and verify its public certificate fingerprint. Never export or print the private key.
+5. Perform a controlled restore test from the backup to a temporary location outside the repository, verify the certificate fingerprint matches, and securely remove the temporary restored copy.
+6. Keep an owner-approved recovery contact/process and rotate neither the key nor alias without evaluating Amazon update compatibility.
+
+No keystore or passwords are present in this package. A new key must not be created until the owner explicitly approves the new signing identity.

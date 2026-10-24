@@ -103,9 +103,43 @@ val firebaseProjectId = configuredValue(
     "VITE_FIREBASE_PROJECT_ID",
 )
 
+val releaseSigningProperties = mapOf(
+    "PROTV_RELEASE_KEYSTORE_PATH" to providers.environmentVariable("PROTV_RELEASE_KEYSTORE_PATH").orNull,
+    "PROTV_RELEASE_KEYSTORE_PASSWORD" to providers.environmentVariable("PROTV_RELEASE_KEYSTORE_PASSWORD").orNull,
+    "PROTV_RELEASE_KEY_ALIAS" to providers.environmentVariable("PROTV_RELEASE_KEY_ALIAS").orNull,
+    "PROTV_RELEASE_KEY_PASSWORD" to providers.environmentVariable("PROTV_RELEASE_KEY_PASSWORD").orNull,
+)
+val releaseSigningConfigured = releaseSigningProperties.values.count { !it.isNullOrBlank() }
+require(releaseSigningConfigured == 0 || releaseSigningConfigured == releaseSigningProperties.size) {
+    "Configure all four PROTV_RELEASE_* signing environment variables or none."
+}
+val releaseKeyFile = if (releaseSigningConfigured == releaseSigningProperties.size) {
+    val keyFile = file(requireNotNull(releaseSigningProperties["PROTV_RELEASE_KEYSTORE_PATH"]))
+        .canonicalFile
+    val repositoryRoot = rootProject.projectDir.resolve("../..").canonicalFile
+    require(!keyFile.path.startsWith("${repositoryRoot.path}${File.separator}", ignoreCase = true)) {
+        "The production keystore must be stored outside the repository."
+    }
+    require(keyFile.isFile) { "The configured production keystore file does not exist." }
+    keyFile
+} else {
+    null
+}
+
 android {
     namespace = "com.protv.firetv"
     compileSdk = 37
+
+    signingConfigs {
+        if (releaseKeyFile != null) {
+            create("production") {
+                storeFile = releaseKeyFile
+                storePassword = releaseSigningProperties.getValue("PROTV_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningProperties.getValue("PROTV_RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningProperties.getValue("PROTV_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.protv.firetv"
@@ -132,6 +166,9 @@ android {
                 "String", "API_BASE_URL",
                 buildConfigString(normalizedApiBaseUrl.takeIf { it.startsWith("https://") }.orEmpty()),
             )
+            if (releaseKeyFile != null) {
+                signingConfig = signingConfigs.getByName("production")
+            }
         }
     }
 

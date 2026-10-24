@@ -7,6 +7,7 @@
 - `store-listing.md` — proposed listing copy, metadata, and reviewer notes.
 - `privacy-data-review.md` — observed Fire TV data flows and deletion/privacy blockers.
 - `rights-launch-review.md` — reuse of the Roku rights review, restricted-title list, and approval queue.
+- `rights-launch-matrix.md` — title-level owner/counsel triage with exact catalog IDs; no catalog edits.
 - `test-results.md` — latest automated and owner-reported physical test evidence.
 - `submission-checklist.md` — technical and console checklist.
 - `owner-approvals.md` — concise unresolved decisions and credentials needed.
@@ -29,7 +30,9 @@ The unsigned `app-release-unsigned.apk` is **not** copied into this package as a
 - With owner approval, created an incomplete draft app titled **PROtv**, category **Movies & TV > On-Demand Movie Streaming**. Amazon app ID: `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`. Draft release ID: `amzn1.devportal.apprelease.ca213de1703a4a5183eb85986b936e7e`.
 - The form's account-default support contact was selected at the owner's direction; Amazon states this contact is accessible to customers. Review or replace it with an owner-approved monitored public support channel before publication.
 - The Console is at **Step 1: Upload your app file**. No file has been uploaded. The available local release APK is unsigned and must not be uploaded.
-- The **Appstore Certificate Hashes** request returned HTTP 500, so the account signing-certificate hashes remain unknown. No signing/update compatibility conclusion is possible yet.
+- The **Appstore Certificate Hashes** request returned HTTP 500. The dialog explained that Amazon removes the developer signature during ingestion and applies an account-specific Amazon signature. The unavailable hashes are Amazon's distribution certificate hashes; they are not the developer upload-key fingerprints and are not a substitute for a developer-signed APK.
+- This account has no prior app entry or release history, so no prior app-specific upload certificate was found in Console. The historical signed 0.1.0 APK at `D:\protv` is not the current release; its certificate fingerprint is recorded in `test-results.md`, but its private key was not found. Do not use the debug keystore or assume the historical certificate can be reproduced.
+- A release signing configuration now accepts the four `PROTV_RELEASE_*` environment variables and rejects partial configuration or a keystore inside the repository. No keystore was created or configured because the production signing identity still needs explicit owner authorization.
 - No target devices, marketplace, pricing, ratings, privacy answers, deletion URL, or listing screenshots were selected. The draft remains incomplete and not published.
 
 All Firestick captures in `artwork/` are authentic AFTMM device screenshots at 1920x1080. Screenshots containing catalog art are for internal owner review only until rights clearance for those displayed titles/artwork is confirmed.
