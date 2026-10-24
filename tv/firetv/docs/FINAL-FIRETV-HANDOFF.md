@@ -113,11 +113,21 @@ Set `PROTV_TV_API_BASE_URL=https://watchprotv.com/api/` for the HTTPS release en
 - Release output: `app/build/outputs/apk/release/app-release-unsigned.apk`; SHA-256 `CBA8CCC70BCB05CAB04FA3EF27166DF24DD75CFF767D33ED1C16882645A4E565`. It is zip-aligned but **unsigned**, so it is not an installable production release.
 - Read-only live check returned 49 eligible titles (44 movies, 5 episodes). All seven records currently marked `rights-verification-required` were absent from the catalog; each title-detail and playback-by-ID request returned 404. No media was played. The backend's `releaseEligible`/viewer-catalog filter remains authoritative.
 - Playback diagnostics now report only an error class/code, not exception traces that could include a signed stream URL or token.
-- No ADB device was attached. These results do not establish installed-app certificate compatibility or physical Fire TV behavior.
+- No ADB device was attached during the initial candidate validation, so those results did not establish installed-app certificate compatibility or physical Fire TV behavior.
+
+### RC1 homepage scroll correction (2026-10-24)
+
+- Root cause: when UP moved focus from a rail into the hero, the focused control's bring-into-view request scrolled the tall first list item to expose that control, leaving the hero's upper content clipped.
+- On hero focus, the existing home list now animates to item 0 with the list's natural zero offset. Normal row focus, layout, and sidebar behavior are unchanged.
+- Added a regression test that enters hero focus from a lower row and verifies the top-restoration request is emitted.
+- Revalidated: **104 unit tests across 17 suites**, 0 failures/errors/skips; lint and debug assembly succeeded.
+- Installed the corrected debug APK in place on AFTMM after confirming the signer matches. Existing app data was preserved (`firstInstallTime` unchanged); the installed app launched successfully as `0.2.0-rc1` / version code 2.
+- Corrected debug APK SHA-256: `5C3926EA217AE08D2B828F09F685510D5420509F0084501673B8BAE04CC76CE7` (same debug signer fingerprint listed above).
+- ADB D-pad traversal reached the bottom row and returned to the top; device screenshots showed the full hero, featured content, and first rail. Opening and dismissing the drawer from the lower rows preserved the scroll position. The owner then physically verified scrolling and drawer behavior on the Firestick and confirmed the fix looks good.
 
 ## Known limits and blockers
 
-- This execution has no connected ADB device; physical Fire TV installation and current UI/playback/sign-in testing remain pending.
+- The corrected RC1 APK is installed on an AFTMM Firestick, and the owner confirmed the homepage scroll fix and drawer behavior. Playback, sign-in, and the remaining physical checklist are still pending.
 - No build artifact is production-signed; do not submit or install the unsigned release.
 - Historical physical test results in prior reports do not substitute for testing this exact version `0.2.0-rc1`.
 - Amazon reviewer account, final IP/rights checks, privacy/account deletion review, content rating, supported-device selection and marketing assets require owner action.

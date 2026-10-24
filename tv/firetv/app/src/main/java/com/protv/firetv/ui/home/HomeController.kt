@@ -116,6 +116,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
     /** True when the hero Play button, rather than a rail card, is the focus to restore. */
     var heroFocused by mutableStateOf(false)
         private set
+    var heroTopRestoreToken by mutableIntStateOf(0)
+        private set
     var featuredIndex by mutableIntStateOf(0)
         private set
     var rotationResetToken by mutableIntStateOf(0)
@@ -145,6 +147,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
     fun onHeroFocused() {
         heroFocused = true
         restorePending = false
+        heroTopRestoreToken++
     }
 
     fun rotateFeatured(featuredCount: Int) {

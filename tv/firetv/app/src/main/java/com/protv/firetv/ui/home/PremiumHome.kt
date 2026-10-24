@@ -133,6 +133,12 @@ fun PremiumHome(
             else emptyRequester.requestFocus()
         }
     }
+    LaunchedEffect(controller.heroTopRestoreToken, destination, showHero, controller.heroFocused) {
+        if (destination == HomeDestination.Home && showHero && controller.heroFocused) {
+            withFrameNanos { }
+            controller.listState.animateScrollToItem(0)
+        }
+    }
     Box(Modifier.fillMaxSize().background(ProTvColors.Black)) {
         Box(Modifier.fillMaxSize()
             .focusRequester(emptyRequester)

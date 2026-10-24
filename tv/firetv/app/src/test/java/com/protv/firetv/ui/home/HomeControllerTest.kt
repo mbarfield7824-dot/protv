@@ -79,6 +79,19 @@ class HomeControllerTest {
     }
 
     @Test
+    fun focusingHeroAfterNavigatingFromBottomRequestsRestorationToTheTop() {
+        val controller = HomeController(null, "")
+        controller.onTileFocused("last-title", "last-row")
+        val previousRestoreToken = controller.heroTopRestoreToken
+
+        controller.onHeroFocused()
+
+        assertEquals(previousRestoreToken + 1, controller.heroTopRestoreToken)
+        assertTrue(controller.heroFocused)
+        assertFalse(controller.restorePending)
+    }
+
+    @Test
     fun emptyCatalogHasNoHeroToFocus() {
         val controller = HomeController(repository(emptyList()), "https://api.example/api/")
         runBlocking { withTimeout(5_000) { controller.load() } }
