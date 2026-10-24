@@ -1,7 +1,7 @@
 # Remaining Roku certification tests (owner, physical TV)
 
-Build: `dist/releases/protv-roku-v0.5.6-tv-verified.zip` (SHA-256
-`78805d67…5920763c`). Read-only checks already run from the PC on
+Build: `dist/releases/protv-roku-v1.0.0-rc1.zip` (SHA-256
+`86571fab…5571732f`). Footer on the Account screen: **PROtv for Roku 1.0.0**. Read-only checks already run from the PC on
 2026-10-23: catalog 100 KB in about 0.2 s, playback authorization about
 0.15 s, Mux seek previews 0.6–0.9 s each, deep-link targets valid.
 
@@ -106,3 +106,13 @@ Use the router or the PC's mobile hotspot. Do not unplug the Roku.
   memory, or slowing navigation.
 - **Evidence:** save the PuTTY window text (right-click the title bar, then
   Copy All to Clipboard, and paste into a text file) plus the console log.
+
+## 6. Release candidate checks (1.0.0)
+
+1. Cold launch: a blue spinner shows while PROtv loads, then the home screen.
+2. Press Play on a title: the spinner shows briefly, then playback starts.
+3. Sign out, then Sign in: the spinner shows after you choose Sign in on the
+   password keyboard and disappears when "Signed in." appears.
+4. Wrong password, and Back on a keyboard: no spinner is left on screen.
+5. Repeat the 7 core checks (playback controls clear on exit, Continue
+   Watching, resume, sign-in after restart, My List, episodes, remote controls).

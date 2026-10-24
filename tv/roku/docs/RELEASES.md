@@ -1,5 +1,32 @@
 # Roku release checkpoints
 
+## 1.0.0 release candidate 1 (2026-10-24, not yet TV-tested)
+
+| Item | Value |
+| --- | --- |
+| Branch | `release/roku-1.0` (local) |
+| Manifest | 1.0.0 |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc1.zip` (read-only) |
+| SHA-256 | `86571fab6be10be332d9b2aa29ddb7d24d6eaa95048a0b137931e8485571732f` |
+| Changes since v0.6.1 | Loading spinner for visible waits (certification 3.4); version 1.0.0 |
+
+This is a **sideload ZIP, not a signed store package**. The signed .pkg is
+made on the developer TV with Roku's Packager (RELEASE-PREP.md section 5).
+
+## roku-v0.6.1-tv-verified (2026-10-24)
+
+Owner-verified on a physical Roku: on-device email/password sign-in, Roku
+keyboard navigation, sign-in persistence, movie playback, Continue Watching
+after restart (with backend fix b123f03 in production), resume.
+
+| Item | Value |
+| --- | --- |
+| Git tag | `roku-v0.6.1-tv-verified` (annotated, local) on `92b8105` |
+| Manifest | 0.6.1 |
+| Sideload ZIP | `dist/releases/protv-roku-v0.6.1-tv-verified.zip` (read-only) |
+| SHA-256 | `d2975203d75f2398744526ddcd98b00e774d30c64f08b52bd1644b87d24f1229` |
+| Needs backend | `/api/auth/tv/*` (PR #11) and the progress fix (PR #12), both in production |
+
 ## roku-v0.5.6-tv-verified (2026-10-23)
 
 Owner-verified on a physical Roku TV. All seven tests passed:

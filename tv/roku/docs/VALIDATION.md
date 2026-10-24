@@ -1,5 +1,18 @@
 # Roku validation record
 
+## 1.0.0 RC1 - 2026-10-24 (local time)
+- Baseline: v0.6.1 owner-verified on the TV; tagged roku-v0.6.1-tv-verified.
+- Certification 3.4: BusySpinner during catalog load, playback
+  authorization, buffering and sign-in; cleared on every success, failure,
+  cancel and Back path (15 new scene regressions).
+- npm run check: 0 diagnostics. npm test 10/10: 175 model assertions, 204
+  scene regressions. npm run smoke (live): 56 titles, playback and HLS 200,
+  Roku trick-play playlist present. Catalog audit unchanged (56 playable, no
+  duplicates, all 2:3, no caption tracks; ratings on 2 of 56 titles).
+- ZIP: dist/releases/protv-roku-v1.0.0-rc1.zip, SHA-256
+  86571fab6be10be332d9b2aa29ddb7d24d6eaa95048a0b137931e8485571732f.
+- **Not device tested.**
+
 ## Email keyboard focus fix (v0.6.1 dev) - 2026-10-23 (local time)
 - Device (v0.6.0): after Sign in and Roku's email request, the email keyboard
   appeared pre-filled but the remote did nothing.
