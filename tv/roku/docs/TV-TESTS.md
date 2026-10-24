@@ -176,6 +176,11 @@ deep link in step 7, On mute / On replay.
 
 ## 8. RC5 candidate checks (about 20 minutes)
 
+Run after the Roku launch catalog is deployed (store/OWNER-APPROVALS.md, batch 1):
+Home should show the 28 launch titles, the Series menu should be hidden (no
+episodes yet), and Gulliver's Travels (on the website) must not appear on
+Roku.
+
 RC5 runs the same playback code as RC4. These checks confirm the package
 itself before signing. Sideload `dist/releases/protv-roku-v1.0.0-rc5-candidate.zip`.
 
@@ -190,8 +195,8 @@ itself before signing. Sideload `dist/releases/protv-roku-v1.0.0-rc5-candidate.z
 5. Deep links (PC; replace the IP):
    `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"`
    (Tears of Steel plays), then while it plays
-   `curl -d "" "http://<TV-IP>:8060/input/dev?contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode"`
-   (the Superman episode plays), then a restricted title:
+   `curl -d "" "http://<TV-IP>:8060/input/dev?contentId=hKPU3JNJ4faWLgWE6ZSq&mediaType=movie"`
+   (Big Buck Bunny plays), then a restricted title:
    `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=vyjpYtuEpOlCWzyzlaxM&mediaType=movie"`
    (Home with "unavailable"; nothing plays).
 6. Network: during playback unplug the router for 30 s: spinner, then the

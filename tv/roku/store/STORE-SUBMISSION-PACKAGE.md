@@ -55,8 +55,10 @@ by exactly 1.5×; never crop, stretch or edit what the app shows.
 3. Scale each one on this PC:
    `ffmpeg -i in.jpg -vf scale=1920:1080:flags=lanczos -q:v 2 out.jpg`
    (ffmpeg is installed at `C:\Users\Owner\bin\ffmpeg`).
-4. Use only **cleared** titles (TITLE-RIGHTS-MATRIX.md): Tears of Steel,
-   Sintel, Big Buck Bunny, Elephants Dream, The Lost Camp, Dead Air.
+4. Capture **after Batch 1 is deployed**, so the app shows only the Roku launch
+   catalog (ROKU-LAUNCH-CATALOG.md, Group A), and after Batch 2 if approved
+   (new posters). Feature Tears of Steel, Sintel, Big Buck Bunny, Elephants
+   Dream, The Lost Camp or Dead Air.
 
 | # | Screen | How to get there |
 | --- | --- | --- |
@@ -67,9 +69,8 @@ by exactly 1.5×; never crop, stretch or edit what the app shows.
 | 5 | Search | Search > type "steel" |
 | 6 | Account screen | Account, signed out (no email visible) |
 
-Posters on Home show other titles. Before capturing, check that no screenshot
-features a high-risk title's poster (TITLE-RIGHTS-MATRIX.md), or a poster
-that depicts a real performer (His Girl Friday, The Duke Is Tops).
+Home rails show other launch titles. If Batch 2 is not yet applied, keep the
+His Girl Friday and The Duke Is Tops posters (real performers) out of frame.
 
 ## 5. Test credentials and reviewer account
 
@@ -110,12 +111,16 @@ that depicts a real performer (His Girl Friday, The Duke Is Tops).
 
 ## 7. Deep-link samples (dashboard) and test cases
 
-Dashboard samples (one per media type; "Valid until" one year):
+Dashboard samples (one per media type in the Roku catalog; "Valid until"
+one year). The Roku launch catalog contains movies only (every episode is on
+rights hold), so one movie sample is required:
 
 | Media type | Content ID | Content title |
 | --- | --- | --- |
 | movie | `gbcxmtl6mAHQeBxx8Dgs` | Tears of Steel |
-| episode | `iUX01XuVHd9okFW4gmqR` | Fleischer Studios' Superman (owner confirms; no episode is fully cleared, and this one is low risk) |
+
+The app still supports `mediaType=episode`. Add an episode sample when an
+episode joins the Roku catalog.
 
 Roku says a Content ID "must match the PlayId in your search feed". PROtv has
 no Roku search feed. The IDs above are the IDs the app resolves; if the
@@ -127,10 +132,11 @@ Test cases (`<TV-IP>` = the TV's address; the app must be sideloaded as dev):
 | # | Command | Expected |
 | --- | --- | --- |
 | 1 | `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"` | App launches and Tears of Steel plays directly |
-| 2 | While it plays: `curl -d "" "http://<TV-IP>:8060/input/dev?contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode"` | The episode replaces it and plays |
+| 2 | While it plays: `curl -d "" "http://<TV-IP>:8060/input/dev?contentId=hKPU3JNJ4faWLgWE6ZSq&mediaType=movie"` | Big Buck Bunny replaces it and plays |
 | 3 | `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=doesNotExist&mediaType=movie"` | Home with an "unavailable" message |
 | 4 | `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=series"` | Home with a "not supported" message |
 | 5 | `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=vyjpYtuEpOlCWzyzlaxM&mediaType=movie"` (restricted title) | Home with "unavailable"; nothing plays |
+| 5b | After Batch 1: `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=t6Ii7hflAigcefjBRz3r&mediaType=movie"` (Gulliver's Travels, rights hold, still on the website) | Home with "unavailable"; nothing plays on Roku |
 | 6 | Account > Sign in, keyboard open, then case 1 | The keyboard closes and the title plays |
 
 ## 8. Sign-in and sign-out scripts (App Behavior Analysis)

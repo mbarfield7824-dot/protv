@@ -6,6 +6,24 @@ Not signed.** RC5 engineering is frozen and unchanged.
 **Verdict: not ready to submit.** The app is finished and TV-verified. What
 remains is rights, legal and owner-only steps (section 9), not engineering.
 
+## Update, 2026-10-24 (rights remediation pass)
+
+| Item | Status |
+| --- | --- |
+| Roku launch catalog | **28 titles ready (Group A)**, 6 remediation-ready (Group B), 15 on rights hold (Group C); 7 restricted unchanged. Evidence: ROKU-LAUNCH-CATALOG.md |
+| Server-side eligibility | Built and tested on `feature/roku-launch-eligibility` (`58d0f28`); **not deployed**. Roku sees only Group A; website and Fire TV unchanged |
+| Replacement media | 6 verified sources pinned by checksum; KIPHO muted file staged; `apply-remediation.cjs check` passed; not applied |
+| Posters | 3 original replacements (900x1350): His Girl Friday, The Duke Is Tops, The Incredible Petrified World; not applied |
+| Captions | Official Tears of Steel subtitles (CC BY) converted and checked (timing aligned to +0.1 s); human review pending; not attached |
+| RC5 | Unchanged (SHA-256 `94fc56ce…`); 12/12 tests pass; live smoke passes |
+| Signing | Not signed: no Roku reachable from this PC and no credentials exist here |
+| 2-hour soak | **Not performed** |
+| Ready to submit | **No.** Next steps: OWNER-APPROVALS.md (5 batched decisions) |
+
+Earlier content below is kept for history; where it differs, this update and
+OWNER-APPROVALS.md take precedence.
+
+
 ## 1. Completed requirements
 
 | Requirement | Status | Evidence |

@@ -102,11 +102,11 @@ First release of PROtv for Roku: browse the PROtv catalog, sign in or create a f
 - **Deep links** (contentId + mediaType; invalid IDs land on Home with a
   message):
   - Movie: `contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie` (Tears of Steel, 12 min; rights cleared)
-  - Episode: `contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode` (Fleischer Studios' Superman, 10 min). No episode is fully cleared (store/rights-launch-classification.md); this replaces One Step Beyond - The Storm (tier C, listed in a 1992 CBS catalog assignment). OWNER confirms before submitting.
+  - Episode: none. The Roku launch catalog is movies only (store/ROKU-LAUNCH-CATALOG.md); every episode is on rights hold.
   - Test on a dev device:
     `curl -d "" "http://<roku-ip>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"`
     and while running:
-    `curl -d "" "http://<roku-ip>:8060/input/dev?contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode"`
+    `curl -d "" "http://<roku-ip>:8060/input/dev?contentId=hKPU3JNJ4faWLgWE6ZSq&mediaType=movie"`
 
 ## Reviewer test account (OWNER, about 5 minutes)
 

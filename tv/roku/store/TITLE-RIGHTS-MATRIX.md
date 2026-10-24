@@ -1,5 +1,9 @@
 # PROtv rights matrix (title by title)
 
+> **Classifications superseded on 2026-10-24 by ROKU-LAUNCH-CATALOG.md**
+> (primary renewal-record searches, verified replacement copies and the Roku
+> launch groups). The per-title copy findings below remain valid.
+
 **Investigation of 2026-10-24. Not a legal opinion. No title is represented as
 legally cleared beyond the documents cited.** This file supersedes the counts
 in rights-launch-classification.md. Nothing in production was changed: no
