@@ -27,12 +27,12 @@ check; **owner** = needs the owner.
 | 4.5 | Screensaver untouched | Met | |
 | 4.6 | Back returns to the previous screen; Back on Home exits | Met | TV, auto |
 | 4.7 | Trick-play thumbnails, VOD over 15 min (42 titles) | Implemented; unverified on TV | Mux previews while seeking (auto); TV |
-| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live) |
+| 4.8 | Captions/audio description where required by law | **Open: legal decision** | No caption or alternate-audio tracks in any of 56 manifests (live). 47 CFR 79.4 analysis and recommended path in store/rights-matrix.md; the app shows HLS WebVTT tracks with no code change |
 | 4.9 | Instant Replay 10–25 s | Met | 10 s (auto) |
 | 4.10 | Bookmarks, VOD over 15 min, 30+ days | Met | Continue Watching and resume after restart (TV, v0.6.1 + backend fix b123f03) |
 | 4.12 | Roku voice keyboards for email and password | Met | StandardKeyboardDialog (DynamicKeyboard), email/password domains (TV) |
 | 4.2, 4.11, 4.13, 4.14, 2.3 | AAL, voice, Continue Watching tile, Instant Resume, Instant Signup | Not applicable at launch | Viewing-hour thresholds |
-| 5.1 | Deep linking; invalid links go Home | Implemented; unverified on TV | movie and episode (auto); TV-TESTS.md test 3 |
+| 5.1 | Deep linking; invalid links go Home | Implemented; unverified on TV | movie and episode, from Home, during playback, and (RC2) while a sign-in keyboard is open (auto); TV-TESTS.md test 3 |
 | 5.2 | Direct to Play for voice playback | Deep links play directly | Voice discovery needs Roku Search content; confirm at submission |
 | 6.1 | Non-zero version, incremented per submission | Met | 1.0.0 |
 | 6.2 | Kids & Family rules | Not applicable | |
@@ -41,13 +41,18 @@ check; **owner** = needs the owner.
 
 ## Dashboard (owner)
 
-Privacy and terms URLs (the privacy policy needs the TV additions first),
-support phone and contacts, sign-in reviewer account, age rating (one TV-MA,
-one PG, 54 unrated), countries (rights), screenshots, signed .pkg. Values and
-drafts are in store/listing.md.
+Privacy and terms URLs (publish store/legal/ drafts first), support phone and
+contacts, sign-in reviewer account, age rating (one TV-MA, one PG, 54
+unrated), countries (store/rights-matrix.md recommends US only), screenshots,
+signed .pkg. Values, reviewer notes and the submission checklist are in
+store/listing.md.
 
 ## Recommended
 
-- Website account deletion (docs/account-deletion-plan.md).
-- Catalog metadata fixes (docs/catalog-corrections-proposal.md).
-- Rights documentation on file for every title before choosing countries.
+- Website self-service account deletion (docs/account-deletion-plan.md); the
+  Roku Account screen tells signed-in viewers to email support@watchprotv.com.
+- Catalog: years from titles and the His Girl Friday synopsis applied
+  2026-10-23 with adminAudit entries; series names and categories remain
+  proposals (docs/catalog-corrections-proposal.md).
+- Rights documentation for the 43 titles that rely on a description note
+  (store/rights-matrix.md).

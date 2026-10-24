@@ -1416,6 +1416,8 @@ sub applyLaunch()
     result = ResolveLaunch(m.pendingLaunch, m.items)
     m.pendingLaunch = invalid
     if result.error = "" and result.item = invalid then return
+    ' A deep link ends any sign-in in progress so no keyboard keeps focus over playback.
+    if m.authFlow <> invalid or m.authDialog <> invalid then endAuthFlow()
     if m.searchDialog <> invalid
         m.searchDialog.unobserveField("wasClosed")
         m.searchDialog.close = true
@@ -1622,7 +1624,7 @@ sub showAccountState()
     if signedIn
         m.top.findNode("accountMessage").text = "Signed in. Continue Watching and My List are synchronized with your PROtv account."
         action.text = "Refresh my titles"
-        m.top.findNode("accountHint").text = ""
+        m.top.findNode("accountHint").text = "To delete your PROtv account or its data, email support@watchprotv.com."
     else
         m.top.findNode("accountMessage").text = "Sign in or create a free PROtv account to keep My List and Continue Watching in sync across this TV and watchprotv.com. You can also keep watching as a guest."
         action.text = "Sign in"

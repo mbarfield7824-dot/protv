@@ -779,6 +779,40 @@ sub Main()
     authUserData()
     authDialogClosed()
     Check(not spinner.visible and m.busy.Count() = 0, "Back on a keyboard leaves no spinner")
+
+    ' Certification 5.1: deep links play directly from any state.
+    m.items = [{ id: "m1", title: "Movie One", contentType: "MOVIE", artwork: "", backdrop: "" }, { id: "e1", title: "Episode One", contentType: "EPISODE", seriesTitle: "Show", seasonNumber: 1, episodeNumber: 1, artwork: "", backdrop: "" }]
+    m.loaded = true
+    m.account = invalid
+    m.accountTask = invalid
+    m.tasks = []
+    openAccount()
+    accountActionSelected()
+    m.stores[m.stores.Count() - 1].userData = invalid
+    authUserData()
+    authDialogTimerFired()
+    keyboard = m.authDialog
+    m.pendingLaunch = { contentId: "m1", mediaType: "movie" }
+    applyLaunch()
+    Check(m.authFlow = invalid and m.authDialog = invalid and keyboard.close, "a deep link closes an open sign-in keyboard")
+    Check(m.mode = "detail" and m.selected.id = "m1" and m.tasks[m.tasks.Count() - 1].kind = "playback" and m.tasks[m.tasks.Count() - 1].path = "/v1/catalog/titles/m1/playback", "a movie deep link starts playback directly")
+    Check(not Press("left") or m.authDialog = invalid, "no keyboard holds focus after the deep link")
+    StartFakePlayback({ id: "m1", title: "Movie One" })
+    m.pendingLaunch = { contentId: "e1", mediaType: "episode" }
+    applyLaunch()
+    Check(not m.playbackActive and not m.playerOverlay.visible and m.selected.id = "e1" and m.tasks[m.tasks.Count() - 1].path = "/v1/catalog/titles/e1/playback", "an episode deep link during playback ends the current title and plays the episode")
+    m.pendingLaunch = { contentId: "missing", mediaType: "movie" }
+    applyLaunch()
+    Check(m.mode = "home" and Instr(1, m.status.text, "unavailable") > 0, "an unknown title lands on Home with a message")
+    m.pendingLaunch = { contentId: "m1", mediaType: "series" }
+    applyLaunch()
+    Check(m.mode = "home" and Instr(1, m.status.text, "not supported") > 0, "an unsupported media type lands on Home with a message")
+    cancelPlaybackRequest()
+
+    m.account = { viewerId: "viewer", idToken: "id", refreshToken: "r", expiresAtSeconds: CurrentEpochSeconds() + 3600 }
+    showAccountState()
+    Check(Instr(1, m.top.nodes.accountHint.text, "delete your PROtv account") > 0 and Instr(1, m.top.nodes.accountHint.text, "support@watchprotv.com") > 0, "signed-in viewers see how to request account deletion")
+    m.account = invalid
     print "PROTV_UI_PASSED="; m.passed
     print "PROTV_UI_FAILED="; m.failed
 end sub
