@@ -1,6 +1,10 @@
 # Roku release checkpoints
 
-## 1.0.0 release candidate 5 (2026-10-24) — submission candidate, not yet TV-tested
+## 1.0.0 release candidate 5 (2026-10-24) — submission candidate, owner TV-tested
+
+Owner report, 2026-10-24: RC5 "works flawlessly" on a physical Roku TV.
+Detailed TV-TESTS.md section 8 results are not recorded; the 2-hour soak has
+not been run.
 
 | Item | Value |
 | --- | --- |
