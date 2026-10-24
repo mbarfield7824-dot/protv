@@ -1,6 +1,29 @@
 # Roku release checkpoints
 
-## 1.0.0 release candidate 4 (2026-10-24, not yet TV-tested) — test candidate
+## 1.0.0 release candidate 5 (2026-10-24) — submission candidate, not yet TV-tested
+
+| Item | Value |
+| --- | --- |
+| Branch / commit | `release/roku-1.0-rc5` at `641105b` (app code; later commits are tools and records only). Not merged |
+| Manifest | 1.0.0 (title PROtv) |
+| Sideload ZIP | `dist/releases/protv-roku-v1.0.0-rc5-candidate.zip` (read-only), 680,917 bytes |
+| SHA-256 | `94fc56ce2ef411fa4c24c2439b55b7c49f4c6ced80b9838d62bb093eeb8812c7` |
+| Reproducible | Same SHA-256 from the worktree and from a CRLF `git archive` export of `641105b` (ROKU_FIREBASE_API_KEY = the website's public Firebase web key) |
+| Changes since RC4 | Removed the dormant caption-check title and its manifest flag (ProtvScene.brs -5/+1 lines, model.brs -16 lines). Six untouched files differ from RC4 in line endings only (RC4 mixed CRLF/LF; RC5 packages LF). No change to playback, remote keys, sign-in, Continue Watching or deep links |
+| Tests | `bsc` 0 errors; 12/12 node tests (226 scene, 23 PlayerRemote, model, package release guards, caption tool); live smoke passed (49 titles, 28 approved posters, 7 restrictions) |
+| Signed .pkg | None. Signing needs the owner's developer Roku (store/RC5-FINAL-SUBMISSION-HANDOFF.md) |
+
+Rollback: RC4 (`protv-roku-v1.0.0-rc4-candidate.zip`, TV-verified) is the
+baseline. RC4 and RC5 run the same remote-control code.
+
+## 1.0.0 release candidate 4 (2026-10-24) — TV-verified by the owner (rollback baseline)
+
+Owner TV results, 2026-10-24: playback excellent; OK shows the controls and
+pauses/resumes; Play/Pause; Up/Down show the controls; Left/Right seek; *
+opens Roku's caption settings and OK works after closing them; Back returns
+to the title details; Continue Watching persists after restart; the
+caption-test package shows English subtitles.
+
 
 | Item | Value |
 | --- | --- |

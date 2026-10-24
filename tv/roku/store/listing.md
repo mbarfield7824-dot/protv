@@ -69,7 +69,9 @@ First release of PROtv for Roku: browse the PROtv catalog, sign in or create a f
   dev app runs. A 1280x720 capture scales evenly by 1.5x to 1920x1080; never
   stretch or crop, and never edit what the app shows. Use only titles that
   are live in the catalog (the 7 restricted titles are gone from the app) and
-  are tier A or B in store/evidence/rights-evidence.md, or creator titles:
+  are **cleared** in store/rights-launch-classification.md (Tears of Steel,
+  Sintel, The Lost Camp, Dead Air), so no screenshot shows a title whose
+  rights are still open:
   1. Home with the hero and first rows
   2. A category row (e.g. Horror) in focus
   3. Title details with Play / Resume / My List
@@ -91,16 +93,20 @@ First release of PROtv for Roku: browse the PROtv catalog, sign in or create a f
 - **Create account / Forgot password** are on the same Account screen.
 - **Delete account:** the signed-in Account screen says to email
   support@watchprotv.com.
-- **Playback controls:** OK pauses/plays; Left/Right seek with previews;
-  Instant Replay jumps back 10 s; Back exits to details.
+- **Playback controls:** OK pauses/plays and shows PROtv's controls;
+  Left/Right seek with previews; Instant Replay jumps back 10 s; Back exits to
+  details. * opens Roku's caption settings during playback (PROtv never uses
+  *).
+- **Captions:** no PROtv title has a caption track yet; Roku's caption
+  settings are available and render captions when a title has them.
 - **Deep links** (contentId + mediaType; invalid IDs land on Home with a
   message):
-  - Movie: `contentId=LiMNMZWXBxJj3LoP73kU&mediaType=movie` (His Girl Friday, 92 min)
-  - Episode: `contentId=5FHvg3BEwBlk9qqNdZT5&mediaType=episode` (One Step Beyond - The Storm)
+  - Movie: `contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie` (Tears of Steel, 12 min; rights cleared)
+  - Episode: `contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode` (Fleischer Studios' Superman, 10 min). No episode is fully cleared (store/rights-launch-classification.md); this replaces One Step Beyond - The Storm (tier C, listed in a 1992 CBS catalog assignment). OWNER confirms before submitting.
   - Test on a dev device:
-    `curl -d "" "http://<roku-ip>:8060/launch/dev?contentId=LiMNMZWXBxJj3LoP73kU&mediaType=movie"`
+    `curl -d "" "http://<roku-ip>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"`
     and while running:
-    `curl -d "" "http://<roku-ip>:8060/input/dev?contentId=5FHvg3BEwBlk9qqNdZT5&mediaType=episode"`
+    `curl -d "" "http://<roku-ip>:8060/input/dev?contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode"`
 
 ## Reviewer test account (OWNER, about 5 minutes)
 
@@ -146,7 +152,7 @@ Notes: the Sign In/Out Scripts option appears only for a Public app whose
 Customer Account Requirement says an account is required for some features.
 PROtv's account is optional. A developer-forum report says Roku asks for
 scripts even when sign-in is optional; if the option is missing, ask Roku
-support. RC2 closes any open sign-in keyboard when a deep link arrives, so
+support. Since RC2 the app closes any open sign-in keyboard when a deep link arrives, so
 Analysis deep-link and playback tests cannot be left stuck on the keyboard.
 
 ## Signing (OWNER, on the developer TV)
@@ -158,18 +164,20 @@ signed-in viewers are logged out — certification 4.1). Sideload the RC ZIP,
 then Utilities > Packager produces the signed .pkg to upload. The ZIP in
 dist/releases is not signed.
 
-## Submission checklist
+## Submission checklist (RC5)
+
+The gate-by-gate status is in RC5-FINAL-SUBMISSION-HANDOFF.md section 14.
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | RC2 sideloaded on a physical Roku; docs/TV-TESTS.md sections 1–6 pass (and the * check, step 8) | OWNER |
+| 1 | RC5 sideloaded; docs/TV-TESTS.md section 8 passes | OWNER |
 | 2 | 2-hour playback soak without a crash | OWNER |
-| 3 | Privacy policy and terms updates published on watchprotv.com | OWNER + counsel |
-| 4 | Rights: 7 titles restricted 2026-10-23 (store/RIGHTS-REPORT.md); decide the follow-up queue | OWNER + counsel |
+| 3 | Privacy policy and terms approved by counsel and published on watchprotv.com | OWNER + counsel |
+| 4 | Launch catalog rights decision (store/rights-launch-classification.md: 4 cleared, 45 need verification) | OWNER + counsel |
 | 5 | Captions decision (store/captions-investigation.md) | OWNER + counsel |
-| 6 | Reviewer test account created and verified on the TV; App Behavior Analysis scripts recorded | OWNER |
+| 6 | Reviewer test account; App Behavior Analysis scripts recorded | OWNER |
 | 7 | Support phone, administrative and technical contacts | OWNER |
-| 8 | 6 screenshots captured on the TV | OWNER |
-| 9 | Signing key generated and backed up; .pkg built from the tested RC | OWNER |
+| 8 | 6 screenshots captured on the TV (cleared titles only) | OWNER |
+| 9 | Signing key generated and backed up; .pkg built from RC5 | OWNER |
 | 10 | Dashboard: listing text, poster, category, rating, countries, deep-link samples | OWNER (text ready here) |
 | 11 | Final authorization to submit | OWNER |

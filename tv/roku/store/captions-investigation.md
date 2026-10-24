@@ -31,6 +31,68 @@ exemption is claimed.** Sources are quoted from the primary texts named.
    stable candidate** until the 3-minute TV check in TV-TESTS.md section 7
    passes.
 
+## RC5 status and one-title workflow (2026-10-24)
+
+**State:** 0 of 49 live titles has a caption or subtitle track. Every master
+playlist was checked through PROtv's own playback authorization:
+`CLOSED-CAPTIONS=NONE` and no `TYPE=SUBTITLES` rendition (public GETs of
+master playlists only). The app does not claim captions anywhere (listing,
+release notes, reviewer notes).
+
+**Player:** verified on a Roku TV with the RC4 caption-test package. *
+opens Roku's caption settings, and English WebVTT subtitles render and follow
+On/Off. Roku picks the track from the viewer's caption language; the app sets
+no caption fields (a project test keeps it that way). RC5 removes the test
+title; nothing else about captions changed.
+
+**Formats Roku supports for HLS VOD:** WebVTT "in a separate stream described
+in the manifest playlist" (what Mux text tracks produce), EIA-608 in the
+stream, and SMPTE-TT as an external file (Roku closed-caption guide).
+
+**Mux auto-generated captions:** "There is no additional charge for this
+feature" (Mux docs; "there may be a charge for backfilling captions onto large
+libraries"). Started per asset with `POST
+/video/v1/assets/{ASSET_ID}/tracks/{AUDIO_TRACK_ID}/generate-subtitles`.
+English is a stable language. Mux warns that music, noise and silence reduce
+accuracy. **Not used in RC5:** a generated track is attached to the live asset,
+so viewers would see unreviewed captions as soon as it is ready. Generating
+needs the production Mux API (owner credentials), which was not used.
+
+**Accuracy review (before any track is attached):** a person watches the
+whole title with the captions and checks the wording, speaker changes, cue
+timing (no cue early or late by more than about half a second), and line length
+(two lines, about 32 characters each). Captions for FCC-covered programming
+must be at least as good as the TV captions (47 CFR 79.4(c)). Include sound
+cues ([music], [door slams]) for accessibility; plain subtitles cover
+dialogue only.
+
+### First title: Tears of Steel (cleared, English dialogue, 12 min)
+
+Blender publishes official English subtitles for Tears of Steel:
+https://download.blender.org/demo/movies/ToS/subtitles/TOS-en.srt (from
+https://mango.blender.org/download/). The server shows a browser check, so
+the file could not be fetched automatically; it was not bypassed.
+
+1. **Owner:** open the URL in a browser and save `TOS-en.srt`.
+2. Convert and check it against PROtv's copy (734 s):
+   `node tools/captions.mjs TOS-en.srt TOS-en.vtt 734`. Any PROBLEM line
+   means the subtitle timing does not match PROtv's cut: stop.
+3. **Review:** watch Tears of Steel with the VTT (for example in VLC) end to
+   end, and add sound cues where needed. Keep the reviewed file.
+4. **Owner, production Mux (no generation; confirm in the Mux dashboard that a text track adds no charge):** host the reviewed VTT at an
+   HTTPS URL, then add it to the title's asset:
+   `curl https://api.mux.com/video/v1/assets/$ASSET_ID/tracks -X POST -u "$MUX_TOKEN_ID:$MUX_TOKEN_SECRET" -H "Content-Type: application/json" -d '{"url":"<VTT URL>","type":"text","text_type":"subtitles","language_code":"en","name":"English","closed_captions":false}'`
+   Use `"closed_captions": true` only if the file includes sound cues.
+5. **Verify discoverability:** the title's master playlist (via
+   `/api/v1/catalog/titles/gbcxmtl6mAHQeBxx8Dgs/playback`) lists a
+   `TYPE=SUBTITLES` rendition. Rerun the manifest check script.
+6. **TV:** play Tears of Steel on RC5, press *, turn captions On: the
+   subtitles appear in sync; Off: they disappear.
+7. **Rollback:** `DELETE /video/v1/assets/$ASSET_ID/tracks/$TRACK_ID`.
+
+Do not start bulk generation. Do not describe PROtv as captioned until the
+titles that need captions have reviewed tracks.
+
 ## RC4 update (2026-10-24)
 
 - **TV (RC3):** * opened Roku's caption settings, so the Options gap below is

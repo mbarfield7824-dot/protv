@@ -166,6 +166,41 @@ Record each result. If step 5's * fails on RC4 but works on RC3, report it:
 the fallback is a Captions control on PROtv's overlay
 (store/captions-investigation.md).
 
+### RC4 results (owner, 2026-10-24)
+
+Steps 1–7 and 8–9 passed on a physical Roku TV: playback excellent; OK,
+Play/Pause, Up/Down, Left/Right seeking, *, OK after the caption settings,
+Back, Continue Watching after restart; English subtitles shown in the
+caption-test package. Not reported: Rewind/Fast Forward, Instant Replay, the
+deep link in step 7, On mute / On replay.
+
+## 8. RC5 candidate checks (about 20 minutes)
+
+RC5 runs the same playback code as RC4. These checks confirm the package
+itself before signing. Sideload `dist/releases/protv-roku-v1.0.0-rc5-candidate.zip`.
+
+1. The channel tile and splash say PROtv (not "CAPTION TEST"). Home shows the
+   catalog; no "TEST ONLY" title exists (search "caption": no result).
+2. Play Tears of Steel: OK pauses and shows the controls; OK resumes; Left /
+   Right seek; Instant Replay jumps back 10 s; * opens Roku's caption
+   settings; OK works after closing them; Back returns to the details.
+3. Rewind / Fast Forward step 30 s with a preview.
+4. Signed in: play 2 minutes, Back, restart the app: Continue Watching
+   resumes. Sign out from Account; sign in again.
+5. Deep links (PC; replace the IP):
+   `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=gbcxmtl6mAHQeBxx8Dgs&mediaType=movie"`
+   (Tears of Steel plays), then while it plays
+   `curl -d "" "http://<TV-IP>:8060/input/dev?contentId=iUX01XuVHd9okFW4gmqR&mediaType=episode"`
+   (the Superman episode plays), then a restricted title:
+   `curl -d "" "http://<TV-IP>:8060/launch/dev?contentId=vyjpYtuEpOlCWzyzlaxM&mediaType=movie"`
+   (Home with "unavailable"; nothing plays).
+6. Network: during playback unplug the router for 30 s: spinner, then the
+   "stopped playing" message, no crash; reconnect and Play resumes.
+7. Back on Home exits the app.
+8. Optional, before submission: the 2-hour soak (section 5).
+
+Record each result in RELEASES.md under RC5.
+
 ## 6b. RC3 candidate check (superseded: RC3 failed step 1 on the TV; see section 7)
 
 Sideload `dist/releases/protv-roku-v1.0.0-rc3-candidate.zip`, play any title, then:
