@@ -69,6 +69,34 @@
       <Poster id="bottomFade" translation="[0,620]" width="1280" height="100" uri="pkg:/assets/bottom-fade.png" loadDisplayMode="scaleToFill" />
     </Group>
 
+    <!-- Account sits under the sidebar, like Home: the expanded sidebar draws over it.
+         Everything ends above the status toast band (y 624). -->
+    <Group id="account" translation="[136,0]" visible="false">
+      <Label text="Your PROtv account" translation="[0,96]" width="900" height="52" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="36" />
+      </Label>
+      <Label id="accountMessage" translation="[0,156]" width="900" height="90" wrap="true" maxLines="3" color="0xC9D1E4FF">
+        <Font role="font" uri="font:SystemFontFile" size="20" />
+      </Label>
+      <Label id="accountHint" translation="[0,258]" width="900" height="52" wrap="true" maxLines="2" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="17" />
+      </Label>
+      <Group id="accountButtons" translation="[0,346]">
+        <PillButton id="accountAction" text="Sign in" style="primary" width="200" height="48" />
+        <PillButton id="accountCreate" text="Create account" style="secondary" width="220" height="48" />
+        <PillButton id="accountReset" text="Forgot password" style="secondary" width="230" height="48" />
+        <PillButton id="accountSignOut" text="Sign Out" style="secondary" width="160" height="48" visible="false" />
+        <PillButton id="accountBack" text="Back" style="secondary" width="132" height="48" />
+      </Group>
+      <Label translation="[0,430]" width="900" height="66" wrap="true" maxLines="3" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays signed in until you select Sign Out. Your password is never stored on this TV. Guest Continue Watching is saved on this TV only.">
+        <Font role="font" uri="font:SystemFontFile" size="15" />
+      </Label>
+      <!-- Installed version, for support requests. -->
+      <Label id="accountBuild" translation="[0,508]" width="900" height="22" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="14" />
+      </Label>
+    </Group>
+
     <!-- Collapsed: 88px icon rail. Focused: expands to 256px over the content. -->
     <Group id="sidebar">
       <Rectangle id="sidebarBg" width="88" height="720" color="0x070A12FF" />
@@ -154,32 +182,6 @@
       </LabelList>
       <Label text="Up for seasons  ·  OK opens an episode  ·  Back returns to Series" translation="[400,600]" width="816" height="24" color="0x7D879EFF">
         <Font role="font" uri="font:SystemFontFile" size="16" />
-      </Label>
-    </Group>
-
-    <Group id="account" translation="[136,0]" visible="false">
-      <Label text="Your PROtv account" translation="[0,96]" width="940" height="52" color="0xFFFFFFFF">
-        <Font role="font" uri="font:BoldSystemFontFile" size="36" />
-      </Label>
-      <Label id="accountMessage" translation="[0,152]" width="940" height="84" wrap="true" maxLines="3" color="0xC9D1E4FF">
-        <Font role="font" uri="font:SystemFontFile" size="20" />
-      </Label>
-      <Label id="accountHint" translation="[0,250]" width="940" height="56" wrap="true" maxLines="2" color="0x7D879EFF">
-        <Font role="font" uri="font:SystemFontFile" size="17" />
-      </Label>
-      <Group id="accountButtons" translation="[0,528]">
-        <PillButton id="accountAction" text="Sign in" style="primary" width="200" height="48" />
-        <PillButton id="accountCreate" text="Create account" style="secondary" width="220" height="48" />
-        <PillButton id="accountReset" text="Forgot password" style="secondary" width="230" height="48" />
-        <PillButton id="accountSignOut" text="Sign Out" style="secondary" width="160" height="48" visible="false" />
-        <PillButton id="accountBack" text="Back" style="secondary" width="132" height="48" />
-      </Group>
-      <Label translation="[0,604]" width="940" height="48" wrap="true" maxLines="2" color="0x7D879EFF" text="Guest browsing and playback always work. This TV stays signed in until you select Sign Out. Your password is never stored on this TV. Guest Continue Watching is saved on this TV only.">
-        <Font role="font" uri="font:SystemFontFile" size="15" />
-      </Label>
-      <!-- Installed version, for support requests. -->
-      <Label id="accountBuild" translation="[0,656]" width="940" height="22" color="0x7D879EFF">
-        <Font role="font" uri="font:SystemFontFile" size="14" />
       </Label>
     </Group>
 

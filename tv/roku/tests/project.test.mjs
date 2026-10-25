@@ -36,7 +36,7 @@ test('actual SceneGraph controller executes remote focus and layout regressions'
     path.join(root, 'tests', 'scene.brs'),
   ], { cwd: root, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /PROTV_UI_FAILED=\s*0(?:\r?\n|$)/);
-  assert.match(output, /PROTV_UI_PASSED=\s*226(?:\r?\n|$)/);
+  assert.match(output, /PROTV_UI_PASSED=\s*228(?:\r?\n|$)/);
 });
 
 test('actual PlayerRemote component (playerKeys) catches player keys and passes Options up to the Video node', () => {
@@ -157,6 +157,15 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.equal(99 + 10 + 22 + 20, 151, 'wide cards fit title and subtitle lines');
   assert.ok(120 * 0.06 / 2 < 16 / 2 && 176 * 0.06 / 2 < 16 / 2, 'focus zoom never overlaps neighbouring cards');
   assert.ok(624 + 64 - 12 <= 684, 'status toast fits inside the bottom safe margin');
+  // Account screen: drawn under the sidebar (like Home), so expanded nav labels
+  // never print over it; content ends above the toast band; rows fit the safe area.
+  assert.ok(scene.indexOf('<Group id="account"') < scene.indexOf('<Group id="sidebar"'), 'Account is drawn under the sidebar');
+  assert.match(scene, /<Group id="accountButtons" translation="\[0,346\]">/);
+  assert.match(scene, /id="accountBuild" translation="\[0,508\]"/);
+  assert.ok(508 + 22 <= 624, 'Account footer ends above the status toast');
+  assert.ok(136 + 200 + 220 + 230 + 132 + 3 * 32 + 12 <= 1248, 'signed-out Account buttons fit the safe area');
+  assert.ok(136 + 900 <= 1248, 'Account text fits the safe area');
+  assert.match(controller, /x = x \+ button\.width \+ 32/);
   assert.match(scene, /id="detailTitle"[^>]+wrap="true" maxLines="2"/);
   assert.match(scene, /<ScrollableText id="detailDescription"/);
   assert.match(card, /id="creatorBadge"/);

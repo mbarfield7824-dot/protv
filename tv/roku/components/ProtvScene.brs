@@ -1606,7 +1606,7 @@ sub layoutAccountButtons()
     for each button in accountButtonList()
         if button.visible
             button.translation = [x, 0]
-            x = x + button.width + 20
+            x = x + button.width + 32
         end if
     end for
 end sub
@@ -1635,10 +1635,12 @@ sub showAccountState()
     if signedIn
         m.top.findNode("accountMessage").text = "Signed in. Continue Watching and My List are synchronized with your PROtv account."
         action.text = "Refresh my titles"
+        action.width = 236
         m.top.findNode("accountHint").text = "To delete your PROtv account or its data, email support@watchprotv.com."
     else
         m.top.findNode("accountMessage").text = "Sign in or create a free PROtv account to keep My List and Continue Watching in sync across this TV and watchprotv.com. You can also keep watching as a guest."
         action.text = "Sign in"
+        action.width = 200
         m.top.findNode("accountHint").text = "Use your PROtv email and password. Signed up with Google? Choose Forgot password to set a password for this email."
         if FirebaseApiKey() = "" then m.top.findNode("accountMessage").text = "Sign-in is not configured in this Roku build. Guest browsing and playback remain available."
     end if

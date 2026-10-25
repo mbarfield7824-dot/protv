@@ -205,7 +205,7 @@ sub Main()
 
     m.top.nodes.accountSignOut.visible = false
     layoutAccountButtons()
-    Check(m.top.nodes.accountCreate.translation[0] = 220 and m.top.nodes.accountReset.translation[0] = 460 and m.top.nodes.accountBack.translation[0] = 710, "hidden Sign Out leaves no gap")
+    Check(m.top.nodes.accountCreate.translation[0] = 232 and m.top.nodes.accountReset.translation[0] = 484 and m.top.nodes.accountBack.translation[0] = 746, "hidden Sign Out leaves no gap")
     ClearFocus()
     m.top.nodes.accountAction.focused = true
     Check(Press("right") and m.top.nodes.accountCreate.focused, "right from Sign in reaches Create account")
@@ -815,7 +815,10 @@ sub Main()
     m.account = { viewerId: "viewer", idToken: "id", refreshToken: "r", expiresAtSeconds: CurrentEpochSeconds() + 3600 }
     showAccountState()
     Check(Instr(1, m.top.nodes.accountHint.text, "delete your PROtv account") > 0 and Instr(1, m.top.nodes.accountHint.text, "support@watchprotv.com") > 0, "signed-in viewers see how to request account deletion")
+    Check(m.top.nodes.accountAction.width = 236 and m.top.nodes.accountSignOut.translation[0] = 268 and m.top.nodes.accountBack.translation[0] = 460, "signed-in Account buttons fit their labels and are evenly spaced")
     m.account = invalid
+    showAccountState()
+    Check(m.top.nodes.accountAction.width = 200 and m.top.nodes.accountCreate.translation[0] = 232, "signed-out Account buttons return to their widths")
 
     ' RC3 TV result: * opened Roku's caption settings, but OK did nothing, because
     ' the focused Video node swallowed it. Both must work, on the real start path.
