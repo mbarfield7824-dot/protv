@@ -44,6 +44,19 @@ class HomeNavigationTest {
     }
 
     @Test
+    fun tvIsHiddenWhileTheCatalogHasNoEpisodes() {
+        // The Fire TV launch catalog: movies only.
+        val moviesOnly = listOf(HomeRail("drama", "Drama", listOf(tile("film", "MOVIE"))))
+        assertEquals(
+            listOf(
+                HomeDestination.Home, HomeDestination.Movies, HomeDestination.ContinueWatching,
+                HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
+            ),
+            visibleDestinations(moviesOnly),
+        )
+    }
+
+    @Test
     fun contentDependentSectionsReturnWhenTheCatalogHasTitles() {
         assertEquals(HomeDestination.entries, visibleDestinations(catalog))
     }
@@ -52,7 +65,7 @@ class HomeNavigationTest {
     fun personalAndCoreSectionsStayVisibleEvenWhenEmpty() {
         val visible = visibleDestinations(emptyList())
         for (destination in listOf(
-            HomeDestination.Home, HomeDestination.Movies, HomeDestination.TV, HomeDestination.ContinueWatching,
+            HomeDestination.Home, HomeDestination.Movies, HomeDestination.ContinueWatching,
             HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
         )) {
             assertTrue("$destination should stay visible", destination in visible)

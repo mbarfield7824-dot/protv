@@ -14,7 +14,9 @@ enum class HomeDestination(val label: String) {
 }
 
 /** Catalog sections that only appear in the drawer once the catalog has titles for them. */
-private val ContentDependentDestinations = setOf(HomeDestination.Music, HomeDestination.Podcasts, HomeDestination.NewReleases)
+// TV is included: the Fire TV launch catalog has no episodes yet.
+private val ContentDependentDestinations =
+    setOf(HomeDestination.TV, HomeDestination.Music, HomeDestination.Podcasts, HomeDestination.NewReleases)
 
 fun visibleDestinations(rails: List<HomeRail>): List<HomeDestination> =
     HomeDestination.entries.filter { it !in ContentDependentDestinations || destinationRails(rails, it).isNotEmpty() }
