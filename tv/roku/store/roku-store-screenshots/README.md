@@ -1,8 +1,24 @@
 # Roku Streaming Store screenshots (RC6)
 
-**Status, 2026-10-24: none captured.** No screenshot here is a mockup or
-was made from the website or Fire TV. The six files must come from the RC6
-app running on a Roku.
+**Status, 2026-10-24: 4 of 6 captured.** Native device captures of RC6 on
+the Hisense 6-Series Roku TV (192.168.1.100, UI 1080p, Roku OS 16.0.4), taken
+with the developer Screenshot utility. Nothing is resized, edited or mocked
+up. Every title in frame is in the Roku launch catalog (Group A).
+
+| File | Screen | Status |
+| --- | --- | --- |
+| `01-home.jpg` | Home: Dead Air featured, creators row, mood row | Captured |
+| `02-browse-categories.jpg` | Movies: Sci-Fi and Action category rows | Captured |
+| `03-movie-details.jpg` | Sintel details (Play, My List, Back) | Captured |
+| `04-playback` | Playback | **Not usable:** the Screenshot utility returns a striped placeholder where the protected video plane is. Use 5 screenshots, or capture playback another way (never paste a frame in) |
+| `05-search.jpg` | Search results for "sci" (5 titles) | Captured (alternate: `alternates/05-search-steel.jpg`) |
+| `06-my-list` | My List | **Needs a signed-in account:** guests see "Link your PROtv account in Account to save titles to My List". Sign in on the TV (reviewer account), add 3-4 launch titles, then capture |
+
+The posters for Attack of the Giant Leeches and Plan 9 shown here are among
+the owner-supplied posters whose creation method is still to be recorded
+(OWNER-APPROVALS.md, decision 3).
+
+The rest of this file is the original capture guide.
 
 ## Why they were not captured automatically
 
