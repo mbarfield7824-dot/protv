@@ -6,9 +6,10 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Signed APK matches SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`
 - [x] Signer is the PROtv Amazon upload key (`3014…5a7f`); keystore opened, alias `protv-amazon-upload`
 - [x] Backup script prepared: `D:\protv-firetv-artifacts\tools\Backup-ProtvFireTvKey.ps1` (7-Zip AES-256 archive + hash + restore test; no secrets printed)
+- Owner's backup setup (2026-10-25): original key on C: (`%LOCALAPPDATA%\PROtv\firetv-signing`), encrypted backup on D: (WD easystore USB) in `D:\PROtv-signing\firetv-amazon-upload\`
 - [ ] **OWNER** Passwords saved in password manager
-- [ ] **OWNER** Backup 1 verified (USB drive)
-- [ ] **OWNER** Backup 2 verified (second USB drive, stored separately)
+- [ ] **OWNER** D: backup verified (archive hash + restore test with the password-manager password)
+- Note: `D:\PROtv-signing\protv-release.jks` (Oct 20, SHA-256 `eab16c8f…c848`) is a **different, older keystore**, not a copy of the Fire TV upload key. It needs a password even to list, so it was not opened. Keep it; it is probably the historical 0.1.0 key (signer CN=Michael Barfield).
 
 ## Phase 2: Finalize the source
 - [x] Code-4 changes reviewed; 109/109 unit tests, lint 0 errors
