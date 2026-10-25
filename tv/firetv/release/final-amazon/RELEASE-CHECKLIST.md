@@ -21,7 +21,8 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Uninstalled the debug RC; installed code 4; installed code 5 over it; installed APK hash matches
 - [x] 14 of 23 checks PASS (see `physical-test-checklist.md`); code-4 crash fixed and regression-tested on code 5
 - [x] Signed in: #13, #15, #16, #17, #18 PASS on code 6; attribution verified on the TV
-- [ ] **OWNER** #14 unplug, #19 phone scan, #20 sign out/in
+- [x] #20 sign out PASS
+- [ ] **OWNER** #14 unplug, #19 phone scan, #20 sign in again
 
 ## Phase 4: Store assets
 - [x] Listing text, features, keywords, release notes (`store-listing.md`)
@@ -36,9 +37,11 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Found: the Fire TV app shows no CC BY attribution for the 4 Blender films; 3 posters need replacing; 6 thumbnails point at Google image caches
 - [x] Fire TV allowlist built: `feature/firetv-launch-eligibility` (`a2be711`), 264/266 backend tests (2 pre-existing failures)
 - [x] Roku Batch 2 replacement sources and posters re-verified against their documented checksums
-- [ ] **OWNER** Authorize Batch 2 apply and the eligibility deploy
+- [x] **Deployed** Fire TV-only eligibility: `main` `53c5820`, Vercel `protv-nca9128cc` (rollback: `protv-oq4n2tusr`, commit `9b17039`). Live: Fire TV header 28 titles; Roku UA, website and no header 49; held titles 404 on Fire TV playback only
+- [x] **Applied** the 3 approved posters (His Girl Friday, The Duke Is Tops, The Incredible Petrified World) with `D:\protv-firetv-artifacts	oolspply-posters-only.cjs`; verify LIVE_OK; only those 3 records' `posterUrl`/`thumbnailUrl` changed
+- [ ] 6 media swaps: deferred until after Roku review (owner direction)
 - [ ] **OWNER** Dead Air content facts
-- [ ] Retake the store screenshots once the catalog is limited
+- [x] Store screenshots retaken from code 6 with the launch catalog live
 
 ## Phase 6: Developer Console
 - [ ] **OWNER** Browser access for Claude (no browser tool in this session), or owner enters `amazon-console-answers.md` §0–§6

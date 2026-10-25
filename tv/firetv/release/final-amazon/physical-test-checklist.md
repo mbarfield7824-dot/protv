@@ -43,7 +43,7 @@ How it was run: remote keys (D-pad, Select, Back, Play/Pause, FF, RW) were sent 
 | 17 | Creator Portal QR | Settings > Manage account > Creator Portal shows creators.watchprotv.com with a QR; Back returns | **PASS** |
 | 18 | Account-deletion QR | Settings > Manage account > Delete account shows watchprotv.com/delete-account with a QR; Back returns | **PASS on code 6.** Code 5 clipped the Delete account label (squeezed off the panel at 1080p); fixed in code 6 |
 | 19 | Scan test | Scan the deletion QR with a phone; it opens the PROtv deletion page | **OWNER** |
-| 20 | Sign out and in | Manage account > Sign out, then sign in again | **OWNER** |
+| 20 | Sign out and in | Manage account > Sign out, then sign in again | Sign out **PASS** (code 6: returns to Settings with Sign in, no account shown). Sign in again: **OWNER** |
 
 ## Catalog
 
