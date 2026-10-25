@@ -61,7 +61,7 @@
         <Label id="railCount" translation="[1016,354]" width="200" height="28" horizAlign="right" vertAlign="center" color="0x7D879EFF">
           <Font role="font" uri="font:SystemFontFile" size="15" />
         </Label>
-        <RowList id="rails" translation="[112,352]" width="1168" height="532" itemComponentName="PosterCard" itemSize="[1168,266]" numRows="2" rowItemSize="[[120,232]]" rowHeights="[266]" rowItemSpacing="[[16,0]]" rowLabelOffset="[[0,4]]" rowLabelColor="0xE9EEF8FF" showRowLabel="[true]" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" drawFocusFeedback="false">
+        <RowList id="rails" translation="[98,352]" width="1182" height="532" itemComponentName="PosterCard" itemSize="[1182,266]" numRows="2" rowItemSize="[[134,246]]" rowHeights="[266]" rowItemSpacing="[[2,0]]" rowLabelOffset="[[14,-10]]" rowLabelColor="0xE9EEF8FF" showRowLabel="[true]" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" drawFocusFeedback="false">
           <Font role="rowLabelFont" uri="font:BoldSystemFontFile" size="22" />
         </RowList>
       </Group>
@@ -100,7 +100,7 @@
     <!-- Collapsed: 88px icon rail. Focused: expands to 256px over the content. -->
     <Group id="sidebar">
       <Rectangle id="sidebarBg" width="88" height="720" color="0x070A12FF" />
-      <Poster id="sidebarFade" translation="[88,0]" width="24" height="720" uri="pkg:/assets/sidebar-fade.png" loadDisplayMode="scaleToFill" />
+      <Poster id="sidebarFade" translation="[88,0]" width="10" height="720" uri="pkg:/assets/sidebar-fade.png" loadDisplayMode="scaleToFill" />
       <Poster id="logo" translation="[14,30]" width="64" height="19" uri="pkg:/assets/logo.png" />
       <Group id="nav" translation="[20,92]">
         <PillButton id="navHome" text="Home" style="nav" icon="home" width="216" height="40" compact="true" />

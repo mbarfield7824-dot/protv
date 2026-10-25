@@ -393,13 +393,13 @@ sub showRows()
             invite.addFields({ kind: "cta", id: "", landscape: false })
         end if
         if row.kind = "moods"
-            sizes.Push([176,99])
+            sizes.Push([190,113])
             heights.Push(133)
         else if row.landscape
-            sizes.Push([176,151])
+            sizes.Push([190,165])
             heights.Push(185)
         else
-            sizes.Push([120,232])
+            sizes.Push([134,246])
             heights.Push(266)
         end if
     end for
@@ -763,7 +763,7 @@ sub setSidebarExpanded(expanded as Boolean)
     end for
     logo = m.top.findNode("logo")
     width = 88.0
-    fadeWidth = 24
+    fadeWidth = 10
     if expanded
         width = 256.0
         fadeWidth = 160

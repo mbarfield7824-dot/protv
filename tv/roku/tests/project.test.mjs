@@ -134,12 +134,20 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.match(scene, /<PillButton id="heroInfo" text="More Info" style="secondary" icon="info"/);
   assert.match(scene, /<PillButton id="heroList" text="My List" style="secondary" icon="plus"/);
   assert.match(scene, /id="heroCopy" translation="\[112,200\]"[^>]+vertAlignment="bottom"/);
-  assert.match(scene, /id="rails" translation="\[112,352\]" width="1168"[^>]+rowItemSize="\[\[120,232\]\]" rowHeights="\[266\]" rowItemSpacing="\[\[16,0\]\]"/);
+  // Rails cells carry a 14px pad (PosterCard body) because RowList clips each row to its cells:
+  // the list starts 14px left and labels sit 14px up, so posters and labels stay at x 112.
+  assert.match(scene, /id="rails" translation="\[98,352\]" width="1182"[^>]+itemSize="\[1182,266\]"[^>]+rowItemSize="\[\[134,246\]\]" rowHeights="\[266\]" rowItemSpacing="\[\[2,0\]\]" rowLabelOffset="\[\[14,-10\]\]"/);
+  assert.match(card, /<Group id="body" translation="\[14,14\]">/);
+  assert.ok(98 + 14 === 112 && 134 + 2 === 120 + 16 && 2 + 14 === 16, 'first poster at x 112, poster pitch 136, visible gap 16');
+  assert.ok(14 >= 4 + 0.04 * 176 / 2 + 2, 'focus ring and zoom fit inside the pad on the left (first card)');
+  assert.match(scene, /id="sidebarFade" translation="\[88,0\]" width="10"/);
+  assert.match(controller, /fadeWidth = 10\n/);
+  assert.ok(88 + 10 <= 112 - 4 - 0.04 * 120 / 2 - 2, 'collapsed sidebar fade never covers the first card\'s focus ring');
   assert.match(scene, /<Animation id="backdropFade"/);
   assert.doesNotMatch(scene, /0x8B2AE3|0xAD9CFF|0x7926C8|0xAE46F0|0x35144F|0x51227B/i, 'no purple from the previous theme');
-  assert.match(controller, /sizes\.Push\(\[120,232\]\)[\s\S]*?heights\.Push\(266\)/);
-  assert.match(controller, /sizes\.Push\(\[176,151\]\)[\s\S]*?heights\.Push\(185\)/);
-  assert.match(controller, /sizes\.Push\(\[176,99\]\)[\s\S]*?heights\.Push\(133\)/);
+  assert.match(controller, /sizes\.Push\(\[134,246\]\)[\s\S]*?heights\.Push\(266\)/);
+  assert.match(controller, /sizes\.Push\(\[190,165\]\)[\s\S]*?heights\.Push\(185\)/);
+  assert.match(controller, /sizes\.Push\(\[190,113\]\)[\s\S]*?heights\.Push\(133\)/);
   assert.match(button, /key = "OK"[\s\S]*?m\.top\.buttonSelected = true/);
   // Safe area: x 32..1248 action safe, y 18..684.
   assert.ok(92 + 9 * 46 + 40 <= 684, 'all ten sidebar destinations fit');
@@ -155,7 +163,8 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.ok(352 + 38 >= 360, 'hero layout: posters start below the hero wash');
   assert.equal(180 + 10 + 22 + 20, 232, 'portrait cards fit title and subtitle lines');
   assert.equal(99 + 10 + 22 + 20, 151, 'wide cards fit title and subtitle lines');
-  assert.ok(120 * 0.06 / 2 < 16 / 2 && 176 * 0.06 / 2 < 16 / 2, 'focus zoom never overlaps neighbouring cards');
+  assert.ok(120 * 0.04 / 2 + 4 < 16 / 2 && 176 * 0.04 / 2 + 4 < 16 / 2, 'focus zoom and ring never overlap neighbouring cards');
+  assert.ok(232 * 0.04 <= 10, 'top-anchored zoom keeps captions clear of the next row label');
   assert.ok(624 + 64 - 12 <= 684, 'status toast fits inside the bottom safe margin');
   // Account screen: drawn under the sidebar (like Home), so expanded nav labels
   // never print over it; content ends above the toast band; rows fit the safe area.
@@ -176,6 +185,8 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.equal(ring.match(/stroke\(\)/g).length, 1, 'no second (double) border');
   assert.ok(Number(/shadowBlur = (\d+)/.exec(ring)[1]) <= 4 && !/#FFF/i.test(ring), 'faint halo only, no white frame');
   assert.match(cardController, /if not m\.top\.rowListHasFocus then amount = 0/);
+  assert.match(cardController, /m\.top\.scaleRotateCenter = \[14 \+ width \/ 2, 14\]/, 'zoom grows down from the top edge, never into the row label');
+  assert.match(cardController, /scale = 1 \+ 0\.04 \* amount/);
   assert.match(controller, /sub statusChanged\(\)[\s\S]*?visible = m\.status\.text <> ""/);
   assert.match(controller, /"\/users\/me\/favorites"/);
   assert.match(controller, /FormatJson\(\{ "favorite": m\.savingFavorite\.favorite \}\)/);

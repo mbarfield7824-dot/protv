@@ -21,7 +21,8 @@ sub render()
     end for
     m.ring.width = width + 28
     m.ring.height = height + 28
-    m.top.scaleRotateCenter = [width / 2, height / 2]
+    ' Zoom from the top edge so the focus ring never reaches the row label above.
+    m.top.scaleRotateCenter = [14 + width / 2, 14]
 
     cta = item.kind = "cta"
     m.top.findNode("cta").visible = cta
@@ -151,7 +152,7 @@ sub focusChanged()
     amount = m.top.focusPercent * m.top.rowFocusPercent
     if not m.top.rowListHasFocus then amount = 0
     m.ring.opacity = amount
-    scale = 1 + 0.06 * amount
+    scale = 1 + 0.04 * amount
     m.top.scale = [scale, scale]
     if amount > 0.5
         m.caption.color = "0xFFFFFFFF"

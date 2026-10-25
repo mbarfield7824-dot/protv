@@ -8,51 +8,54 @@
   </interface>
   <script type="text/brightscript" uri="PosterCard.brs" />
   <children>
-    <Poster id="ring" uri="pkg:/assets/card-ring.9.png" translation="[-14,-14]" width="148" height="208" opacity="0" />
-    <Rectangle id="panel" color="0x0E1526FF" width="120" height="180" />
-    <Poster id="fallback" uri="pkg:/assets/poster-fallback.jpg" width="120" height="180" loadDisplayMode="scaleToFill" />
-    <Label id="brand" text="PROtv" width="120" height="24" translation="[0,34]" horizAlign="center" color="0x60A5FAFF">
-      <Font role="font" uri="font:BoldSystemFontFile" size="16" />
-    </Label>
-    <Label id="fallbackTitle" width="104" height="84" translation="[8,72]" horizAlign="center" wrap="true" maxLines="4" color="0xFFFFFFFF">
-      <Font role="font" uri="font:BoldSystemFontFile" size="16" />
-    </Label>
-    <!-- Wide cards: low-resolution decode scaled up = soft colour fill behind contained art. -->
-    <Poster id="wash" width="176" height="99" loadWidth="16" loadHeight="9" loadDisplayMode="scaleToZoom" opacity="0.7" visible="false" />
-    <Poster id="art" width="120" height="180" loadWidth="120" loadHeight="180" loadDisplayMode="scaleToFit" />
-    <Poster id="tile" width="176" height="99" visible="false" />
-    <Poster id="moodIcon" width="32" height="32" translation="[72,18]" visible="false" />
-    <Label id="moodLabel" width="176" height="28" translation="[0,58]" horizAlign="center" color="0xFFFFFFFF" visible="false">
-      <Font role="font" uri="font:BoldSystemFontFile" size="18" />
-    </Label>
-    <Group id="cta" visible="false">
-      <Poster uri="pkg:/assets/cta-tile.9.png" width="120" height="180" />
-      <Poster uri="pkg:/assets/icon-star-light.png" translation="[44,30]" width="32" height="32" />
-      <Label text="Your story belongs here" translation="[8,74]" width="104" height="52" horizAlign="center" wrap="true" maxLines="2" color="0xFFFFFFFF">
+    <!-- RowList clips each row to its item cells: a 14px pad inside the cell keeps the focus ring and zoom visible, even on the first card. -->
+    <Group id="body" translation="[14,14]">
+      <Poster id="ring" uri="pkg:/assets/card-ring.9.png" translation="[-14,-14]" width="148" height="208" opacity="0" />
+      <Rectangle id="panel" color="0x0E1526FF" width="120" height="180" />
+      <Poster id="fallback" uri="pkg:/assets/poster-fallback.jpg" width="120" height="180" loadDisplayMode="scaleToFill" />
+      <Label id="brand" text="PROtv" width="120" height="24" translation="[0,34]" horizAlign="center" color="0x60A5FAFF">
         <Font role="font" uri="font:BoldSystemFontFile" size="16" />
       </Label>
-      <Label text="watchprotv.com&#10;/creators" translation="[4,132]" width="112" height="36" horizAlign="center" wrap="true" color="0x9CC3FFFF">
-        <Font role="font" uri="font:BoldSystemFontFile" size="12" />
+      <Label id="fallbackTitle" width="104" height="84" translation="[8,72]" horizAlign="center" wrap="true" maxLines="4" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="16" />
+      </Label>
+      <!-- Wide cards: low-resolution decode scaled up = soft colour fill behind contained art. -->
+      <Poster id="wash" width="176" height="99" loadWidth="16" loadHeight="9" loadDisplayMode="scaleToZoom" opacity="0.7" visible="false" />
+      <Poster id="art" width="120" height="180" loadWidth="120" loadHeight="180" loadDisplayMode="scaleToFit" />
+      <Poster id="tile" width="176" height="99" visible="false" />
+      <Poster id="moodIcon" width="32" height="32" translation="[72,18]" visible="false" />
+      <Label id="moodLabel" width="176" height="28" translation="[0,58]" horizAlign="center" color="0xFFFFFFFF" visible="false">
+        <Font role="font" uri="font:BoldSystemFontFile" size="18" />
+      </Label>
+      <Group id="cta" visible="false">
+        <Poster uri="pkg:/assets/cta-tile.9.png" width="120" height="180" />
+        <Poster uri="pkg:/assets/icon-star-light.png" translation="[44,30]" width="32" height="32" />
+        <Label text="Your story belongs here" translation="[8,74]" width="104" height="52" horizAlign="center" wrap="true" maxLines="2" color="0xFFFFFFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="16" />
+        </Label>
+        <Label text="watchprotv.com&#10;/creators" translation="[4,132]" width="112" height="36" horizAlign="center" wrap="true" color="0x9CC3FFFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="12" />
+        </Label>
+      </Group>
+      <Poster id="shade" uri="pkg:/assets/card-shade.png" width="176" height="36" translation="[0,63]" loadDisplayMode="scaleToFill" visible="false" />
+      <Rectangle id="progressTrack" width="100" height="4" translation="[8,88]" color="0xFFFFFF40" visible="false" />
+      <Rectangle id="progressFill" width="0" height="4" translation="[8,88]" color="0x60A5FAFF" visible="false" />
+      <Label id="timeLeft" width="70" height="20" translation="[98,76]" horizAlign="right" color="0xFFFFFFFF" visible="false">
+        <Font role="font" uri="font:BoldSystemFontFile" size="13" />
+      </Label>
+      <Poster id="mask" uri="pkg:/assets/card-mask.9.png" width="120" height="180" />
+      <Group id="creatorBadge" translation="[6,6]" visible="false">
+        <Poster uri="pkg:/assets/chip-creator.9.png" width="64" height="18" />
+        <Label text="CREATOR" width="64" height="18" horizAlign="center" vertAlign="center" color="0x05070BFF">
+          <Font role="font" uri="font:BoldSystemFontFile" size="11" />
+        </Label>
+      </Group>
+      <Label id="caption" width="120" height="22" translation="[0,190]" color="0xC9D1E4FF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="16" />
+      </Label>
+      <Label id="subtitle" width="120" height="20" translation="[0,212]" color="0x7D879EFF">
+        <Font role="font" uri="font:SystemFontFile" size="14" />
       </Label>
     </Group>
-    <Poster id="shade" uri="pkg:/assets/card-shade.png" width="176" height="36" translation="[0,63]" loadDisplayMode="scaleToFill" visible="false" />
-    <Rectangle id="progressTrack" width="100" height="4" translation="[8,88]" color="0xFFFFFF40" visible="false" />
-    <Rectangle id="progressFill" width="0" height="4" translation="[8,88]" color="0x60A5FAFF" visible="false" />
-    <Label id="timeLeft" width="70" height="20" translation="[98,76]" horizAlign="right" color="0xFFFFFFFF" visible="false">
-      <Font role="font" uri="font:BoldSystemFontFile" size="13" />
-    </Label>
-    <Poster id="mask" uri="pkg:/assets/card-mask.9.png" width="120" height="180" />
-    <Group id="creatorBadge" translation="[6,6]" visible="false">
-      <Poster uri="pkg:/assets/chip-creator.9.png" width="64" height="18" />
-      <Label text="CREATOR" width="64" height="18" horizAlign="center" vertAlign="center" color="0x05070BFF">
-        <Font role="font" uri="font:BoldSystemFontFile" size="11" />
-      </Label>
-    </Group>
-    <Label id="caption" width="120" height="22" translation="[0,190]" color="0xC9D1E4FF">
-      <Font role="font" uri="font:BoldSystemFontFile" size="16" />
-    </Label>
-    <Label id="subtitle" width="120" height="20" translation="[0,212]" color="0x7D879EFF">
-      <Font role="font" uri="font:SystemFontFile" size="14" />
-    </Label>
   </children>
 </component>
