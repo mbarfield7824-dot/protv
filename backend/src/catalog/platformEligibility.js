@@ -1,11 +1,12 @@
 // Platform eligibility for the shared viewer catalog.
 //
-// Roku is fail-closed: a Roku client sees only titles whose rights evidence
-// covers the copy PROtv streams (tv/roku/store/ROKU-LAUNCH-CATALOG.md on
-// release/roku-1.0-rc5). Every other client keeps the full approved catalog.
-// Adding a title here is a reviewed code change, so a rights decision and its
-// deployment travel together.
-const ROKU_LAUNCH_TITLE_IDS = new Set([
+// Fire TV is fail-closed: a Fire TV client sees only titles whose rights
+// evidence covers the copy PROtv streams (Group A in
+// tv/roku/store/ROKU-LAUNCH-CATALOG.md on release/roku-1.0-rc9, reused for the
+// Amazon launch). Every other client, Roku included, keeps the full approved
+// catalog. Adding a title here is a reviewed code change, so a rights decision
+// and its deployment travel together.
+const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'gbcxmtl6mAHQeBxx8Dgs', // Tears of Steel (2012)
   'sCWQqVE5WIoNNN5wAGQ2', // Sintel (2010)
   'hKPU3JNJ4faWLgWE6ZSq', // Big Buck Bunny (2008)
@@ -36,23 +37,17 @@ const ROKU_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
-// The shipped Roku app sends no app header, but every Roku device identifies
-// itself as "Roku/DVP-<firmware> (<build>)". X-PROtv-Platform lets later builds
-// and tests name the platform explicitly.
+// Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
+// send X-PROtv-Platform: firetv; older sideloaded builds, Roku, the website and
+// Android send nothing and are unchanged. The header is self-declared, so this
+// controls what the Fire TV app shows; it is not access control.
 function platformFromRequest(req) {
-  const declared = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
-  if (declared) return declared;
-  return /^Roku\//i.test(req.get('User-Agent') || '') ? 'roku' : 'default';
+  return String(req.get('X-PROtv-Platform') || '').trim().toLowerCase() || 'default';
 }
-
-// Fire TV launches with the same cleared list. Fire TV builds from 1.0.0 code 6
-// send X-PROtv-Platform: firetv; older sideloaded builds send nothing.
-const LAUNCH_TITLE_IDS = { roku: ROKU_LAUNCH_TITLE_IDS, firetv: ROKU_LAUNCH_TITLE_IDS };
 
 function eligibleForPlatform(videos, platform) {
-  const allowed = LAUNCH_TITLE_IDS[platform];
-  if (!allowed) return videos;
-  return videos.filter((video) => allowed.has(video.id));
+  if (platform !== 'firetv') return videos;
+  return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id));
 }
 
-module.exports = { ROKU_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform };
+module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform };
