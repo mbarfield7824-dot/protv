@@ -171,6 +171,10 @@ test('720p layout keeps the sidebar, living hero and rails inside the safe area'
   assert.match(card, /id="creatorBadge"/);
   assert.match(card, /id="timeLeft"/);
   assert.match(card, /id="ring" uri="pkg:\/assets\/card-ring\.9\.png"/);
+  const ring = /ninePatch\('card-ring'[\s\S]*?\n {2}\}\);/.exec(await readFile(path.join(root, 'tools', 'assets.html'), 'utf8'))[0];
+  assert.match(ring, /strokeStyle = '#4F9DFF'; ctx\.lineWidth = 2; ctx\.stroke\(\);/, 'poster focus is one thin electric-blue outline');
+  assert.equal(ring.match(/stroke\(\)/g).length, 1, 'no second (double) border');
+  assert.ok(Number(/shadowBlur = (\d+)/.exec(ring)[1]) <= 4 && !/#FFF/i.test(ring), 'faint halo only, no white frame');
   assert.match(cardController, /if not m\.top\.rowListHasFocus then amount = 0/);
   assert.match(controller, /sub statusChanged\(\)[\s\S]*?visible = m\.status\.text <> ""/);
   assert.match(controller, /"\/users\/me\/favorites"/);

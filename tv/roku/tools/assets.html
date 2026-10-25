@@ -72,14 +72,14 @@ button('toast', 40, 20, (ctx, w, h, r) => {
   ctx.strokeStyle = 'rgba(96,165,250,0.5)'; ctx.lineWidth = 1; ctx.stroke();
 });
 
-// Card focus ring: 14px margin, white 3px ring 4px outside the artwork + glow.
+// Card focus ring: 14px margin, one thin electric-blue 2px outline 3px outside
+// the artwork with a faint halo (no white frame, no second stroke).
 {
-  const m = 14, r = 14, size = 2 * (m + r) + 4;
+  const m = 14, r = 13, size = 2 * (m + r) + 4;
   ninePatch('card-ring', size, size, (ctx, w, h) => {
-    rr(ctx, m - 5.5, m - 5.5, w - 2 * m + 11, h - 2 * m + 11, r);
-    ctx.shadowColor = 'rgba(96,165,250,1)'; ctx.shadowBlur = 12;
-    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.shadowBlur = 0; ctx.stroke();
+    rr(ctx, m - 4, m - 4, w - 2 * m + 8, h - 2 * m + 8, r);
+    ctx.shadowColor = 'rgba(79,157,255,0.35)'; ctx.shadowBlur = 4;
+    ctx.strokeStyle = '#4F9DFF'; ctx.lineWidth = 2; ctx.stroke();
   });
 }
 

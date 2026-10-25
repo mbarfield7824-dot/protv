@@ -1,5 +1,6 @@
 // Renders tools/assets.html in headless Chrome or Edge and writes assets/.
 // Development-only: the PNG/JPG outputs are committed and packaged as-is.
+// Optional arguments name the only assets to rewrite, e.g. card-ring.9.png.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -27,7 +28,9 @@ if (!json) throw new Error('Asset page produced no output.');
 const assets = JSON.parse(json.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
 const dir = path.join(root, 'assets');
 await mkdir(dir, { recursive: true });
+const only = process.argv.slice(2);
 for (const [name, url] of Object.entries(assets)) {
+  if (only.length && !only.includes(name)) continue;
   const bytes = Buffer.from(url.slice(url.indexOf(',') + 1), 'base64');
   await writeFile(path.join(dir, name), bytes);
   console.log(`${name.padEnd(24)} ${bytes.length} bytes`);
