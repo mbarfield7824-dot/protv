@@ -6,16 +6,19 @@ const STATUS_LABELS = {
   pending_review: 'Pending Review',
   additional_information_required: 'Additional Information Required',
   approved_for_processing: 'Approved for Processing',
+  sign_in_deleted: 'Sign-in Account Deleted',
   on_hold: 'On Hold',
   completed: 'Completed',
 };
 
-// Mirrors backend/src/accountDeletionAdmin.js. Completed is only accepted by the server
-// after its read-only check confirms the runbook deletions were done.
+// Mirrors backend/src/accountDeletionAdmin.js. The server verifies each deletion step:
+// Sign-in Account Deleted needs the TV links and Auth account gone, and Completed needs
+// the waiting period over and a fresh check of every store.
 const TRANSITIONS = {
   pending_review: ['additional_information_required', 'approved_for_processing', 'on_hold'],
   additional_information_required: ['pending_review', 'approved_for_processing', 'on_hold'],
-  approved_for_processing: ['on_hold', 'completed'],
+  approved_for_processing: ['sign_in_deleted', 'on_hold'],
+  sign_in_deleted: ['completed', 'on_hold'],
   on_hold: ['pending_review', 'additional_information_required', 'approved_for_processing'],
   completed: [],
 };
@@ -43,7 +46,7 @@ function Runbook({ request }) {
       </p>
       <ol className="account-deletion-admin__runbook">
         <li>
-          Copy the account email into the support thread: it cannot be shown after step 3.
+          Copy the account email into the support thread: it cannot be shown after step 4.
           Safety reports from that email: {reports === null || reports === undefined ? 'unknown (email unavailable)' : reports}.
           Delete them only if the person asked and none is still under review.
         </li>
@@ -52,19 +55,23 @@ function Runbook({ request }) {
           has a record; {request.account?.accountType === 'creator' ? 'creator claim present' : 'no creator claim found'}).
           Keep signed agreements and get an owner decision on licensed titles.
         </li>
-        <Check done={fulfillment.authAccount === 'deleted'}>
-          Delete the Firebase Authentication account.
-        </Check>
-        <li>
-          Wait at least one hour. Sign-in tokens already issued to TVs and browsers stay valid until
-          they expire, and could re-create watch progress if you delete it sooner.
-        </li>
-        <Check done={fulfillment.profile === 'deleted'}>
-          Delete Firestore <code>users/{request.uid}</code> (My List, watch progress and history).
-        </Check>
         <Check done={fulfillment.deviceSessions === 0}>
           Delete <code>deviceSessions</code> where <code>approvedByUid == {request.uid}</code>
           {fulfillment.deviceSessions > 0 ? ` (${fulfillment.deviceSessions} remaining)` : ''}.
+          An approved link can sign the account back in, so remove these first.
+        </Check>
+        <Check done={fulfillment.authAccount === 'deleted'}>
+          Delete the Firebase Authentication account, then record “Sign-in Account Deleted” below.
+        </Check>
+        <Check done={Boolean(request.signInDeletedVerifiedAt)}>
+          Waiting period: tokens already issued stay valid for up to an hour.
+          {request.completionAvailableAt
+            ? ` Completion is available from ${displayTime(request.completionAvailableAt)}.`
+            : ' It starts when you record “Sign-in Account Deleted”.'}
+        </Check>
+        <Check done={fulfillment.profile === 'deleted'}>
+          Delete Firestore <code>users/{request.uid}</code> (My List, watch progress and history).
+          If it reappears during the wait, delete it again.
         </Check>
         <li>Email the person from support@watchprotv.com confirming deletion, then mark Completed below.</li>
       </ol>
@@ -80,6 +87,7 @@ function Runbook({ request }) {
 function AccountDeletionDetail({ request, onSaved }) {
   const [status, setStatus] = useState('');
   const [reason, setReason] = useState('');
+  const [creatorPortalReviewed, setCreatorPortalReviewed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -92,10 +100,15 @@ function AccountDeletionDetail({ request, onSaved }) {
     setError('');
     setNotice('');
     try {
-      await api.reviewAccountDeletionRequest(request.id, { status, reason: reason.trim() });
+      await api.reviewAccountDeletionRequest(request.id, {
+        status,
+        reason: reason.trim(),
+        ...(status === 'completed' ? { creatorPortalReviewed } : {}),
+      });
       setNotice(`Recorded: ${STATUS_LABELS[status]}.`);
       setStatus('');
       setReason('');
+      setCreatorPortalReviewed(false);
       try {
         await onSaved(request.id);
       } catch (refreshError) {
@@ -157,12 +170,20 @@ function AccountDeletionDetail({ request, onSaved }) {
             <textarea value={reason} onChange={(event) => setReason(event.target.value)}
               maxLength={2000} rows={4} required disabled={saving} />
           </label>
-          {status === 'completed' && !request.fulfillment?.complete && (
-            <p className="account-deletion-admin__notice">
-              The server will refuse this until the open runbook steps above are done.
-            </p>
+          {status === 'completed' && (
+            <>
+              <label className="account-deletion-admin__attest">
+                <input type="checkbox" checked={creatorPortalReviewed}
+                  onChange={(event) => setCreatorPortalReviewed(event.target.checked)} disabled={saving} />
+                <span>I reviewed this account's Creator Portal records (step 2).</span>
+              </label>
+              <p className="account-deletion-admin__notice">
+                The server re-checks every store now and refuses if anything remains or the waiting
+                period has not ended.
+              </p>
+            </>
           )}
-          <button type="submit" disabled={saving || !status || !reason.trim()}>
+          <button type="submit" disabled={saving || !status || !reason.trim() || (status === 'completed' && !creatorPortalReviewed)}>
             {saving ? 'Saving…' : 'Record decision'}
           </button>
         </form>

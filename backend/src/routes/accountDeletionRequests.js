@@ -3,12 +3,14 @@ const { db } = require('../firebase');
 const { verifyToken, requireInteractiveUserSession } = require('../middleware/auth');
 const { requireRecentAuthentication } = require('../middleware/recentAuthentication');
 const { createAccountDeletionRequestService } = require('../accountDeletionRequests');
+const { requireAccountDeletionEnvironment } = require('../accountDeletionEnvironment');
 
 function createAccountDeletionRequestRouter({
   service = createAccountDeletionRequestService({ getDb: () => db }),
   verifyToken: verify = verifyToken,
   requireInteractiveUserSession: requireInteractive = requireInteractiveUserSession,
   requireRecentAuthentication: requireRecent = requireRecentAuthentication,
+  environment = requireAccountDeletionEnvironment(),
 } = {}) {
   const router = express.Router();
   router.use((req, res, next) => {
@@ -18,7 +20,7 @@ function createAccountDeletionRequestRouter({
       'Vercel-CDN-Cache-Control': 'no-store',
     });
     next();
-  });
+  }, environment);
 
   router.get('/', verify, async (req, res, next) => {
     try {

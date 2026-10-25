@@ -22,6 +22,10 @@ const requestStatuses = {
     label: 'Being processed',
     detail: 'Your request is approved and your data is being deleted.',
   },
+  sign_in_deleted: {
+    label: 'Being processed',
+    detail: 'Your sign-in account has been deleted and the rest of your data is being removed.',
+  },
   on_hold: {
     label: 'On hold',
     detail: 'We have paused this request and will email you to explain why.',
@@ -55,6 +59,7 @@ function RequestPanel() {
             viewer: user,
             request: null,
             loaded: true,
+            unavailable: loadError.code === 'deletion_unavailable_in_environment',
             error: loadError.message || 'Unable to load your deletion request.',
           });
         }
@@ -109,6 +114,8 @@ function RequestPanel() {
     );
   } else if (!requestLoaded) {
     body = <p>Loading your request status…</p>;
+  } else if (currentSnapshot?.unavailable) {
+    body = null;
   } else if (request) {
     const status = requestStatuses[request.status] || { label: request.status, detail: '' };
     body = (

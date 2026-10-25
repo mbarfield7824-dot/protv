@@ -159,6 +159,28 @@ test('a stale sign-in is asked to sign in again', async () => {
   assert.equal(modalOpened, 1);
 });
 
+test('a closed environment (such as a preview deployment) hides the request form', async () => {
+  await act(async () => root?.unmount());
+  document.body.innerHTML = '<div id="root"></div>';
+  api.getAccountDeletionRequest = async () => {
+    throw Object.assign(new Error('Account deletion requests are only available on watchprotv.com.'), {
+      status: 503, code: 'deletion_unavailable_in_environment',
+    });
+  };
+  root = createRoot(document.getElementById('root'));
+  await act(async () => {
+    root.render(React.createElement(MemoryRouter, null, React.createElement(
+      AuthContext.Provider,
+      { value: { user: { email: 'viewer@example.test', getIdToken: async () => 'token' }, loading: false, openAuthModal() {}, signOut: async () => {} } },
+      React.createElement(AccountDeletion),
+    )));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  assert.equal(document.querySelector('form'), null);
+  assert.match(document.querySelector('[role="alert"]').textContent, /only available on watchprotv\.com/);
+  assert.ok(document.querySelector('a[href^="mailto:support@watchprotv.com?subject="]'), 'email route still offered');
+});
+
 test('the privacy page links to the deletion page and keeps the support email route', async () => {
   await mountPage({ page: Privacy });
   assert.ok(document.querySelector('a[href="/delete-account"]'));

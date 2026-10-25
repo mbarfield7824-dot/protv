@@ -5,18 +5,26 @@ const STATUSES = new Set([
   'pending_review',
   'additional_information_required',
   'approved_for_processing',
+  'sign_in_deleted',
   'on_hold',
   'completed',
 ]);
 const TRANSITIONS = {
   pending_review: new Set(['additional_information_required', 'approved_for_processing', 'on_hold']),
   additional_information_required: new Set(['pending_review', 'approved_for_processing', 'on_hold']),
-  approved_for_processing: new Set(['on_hold', 'completed']),
+  approved_for_processing: new Set(['sign_in_deleted', 'on_hold']),
+  sign_in_deleted: new Set(['completed', 'on_hold']),
   on_hold: new Set(['pending_review', 'additional_information_required', 'approved_for_processing']),
   completed: new Set(),
 };
 const CHANNELS = new Set(['web', 'email']);
 const UID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+// Firebase ID tokens last one hour and the existing verifyToken middleware does not check
+// revocation, so tokens issued before the sign-in account was deleted keep working until
+// they expire and could re-create watch progress. Completion waits this long after the
+// server first saw the sign-in account gone; five extra minutes allow for clock skew.
+const TOKEN_EXPIRY_WAIT_MS = 65 * 60 * 1000;
 
 class DeletionRequestError extends Error {
   constructor(message, status = 400) {
@@ -29,6 +37,13 @@ function timestamp(value) {
   if (value instanceof Date) return value.toISOString();
   if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
   return typeof value === 'string' ? value : null;
+}
+
+function toMillis(value) {
+  if (value instanceof Date) return value.getTime();
+  if (value && typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value === 'string') return Date.parse(value) || null;
+  return null;
 }
 
 function publicRequest(id, data) {
@@ -44,9 +59,9 @@ function publicRequest(id, data) {
 
 function remainingFulfillmentSteps(fulfillment) {
   const steps = [];
-  if (fulfillment.profile !== 'deleted') steps.push('the users profile document still exists');
   if (fulfillment.deviceSessions > 0) steps.push(`${fulfillment.deviceSessions} TV sign-in link(s) remain in deviceSessions`);
   if (fulfillment.authAccount !== 'deleted') steps.push('the Firebase sign-in account still exists');
+  if (fulfillment.profile !== 'deleted') steps.push('the users profile document still exists');
   return steps;
 }
 
@@ -103,14 +118,17 @@ function createAccountDeletionAdminService({
     }
   }
 
+  const profileReference = (db, uid) => db.collection('users').doc(uid);
+  const sessionsQuery = (db, uid) => db.collection('deviceSessions').where('approvedByUid', '==', uid);
+
   // Read-only checks against the stores the manual runbook deletes from. Nothing here
   // deletes data; it only reports what is still present.
   async function liveChecks(uid) {
     const db = requireDb();
     const [account, profile, sessions] = await Promise.all([
       accountDetails(uid),
-      db.collection('users').doc(uid).get(),
-      db.collection('deviceSessions').where('approvedByUid', '==', uid).get(),
+      profileReference(db, uid).get(),
+      sessionsQuery(db, uid).get(),
     ]);
     const safetyReports = account.email
       ? (await db.collection('safetyReports').where('contactEmail', '==', account.email).get()).size
@@ -128,13 +146,22 @@ function createAccountDeletionAdminService({
   async function detail(reference, id, data) {
     const uid = data.uid || id;
     const [checks, history] = await Promise.all([liveChecks(uid), readHistory(reference)]);
+    const signInDeletedAt = toMillis(data.signInDeletedVerifiedAt);
     return {
       ...publicRequest(id, data),
       uid,
       account: checks.account,
       fulfillment: data.status === 'completed' && data.fulfillmentEvidence
-        ? { ...data.fulfillmentEvidence, verifiedAt: timestamp(data.fulfillmentEvidence.verifiedAt), complete: true, remaining: [] }
+        ? {
+          ...data.fulfillmentEvidence,
+          signInDeletedVerifiedAt: timestamp(data.fulfillmentEvidence.signInDeletedVerifiedAt),
+          verifiedAt: timestamp(data.fulfillmentEvidence.verifiedAt),
+          complete: true,
+          remaining: [],
+        }
         : checks.fulfillment,
+      signInDeletedVerifiedAt: signInDeletedAt ? new Date(signInDeletedAt).toISOString() : null,
+      completionAvailableAt: signInDeletedAt ? new Date(signInDeletedAt + TOKEN_EXPIRY_WAIT_MS).toISOString() : null,
       safetyReportsFromAccountEmail: checks.safetyReports,
       reason: data.reason || '',
       decidedAt: timestamp(data.decidedAt),
@@ -198,7 +225,57 @@ function createAccountDeletionAdminService({
     });
   }
 
-  async function reviewRequest(id, { status, reason }, actorUid) {
+  // Sign-in deleted: the server confirms the Auth account is gone and that no TV sign-in
+  // link is left that could mint a new token for it, and records when it saw that.
+  async function verifySignInDeleted(db, uid) {
+    const [account, sessions] = await Promise.all([accountDetails(uid), sessionsQuery(db, uid).get()]);
+    if (sessions.size > 0) {
+      throw new DeletionRequestError(
+        `Delete the ${sessions.size} TV sign-in link(s) in deviceSessions first. An approved link can sign the account back in.`,
+        409,
+      );
+    }
+    if (account.exists) throw new DeletionRequestError('The Firebase sign-in account still exists. Delete it first.', 409);
+  }
+
+  // Completed: re-reads the profile and TV links inside the same transaction that writes
+  // the status, so a concurrent write aborts the completion, and re-checks Auth.
+  async function verifyCompletion(transaction, db, uid, current, nowMs) {
+    const signInDeletedAt = toMillis(current.signInDeletedVerifiedAt);
+    if (!signInDeletedAt) {
+      throw new DeletionRequestError('Record "Sign-in account deleted" before completing.', 409);
+    }
+    const availableAt = signInDeletedAt + TOKEN_EXPIRY_WAIT_MS;
+    if (nowMs < availableAt) {
+      const minutes = Math.ceil((availableAt - nowMs) / 60000);
+      throw new DeletionRequestError(
+        `The waiting period for issued sign-in tokens ends at ${new Date(availableAt).toISOString()} (${minutes} min). Complete the request after that.`,
+        409,
+      );
+    }
+    const [profile, sessions, account] = await Promise.all([
+      transaction.get(profileReference(db, uid)),
+      transaction.get(sessionsQuery(db, uid)),
+      accountDetails(uid),
+    ]);
+    const remaining = remainingFulfillmentSteps({
+      authAccount: account.exists ? 'present' : 'deleted',
+      profile: profile.exists ? 'present' : 'deleted',
+      deviceSessions: sessions.size,
+    });
+    if (remaining.length) {
+      throw new DeletionRequestError(`Finish the deletion runbook before marking this completed: ${remaining.join('; ')}.`, 409);
+    }
+    return {
+      authAccount: 'deleted',
+      profile: 'deleted',
+      deviceSessions: 0,
+      creatorPortalReviewed: true,
+      signInDeletedVerifiedAt: new Date(signInDeletedAt),
+    };
+  }
+
+  async function reviewRequest(id, { status, reason, creatorPortalReviewed }, actorUid) {
     if (!STATUSES.has(status)) throw new DeletionRequestError('A valid review status is required.');
     if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 2000) {
       throw new DeletionRequestError('A review reason of 1–2000 characters is required.');
@@ -206,32 +283,18 @@ function createAccountDeletionAdminService({
     if (typeof actorUid !== 'string' || !actorUid) {
       throw new DeletionRequestError('The authenticated administrator identity is unavailable.', 401);
     }
+    if (status === 'completed' && creatorPortalReviewed !== true) {
+      throw new DeletionRequestError('Confirm the Creator Portal records were reviewed before completing.');
+    }
 
     const db = requireDb();
     const reference = db.collection(COLLECTION).doc(id);
     const initial = await reference.get();
     if (!initial.exists) return null;
-
-    let fulfillmentEvidence = null;
-    if (status === 'completed') {
-      const { fulfillment } = await liveChecks(initial.data().uid || id);
-      if (!fulfillment.complete) {
-        throw new DeletionRequestError(
-          `Finish the deletion runbook before marking this completed: ${fulfillment.remaining.join('; ')}.`,
-          409,
-        );
-      }
-      fulfillmentEvidence = {
-        authAccount: fulfillment.authAccount,
-        profile: fulfillment.profile,
-        deviceSessions: fulfillment.deviceSessions,
-        verifiedAt: new Date(now()),
-        verifiedBy: actorUid,
-      };
-    }
+    const uid = initial.data().uid || id;
+    if (status === 'sign_in_deleted') await verifySignInDeleted(db, uid);
 
     const audit = reference.collection('decisionHistory').doc(createId());
-    const nowDate = new Date(now());
     return db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(reference);
       if (!snapshot.exists) return null;
@@ -241,6 +304,11 @@ function createAccountDeletionAdminService({
         throw new DeletionRequestError(`The transition from ${current.status} to ${status} is not allowed.`, 409);
       }
 
+      const nowMs = now();
+      const nowDate = new Date(nowMs);
+      const evidence = status === 'completed'
+        ? { ...await verifyCompletion(transaction, db, uid, current, nowMs), verifiedAt: nowDate, verifiedBy: actorUid }
+        : null;
       const normalizedReason = reason.trim();
       const update = {
         status,
@@ -249,19 +317,20 @@ function createAccountDeletionAdminService({
         decidedBy: actorUid,
         updatedAt: nowDate,
         adminMessage: status === 'additional_information_required' ? normalizedReason : '',
-        ...(fulfillmentEvidence ? { fulfillmentEvidence } : {}),
+        ...(status === 'sign_in_deleted' ? { signInDeletedVerifiedAt: nowDate } : {}),
+        ...(evidence ? { fulfillmentEvidence: evidence } : {}),
       };
       transaction.update(reference, update);
       transaction.create(audit, {
         requestId: id,
-        uid: current.uid || id,
+        uid,
         action: 'status_changed',
         fromStatus: current.status,
         toStatus: status,
         reason: normalizedReason,
         actorUid,
         createdAt: nowDate,
-        ...(fulfillmentEvidence ? { fulfillmentEvidence } : {}),
+        ...(evidence ? { fulfillmentEvidence: evidence } : {}),
       });
       return publicRequest(id, { ...current, ...update });
     });
@@ -273,5 +342,6 @@ function createAccountDeletionAdminService({
 module.exports = {
   createAccountDeletionAdminService,
   DeletionRequestError,
+  TOKEN_EXPIRY_WAIT_MS,
   TRANSITIONS,
 };

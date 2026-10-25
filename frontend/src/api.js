@@ -583,6 +583,7 @@ async function accountDeletionRequest(token, method, fallback) {
   if (!res.ok) {
     const error = new Error(response.error || fallback);
     error.status = res.status;
+    error.code = response.code;
     throw error;
   }
   return response.request;

@@ -5,6 +5,47 @@ const { createAccountDeletionRequestService } = require('../src/accountDeletionR
 const { createAccountDeletionRequestRouter } = require('../src/routes/accountDeletionRequests');
 const { requireInteractiveUserSession } = require('../src/middleware/auth');
 const { createRecentAuthenticationMiddleware } = require('../src/middleware/recentAuthentication');
+const {
+  accountDeletionAvailable,
+  requireAccountDeletionEnvironment,
+} = require('../src/accountDeletionEnvironment');
+
+const allowEnvironment = (req, res, next) => next();
+
+test('deletion routes run only on Vercel Production or the Firebase emulator', () => {
+  const emulator = { FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' };
+  assert.equal(accountDeletionAvailable({ VERCEL: '1', VERCEL_ENV: 'production' }), true);
+  assert.equal(accountDeletionAvailable({ VERCEL: '1', VERCEL_ENV: 'preview' }), false);
+  assert.equal(accountDeletionAvailable({ VERCEL: '1', VERCEL_ENV: 'development' }), false);
+  assert.equal(accountDeletionAvailable({ VERCEL: '1' }), false, 'missing VERCEL_ENV fails closed');
+  assert.equal(accountDeletionAvailable({ VERCEL: '1', VERCEL_ENV: 'preview', ...emulator }), false, 'emulator vars cannot unlock a Vercel deployment');
+  assert.equal(accountDeletionAvailable({}), false, 'a local backend with real credentials is refused');
+  assert.equal(accountDeletionAvailable({ FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080' }), false, 'both emulators are required');
+  assert.equal(accountDeletionAvailable(emulator), true);
+});
+
+test('a closed environment refuses requests before any token or database work', async (context) => {
+  let touched = false;
+  const app = express();
+  app.use('/users/me/deletion-request', createAccountDeletionRequestRouter({
+    service: { getRequest: async () => { touched = true; }, submitRequest: async () => { touched = true; } },
+    verifyToken: (req, res, next) => { touched = true; next(); },
+    requireInteractiveUserSession: (req, res, next) => next(),
+    requireRecentAuthentication: (req, res, next) => next(),
+    environment: requireAccountDeletionEnvironment({ isAvailable: () => false }),
+  }));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => new Promise((resolve) => server.close(resolve)));
+  await new Promise((resolve) => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/users/me/deletion-request`;
+  for (const method of ['GET', 'POST']) {
+    const response = await fetch(url, { method, headers: { Authorization: 'Bearer token' } });
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal((await response.json()).code, 'deletion_unavailable_in_environment');
+  }
+  assert.equal(touched, false);
+});
 
 test('account deletion requests require recent interactive auth and are idempotent per account', async (context) => {
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -79,6 +120,7 @@ test('account deletion requests require recent interactive auth and are idempote
     verifyToken,
     requireInteractiveUserSession,
     requireRecentAuthentication,
+    environment: allowEnvironment,
   }));
   const server = app.listen(0, '127.0.0.1');
   context.after(() => new Promise((resolve) => server.close(resolve)));

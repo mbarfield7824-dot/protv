@@ -32,27 +32,38 @@ is stored in the request.
 ## 2. Delete the data (this order)
 
 Copy the account email into the support thread first. The queue cannot show it
-after step 3.
+after step 4.
 
 | # | Where | What | How |
 | --- | --- | --- | --- |
 | 1 | Firestore `safetyReports` | Reports sent from this email | Only if the person asks and none is still under review. Filter `contactEmail == email` |
 | 2 | Creator Agent (external) | Creator profile and projects. Opening the Creator Portal sends the UID, email and name, so anyone who opened it has a record, not only active creators | Search by UID or email. Keep signed agreements; get an owner decision on the profile, projects and licensed titles |
-| 3 | Firebase Authentication | The sign-in account | Users › the account › Delete account |
-| 4 | — | Wait at least one hour | The backend's `verifyToken` does not check revocation, so ID tokens already issued to TVs and browsers keep working until they expire (up to an hour). A TV still playing could re-create watch progress if step 5 runs sooner |
-| 5 | Firestore `users/{UID}` | My List, watch progress and history | Delete the document |
-| 6 | Firestore `deviceSessions` | TV sign-in links approved by this account | Filter `approvedByUid == UID`; delete each document |
+| 3 | Firestore `deviceSessions` | TV sign-in links approved by this account | Filter `approvedByUid == UID`; delete each document. Do this before step 4: an approved link can still mint a sign-in token, and signing in with it would re-create the account |
+| 4 | Firebase Authentication | The sign-in account | Users › the account › Delete account. Then record **Sign-in Account Deleted** in the queue |
+| 5 | — | Wait | The queue shows when completion becomes available, 65 minutes after step 4 was recorded. The backend's `verifyToken` does not check revocation, so ID tokens already issued keep working for up to an hour and could re-create watch progress |
+| 6 | Firestore `users/{UID}` | My List, watch progress and history | Delete the document. If it reappears during the wait, delete it again |
 
 Signed-in TVs stop working with the account when their token expires and the
-refresh fails. The queue shows a live tick for steps 3, 5 and 6 and the
+refresh fails. The queue shows a live tick for steps 3, 4 and 6 and the
 number of matching safety reports.
+
+## What the server enforces
+
+- **Sign-in Account Deleted** is accepted only when the Auth account is gone
+  and no `deviceSessions` remain. The server records when it saw this.
+- **Completed** is accepted only from Sign-in Account Deleted, at least 65
+  minutes after that time, with the Creator Portal review confirmed. It
+  re-checks the Auth account, and reads `users/{UID}` and `deviceSessions`
+  inside the same Firestore transaction that writes the status, so a
+  concurrent write aborts it. The result is stored as completion evidence.
+- Deletion routes run only on the Vercel Production deployment (or against
+  the Firebase emulator). Preview deployments and local backends with real
+  credentials return 503.
 
 ## 3. Confirm and close
 
 1. Email the person from `support@watchprotv.com` confirming the deletion.
-2. Mark the request **Completed**. The server re-checks that the Auth account,
-   the `users` document and all `deviceSessions` are gone, and refuses
-   otherwise. It stores that check as the completion evidence.
+2. Mark the request **Completed** and confirm the Creator Portal review.
 
 ## Not deleted with the account
 

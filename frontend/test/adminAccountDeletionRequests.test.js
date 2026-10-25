@@ -83,17 +83,27 @@ test('the queue shows the runbook with live check results and no destructive act
   assert.match(text, /viewer@example\.test/);
   assert.match(text, /\(2 remaining\)/);
   assert.equal(document.querySelectorAll('.account-deletion-admin__check--done').length, 1, 'only the profile step is done');
-  assert.equal(document.querySelectorAll('.account-deletion-admin__check--open').length, 2);
+  assert.equal(document.querySelectorAll('.account-deletion-admin__check--open').length, 3);
+  assert.match(text, /It starts when you record “Sign-in Account Deleted”/);
   assert.equal(
     [...document.querySelectorAll('button')].some((button) => /^delete/i.test(button.textContent.trim())),
     false,
     'the page never deletes data itself',
   );
-  assert.ok(document.querySelector('option[value="completed"]'), 'completion can be requested once approved');
+  assert.ok(document.querySelector('option[value="sign_in_deleted"]'));
+  assert.equal(document.querySelector('option[value="completed"]'), null, 'completion needs the sign-in step first');
 });
 
-test('marking completed warns while steps are open and sends the decision for server verification', async () => {
-  await mount();
+const waiting = () => fixture({
+  status: 'sign_in_deleted',
+  fulfillment: { authAccount: 'deleted', profile: 'deleted', deviceSessions: 0, complete: true, remaining: [] },
+  signInDeletedVerifiedAt: '2026-10-25T12:00:00.000Z',
+  completionAvailableAt: '2026-10-25T13:05:00.000Z',
+});
+
+test('completion shows when it becomes available and requires the Creator Portal attestation', async () => {
+  await mount(waiting());
+  assert.match(document.body.textContent, /Completion is available from/);
   let saved = null;
   api.reviewAccountDeletionRequest = async (id, body) => {
     saved = { id, body };
@@ -101,29 +111,51 @@ test('marking completed warns while steps are open and sends the decision for se
   };
   const form = document.querySelector('.account-deletion-admin__detail form');
   await act(async () => setValue(form.querySelector('select'), 'completed'));
-  assert.match(form.textContent, /server will refuse this until the open runbook steps/);
   await act(async () => setValue(form.querySelector('textarea'), 'Runbook done.'));
+  const submit = form.querySelector('button[type="submit"]');
+  assert.equal(submit.disabled, true, 'blocked until the Creator Portal review is confirmed');
+  assert.match(form.textContent, /re-checks every store now/);
+  await act(async () => form.querySelector('.account-deletion-admin__attest input').click());
+  assert.equal(submit.disabled, false);
   await act(async () => {
     form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  assert.deepEqual(saved, { id: 'viewer-1', body: { status: 'completed', reason: 'Runbook done.' } });
+  assert.deepEqual(saved, {
+    id: 'viewer-1',
+    body: { status: 'completed', reason: 'Runbook done.', creatorPortalReviewed: true },
+  });
   assert.match(document.body.textContent, /Recorded: Completed\./);
 });
 
-test('server refusals are shown to the admin', async () => {
+test('other decisions do not send the attestation field', async () => {
   await mount();
+  let saved = null;
+  api.reviewAccountDeletionRequest = async (id, body) => { saved = body; return { id, status: body.status }; };
+  const form = document.querySelector('.account-deletion-admin__detail form');
+  await act(async () => setValue(form.querySelector('select'), 'sign_in_deleted'));
+  await act(async () => setValue(form.querySelector('textarea'), 'Auth account deleted in console.'));
+  await act(async () => {
+    form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  assert.deepEqual(saved, { status: 'sign_in_deleted', reason: 'Auth account deleted in console.' });
+});
+
+test('server refusals are shown to the admin', async () => {
+  await mount(waiting());
   api.reviewAccountDeletionRequest = async () => {
-    throw new Error('Finish the deletion runbook before marking this completed: the Firebase sign-in account still exists.');
+    throw new Error('The waiting period for issued sign-in tokens ends at 2026-10-25T13:05:00.000Z (12 min).');
   };
   const form = document.querySelector('.account-deletion-admin__detail form');
   await act(async () => setValue(form.querySelector('select'), 'completed'));
   await act(async () => setValue(form.querySelector('textarea'), 'done'));
+  await act(async () => form.querySelector('.account-deletion-admin__attest input').click());
   await act(async () => {
     form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  assert.match(document.querySelector('[role="alert"]').textContent, /Firebase sign-in account still exists/);
+  assert.match(document.querySelector('[role="alert"]').textContent, /waiting period .* \(12 min\)/);
 });
 
 test('admins can record an email request by account UID', async () => {
