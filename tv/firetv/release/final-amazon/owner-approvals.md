@@ -1,11 +1,14 @@
-# Owner approvals and access needed
+# Owner actions still needed (2026-10-25)
 
-Please batch these decisions before submission:
+Only these items need the owner. Everything else is done or in `RELEASE-CHECKLIST.md`.
 
-1. **Signing-key recovery:** the owner-approved production key has been generated and used to sign the local 1.0.0 candidate. No owner-controlled encrypted offline destination was available among attached volumes, so no backup or restore test was performed. Arrange both through the owner-controlled backup system. Keep the key and DPAPI credential file local; do not send passwords in chat/Git. The signed-in Console account showed no prior apps; an incomplete PROtv draft exists (details in `README.md`). The Amazon certificate-hash request returned HTTP 500.
-2. **Deletion and privacy:** request intake and the non-destructive admin review queue are implemented locally but not deployed. Requests remain manual and no data is deleted. Decide retention and handling for Creator Portal projects/content, payout/tax records, safety reports/investigations, legal holds, provider logs, and backups. Identify who monitors/fulfills requests and a monitored public contact. Have owner/counsel determine applicable deadlines and any operational target; no 30-day deadline or grace period is encoded. Full fulfillment remains unavailable until these are resolved and all systems are verified.
-3. **Launch rights:** approve the exact title allowlist and US-only (or other documented) territories after counsel reviews the title-specific evidence queue. Keep all seven recorded restrictions in place unless separately cleared.
-4. **Store submission:** approve rating, pricing/marketplaces, supported device set, listing text, monitored support contact (the account-default contact is selected and customer-accessible, but mailbox receipt is unverified), privacy and deletion disclosures, and Fire TV assets after rights review. Provide an owner-authorized non-admin reviewer account through the Console.
-5. **Final submit:** after the signed build and all disclosures are verified, give explicit authorization to submit for publication.
+1. **Signing-key backups.** Run `D:\protv-firetv-artifacts\tools\Backup-ProtvFireTvKey.ps1 -CopyPasswordsToClipboard` once, then `-Destination <USB>:\PROtv-signing` for each of two USB drives. Confirm when both report "BACKUP VERIFIED".
+2. **Replace the Firestick app.** Explicit approval to uninstall the debug RC (`com.protv.firetv`, code 2) and install the signed code-4 APK, plus ADB access: Fire TV Settings > My Fire TV > Developer options > ADB debugging on, and the Firestick's IP address (Settings > My Fire TV > About > Network).
+3. **Physical tests.** Work through `physical-test-checklist.md` with the remote; report PASS/FAIL.
+4. **Catalog and territory.** Confirm the 49 live titles are approved for the Amazon **US-only** launch, as for Roku.
+5. **Content rating facts.** What Dead Air's TV-MA rating covers (violence, gore, sex/nudity, language), and the content of The Bundy Chronicles and Sita Sings the Blues. See `amazon-console-answers.md` §4.
+6. **Reviewer account.** Create a normal (non-admin) viewer account on watchprotv.com and enter its credentials directly in the console.
+7. **Console access.** This Claude session has no browser control. Either enable a browser tool (Claude in Chrome) signed in to the Amazon Developer Console, or enter `amazon-console-answers.md` and `store-listing.md` yourself.
+8. **Final approval** to submit for review.
 
-No credentials, personal customer data, legal conclusions, or reviewer account details are included here.
+No credentials, personal data or legal conclusions are stored in this repository.

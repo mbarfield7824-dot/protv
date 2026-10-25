@@ -1,5 +1,35 @@
 # Fire TV release test results
 
+## Current release: 1.0.0, version code 4 (2026-10-25)
+
+| Item | Value |
+|---|---|
+| Package | `com.protv.firetv` |
+| Version | 1.0.0, versionCode **4**, minSdk 23, **targetSdk 36**, compileSdk 37 |
+| Source commit | `f0d8e92` on `feature/firetv-final-rc-20261024` (the APK was built from this exact tree; no source file is newer than the APK) |
+| Signed APK | `D:\protv-firetv-artifacts\final-1.0.0-code4-20261025\PROtv-FireTV-1.0.0-code4-release-signed.apk` |
+| APK SHA-256 | `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9` |
+| Signer | CN=PROtv Android Upload, O=Prophecy Entertainment LLC, C=US; cert SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f` (keystore alias `protv-amazon-upload`, verified by opening the keystore) |
+| Signature schemes | v1 and v2 verified; zipalign -c 4 OK |
+| Manifest | `enableOnBackInvokedCallback=false` present in the compiled manifest |
+| Build | `assembleRelease` with signing values decrypted in memory only; JDK 25 (Android Studio JBR), build-tools 36.0.0 |
+| Matching debug APK | SHA-256 `db2e803d8065c3716c0451eb2f941fb5ba08fc39d2987b3322a42fd14206de54` |
+
+Automated checks on that source:
+
+| Check | Result |
+|---|---|
+| `:app:testDebugUnitTest` | **109 tests, 18 suites, 0 failures/errors/skips** (104 existing + 5 new) |
+| `:app:lintDebug`, `:app:lintRelease` | 0 errors, 10 warnings (same set as code 3; none from the code-4 changes) |
+| `:app:assembleDebug`, `:app:assembleRelease` | Succeeded |
+| API 36 emulator Back test | **Not run**: this PC reports "Virtualization Enabled In Firmware: No", so the Android emulator cannot start |
+
+Changes from code 3: targetSdk 36; Back key opt-out; Creator Portal and account deletion shown as address + QR instead of a browser intent; deletion card in Settings for all users; Music, Podcasts and New Releases hidden while empty.
+
+Code 3 (`cabfa00e…0301`) was never uploaded or installed and is superseded. Physical results for code 4 are recorded in `physical-test-checklist.md` and `RELEASE-CHECKLIST.md`.
+
+## Earlier build: 1.0.0, version code 3 (superseded)
+
 ## Release build identity
 
 - Package: `com.protv.firetv`

@@ -1,52 +1,58 @@
-# Amazon Appstore listing draft
+# Amazon Appstore listing: PROtv for Fire TV 1.0.0 (code 4)
 
-**Owner approval required.** Draft listing copy is prepared. The Console app entry and initial category are saved, but the listing details below have not been entered or published.
+Every statement below matches a feature verified in this build. No ratings, awards, user counts or unbuilt features are claimed.
 
 ## App identity
 
-- Display name: PROtv
-- Publisher: Prophecy Entertainment LLC
-- Package: `com.protv.firetv`
-- Website: https://watchprotv.com/
-- Support email proposal: support@watchprotv.com (shown on the current Privacy page; mailbox operation/monitoring is not verified). The Console currently has the Amazon account-default contact selected, which is customer-accessible, at the owner's direction.
-- Privacy policy: https://watchprotv.com/privacy
-- Account deletion URL: `https://watchprotv.com/delete-account` is the proposed route, but it is not deployed or verified and must not yet be entered as a live deletion facility; see `privacy-data-review.md`.
-- Console category/subcategory: Movies & TV > On-Demand Movie Streaming. Marketplace, rating, and release version: owner to select/approve in Developer Console.
+| Field | Value |
+|---|---|
+| App title | **PROtv** |
+| Publisher | Prophecy Entertainment LLC |
+| Package | `com.protv.firetv` |
+| Category | Movies & TV > On-Demand Movie Streaming (already saved on the draft) |
+| Website | https://watchprotv.com/ |
+| Customer support email | support@watchprotv.com (monitored by the owner from 2026-10-25) |
+| Privacy policy | https://watchprotv.com/privacy |
+| Account deletion | https://watchprotv.com/delete-account |
 
 ## Short description
 
-Discover independent films and series, browse featured titles, and pick up where you left off on Fire TV.
+Stream classic films, Black cinema, horror, cartoons and documentaries from the PROtv catalog on Fire TV, and pick up where you left off.
 
 ## Full description
 
-PROtv brings a television-friendly streaming experience to Fire TV. Explore featured titles and browse movies and series from the PROtv catalog, then use the remote to open a title and watch supported streams.
+PROtv brings its streaming catalog to your Fire TV. Browse featured titles, movies and TV episodes, explore categories such as Black Cinema, Horror, Sci-Fi, Cartoons and Documentary, or search by title, category or description.
 
-Sign in to sync My List and Continue Watching with your PROtv account, or browse as a guest. Use search and category browsing to find something to watch, and return to a title with saved viewing progress.
+Press Select to play. Your remote controls playback: Play/Pause, Fast-forward and Rewind, and Back to leave the player.
 
-Catalog availability can vary. Titles are presented through PROtv's catalog and playback services.
+Browse and watch as a guest, or sign in to your free PROtv account to keep My List and Continue Watching in sync between watchprotv.com and your TV. Signing in is simple: scan the QR code on screen with your phone, or visit watchprotv.com/activate and enter the code shown.
 
-## Key features
+New titles appear in the app as they are added to the PROtv catalog, without an app update. Catalog availability may change over time.
 
-- Fire TV and remote-first browsing
-- Featured titles, movies, series, search, and category rails
-- PROtv account sign-in and My List sync
-- Continue Watching with saved progress
-- Playback controls and seek navigation
+## Feature highlights
 
-## Release notes draft
+- Featured titles on a full-screen home page
+- Movies, TV episodes and category rows built for the remote
+- Search across titles, categories and descriptions
+- Remote playback controls: Play/Pause, Fast-forward, Rewind and Back
+- My List and Continue Watching, synced with your PROtv account
+- Sign in with a QR code or short code from your phone; no typing on the TV
+- Guest browsing without an account
 
-Fire TV release candidate with remote-first browsing, featured titles, My List, account sign-in, playback controls, and Continue Watching. Homepage scrolling and focus restoration improved.
+## Search keywords
 
-## Keywords
+PROtv, streaming, movies, classic movies, Black cinema, horror, sci-fi, cartoons, documentaries, independent film
 
-Independent films; movies; series; streaming; Fire TV; PROtv.
+## Release notes (1.0.0)
 
-## Reviewer instructions (draft)
+First release of PROtv for Fire TV.
 
-Provide an owner-authorized non-admin test account only after the account is created and tested. A network connection is required for account sync and streaming. The reviewer should be able to browse without signing in; sign-in is needed to test My List and cross-session Continue Watching. Do not use a real customer's account.
+## Images (see `artwork/`)
 
-**Not yet complete:** reviewer test credentials, content-specific test title approved for launch, territory/device targeting, rating answers, verified monitored support details, privacy labels, deployed deletion URL and fulfillment process, and final signed binary upload/physical validation.
+| Asset | Requirement | File | Status |
+|---|---|---|---|
+| App icon | 1280×720 PNG, no transparency | `store-app-icon.png` | Meets spec (8-bit RGB) |
+| Background | 1920×1080 PNG/JPG, no transparency | `store-background.png` | Meets spec (8-bit RGB) |
+| Screenshots | 3–10, 1920×1080, JPG or 24-bit PNG | `screenshots-code4/` | To be captured on the Firestick from the code-4 build: Home, Search, Playback, Sign-in QR, Settings (deletion card) |
 
-## Store artwork
-
-See `artwork/` and the Amazon asset specifications in `submission-checklist.md`. The generated icon/background are original PROtv-branded concepts for owner review; verify final creative and current console acceptance before upload. Device screenshots are authentic captures but require rights review of visible title/poster art.
+Screenshots must not show a real account email. Use the reviewer or a test account. Visible posters come from the live catalog. **OWNER:** confirm the 49 live titles are approved for the Amazon US launch (as for Roku) before these screenshots are uploaded; otherwise use screens without posters (Search, Settings, Sign-in QR).

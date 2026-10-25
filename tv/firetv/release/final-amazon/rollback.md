@@ -1,5 +1,16 @@
 # Rollback and recovery
 
+## Current (2026-10-25): code 4 release and the Firestick
+
+- Release: `com.protv.firetv` 1.0.0 / code 4, source `f0d8e92`, APK SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`, upload signer `3014…5a7f`.
+- Preserved before the code-4 build, outside the repository, in `D:\protv-firetv-artifacts\pre-final-build-20261025\` (with `SHA256SUMS.txt`):
+  - `PROtv-0.2.0-rc1-code2-debug-INSTALLED-ON-FIRESTICK.apk` (`5c3926ea…6ce7`, debug signer `d1fd4ef3…30d2`), the build on the owner's Firestick before code 4.
+  - `PROtv-1.0.0-code3-signed-UNUSED.apk` (`cabfa00e…0301`), never installed or uploaded.
+- The signed release and the debug RC have different signers, so moving between them on one device requires uninstalling `com.protv.firetv` (local app data is lost; My List and watch progress stay on the account). Rolling the Firestick back to the RC: `adb uninstall com.protv.firetv`, then `adb install` the preserved RC APK.
+- Amazon updates must be signed with the same upload key. Backups are made with `D:\protv-firetv-artifacts\tools\Backup-ProtvFireTvKey.ps1` and logged (no secrets) in `D:\protv-firetv-artifacts\key-backup-log.txt`.
+
+## Earlier record (2026-10-24)
+
 - Frozen verified source: `d2a6965250a9cc928c38c99f175332dbaa04c788`.
 - Remote rollback tag: `firetv-rc1-rollback-20261024`.
 - RC package/version: `com.protv.firetv`, `0.2.0-rc1` / code 2.

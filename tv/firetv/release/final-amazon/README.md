@@ -1,50 +1,34 @@
-# PROtv Fire TV Amazon Appstore submission package
+# PROtv Fire TV: Amazon Appstore submission package
 
-**Status: incomplete Amazon draft; not ready to submit.** An owner-authorized app entry was created in the signed-in Developer Console account. No app binary was uploaded, and no listing was published or submitted.
+**Release:** `com.protv.firetv` 1.0.0, version code **4**, targetSdk 36, source `f0d8e92`.
+**Signed APK:** `D:\protv-firetv-artifacts\final-1.0.0-code4-20261025\PROtv-FireTV-1.0.0-code4-release-signed.apk`, SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`.
+**Status:** built and verified; not uploaded or submitted. Progress is tracked in `RELEASE-CHECKLIST.md`.
 
 ## Contents
 
-- `store-listing.md` — proposed listing copy, metadata, and reviewer notes.
-- `privacy-data-review.md` — observed Fire TV data flows and deletion/privacy blockers.
-- Account deletion request intake, user status, and an admin-only review queue are implemented in the branch at website route `/delete-account` and the Fire TV account screen. The review queue is status/audit-only: admin approval does not delete accounts or creator content, the workflow is not deployed, and retention/verified fulfillment remain open.
-- `rights-launch-review.md` — reuse of the Roku rights review, restricted-title list, and approval queue.
-- `rights-launch-matrix.md` — title-level owner/counsel triage with exact catalog IDs; no catalog edits.
-- `test-results.md` — latest automated and owner-reported physical test evidence.
-- `submission-checklist.md` — technical and console checklist.
-- `owner-approvals.md` — concise unresolved decisions and credentials needed.
-- `rollback.md` — frozen source, tag, APK identity, and recovery constraints.
-- `artwork/` — original PROtv-branded artwork and selected real Firestick screenshots.
+| File | Purpose |
+|---|---|
+| `RELEASE-CHECKLIST.md` | Running checklist for every phase, with current status |
+| `owner-approvals.md` | The only items that still need the owner |
+| `amazon-console-answers.md` | Field-by-field Developer Console answers (devices, privacy label, deletion, rating, reviewer notes) |
+| `store-listing.md` | Title, descriptions, features, keywords, release notes and image plan |
+| `physical-test-checklist.md` | Firestick test script with PASS/FAIL columns |
+| `test-results.md` | Build provenance and automated results for code 4 (and earlier builds) |
+| `rollback.md` | Artifacts, signers and recovery steps |
+| `privacy-data-review.md` | Data inventory behind the privacy answers |
+| `rights-launch-review.md`, `rights-launch-matrix.md` | Catalog rights evidence shared with Roku |
+| `artwork/` | Store icon, background and device screenshots |
 
-The signed `app-release.apk` is retained locally outside Git for owner review and is not uploaded. Do not upload it until the remaining rights, deletion, store, and physical validation gates are met. Current backend, frontend, Android, and dependency-audit results are recorded in `test-results.md`.
+## Amazon Developer Console
 
-## Frozen release reference
+- Existing draft app ID `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`, release `amzn1.devportal.apprelease.ca213de1703a4a5183eb85986b936e7e`, category Movies & TV > On-Demand Movie Streaming.
+- Account deletion URL (live): https://watchprotv.com/delete-account. Privacy policy: https://watchprotv.com/privacy.
 
-- Branch: `feature/firetv-final-rc-20261024`
-- Verified app source: `d2a6965250a9cc928c38c99f175332dbaa04c788`
-- Rollback tag: `firetv-rc1-rollback-20261024`
-- Documentation/package commit: see the current branch HEAD.
-- RC rollback package: `com.protv.firetv`, version `0.2.0-rc1` (code 2).
-- Owner-approved first public release build: `com.protv.firetv`, version `1.0.0` (code 3); current signed APK hash and signer are in `test-results.md`.
-
-## Amazon Developer Console checkpoint (2026-10-24)
-
-- The signed-in account's App List showed 0 apps before this task; no existing PROtv listing was found in that account.
-- With owner approval, created an incomplete draft app titled **PROtv**, category **Movies & TV > On-Demand Movie Streaming**. Amazon app ID: `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`. Draft release ID: `amzn1.devportal.apprelease.ca213de1703a4a5183eb85986b936e7e`.
-- The form's account-default support contact was selected at the owner's direction; Amazon states this contact is accessible to customers. Review or replace it with an owner-approved monitored public support channel before publication.
-- The Console is at **Step 1: Upload your app file**. No file has been uploaded. The available local release APK is unsigned and must not be uploaded.
-- The **Appstore Certificate Hashes** request returned HTTP 500. The dialog explained that Amazon removes the developer signature during ingestion and applies an account-specific Amazon signature. The unavailable hashes are Amazon's distribution certificate hashes; they are not the developer upload-key fingerprints and are not a substitute for a developer-signed APK.
-- This account has no prior app entry or release history, so no prior app-specific upload certificate was found in Console. The historical signed 0.1.0 APK at `D:\protv` is not the current release; its certificate fingerprint is recorded in `test-results.md`, but its private key was not found. Do not use the debug keystore or assume the historical certificate can be reproduced.
-- A dedicated RSA-3072 upload key was generated after owner authorization and stored outside the repository with restrictive Windows ACLs. Its credential backup is encrypted using the current Windows user's DPAPI. Public certificate fingerprint and signed APK checksum are recorded in `test-results.md`; secret material is not in this repository.
-- No target devices, marketplace, pricing, ratings, privacy answers, deletion URL, or listing screenshots were selected. The draft remains incomplete and not published.
-
-All Firestick captures in `artwork/` are authentic AFTMM device screenshots at 1920x1080. Screenshots containing catalog art are for internal owner review only until rights clearance for those displayed titles/artwork is confirmed.
-
-## Official Amazon references
+## Official references
 
 - [Presubmission checklist](https://developer.amazon.com/docs/app-submission/presubmission-checklist.html)
-- [Fire OS device filtering and compatibility](https://developer.amazon.com/docs/app-submission/device-filtering-and-compatibility.html)
-- [Appstore details and Fire TV image requirements](https://developer.amazon.com/docs/app-submission/appstore-details.html)
+- [Fire OS 16 (targetSdk 36)](https://developer.amazon.com/docs/fire-tv/fire-os-16.html)
+- [Target your app (Vega exclusion)](https://developer.amazon.com/docs/app-submission/target-app.html)
+- [Appstore details and Fire TV images](https://developer.amazon.com/docs/app-submission/appstore-details.html)
 - [Privacy labels](https://developer.amazon.com/docs/app-submission/appstore-privacy-labels.html)
 - [User account and data deletion](https://developer.amazon.com/docs/app-submission/user-account-and-data-deletion.html)
-- [Test criteria](https://developer.amazon.com/docs/app-testing/test-criteria.html)
-- [Submission workflow](https://developer.amazon.com/docs/app-submission/submitting-apps-to-amazon-appstore.html)

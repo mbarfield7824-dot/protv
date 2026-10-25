@@ -2,6 +2,15 @@
 
 **Internal technical findings only; not legal advice or approved policy text.**
 
+> **Status 2026-10-25 (supersedes the "not deployed" statements below).** Account deletion is live
+> at https://watchprotv.com/delete-account (PR #13, merge `9b17039`, production deployment
+> `dpl_Coj6UrQo5Kcki9RwTcEkxSEmwzKa`). Requests are tracked in the admin queue and fulfilled by the
+> owner with `docs/account-deletion-runbook.md` on `main`; the server enforces the waiting period and
+> verifies completion. The Privacy Policy (updated October 25, 2026) describes TV data and deletion.
+> The Fire TV 1.0.0 (code 4) app shows the deletion address and QR code in Settings for all users and
+> under Manage account. Console answers derived from this review are in `amazon-console-answers.md`.
+> The sections below are the original 2026-10-24 analysis, kept for history.
+
 ## Observed in the Fire TV project
 
 - Firebase Authentication is used for viewer identity. The app receives Firebase client configuration from protected/local build configuration and stores Firebase session state through the SDK. The Android app has no separate PROtv password database.
