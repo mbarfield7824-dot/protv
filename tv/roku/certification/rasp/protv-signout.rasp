@@ -1,0 +1,19 @@
+params:
+  rasp_version: 1
+  default_keypress_wait: 1
+  channels:
+    PROtv: dev
+steps:
+  - launch:
+      channel_name: PROtv
+      timeout: 35
+  - pause: 10
+  - press: left
+  - loop:
+      iterations: 9
+      steps:
+        - press: down
+  - press: select
+  - pause: 2
+  - press: select
+  - pause: 3
