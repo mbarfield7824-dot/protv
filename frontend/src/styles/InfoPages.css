@@ -120,6 +120,115 @@
   cursor: pointer;
 }
 
+.info-link-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.info-link-button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+/* The shared .info-hero h1 has no colour of its own and renders near-black on the dark
+   hero; this page's title must be readable, so it is set here. */
+.account-deletion-hero h1 {
+  color: #fff;
+}
+
+.account-deletion-copy {
+  max-width: 790px;
+  text-align: left;
+}
+
+.account-deletion-list + p {
+  margin-top: 22px;
+}
+
+.account-deletion-panel {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 12px;
+  padding: 24px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.72);
+}
+
+.account-deletion-panel h2,
+.account-deletion-panel p,
+.account-deletion-panel form > p {
+  margin: 0;
+}
+
+.account-deletion-panel [role="status"] {
+  display: grid;
+  gap: 10px;
+}
+
+.account-deletion-panel button {
+  justify-self: start;
+}
+
+.account-deletion-form {
+  display: grid;
+  gap: 16px;
+}
+
+/* AdminContent.css styles every label and label input globally; restore a normal
+   checkbox row here. */
+.account-deletion-confirm {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.account-deletion-confirm input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: #60a5fa;
+}
+
+.account-deletion-status strong {
+  color: #fff;
+}
+
+.account-deletion-message {
+  padding-left: 14px;
+  border-left: 2px solid rgba(96, 165, 250, 0.5);
+}
+
+.account-deletion-error {
+  color: #ff9b9b;
+}
+
+.account-deletion-list {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.account-deletion-list strong {
+  color: #fff;
+}
+
+.account-deletion-links {
+  margin-top: 40px !important;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
 .watch-history-list {
   display: grid;
   gap: 14px;
@@ -307,6 +416,15 @@
 
   .info-hero {
     padding: 28px;
+  }
+
+  .account-deletion-panel {
+    padding: 18px;
+  }
+
+  .account-deletion-panel button {
+    justify-self: stretch;
+    justify-content: center;
   }
 
   .info-features ul,

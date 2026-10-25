@@ -545,4 +545,62 @@ export const api = {
     if (!res.ok) throw new Error('Unable to remove watch progress.');
     return res.json();
   },
+
+  async getAccountDeletionRequest(token) {
+    return accountDeletionRequest(token, 'GET', 'Unable to load your deletion request.');
+  },
+
+  async requestAccountDeletion(token) {
+    return accountDeletionRequest(token, 'POST', 'Unable to submit your deletion request.');
+  },
+
+  async getAccountDeletionRequests() {
+    return adminAccountDeletionRequest('', { fallback: 'Unable to load account deletion requests.' });
+  },
+
+  async recordEmailAccountDeletionRequest(body) {
+    const response = await adminAccountDeletionRequest('', {
+      method: 'POST', body, fallback: 'Unable to record the email request.',
+    });
+    return response.request;
+  },
+
+  async reviewAccountDeletionRequest(id, body) {
+    const response = await adminAccountDeletionRequest(`/${encodeURIComponent(id)}`, {
+      method: 'PATCH', body, fallback: 'Unable to save the account deletion review.',
+    });
+    return response.request;
+  },
 };
+
+async function accountDeletionRequest(token, method, fallback) {
+  const res = await fetch(`${API_URL}/users/me/deletion-request`, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  const response = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(response.error || fallback);
+    error.status = res.status;
+    error.code = response.code;
+    throw error;
+  }
+  return response.request;
+}
+
+async function adminAccountDeletionRequest(path, { method = 'GET', body, fallback }) {
+  const res = await fetch(`${API_URL}/admin/account-deletion-requests${path}`, {
+    method,
+    headers: await authenticatedHeaders(),
+    cache: 'no-store',
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const response = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(response.error || fallback);
+    error.status = res.status;
+    throw error;
+  }
+  return response;
+}

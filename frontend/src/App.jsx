@@ -27,6 +27,7 @@ import Podcasts from './pages/Podcasts';
 import PodcastShow from './pages/PodcastShow';
 import SafetyReport from './pages/SafetyReport';
 import Activate from './pages/Activate';
+import AccountDeletion from './pages/AccountDeletion';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import './App.css';
@@ -72,6 +73,7 @@ function App() {
           <Route path="/shows/:slug" element={<Navigate to="/series" replace />} />
           <Route path="/creators" element={<Creators />} />
           <Route path="/activate" element={<Activate />} />
+          <Route path="/delete-account" element={<AccountDeletion />} />
           <Route path="/music" element={<Music />} />
           <Route path="/podcasts" element={<Podcasts />} />
           <Route path="/podcasts/:showId" element={<PodcastShow />} />

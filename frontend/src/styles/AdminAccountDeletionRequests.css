@@ -1,0 +1,169 @@
+.account-deletion-admin {
+  color: #e4ecff;
+}
+
+.account-deletion-admin__header,
+.account-deletion-admin__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 20px;
+}
+
+.account-deletion-admin__header {
+  margin: 20px 0;
+}
+
+.account-deletion-admin__header h2 {
+  margin-top: 0;
+}
+
+.account-deletion-admin__count,
+.account-deletion-admin__notice {
+  padding: 12px;
+  border-left: 3px solid #93c5fd;
+  background: rgba(59, 130, 246, .12);
+}
+
+.account-deletion-admin__layout {
+  grid-template-columns: minmax(220px, .75fr) minmax(0, 1.6fr);
+}
+
+.account-deletion-admin__queue {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-deletion-admin__queue button,
+.account-deletion-admin__detail {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(65, 105, 225, .4);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .5);
+  color: inherit;
+  text-align: left;
+}
+
+.account-deletion-admin__queue button[aria-current="true"] {
+  border-color: #93c5fd;
+}
+
+.account-deletion-admin__queue button span,
+.account-deletion-admin__history span {
+  display: block;
+  margin-top: 6px;
+}
+
+.account-deletion-admin__detail {
+  overflow-wrap: anywhere;
+}
+
+.account-deletion-admin__metadata > div {
+  margin-top: 12px;
+}
+
+.account-deletion-admin__metadata dt {
+  font-weight: 750;
+}
+
+.account-deletion-admin__metadata dd {
+  margin: 4px 0;
+}
+
+.account-deletion-admin__history li {
+  margin: 12px 0;
+}
+
+.account-deletion-admin__form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(65, 105, 225, .4);
+}
+
+.account-deletion-admin__form label {
+  display: grid;
+  gap: 8px;
+}
+
+.account-deletion-admin__form select,
+.account-deletion-admin__form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #4b66a8;
+  border-radius: 6px;
+  background: #080c1a;
+  color: #fff;
+  font: inherit;
+}
+
+.account-deletion-admin button:focus-visible,
+.account-deletion-admin :is(select, textarea):focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+.account-deletion-admin button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .account-deletion-admin__layout,
+  .account-deletion-admin__header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.account-deletion-admin__runbook {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 22px;
+}
+
+.account-deletion-admin__check--done {
+  color: #86efac;
+}
+
+.account-deletion-admin__check--open {
+  color: #fcd34d;
+}
+
+.account-deletion-admin__email-form {
+  margin-bottom: 24px;
+}
+
+.account-deletion-admin__email-form input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #4b66a8;
+  border-radius: 6px;
+  background: #080c1a;
+  color: #fff;
+  font: inherit;
+}
+
+.account-deletion-admin__form .account-deletion-admin__attest {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.account-deletion-admin__attest input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  padding: 0;
+}
