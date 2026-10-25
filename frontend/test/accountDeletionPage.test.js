@@ -187,4 +187,5 @@ test('the privacy page links to the deletion page and keeps the support email ro
   assert.ok(document.querySelector('a[href="mailto:support@watchprotv.com"]'));
   assert.match(document.body.textContent, /watch progress/);
   assert.match(document.body.textContent, /PROtv on your TV/);
+  assert.match(document.body.textContent, /Updated October 25, 2026\./);
 });

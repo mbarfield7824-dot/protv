@@ -11,7 +11,7 @@ export default function Privacy() {
         <section className="info-hero">
           <p className="info-eyebrow">Privacy</p>
           <h1>Your information, explained simply.</h1>
-          <p className="info-lead">Effective September 16, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
+          <p className="info-lead">Effective September 16, 2026. Updated October 25, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
         </section>
         <section className="info-copy">
           <h2>Information we use</h2>
