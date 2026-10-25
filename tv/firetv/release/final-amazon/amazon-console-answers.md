@@ -71,24 +71,22 @@ SDKs in the APK (from `releaseRuntimeClasspath`): Firebase Auth (with firebase-c
 
 ## 4. Content rating
 
-Catalog facts (live API, 2026-10-25): **49 titles**, of which 2 carry a rating (*Jungle Book 1942*: PG; ***Dead Air*: TV-MA**) and **47 are unrated**. Categories: Drama 12, Black Cinema 7, Horror 6 (+ Horror/Thriller 1, Supernatural horror 1), Cartoons 6, Sci-Fi 5, Documentary 4, Comedy 3, Action 3, AI Cinema 1.
+The questionnaire rates the most intense content the app makes available, so the answers depend on the launch catalog (`AMAZON-LAUNCH-CATALOG.md`). Only two titles carry a rating today: *Jungle Book 1942* (PG, which the rights review calls unsupported) and ***Dead Air* (TV-MA)**. No rating was invented for the other 47.
 
-The questionnaire rates the most intense content the app makes available. Recommended approach:
+| Topic | Group A catalog (28 titles) | All 49 titles | OWNER input |
+|---|---|---|---|
+| Horror / fear themes | **Intense**: Dead Air (TV-MA), The Brain That Wouldn't Die (severed living head), The Lost Camp (vengeful spirit), Attack of the Giant Leeches | Also Night of the Living Dead, Carnival of Souls, House on Haunted Hill | — |
+| Realistic violence | At least **moderate** (1930s–40s crime films, The Battle of Midway combat footage); **intense** if Dead Air shows it | Same | What Dead Air's TV-MA covers |
+| Graphic violence / gore | **OWNER** (Dead Air; The Brain That Wouldn't Die surgery scenes) | Also Night of the Living Dead (cannibalism scenes) | Confirm |
+| Sexual content / nudity | **OWNER** (Dead Air) | Also Sita Sings the Blues (animated; reported to include stylized nudity) | Confirm by viewing |
+| Profanity / crude humour | **OWNER** (Dead Air) | Also The Bundy Chronicles | Confirm |
+| Drugs, alcohol, tobacco | Mild/infrequent (period films show smoking and drinking) | Same | Confirm |
+| Discrimination / stereotypes | Present in historical material (1930s–40s films) | Also Within Our Gates (lynching), 1930s cartoons with racial caricatures | Confirm wording |
+| Gambling | None known | Same | Confirm |
+| User-generated content / social features | No (creator titles are reviewed before publishing; no chat or sharing) | Same | — |
+| Shares location / personal info with others | No | Same | — |
 
-| Topic | Recommendation | Why / OWNER input |
-|---|---|---|
-| Horror / fear themes | **Intense** | Night of the Living Dead (1968), Carnival of Souls, The Brain That Wouldn't Die, House on Haunted Hill, Dead Air (TV-MA supernatural horror) |
-| Realistic violence | **At least moderate; intense if Dead Air or The Bundy Chronicles depict it** | **OWNER:** confirm what Dead Air's TV-MA covers and the content of The Bundy Chronicles |
-| Graphic violence / gore | **OWNER** | Night of the Living Dead includes cannibalism scenes; Dead Air TV-MA basis unknown |
-| Sexual content / nudity | **OWNER** | Sita Sings the Blues (animated) and Dead Air need confirmation |
-| Profanity | **OWNER** | Dead Air (TV-MA) likely; confirm |
-| Drugs, alcohol, tobacco | Mild/infrequent (period films show smoking and drinking) | Confirm |
-| Discrimination / stereotypes | Present in historical material | Within Our Gates (1920) depicts lynching; 1930s–40s cartoon shorts contain racial caricatures |
-| Gambling | None known | Confirm |
-| User-generated content / social features | No (creator titles are reviewed by PROtv before publishing; no chat or sharing in the app) | |
-| Shares location / personal info with others | No | |
-
-Expected outcome: a **Mature (17+)** rating while Dead Air (TV-MA) is in the catalog. If the owner prefers a lower rating, Dead Air and the most intense horror titles would have to be removed from the catalog first (a production catalog change, which is outside this release).
+Expected outcome: **Mature (17+)** while Dead Air (TV-MA) is in the catalog, whichever catalog is chosen. With Group A, **Dead Air is the only title whose facts are still open.**
 
 ## 5. Availability and pricing
 
@@ -96,7 +94,7 @@ Expected outcome: a **Mature (17+)** rating while Dead Air (TV-MA) is in the cat
 |---|---|
 | Marketplaces | **United States only** (matches the Roku launch decision and the rights report). **OWNER:** confirm |
 
-Launch-rights status, from `tv/roku/store/RIGHTS-REPORT.md` (2026-10-24, not a legal opinion; the Fire TV app shows the same live catalog as Roku): of the **49 live titles**, **8** have a verified film-rights basis with no open item, **22** have a verified film basis but material items open, **9** are unresolved and kept live pending evidence, and **10** are earlier admin-confirmed public-domain records marked for re-review. `commercialUseStatus` is `unverified` on every reviewed title because no source copy has been confirmed. 7 more titles are already restricted and not in the catalog. **OWNER:** decide whether the same 49 titles launch on Amazon. Amazon may ask for proof of rights for catalog content during review.
+Launch catalog: see `AMAZON-LAUNCH-CATALOG.md`. Of the 49 live titles, 28 have rights evidence on record (group A), 6 need a source swap, and 15 are on hold, including 6 with a documented protected element. Recommended: launch group A only, via a Fire TV server-side allowlist. **OWNER** decision. Amazon may ask for proof of rights during review.
 | Price | Free |
 | Release date | As soon as approved (no scheduled date) |
 

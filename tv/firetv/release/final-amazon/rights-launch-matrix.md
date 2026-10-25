@@ -1,5 +1,7 @@
 # Fire TV launch-rights triage (owner/counsel decision draft)
 
+> **Superseded 2026-10-25 by `AMAZON-LAUNCH-CATALOG.md`.** The "CLEARED*" list below predates the primary-record review; for example, Gulliver's Travels has renewed songs. Kept for history.
+
 **Source:** `D:\protv\tv\roku\store\RIGHTS-REPORT.md` and companion `evidence\rights-evidence.md`, checked 2026-10-24. Read-only reuse; no catalog records or restrictions changed. This is not a legal opinion.
 
 ## Decision summary

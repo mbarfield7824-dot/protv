@@ -16,7 +16,8 @@
 | `test-results.md` | Build provenance and automated results for code 5 (and earlier builds) |
 | `rollback.md` | Artifacts, signers and recovery steps |
 | `privacy-data-review.md` | Data inventory behind the privacy answers |
-| `rights-launch-review.md`, `rights-launch-matrix.md` | Catalog rights evidence shared with Roku |
+| `AMAZON-LAUNCH-CATALOG.md` | Per-title rights, artwork and attribution review for the Amazon launch catalog (current) |
+| `rights-launch-review.md`, `rights-launch-matrix.md` | Earlier triage (superseded by `AMAZON-LAUNCH-CATALOG.md`) |
 | `artwork/` | Store icon and background (and older device captures) |
 | `screenshots/` | The five store screenshots, captured from code 5 on the Firestick |
 

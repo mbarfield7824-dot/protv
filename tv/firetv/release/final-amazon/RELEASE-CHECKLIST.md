@@ -31,8 +31,12 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Privacy label answers from APK dependencies and backend data (`amazon-console-answers.md` §3)
 - [x] Account deletion URL and Privacy Policy URL live and recorded
 - [x] Catalog rating inventory: 49 titles, 2 rated (PG, TV-MA), 47 unrated
-- [ ] **OWNER** Confirm the 49 live titles and US-only territory for Amazon
-- [ ] **OWNER** Content facts for Dead Air, The Bundy Chronicles, Sita Sings the Blues (rating questionnaire)
+- [x] Per-title rights and artwork review for Amazon (`AMAZON-LAUNCH-CATALOG.md`): A 28 / B 6 / C 15; the old "8 cleared" list is superseded
+- [x] Found: the Fire TV app shows no CC BY attribution for the 4 Blender films; 3 posters need replacing; 6 thumbnails point at Google image caches
+- [ ] **OWNER** Launch catalog decision (recommended: group A via a Fire TV allowlist; needs a backend deploy and app code 6)
+- [ ] **OWNER** Creator schedules cover Amazon; artwork origin and tool terms
+- [ ] **OWNER** Dead Air content facts (the only open rating fact with group A)
+- [ ] Retake the store screenshots once the catalog is limited
 
 ## Phase 6: Developer Console
 - [ ] **OWNER** Browser access for Claude (no browser tool in this session), or owner enters `amazon-console-answers.md` §0–§6
