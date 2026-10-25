@@ -87,6 +87,7 @@ export default function Profile() {
         </section>
 
         <button className="profile-sign-out" onClick={() => void handleSignOut()}>Sign Out</button>
+        <p className="profile-delete-account"><Link to="/delete-account">Delete your PROtv account</Link></p>
       </main>
       <Footer />
     </div>

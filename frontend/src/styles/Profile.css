@@ -126,6 +126,15 @@
   color: #ff8e8e;
 }
 
+.profile-delete-account {
+  margin: 18px 0 0;
+  font-size: 0.95rem;
+}
+
+.profile-delete-account a {
+  color: #c1c8da;
+}
+
 .profile-sign-in {
   max-width: 600px;
 }
