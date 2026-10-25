@@ -1,4 +1,4 @@
-# Amazon Appstore listing: PROtv for Fire TV 1.0.0 (code 5)
+# Amazon Appstore listing: PROtv for Fire TV 1.0.0 (code 7)
 
 Every statement below matches a feature verified in this build. No ratings, awards, user counts or unbuilt features are claimed.
 
@@ -17,11 +17,11 @@ Every statement below matches a feature verified in this build. No ratings, awar
 
 ## Short description
 
-Stream classic films, Black cinema, horror, cartoons and documentaries from the PROtv catalog on Fire TV, and pick up where you left off.
+Stream classic films, Black cinema, horror, sci-fi, open movies and documentaries from the PROtv catalog on Fire TV, and pick up where you left off.
 
 ## Full description
 
-PROtv brings its streaming catalog to your Fire TV. Browse featured titles, movies and TV episodes, explore categories such as Black Cinema, Horror, Sci-Fi, Cartoons and Documentary, or search by title, category or description.
+PROtv brings its streaming catalog to your Fire TV. Browse featured titles and movies, explore categories such as Black Cinema, Drama, Horror, Sci-Fi and Documentary, or search by title, category or description.
 
 Press Select to play. Your remote controls playback: Play/Pause, Fast-forward and Rewind, and Back to leave the player.
 
@@ -32,7 +32,7 @@ New titles appear in the app as they are added to the PROtv catalog, without an 
 ## Feature highlights
 
 - Featured titles on a full-screen home page
-- Movies, TV episodes and category rows built for the remote
+- Movie and category rows built for the remote
 - Search across titles, categories and descriptions
 - Remote playback controls: Play/Pause, Fast-forward, Rewind and Back
 - My List and Continue Watching, synced with your PROtv account
@@ -41,7 +41,7 @@ New titles appear in the app as they are added to the PROtv catalog, without an 
 
 ## Search keywords
 
-PROtv, streaming, movies, classic movies, Black cinema, horror, sci-fi, cartoons, documentaries, independent film
+PROtv, streaming, movies, classic movies, Black cinema, horror, sci-fi, documentaries, independent film, open movies
 
 ## Release notes (1.0.0)
 
@@ -53,6 +53,6 @@ First release of PROtv for Fire TV.
 |---|---|---|---|
 | App icon | 1280×720 PNG, no transparency | `store-app-icon.png` | Meets spec (8-bit RGB) |
 | Background | 1920×1080 PNG/JPG, no transparency | `store-background.png` | Meets spec (8-bit RGB) |
-| Screenshots | 3–10, 1920×1080, JPG or 24-bit PNG | `../screenshots/` (5 files) | Recaptured 2026-10-25 from code 6 on the Firestick, signed out, with the Fire TV launch catalog live: `01-home-featured`, `02-search-results`, `03-playback` (Big Buck Bunny with its CC BY credit), `04-account-sign-in`, `05-settings-account-deletion`. 1920×1080, 24-bit RGB PNG |
+| Screenshots | 3–10, 1920×1080, JPG or 24-bit PNG | `../screenshots/` (5 files) | Recaptured 2026-10-25 from code 6 (code 7 differs only in hiding the empty TV menu entry, which no screenshot shows) on the Firestick, signed out, with the Fire TV launch catalog live: `01-home-featured`, `02-search-results`, `03-playback` (Big Buck Bunny with its CC BY credit), `04-account-sign-in`, `05-settings-account-deletion`. 1920×1080, 24-bit RGB PNG |
 
 The screenshots show no account email, and only titles and posters in the 28-title Fire TV launch list (including the approved replacement poster for The Duke Is Tops). The sign-in code in `04` expired 10 minutes after capture.

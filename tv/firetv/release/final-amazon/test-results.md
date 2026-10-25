@@ -1,6 +1,19 @@
 # Fire TV release test results
 
-## Current release: 1.0.0, version code 6 (2026-10-25)
+## Current release: 1.0.0, version code 7 (2026-10-25)
+
+| Item | Value |
+|---|---|
+| Version | 1.0.0, versionCode **7**, minSdk 23, targetSdk 36 |
+| Source commit | `3cafbc1` on `feature/firetv-final-rc-20261024` |
+| Signed APK | `D:\protv-firetv-artifacts\final-1.0.0-code7-20261025\PROtv-FireTV-1.0.0-code7-release-signed.apk` |
+| APK SHA-256 | `922ad5bc3137bfe9457006d1561eb4f71df75b6a14382c1ffa4245a4c4f33099` |
+| Signer | Same upload key: `3014…5a7f` |
+| Checks | 115 unit tests (1 new), 0 failures; lint 0 errors; installed over code 6 as an update; menu regression on the Firestick passed (same process, no crash) |
+
+Why code 7: with the 28-movie Fire TV catalog live, the TV menu entry opened an empty page. TV is now hidden while it has no titles, like Music, Podcasts and New Releases.
+
+## Superseded: 1.0.0, version code 6 (2026-10-25)
 
 | Item | Value |
 |---|---|

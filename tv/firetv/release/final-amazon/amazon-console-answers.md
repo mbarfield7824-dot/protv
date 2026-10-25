@@ -1,115 +1,135 @@
-# Amazon Developer Console answers: PROtv for Fire TV 1.0.0 (code 6)
+# Amazon Developer Console: PROtv for Fire TV 1.0.0 (code 7)
 
-Field-by-field answers for the existing draft (app ID `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`).
-Every answer below is based on the shipped APK, the live backend, or a cited owner decision.
-Items marked **OWNER** need a fact only the owner can confirm; do not guess them.
+Field-by-field steps for the existing draft (app ID `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`). Every answer comes from the shipped APK, the live backend, or a recorded owner decision. **OWNER** marks a fact only the owner can confirm.
 
-## 0. Order of work in the console
+Files are in `tv/firetv/release/final-amazon/` unless a full path is given.
 
-1. Sign in at developer.amazon.com > Apps & Services > My Apps > **PROtv** (the existing draft above).
-2. **Upload Your App File** (§1): remove any earlier APK from the draft, upload the code-6 APK, and check that the console shows `com.protv.firetv`, version 1.0.0 (6). Set device support as in §1, deselecting every Vega OS device. Save.
-3. **Target Your App** (§2) and the **privacy label** (§3). Save.
-4. **Appstore Details** (`store-listing.md`): title, short and full description, feature bullets, keywords; icon and background from `artwork/`, screenshots from `screenshots/`. Save.
-5. **Content Rating** (§4) once the OWNER facts are filled in. Save.
-6. **Availability & Pricing** (§5). Save.
-7. **Testing instructions** (§6): paste the text and type the reviewer account into the credentials field yourself.
-8. Every section should show a green check. Record any device the compatibility list marks incompatible in `RELEASE-CHECKLIST.md`.
-9. Optional, recommended: **Live App Testing** with code 6 before submitting (`RELEASE-CHECKLIST.md` Phase 7).
-10. Do not press **Submit App** until the final approval in `RELEASE-CHECKLIST.md` Phase 8.
+## 0. Order of work
 
-## 1. Upload your app file
+1. developer.amazon.com > Apps & Services > My Apps > **PROtv** (the existing draft).
+2. **Upload Your App File** (§1). Save.
+3. **Target Your App**: device support (§1), availability (§5), target audience (§2), content rating (§4), user data privacy (§3). Save.
+4. **Appstore Details** (§6). Save.
+5. **Testing instructions** (§7). Save.
+6. Every step shows a green check. Note any device the compatibility list marks unsupported in `RELEASE-CHECKLIST.md`.
+7. Optional: **Live App Testing** (§8).
+8. Press **Submit App** only after the owner's final approval (`RELEASE-CHECKLIST.md`, Phase 8).
+
+## 1. Upload Your App File
 
 | Field | Answer |
 |---|---|
-| APK | `D:\protv-firetv-artifacts\final-1.0.0-code6-20261025\PROtv-FireTV-1.0.0-code6-release-signed.apk`, SHA-256 `4f3ef48a93378c71e4c72d78e029df4b6a5c76700606975857442d38e862e6dd` |
-| Package / version | `com.protv.firetv`, versionName 1.0.0, versionCode 6, minSdk 23, targetSdk 36 |
-| Upload signer | CN=PROtv Android Upload, SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f` |
-| Does the app use Amazon DRM? | No (streams are delivered by Mux; the app has no Amazon DRM wrapper requirement) |
+| APK | `D:\protv-firetv-artifacts\final-1.0.0-code7-20261025\PROtv-FireTV-1.0.0-code7-release-signed.apk` |
+| SHA-256 | `922ad5bc3137bfe9457006d1561eb4f71df75b6a14382c1ffa4245a4c4f33099` |
+| Console should show | `com.protv.firetv`, version 1.0.0, version code 7; minSdk 23, targetSdk 36 |
+| Upload signer | CN=PROtv Android Upload, cert SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f` |
+| Remove older binaries | Remove any earlier APK attached to the draft |
 | Language support | English |
+| Amazon DRM | No (streams come from Mux) |
+| Export compliance | Confirm. The app uses only standard HTTPS/TLS, provided by Android and OkHttp |
 
-### Device support
+**Supported devices** (Edit supported devices > **Amazon Fire TV** tab):
+- Keep every Fire OS Fire TV device selected.
+- Clear every device in the **Amazon Vega TV** section (for example Fire TV Stick 4K Select). Vega runs `.vpkg` apps, not APKs.
+- Leave tablets and non-Amazon devices unselected. The manifest requires `android.software.leanback`.
+- Save. Fire OS 5 devices (API 22) are already excluded by minSdk 23.
 
-- **Select:** all Amazon Fire TV devices that run Fire OS (Fire OS 6, 7, 8, 14, 16). `minSdk 23` already excludes Fire OS 5 (API 22) devices.
-- **Deselect:** every **Vega OS** device (for example Fire TV Stick 4K Select). Vega runs `.vpkg` apps, not APKs.
-- **Deselect:** Fire tablets and non-Amazon Android devices. The manifest requires `android.software.leanback`, so tablets are filtered anyway.
-- After upload, check the console's per-device compatibility list and record any device marked incompatible in `RELEASE-CHECKLIST.md`.
+## 2. Target audience
 
-## 2. Target your app
+- **Audience:** adults 18+ (not child-directed). The catalog includes a TV-MA title and horror films.
+- Do not mark the app as directed at children.
 
-| Question | Answer | Basis |
-|---|---|---|
-| Collects or transfers user data? | **Yes** | Account email, display name, user ID, My List and watch progress are stored server-side |
-| Account creation supported? | **Yes** (on the website; the TV links to an existing account) | QR/code sign-in to `watchprotv.com/activate` |
-| Account deletion URL | **https://watchprotv.com/delete-account** | Live since PR #13 (merge `9b17039`, Vercel `dpl_Coj6UrQo5Kcki9RwTcEkxSEmwzKa`) |
-| Data deletion without deleting the account | Yes: My List items can be removed in the app and on the website; watch-history entries can be removed on the website (`/history`) | Existing favorites and progress DELETE routes |
-| Privacy policy URL | **https://watchprotv.com/privacy** | Updated October 25, 2026 |
-| Contains advertising? | **No** | The Fire TV APK contains no ad SDK and shows no ads |
-| In-app purchases / subscriptions? | **No** | No billing code or IAP SDK |
+## 3. User data privacy
 
-## 3. Privacy label (User Data Privacy questionnaire)
+"Does your app collect user data or transfer user data to third-parties?" **Yes**. Privacy policy URL: **https://watchprotv.com/privacy**.
 
-Amazon's rules: disclose data collected by the app or its service providers; transfers **to a service provider processing data on the developer's behalf** are not "third-party transfers"; anonymous data need not be disclosed.
+Service providers, which are not third-party transfers: Google Firebase (Authentication, Firestore), Vercel (API hosting), Mux (video delivery). **Third-party transfers: none.**
 
-Service providers (not third-party transfers): Google Firebase (Authentication, Firestore), Vercel (API hosting), Mux (video delivery).
+| Category: type | Collected | Linked to user | Purposes |
+|---|---|---|---|
+| User info: Email address | Yes | Yes | App functionality; Fraud prevention, security & compliance |
+| User info: Name | Yes | Yes | App functionality |
+| User info: User IDs | Yes | Yes | App functionality |
+| App activity: Other actions (My List, watch progress) | Yes | Yes | App functionality; Personalization |
+| Device or other IDs: Device or other IDs (network address in hosting/video logs; hashed for rate limits) | Yes | No | Fraud prevention, security & compliance; App functionality |
+| In-app search history | No (search runs on the TV) | — | — |
+| Advertising ID, location, crash/diagnostics, financial, health, photos, audio, messages, files, calendar, contacts, web browsing | No | — | — |
 
-| Category: type | Collected? | Linked to user | Purposes | Basis |
-|---|---|---|---|---|
-| User Info: **Email Address** | Yes | Yes | App functionality; Fraud prevention, security & compliance | Firebase account; sign-in rate limits keyed by a hash of the email |
-| User Info: **Name** | Yes | Yes | App functionality | Display name on the account |
-| User Info: **User IDs** | Yes | Yes | App functionality | Firebase UID keys My List, progress and TV links |
-| App activity: **Other actions** (My List, watch progress / Continue Watching) | Yes | Yes | App functionality; Personalization | `users/{uid}` favorites and watchProgress |
-| App activity: **In-app search history** | **No** | — | — | Search runs on the downloaded catalog on the TV; queries are not sent |
-| Device or other IDs: **Device or other IDs** | Yes (network address in hosting and video-delivery logs; hashed network address for rate limits) | No | Fraud prevention, security & compliance; App functionality | Conservative disclosure of server-side IP handling |
-| Device or other IDs: **Advertising ID** | No | — | — | No ad SDK |
-| Location (approximate / precise) | No | — | — | No location APIs; IPs are not used to locate users |
-| App info and performance (crash logs, diagnostics) | No | — | — | No analytics or crash SDK in the APK |
-| Financial, Health, Photos/Videos, Audio, Messages, Files, Calendar, Contacts, Web browsing | No | — | — | Not accessed |
+| Other question | Answer |
+|---|---|
+| Account creation | Yes, on watchprotv.com; the TV links an existing account |
+| Account deletion URL | **https://watchprotv.com/delete-account** (also shown on the TV in Settings for all users) |
+| Delete data without deleting the account | Yes: My List in the app and on the website; watch history on the website |
+| Advertising | No |
+| In-app purchases or subscriptions | No |
 
-Third-party data transfers: **None** (service providers only).
-
-SDKs in the APK (from `releaseRuntimeClasspath`): Firebase Auth (with firebase-common, Play services auth/base, Play Integrity as transitive dependencies), AndroidX Media3, Coil, Retrofit/OkHttp, ZXing. **No** Firebase Analytics, Crashlytics, Installations, measurement or advertising libraries.
+SDKs in the APK: Firebase Auth (with Play services auth/base and Play Integrity as transitive dependencies), AndroidX Media3, Coil, Retrofit/OkHttp, ZXing. No analytics, crash-reporting, measurement or advertising libraries.
 
 ## 4. Content rating
 
-The questionnaire rates the most intense content the app makes available, so the answers depend on the launch catalog (`AMAZON-LAUNCH-CATALOG.md`). Only two titles carry a rating today: *Jungle Book 1942* (PG, which the rights review calls unsupported) and ***Dead Air* (TV-MA)**. No rating was invented for the other 47.
+The answers cover the 28-title Fire TV catalog (`AMAZON-LAUNCH-CATALOG.md`, group A). Ratings on record: *Dead Air* TV-MA, *Jungle Book 1942* PG. The rest are unrated classic films, Blender open movies and one creator short (The Lost Camp).
 
-| Topic | Group A catalog (28 titles) | All 49 titles | OWNER input |
-|---|---|---|---|
-| Horror / fear themes | **Intense**: Dead Air (TV-MA), The Brain That Wouldn't Die (severed living head), The Lost Camp (vengeful spirit), Attack of the Giant Leeches | Also Night of the Living Dead, Carnival of Souls, House on Haunted Hill | — |
-| Realistic violence | At least **moderate** (1930s–40s crime films, The Battle of Midway combat footage); **intense** if Dead Air shows it | Same | What Dead Air's TV-MA covers |
-| Graphic violence / gore | **OWNER** (Dead Air; The Brain That Wouldn't Die surgery scenes) | Also Night of the Living Dead (cannibalism scenes) | Confirm |
-| Sexual content / nudity | **OWNER** (Dead Air) | Also Sita Sings the Blues (animated; reported to include stylized nudity) | Confirm by viewing |
-| Profanity / crude humour | **OWNER** (Dead Air) | Also The Bundy Chronicles | Confirm |
-| Drugs, alcohol, tobacco | Mild/infrequent (period films show smoking and drinking) | Same | Confirm |
-| Discrimination / stereotypes | Present in historical material (1930s–40s films) | Also Within Our Gates (lynching), 1930s cartoons with racial caricatures | Confirm wording |
-| Gambling | None known | Same | Confirm |
-| User-generated content / social features | No (creator titles are reviewed before publishing; no chat or sharing) | Same | — |
-| Shares location / personal info with others | No | Same | — |
+| Subject matter | Answer | Basis |
+|---|---|---|
+| Horror / fear themes | **Frequent / intense** | Dead Air (TV-MA supernatural horror), The Lost Camp (vengeful spirit), The Brain That Wouldn't Die (living severed head), Attack of the Giant Leeches, Plan 9 from Outer Space |
+| Realistic violence | At least **infrequent / mild**; higher if Dead Air shows it | 1930s–50s crime films (D.O.A., Murder in Harlem), The Battle of Midway combat footage. **OWNER:** Dead Air |
+| Cartoon or fantasy violence | Infrequent / mild | Sintel (sword fights, dragon), Big Buck Bunny (slapstick) |
+| Gore | **OWNER** (Dead Air) | The Brain That Wouldn't Die surgery scenes are mild by today's standards |
+| Sexual content / nudity | **OWNER** (Dead Air) | None known in the other 27 |
+| Profanity / crude humour | **OWNER** (Dead Air) | None known in the other 27 |
+| Alcohol, tobacco, drugs | Infrequent / mild | Period films show smoking and drinking |
+| Intolerance / discrimination | Infrequent / mild | Historical 1930s–40s films |
+| Gambling | None known | — |
 
-Expected outcome: **Mature (17+)** while Dead Air (TV-MA) is in the catalog, whichever catalog is chosen. With Group A, **Dead Air is the only title whose facts are still open.**
+| Additional information | Answer |
+|---|---|
+| Account creation | Yes (website account; the TV links it) |
+| Advertisements | No |
+| Location | No |
+| User-generated content or social features | No (creator titles are reviewed before publishing; no chat or sharing) |
+| Shares personal info with others | No |
+
+Expected result: **Mature 17+**, because Dead Air (TV-MA) is in the catalog. **OWNER:** enter Dead Air's violence, gore, sex/nudity and language levels from its TV-MA basis.
 
 ## 5. Availability and pricing
 
 | Field | Answer |
 |---|---|
-| Marketplaces | **United States only** (matches the Roku launch decision and the rights report). **OWNER:** confirm |
-
-Launch catalog: see `AMAZON-LAUNCH-CATALOG.md`. Of the 49 live titles, 28 have rights evidence on record (group A), 6 need a source swap, and 15 are on hold, including 6 with a documented protected element. Recommended: launch group A only, via a Fire TV server-side allowlist. **OWNER** decision. Amazon may ask for proof of rights during review.
+| Countries | **United States only** (clear all others; the default is all countries) |
 | Price | Free |
-| Release date | As soon as approved (no scheduled date) |
+| Release | As soon as approved |
 
-## 6. Testing instructions for Amazon reviewers
+## 6. Appstore Details
 
-> PROtv streams movies and episodes on Fire TV. Browsing and playback work without signing in: open any title from Home, Movies, TV or Search and press Select to play. Use Play/Pause, Fast-forward and Rewind on the remote; Back closes the player.
+Text: copy the title, short description, long description, feature bullets and keywords from `store-listing.md`. Category: Movies & TV > On-Demand Movie Streaming (already saved).
+
+| Asset | File | Spec |
+|---|---|---|
+| App icon | `artwork/store-app-icon.png` | 1280×720 PNG, no transparency |
+| App icon (Live App Testing also needs it) | `artwork/store-app-icon-512.png` | 512×512 PNG, cut from the same brand icon |
+| Background | `artwork/store-background.png` | 1920×1080 |
+| Screenshots (5) | `screenshots/01-home-featured.png` … `05-settings-account-deletion.png` | 1920×1080, 24-bit PNG, no transparency |
+
+Amazon limits: the short description is shown up to 200 characters on Fire TV (ours is about 145); the long description can be up to 4,000 characters; feature bullets are 3–5, one per line.
+
+## 7. Testing instructions for Amazon reviewers
+
+Paste this, then type the reviewer account into the credentials fields yourself:
+
+> PROtv streams movies on Fire TV. Browsing and playback work without signing in: open any title from Home, Movies or Search and press Select to play. Use Play/Pause, Fast-forward and Rewind on the remote; Back closes the player. Creative Commons films show their licence credit as playback starts and with the player controls.
 >
-> To test My List and Continue Watching, sign in: open the menu (press Left), choose Settings, then Sign in. The TV shows a QR code and a short code. On a phone or computer, open watchprotv.com/activate, sign in with the test account below, and enter the code. The TV signs in automatically.
+> To test My List and Continue Watching, sign in: press Left to open the menu, choose Settings, then Sign in. The TV shows a QR code and a short code. On a phone or computer, open watchprotv.com/activate, sign in with the test account provided, and enter the code. The TV signs in automatically.
 >
-> Account deletion: Settings shows the address and QR code for watchprotv.com/delete-account. Signed-in users also see it under Settings > Manage account > Delete account.
+> Account deletion: Settings shows the address and QR code for watchprotv.com/delete-account for everyone. Signed-in users also see Settings > Manage account > Delete account.
 >
-> Test account: [entered in the console's credentials field by the owner]. Internet connection required.
+> Internet connection required.
 
-**OWNER:** create a normal viewer account on watchprotv.com (not an admin), confirm it can sign in on the TV, and type its email and password directly into the console. Do not send them in chat or commit them.
+**OWNER:** use a normal watchprotv.com viewer account, not an admin account. Do not send its password in chat or commit it.
 
-## 7. Appstore details (listing)
+## 8. Live App Testing (optional)
 
-See `store-listing.md` for the title, descriptions, feature bullets, keywords, category and release notes, and `artwork/` for images.
+My Apps > PROtv > menu > **Live App Testing** > **Create new test**. Copy details from the current draft, upload the same code-7 APK, add a tester group containing the owner's Amazon account, and press **Submit Test**. For Fire TV, both icons (512×512 and 1280×720) are required.
+
+Amazon's page says "LAT app submissions that collect personal information will not be accepted." PROtv's optional sign-in collects an account email, so Amazon may decline the test. That doesn't block the normal submission. The sideloaded code-7 build has already been tested on the owner's Firestick.
+
+To install an LAT build on the owner's Firestick, first uninstall the sideloaded code 7 (`adb uninstall com.protv.firetv`), because the Amazon-delivered build is signed differently.

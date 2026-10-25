@@ -1,7 +1,7 @@
-# Firestick test: PROtv 1.0.0 (code 6, signed release)
+# Firestick test: PROtv 1.0.0 (code 7, signed release)
 
 Device: owner's Amazon Fire TV Stick (AFTMM "mantis", serial G070VM2213661NEC), Fire OS 6.7.1.1 (API 25).
-Build SHA-256 `4f3ef48a…e6dd` (code 6; #1–#12 and #21–#23 were run on codes 4/5). Run on 2026-10-25.
+Build SHA-256 `922ad5bc…3099` (code 7; code 7 differs from code 6 only in hiding the empty TV section, regression-tested on the Firestick; #1–#12 and #21–#23 were run on codes 4/5). Run on 2026-10-25.
 
 How it was run: remote keys (D-pad, Select, Back, Play/Pause, FF, RW) were sent over ADB as the same key codes the remote sends; each result was checked from a screenshot, the focused-element dump and logcat. Evidence is in `D:\protv-firetv-artifacts\firestick-screenshots\` and `firestick-records\`. Items that need a person (signing in on a phone, scanning a QR, unplugging the stick) are marked **OWNER**.
 

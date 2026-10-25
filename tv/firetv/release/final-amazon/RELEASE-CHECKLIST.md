@@ -1,4 +1,4 @@
-# PROtv Fire TV 1.0.0 (code 6): release checklist
+# PROtv Fire TV 1.0.0 (code 7): release checklist
 
 Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the owner.
 
@@ -13,7 +13,9 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Code 5 fix (`7ff427f`): menu section-switch crash and Settings focus (found on the Firestick)
 - [x] 109/109 unit tests, lint 0 errors; branch `feature/firetv-final-rc-20261024`, not merged to main
 - [x] Code 6 (`34e1ae0`): CC attribution shown in the player and More Info; Delete account layout; `X-PROtv-Platform: firetv`
-- [x] Signed APK code 6: SHA-256 `4f3ef48a93378c71e4c72d78e029df4b6a5c76700606975857442d38e862e6dd`, v1+v2, signer `3014…5a7f`; 114/114 tests
+- [x] Code 7 (`3cafbc1`): TV section hidden while empty (found after the catalog deploy)
+- [x] Signed APK code 7: SHA-256 `922ad5bc3137bfe9457006d1561eb4f71df75b6a14382c1ffa4245a4c4f33099`; 115/115 tests
+- [x] (superseded) Signed APK code 6: SHA-256 `4f3ef48a93378c71e4c72d78e029df4b6a5c76700606975857442d38e862e6dd`, v1+v2, signer `3014…5a7f`; 114/114 tests
 
 ## Phase 3: Physical Firestick test
 - [x] Device identified: AFTMM, serial G070VM2213661NEC, Fire OS 6.7.1.1, 192.168.1.218
@@ -45,17 +47,18 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 
 ## Phase 6: Developer Console
 - [ ] **OWNER** Browser access for Claude (no browser tool in this session), or owner enters `amazon-console-answers.md` §0–§6
-- [ ] Upload code-6 APK; check per-device compatibility; deselect Vega OS
+- [ ] Upload code-7 APK; check per-device compatibility; deselect Vega OS
 - [ ] Listing text, images, privacy label, deletion URL, rating, pricing (Free), US-only
 - [ ] **OWNER** Non-admin reviewer account entered in the console
 - [ ] Save and clear all validation errors
 
 ## Phase 7: Live App Testing
-- [ ] Create a LAT release with code 6; add the owner as tester
-- [ ] Install the Amazon-distributed build on the Firestick (uninstall the code-6 sideload first; Amazon re-signs the app)
+- [ ] Create a LAT release with code 7; add the owner as tester
+- [ ] Install the Amazon-distributed build on the Firestick (uninstall the code-7 sideload first; Amazon re-signs the app)
 - [ ] Sign-in, playback and navigation on the Amazon-signed build
+- [ ] Note: Amazon says LAT may refuse apps that collect personal information (PROtv sign-in collects an email); LAT is optional
 - [ ] Fire OS 16: **untested** (no Fire OS 16 device or API 36 emulator available)
 
 ## Phase 8: Submission
 - [ ] **OWNER** Final approval
-- [ ] Binary confirmed as code 6 (`4f3ef48a…e6dd`); submit; record confirmation
+- [ ] Binary confirmed as code 7 (`922ad5bc…3099`); submit; record confirmation
