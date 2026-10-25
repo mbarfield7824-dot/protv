@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -85,6 +86,8 @@ internal fun NavigationDrawer(
     var selected by remember { mutableStateOf<HomeDestination?>(null) }
     var pendingRestore by remember { mutableStateOf<FocusRequester?>(null) }
     val requesters = remember { HomeDestination.entries.associateWith { FocusRequester() } }
+    var parking by remember { mutableStateOf(false) }
+    val parkRequester = remember { FocusRequester() }
     LaunchedEffect(pendingRestore) {
         pendingRestore?.let {
             withFrameNanos { }
@@ -99,6 +102,10 @@ internal fun NavigationDrawer(
             closing = false
         }
     }, returnFocus != null)
+    // Holds focus while the section changes: disposing a focused lazy-row item crashes Compose (seen on Fire OS 6).
+    // The new section's own focus request moves focus off it, which also makes it unfocusable again.
+    Box(Modifier.focusRequester(parkRequester).onFocusChanged { if (!it.isFocused) parking = false }
+        .focusProperties { canFocus = parking }.focusable())
     if (returnFocus == null) return
 
     val slide by animateFloatAsState(if (expanded) 0f else -1f, tween(DrawerAnimationMillis), label = "navigation drawer")
@@ -114,6 +121,10 @@ internal fun NavigationDrawer(
             delay(DrawerAnimationMillis.toLong())
             val restore = returnFocus
             val next = selected
+            if (next != null && next != destination) {
+                parking = true
+                parkRequester.requestFocus()
+            }
             returnFocus = null
             if (next == null || next == destination) pendingRestore = restore
             if (next != null) onSelect(next)

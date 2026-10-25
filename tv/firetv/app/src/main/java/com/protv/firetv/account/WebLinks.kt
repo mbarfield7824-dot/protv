@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.set
 import androidx.tv.material3.Text
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -64,12 +63,12 @@ internal fun createQrCode(value: String): Bitmap? {
     } catch (error: WriterException) {
         return null
     }
+    // One setPixels call: per-pixel writes are slow enough on a Firestick to delay Settings' first frame.
+    val pixels = IntArray(QR_PIXELS * QR_PIXELS) { i ->
+        if (matrix[i % QR_PIXELS, i / QR_PIXELS]) Color.BLACK else Color.WHITE
+    }
     return createBitmap(QR_PIXELS, QR_PIXELS, Bitmap.Config.ARGB_8888).also { bitmap ->
-        for (y in 0 until QR_PIXELS) {
-            for (x in 0 until QR_PIXELS) {
-                bitmap[x, y] = if (matrix[x, y]) Color.BLACK else Color.WHITE
-            }
-        }
+        bitmap.setPixels(pixels, 0, QR_PIXELS, 0, 0, QR_PIXELS, QR_PIXELS)
     }
 }
 
