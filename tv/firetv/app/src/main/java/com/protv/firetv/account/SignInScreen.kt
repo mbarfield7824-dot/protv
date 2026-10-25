@@ -1,9 +1,5 @@
 package com.protv.firetv.account
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Color
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,32 +31,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.net.toUri
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.set
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
 import com.protv.firetv.ui.theme.ProTvAtmosphere
 import com.protv.firetv.ui.theme.ProTvButtonShape
 import com.protv.firetv.ui.theme.ProTvButtons
 import com.protv.firetv.ui.theme.ProTvColors
 import com.protv.firetv.ui.theme.ProTvWordmark
 import kotlinx.coroutines.delay
-
-private const val CREATOR_PORTAL_URL = "https://creators.watchprotv.com/"
-private const val ACCOUNT_DELETION_URL = "https://watchprotv.com/delete-account"
 
 @Composable
 fun SignInScreen(
@@ -69,19 +55,20 @@ fun SignInScreen(
     onClose: () -> Unit,
 ) {
     var retryToken by remember { mutableIntStateOf(0) }
-    var portalError by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
+    var webLink by remember { mutableStateOf<WebLink?>(null) }
     val state = controller.state
     BackHandler {
         controller.cancel()
         onClose()
     }
+    // Registered after the screen's handler, so Back closes an open address panel first.
+    BackHandler(enabled = webLink != null) { webLink = null }
     // Each state's first action receives focus as soon as it appears, so the remote works on this
     // screen immediately (including when it opens over the player).
     val primaryFocus = remember { FocusRequester() }
     val focusKey = when (state) {
         is DeviceLinkState.Pending -> "pending:${pendingOffersRetry(state)}"
-        else -> state::class.simpleName
+        else -> "${state::class.simpleName}:${webLink?.name}"
     }
     LaunchedEffect(focusKey) {
         withFrameNanos { }
@@ -152,7 +139,13 @@ fun SignInScreen(
                         })
                     }
                 }
-                is DeviceLinkState.SignedIn -> AccountPanel {
+                is DeviceLinkState.SignedIn -> webLink?.let { link ->
+                    AccountPanel {
+                        WebLinkDetails(link)
+                        Spacer(Modifier.height(28.dp))
+                        ActionButton("Back", onClick = { webLink = null }, primary = true, modifier = Modifier.focusRequester(primaryFocus))
+                    }
+                } ?: AccountPanel {
                     AccountAvatar(current.accountLabel)
                     Spacer(Modifier.height(18.dp))
                     Message("You’re signed in", current.accountLabel)
@@ -166,17 +159,7 @@ fun SignInScreen(
                     Spacer(Modifier.height(28.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         ActionButton("Continue browsing", onClick = onClose, primary = true, modifier = Modifier.focusRequester(primaryFocus))
-                        ActionButton("Creator Portal", onClick = {
-                            portalError = null
-                            try {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, CREATOR_PORTAL_URL.toUri())
-                                        .addCategory(Intent.CATEGORY_BROWSABLE),
-                                )
-                            } catch (error: ActivityNotFoundException) {
-                                portalError = "No browser is available to open the PROtv Creator Portal."
-                            }
-                        })
+                        ActionButton("Creator Portal", onClick = { webLink = WebLink.CreatorPortal })
                         ActionButton("Sign out", onClick = {
                             firebaseAuth?.signOut()
                             controller.cancel()
@@ -185,27 +168,13 @@ fun SignInScreen(
                     }
                     Spacer(Modifier.height(18.dp))
                     Text(
-                        "Account deletion requests are reviewed on the PROtv website; submitting one does not immediately delete data.",
+                        "Deletion requests are made on the PROtv website and reviewed by PROtv.",
                         color = ProTvColors.Muted,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(10.dp))
-                    ActionButton("Request account deletion", onClick = {
-                        portalError = null
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, ACCOUNT_DELETION_URL.toUri())
-                                    .addCategory(Intent.CATEGORY_BROWSABLE),
-                            )
-                        } catch (error: ActivityNotFoundException) {
-                            portalError = "No browser is available to open account deletion requests."
-                        }
-                    })
-                    portalError?.let {
-                        Spacer(Modifier.height(14.dp))
-                        Text(it, color = ProTvColors.Cyan, fontSize = 16.sp)
-                    }
+                    ActionButton("Delete account", onClick = { webLink = WebLink.AccountDeletion })
                 }
                 is DeviceLinkState.Pending -> ActivationCode(current, primaryFocus = primaryFocus, onCancel = {
                     controller.cancel()
@@ -349,22 +318,6 @@ private fun ActivationCode(
                 Text("Scan to open activation", color = ProTvColors.Silver, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             } else {
                 Text("Open the link and enter the code shown.", color = ProTvColors.Silver, fontSize = 16.sp)
-            }
-        }
-    }
-}
-
-private fun createQrCode(value: String): Bitmap? {
-    val hints = mapOf(EncodeHintType.MARGIN to 1)
-    val matrix = try {
-        QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 360, 360, hints)
-    } catch (error: com.google.zxing.WriterException) {
-        return null
-    }
-    return createBitmap(360, 360, Bitmap.Config.ARGB_8888).also { bitmap ->
-        for (y in 0 until 360) {
-            for (x in 0 until 360) {
-                bitmap[x, y] = if (matrix[x, y]) Color.BLACK else Color.WHITE
             }
         }
     }

@@ -57,6 +57,7 @@ import com.protv.firetv.ui.home.NavigationDrawer
 import com.protv.firetv.ui.home.openDrawerOnLeft
 import com.protv.firetv.ui.home.buildPersonalizedRails
 import com.protv.firetv.ui.home.searchCatalog
+import com.protv.firetv.ui.home.visibleDestinations
 import com.protv.firetv.ui.theme.ProTvButtonShape
 import com.protv.firetv.ui.theme.ProTvButtons
 import com.protv.firetv.ui.theme.ProTvColors
@@ -84,6 +85,11 @@ fun ProTvScreen(
     val state = controller.state
     val loaded = state as? HomeState.Loaded
     val rails = buildPersonalizedRails(loaded?.rails.orEmpty(), viewerAccountState, accountLabel != null)
+    val destinations = remember(rails) { visibleDestinations(rails) }
+    // A refreshed catalog can empty the section being viewed; return Home rather than show a dead end.
+    LaunchedEffect(destinations, loaded != null) {
+        if (loaded != null && controller.destination !in destinations) controller.selectDestination(HomeDestination.Home)
+    }
     ProTvTheme {
         NavigationDrawer(
             destination = controller.destination,
@@ -91,6 +97,7 @@ fun ProTvScreen(
                 controller.selectDestination(next)
                 searchOpen = next == HomeDestination.Search
             },
+            destinations = destinations,
         ) { openDrawer, drawerOpen ->
             Box(Modifier.fillMaxSize()) {
                 PremiumHome(

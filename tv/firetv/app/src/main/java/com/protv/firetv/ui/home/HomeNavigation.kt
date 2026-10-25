@@ -13,6 +13,12 @@ enum class HomeDestination(val label: String) {
     Settings("Settings"),
 }
 
+/** Catalog sections that only appear in the drawer once the catalog has titles for them. */
+private val ContentDependentDestinations = setOf(HomeDestination.Music, HomeDestination.Podcasts, HomeDestination.NewReleases)
+
+fun visibleDestinations(rails: List<HomeRail>): List<HomeDestination> =
+    HomeDestination.entries.filter { it !in ContentDependentDestinations || destinationRails(rails, it).isNotEmpty() }
+
 fun destinationRails(rails: List<HomeRail>, destination: HomeDestination): List<HomeRail> {
     val catalog = rails.filter { it.key !in setOf("my-list", "continue-watching", "watch-history") }
     val recent = catalog.flatMap(HomeRail::tiles).distinctBy { it.id }

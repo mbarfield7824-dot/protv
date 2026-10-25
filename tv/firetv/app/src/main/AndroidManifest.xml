@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature android:name="android.software.leanback" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Targeting API 36: Android 16 (Fire OS 16) stops dispatching KEYCODE_BACK unless the
+         app opts out. The drawer and remote handling read Back as a key event, so keep the
+         behaviour verified on Firestick until they move to OnBackInvokedCallback. -->
     <application
         android:allowBackup="false"
         android:banner="@drawable/tv_banner"
+        android:enableOnBackInvokedCallback="false"
         android:icon="@drawable/tv_icon"
         android:label="@string/app_name"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        tools:targetApi="33">
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"

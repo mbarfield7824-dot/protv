@@ -76,6 +76,7 @@ internal fun Modifier.openDrawerOnLeft(
 internal fun NavigationDrawer(
     destination: HomeDestination,
     onSelect: (HomeDestination) -> Unit,
+    destinations: List<HomeDestination> = HomeDestination.entries,
     content: @Composable (openDrawer: (FocusRequester) -> Unit, drawerOpen: Boolean) -> Unit,
 ) {
     var returnFocus by remember { mutableStateOf<FocusRequester?>(null) }
@@ -119,7 +120,8 @@ internal fun NavigationDrawer(
         } else {
             withFrameNanos { }
             expanded = true
-            requesters.getValue(destination).requestFocus()
+            // Only entries in `destinations` are composed, so focus one that is on screen.
+            requesters.getValue(if (destination in destinations) destination else HomeDestination.Home).requestFocus()
         }
     }
     Dialog(
@@ -147,7 +149,7 @@ internal fun NavigationDrawer(
                     .padding(start = 10.dp, end = 10.dp, top = 22.dp, bottom = 12.dp),
             ) {
                 ProTvWordmark(Modifier.padding(start = 10.dp, bottom = 22.dp), fontSize = 29.sp)
-                HomeDestination.entries.forEach { entry ->
+                destinations.forEach { entry ->
                     var focused by remember { mutableStateOf(false) }
                     Button(
                         onClick = { close(entry) },

@@ -2,6 +2,7 @@ package com.protv.firetv.ui.home
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeNavigationTest {
@@ -27,6 +28,35 @@ class HomeNavigationTest {
         assertEquals(listOf("new-film", "old-film"), recent.tiles.map { it.id })
         val rails = listOf(HomeRail("continue-watching", "Continue Watching", listOf(tile("resume", "MOVIE")))) + catalog
         assertEquals(listOf("continue-watching", "new-releases", "drama"), destinationRails(rails, HomeDestination.Home).map { it.key })
+    }
+
+    @Test
+    fun emptyMusicPodcastsAndNewReleasesAreHiddenFromTheDrawer() {
+        // Today's live catalog: movies and episodes, no music, podcasts or publish dates.
+        val live = listOf(HomeRail("drama", "Drama", listOf(tile("film", "MOVIE"), tile("episode", "EPISODE"))))
+        assertEquals(
+            listOf(
+                HomeDestination.Home, HomeDestination.Movies, HomeDestination.TV, HomeDestination.ContinueWatching,
+                HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
+            ),
+            visibleDestinations(live),
+        )
+    }
+
+    @Test
+    fun contentDependentSectionsReturnWhenTheCatalogHasTitles() {
+        assertEquals(HomeDestination.entries, visibleDestinations(catalog))
+    }
+
+    @Test
+    fun personalAndCoreSectionsStayVisibleEvenWhenEmpty() {
+        val visible = visibleDestinations(emptyList())
+        for (destination in listOf(
+            HomeDestination.Home, HomeDestination.Movies, HomeDestination.TV, HomeDestination.ContinueWatching,
+            HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
+        )) {
+            assertTrue("$destination should stay visible", destination in visible)
+        }
     }
 
     @Test

@@ -56,6 +56,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import com.protv.firetv.BuildConfig
+import com.protv.firetv.account.AccountDeletionNotice
 import com.protv.firetv.ui.theme.ProTvAtmosphere
 import com.protv.firetv.ui.theme.ProTvButtons
 import com.protv.firetv.ui.theme.ProTvColors
@@ -201,7 +202,8 @@ fun PremiumHome(
                     }
                     if (destination == HomeDestination.Settings) {
                         item {
-                            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                          Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text(accountLabel?.let { "Signed in as $it" } ?: "Browse as a guest or link your PROtv account.",
                                     color = ProTvColors.Silver, fontSize = 15.sp)
                                 Button(onClick = onAccountClick,
@@ -217,6 +219,9 @@ fun PremiumHome(
                                 Text("PROtv for Fire TV • ${BuildConfig.VERSION_NAME}\nPlayback controls hide after 2.75 seconds while playing.",
                                     color = ProTvColors.Muted, fontSize = 12.sp)
                             }
+                            // Shown signed in or not: Amazon requires deletion to be reachable in the app.
+                            AccountDeletionNotice()
+                          }
                         }
                     } else if (visibleRails.isEmpty() && !catalogLoading && catalogError == null) {
                         item {
