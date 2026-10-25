@@ -1,25 +1,16 @@
 # Owner actions still needed (2026-10-25)
 
-Only these items need the owner. Details are in `AMAZON-LAUNCH-CATALOG.md` and `RELEASE-CHECKLIST.md`.
+Everything else is done or in `RELEASE-CHECKLIST.md`. Prior rights decisions, creator approvals and the Roku review are treated as established.
 
-## Decisions
+## Production authorizations (each reversible)
 
-1. **Launch catalog.** Recommended: the 28 group A titles, served to Fire TV through a server-side allowlist (backend deploy + app code 6 sending `X-PROtv-Platform: firetv`; Roku, the website and Firebase data unchanged). Alternatives: hold titles for every client, or launch all 49 (not recommended).
-2. **Creative Commons attribution.** The Fire TV app shows no credit or licence for the 4 Blender films. Approve a small code-6 fix (credit shown in the player and More Info), or leave those 4 out.
-3. **Three poster replacements** (His Girl Friday, The Duke Is Tops, The Incredible Petrified World) with the original PROtv designs staged on the Roku RC9 branch. Production change.
-
-## Facts only the owner can confirm
-
-4. **Creator contracts.** The signed schedules for The Lost Camp and Dead Air cover Amazon / Fire TV distribution in the US, and the creator posters.
-5. **Artwork.** Who made the "owner-supplied PROtv posters", and whether the image tool used for the "generated legacy set" allows commercial use.
-6. **Dead Air content.** What its TV-MA rating covers: violence, gore, sex/nudity, language.
+1. **Apply Roku remediation Batch 2** (`tv/roku/store/remediation/CHANGE-MANIFEST.md` on `release/roku-1.0-rc9`): the 6 replacement streams (new Mux assets; old ones kept) and the 3 approved PROtv posters. Every source and file was re-verified on 2026-10-25 against the documented checksums.
+2. **Deploy `feature/firetv-launch-eligibility`** (`a2be711`): Fire TV code 6 gets the 28 launch-cleared titles; the website is unchanged. It contains the Roku filter from `58d0f28`, so it also starts filtering Roku (Roku Batch 1). After Batch 2 is verified, add the 6 swapped titles to the list (one line each).
 
 ## Hands-on
 
-7. **Sign-in tests on the Firestick** (`physical-test-checklist.md` #13–#20). Needs a phone and a PROtv account.
-8. **Reviewer account.** A normal (non-admin) watchprotv.com account, typed directly into the console.
-9. **Console access.** No browser tool in this session. Enable Claude in Chrome, or enter `amazon-console-answers.md` (§0 gives the order) yourself.
-10. **Password manager.** `Backup-ProtvFireTvKey.ps1 -CheckPasswordEntry` reports MATCH.
-11. **Final approval** to submit.
-
-No credentials, personal data or legal conclusions are stored in this repository.
+3. **Firestick, about 5 minutes:** unplug for 10 s and reopen PROtv (#14); scan the deletion QR with your phone (#19); Sign out, then sign in again (#20).
+4. **Reviewer account:** a normal (non-admin) watchprotv.com account, typed directly into the console.
+5. **Console access:** enable Claude in Chrome on the Amazon Developer Console, or enter `amazon-console-answers.md` (§0 gives the order) yourself.
+6. **Dead Air content facts** for the rating questionnaire (violence, gore, sex/nudity, language behind its TV-MA).
+7. **Final approval** to submit.

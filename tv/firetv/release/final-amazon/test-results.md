@@ -1,6 +1,22 @@
 # Fire TV release test results
 
-## Current release: 1.0.0, version code 5 (2026-10-25)
+## Current release: 1.0.0, version code 6 (2026-10-25)
+
+| Item | Value |
+|---|---|
+| Version | 1.0.0, versionCode **6**, minSdk 23, targetSdk 36 |
+| Source commit | `34e1ae0` on `feature/firetv-final-rc-20261024` |
+| Signed APK | `D:\protv-firetv-artifacts\final-1.0.0-code6-20261025\PROtv-FireTV-1.0.0-code6-release-signed.apk` |
+| APK SHA-256 | `4f3ef48a93378c71e4c72d78e029df4b6a5c76700606975857442d38e862e6dd` |
+| Signer | Same upload key: `3014…5a7f` |
+| Checks | 114 unit tests (5 new), 0 failures; lint 0 errors, 10 warnings; installed over code 5 as an update |
+
+Why code 6:
+- Creative Commons attribution was stripped from the four CC BY films. It is now shown in the player and on More Info.
+- The Delete account button was clipped on the Manage account panel.
+- The app sends `X-PROtv-Platform: firetv` so the server can apply the Fire TV launch catalog (branch `feature/firetv-launch-eligibility`).
+
+## Superseded: 1.0.0, version code 5 (2026-10-25)
 
 | Item | Value |
 |---|---|

@@ -1,4 +1,4 @@
-# Amazon Developer Console answers: PROtv for Fire TV 1.0.0 (code 5)
+# Amazon Developer Console answers: PROtv for Fire TV 1.0.0 (code 6)
 
 Field-by-field answers for the existing draft (app ID `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`).
 Every answer below is based on the shipped APK, the live backend, or a cited owner decision.
@@ -7,22 +7,22 @@ Items marked **OWNER** need a fact only the owner can confirm; do not guess them
 ## 0. Order of work in the console
 
 1. Sign in at developer.amazon.com > Apps & Services > My Apps > **PROtv** (the existing draft above).
-2. **Upload Your App File** (§1): remove any earlier APK from the draft, upload the code-5 APK, and check that the console shows `com.protv.firetv`, version 1.0.0 (5). Set device support as in §1, deselecting every Vega OS device. Save.
+2. **Upload Your App File** (§1): remove any earlier APK from the draft, upload the code-6 APK, and check that the console shows `com.protv.firetv`, version 1.0.0 (6). Set device support as in §1, deselecting every Vega OS device. Save.
 3. **Target Your App** (§2) and the **privacy label** (§3). Save.
 4. **Appstore Details** (`store-listing.md`): title, short and full description, feature bullets, keywords; icon and background from `artwork/`, screenshots from `screenshots/`. Save.
 5. **Content Rating** (§4) once the OWNER facts are filled in. Save.
 6. **Availability & Pricing** (§5). Save.
 7. **Testing instructions** (§6): paste the text and type the reviewer account into the credentials field yourself.
 8. Every section should show a green check. Record any device the compatibility list marks incompatible in `RELEASE-CHECKLIST.md`.
-9. Optional, recommended: **Live App Testing** with code 5 before submitting (`RELEASE-CHECKLIST.md` Phase 7).
+9. Optional, recommended: **Live App Testing** with code 6 before submitting (`RELEASE-CHECKLIST.md` Phase 7).
 10. Do not press **Submit App** until the final approval in `RELEASE-CHECKLIST.md` Phase 8.
 
 ## 1. Upload your app file
 
 | Field | Answer |
 |---|---|
-| APK | `D:\protv-firetv-artifacts\final-1.0.0-code5-20261025\PROtv-FireTV-1.0.0-code5-release-signed.apk`, SHA-256 `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5` |
-| Package / version | `com.protv.firetv`, versionName 1.0.0, versionCode 5, minSdk 23, targetSdk 36 |
+| APK | `D:\protv-firetv-artifacts\final-1.0.0-code6-20261025\PROtv-FireTV-1.0.0-code6-release-signed.apk`, SHA-256 `4f3ef48a93378c71e4c72d78e029df4b6a5c76700606975857442d38e862e6dd` |
+| Package / version | `com.protv.firetv`, versionName 1.0.0, versionCode 6, minSdk 23, targetSdk 36 |
 | Upload signer | CN=PROtv Android Upload, SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f` |
 | Does the app use Amazon DRM? | No (streams are delivered by Mux; the app has no Amazon DRM wrapper requirement) |
 | Language support | English |
