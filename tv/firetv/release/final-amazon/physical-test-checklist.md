@@ -1,52 +1,59 @@
-# Firestick test: PROtv 1.0.0 (code 4, signed release)
+# Firestick test: PROtv 1.0.0 (code 5, signed release)
 
-Device: Amazon Fire TV Stick (AFTMM). Build SHA-256 `e52fea8c…be0b9`.
-Mark each item **PASS** or **FAIL** and note anything odd. Use the Firestick remote.
+Device: owner's Amazon Fire TV Stick (AFTMM "mantis", serial G070VM2213661NEC), Fire OS 6.7.1.1 (API 25).
+Build SHA-256 `08df95f7…52d5` (code 5). Run on 2026-10-25.
+
+How it was run: remote keys (D-pad, Select, Back, Play/Pause, FF, RW) were sent over ADB as the same key codes the remote sends; each result was checked from a screenshot, the focused-element dump and logcat. Evidence is in `D:\protv-firetv-artifacts\firestick-screenshots\` and `firestick-records\`. Items that need a person (signing in on a phone, scanning a QR, unplugging the stick) are marked **OWNER**.
 
 ## Start
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 1 | App launches | Open PROtv from the Fire TV home screen | |
-| 2 | Home and featured content | The hero shows a featured title with Play; rows load below | |
-| 3 | Poster artwork | Scroll the rows; posters fill their cards without stretching | |
+| 1 | App launches | Open PROtv from the Fire TV home screen | **PASS**: cold launch 1.3 s (code 4), 1.4 s (code 5) |
+| 2 | Home and featured content | The hero shows a featured title with Play; rows load below | **PASS** |
+| 3 | Poster artwork | Scroll the rows; posters fill their cards without stretching | **PASS** |
 
 ## Navigation
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 4 | Menu sections | Press Left to open the menu. You should see Home, Movies, TV, Continue Watching, My List, Search, Settings, and **no** Music, Podcasts or New Releases | |
-| 5 | Category navigation | Open Movies, then TV; rows show matching titles | |
-| 6 | Search | Open Search, type a word such as "night"; results appear and open | |
-| 7 | Back button | Press Back from a section (returns Home), from the menu (closes it), and from Home (asks to exit; choose stay) | |
+| 4 | Menu sections | Press Left to open the menu. You should see Home, Movies, TV, Continue Watching, My List, Search, Settings, and **no** Music, Podcasts or New Releases | **PASS** |
+| 5 | Category navigation | Open Movies, then TV; rows show matching titles | **FAIL on code 4, PASS on code 5.** Code 4 crashed choosing TV from the menu while a Movies row had focus. Fixed in code 5; every menu switch re-tested, including from deep rows and empty pages |
+| 6 | Search | Open Search, type a word such as "night"; results appear and open | **PASS**: 4 results; Select starts playback |
+| 7 | Back button | Press Back from a section (returns Home), from the menu (closes it), and from Home (asks to exit; choose stay) | **PASS**: Settings, Search and player all return; "Exit PROtv?" with Stay focused |
 
 ## Playback
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 8 | Video playback | Open a title and press Play; video starts | |
-| 9 | Pause / resume | Press Select or Play/Pause; video pauses and resumes | |
-| 10 | Fast-forward / rewind | Use the FF and RW buttons | |
-| 11 | Back from player | Press Back; the player closes and you return to the same place | |
+| 8 | Video playback | Open a title and press Play; video starts | **PASS**: The Little Shop of Horrors (hero), Night of the Living Dead (search) |
+| 9 | Pause / resume | Press Select or Play/Pause; video pauses and resumes | **PASS**: paused frames identical, resumed frames change |
+| 10 | Fast-forward / rewind | Use the FF and RW buttons | **PASS**: FF +15 s per press (0:50 → 1:20), RW −5 s (1:20 → 1:15) |
+| 11 | Back from player | Press Back; the player closes and you return to the same place | **PASS** |
 
 ## Account
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 12 | Settings deletion info | Menu > Settings: a card shows "Delete your PROtv account", watchprotv.com/delete-account and a QR code (signed out) | |
-| 13 | Sign-in | Settings > Sign in; scan the QR or visit watchprotv.com/activate and enter the code | |
-| 14 | Account persistence | Unplug the Firestick for 10 seconds, reopen PROtv; you are still signed in | |
-| 15 | My List | Add a title to My List; it appears under My List and on watchprotv.com | |
-| 16 | Continue Watching / resume | Watch 2 minutes, go Back, reopen the title; it resumes near where you stopped | |
-| 17 | Creator Portal QR | Settings > Manage account > Creator Portal shows creators.watchprotv.com with a QR; Back returns | |
-| 18 | Account-deletion QR | Settings > Manage account > Delete account shows watchprotv.com/delete-account with a QR; Back returns | |
-| 19 | Scan test | Scan the deletion QR with a phone; it opens the PROtv deletion page | |
-| 20 | Sign out and in | Manage account > Sign out, then sign in again | |
+| 12 | Settings deletion info | Menu > Settings: a card shows "Delete your PROtv account", watchprotv.com/delete-account and a QR code (signed out) | **PASS**; code 5 also opens Settings with Sign in focused (code 4 opened with nothing focused) |
+| 13 | Sign-in | Settings > Sign in; scan the QR or visit watchprotv.com/activate and enter the code | Activation screen **PASS** (code, link, QR, 10-minute expiry, Cancel). Approving the code: **OWNER** |
+| 14 | Account persistence | Unplug the Firestick for 10 seconds, reopen PROtv; you are still signed in | **OWNER** |
+| 15 | My List | Add a title to My List; it appears under My List and on watchprotv.com | **OWNER** (signed out, the player shows "Sign in to use My List"; My List shows "Sign in from Settings to restore your library") |
+| 16 | Continue Watching / resume | Watch 2 minutes, go Back, reopen the title; it resumes near where you stopped | **OWNER** (needs sign-in) |
+| 17 | Creator Portal QR | Settings > Manage account > Creator Portal shows creators.watchprotv.com with a QR; Back returns | **OWNER** (needs sign-in) |
+| 18 | Account-deletion QR | Settings > Manage account > Delete account shows watchprotv.com/delete-account with a QR; Back returns | **OWNER** (needs sign-in); the signed-out card is #12 |
+| 19 | Scan test | Scan the deletion QR with a phone; it opens the PROtv deletion page | **OWNER** |
+| 20 | Sign out and in | Manage account > Sign out, then sign in again | **OWNER** |
 
 ## Catalog
 
 | # | Check | How | Result |
 |---|---|---|---|
-| 21 | Catalog refresh | Settings > Refresh catalog; rows reload without errors | |
-| 22 | New content visibility | (When a title is next published) it appears after Refresh without an app update | |
-| 23 | Hidden empty sections | Same as #4: Music, Podcasts and New Releases are absent | |
+| 21 | Catalog refresh | Settings > Refresh catalog; rows reload without errors | **PASS** (code 4 and code 5) |
+| 22 | New content visibility | (When a title is next published) it appears after Refresh without an app update | Not run: no new title published during the test |
+| 23 | Hidden empty sections | Same as #4: Music, Podcasts and New Releases are absent | **PASS** |
+
+## Not covered
+
+- Fire OS 16 / API 36 behaviour (including the Back-key opt-out on API 36): **not tested**. This Firestick runs Fire OS 6 (API 25), and this PC cannot run the emulator.
+- Fire OS 7 and 8 devices: not tested.

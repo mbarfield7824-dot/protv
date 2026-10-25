@@ -7,7 +7,7 @@
 > `dpl_Coj6UrQo5Kcki9RwTcEkxSEmwzKa`). Requests are tracked in the admin queue and fulfilled by the
 > owner with `docs/account-deletion-runbook.md` on `main`; the server enforces the waiting period and
 > verifies completion. The Privacy Policy (updated October 25, 2026) describes TV data and deletion.
-> The Fire TV 1.0.0 (code 4) app shows the deletion address and QR code in Settings for all users and
+> The Fire TV 1.0.0 (code 5) app shows the deletion address and QR code in Settings for all users and
 > under Manage account. Console answers derived from this review are in `amazon-console-answers.md`.
 > The sections below are the original 2026-10-24 analysis, kept for history.
 

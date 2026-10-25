@@ -1,34 +1,31 @@
-# PROtv Fire TV 1.0.0 (code 4): release checklist
+# PROtv Fire TV 1.0.0 (code 5): release checklist
 
 Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the owner.
 
 ## Phase 1: Secure the release
-- [x] Signed APK matches SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`
-- [x] Signer is the PROtv Amazon upload key (`3014…5a7f`); keystore opened, alias `protv-amazon-upload`
-- [x] Backup script prepared: `D:\protv-firetv-artifacts\tools\Backup-ProtvFireTvKey.ps1` (7-Zip AES-256 archive + hash + restore test; no secrets printed)
-- Owner's backup setup (2026-10-25): original key on C: (`%LOCALAPPDATA%\PROtv\firetv-signing`), encrypted backup on D: (WD easystore USB) in `D:\PROtv-signing\firetv-amazon-upload\`
-- [ ] **OWNER** Passwords saved in password manager
-- [ ] **OWNER** D: backup verified (archive hash + restore test with the password-manager password)
-- Note: `D:\PROtv-signing\protv-release.jks` (Oct 20, SHA-256 `eab16c8f…c848`) is a **different, older keystore**, not a copy of the Fire TV upload key. It needs a password even to list, so it was not opened. Keep it; it is probably the historical 0.1.0 key (signer CN=Michael Barfield).
+- [x] Upload key: alias `protv-amazon-upload`, certificate `3014…5a7f`; original on C: (`%LOCALAPPDATA%\PROtv\firetv-signing`)
+- [x] D: backup verified 2026-10-25 12:00:48: archive `7b5e7d69…37c0cd` restored, restored keystore hash matches the original (`d3b918ee…4bcc`), opened with the stored credentials, alias and certificate match. Log: `D:\protv-firetv-artifacts\key-backup-log.txt`
+- [ ] **OWNER** Password-manager entry checked with `Backup-ProtvFireTvKey.ps1 -CheckPasswordEntry` (MATCH)
+- Note: `D:\PROtv-signing\protv-release.jks` is a different, older keystore (probably the 0.1.0 key). Keep it.
 
 ## Phase 2: Finalize the source
-- [x] Code-4 changes reviewed; 109/109 unit tests, lint 0 errors
-- [x] Committed to `feature/firetv-final-rc-20261024` as `f0d8e92` (Fire TV app files only); not merged to main
-- [x] Release documentation updated to code 4 with checksum, signer and provenance
+- [x] Code 4 changes (`f0d8e92`): targetSdk 36, Back opt-out, on-screen web links, deletion card, empty sections hidden
+- [x] Code 5 fix (`7ff427f`): menu section-switch crash and Settings focus (found on the Firestick)
+- [x] 109/109 unit tests, lint 0 errors; branch `feature/firetv-final-rc-20261024`, not merged to main
+- [x] Signed APK code 5: SHA-256 `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5`, v1+v2, signer `3014…5a7f`
 
-## Phase 3: Physical Firestick test (option B)
-- [x] Prior debug RC APK and code-3 APK preserved with checksums
-- [ ] **OWNER** Approve uninstalling the debug RC; enable ADB debugging and give the Firestick IP
-- [ ] Confirm device identity (model AFTMM, serial) before uninstalling
-- [ ] Uninstall `com.protv.firetv`; install signed code 4; confirm version 1.0.0 / code 4 and launch
-- [ ] Capture logcat (filtered to the app; no credentials)
-- [ ] **OWNER** Run `physical-test-checklist.md` (23 checks)
+## Phase 3: Physical Firestick test
+- [x] Device identified: AFTMM, serial G070VM2213661NEC, Fire OS 6.7.1.1, 192.168.1.218
+- [x] Debug RC (code 2) APK and package record preserved; owner approved the uninstall
+- [x] Uninstalled the debug RC; installed code 4; installed code 5 over it; installed APK hash matches
+- [x] 14 of 23 checks PASS (see `physical-test-checklist.md`); code-4 crash fixed and regression-tested on code 5
+- [ ] **OWNER** Sign-in checks #13–#20 (needs a phone and a PROtv account)
 
 ## Phase 4: Store assets
 - [x] Listing text, features, keywords, release notes (`store-listing.md`)
 - [x] Icon 1280×720 and background 1920×1080 meet spec
-- [ ] Capture 1920×1080 screenshots from code 4: Home, Search, Playback, Sign-in QR, Settings
-- [ ] **OWNER** Confirm screenshots may show catalog posters (see Phase 5)
+- [x] Five 1920×1080 24-bit PNG screenshots from code 5 in `screenshots/`
+- [ ] **OWNER** Confirm the catalog posters and film frames shown may be used in the store listing
 
 ## Phase 5: Content and privacy compliance
 - [x] Privacy label answers from APK dependencies and backend data (`amazon-console-answers.md` §3)
@@ -38,18 +35,18 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [ ] **OWNER** Content facts for Dead Air, The Bundy Chronicles, Sita Sings the Blues (rating questionnaire)
 
 ## Phase 6: Developer Console
-- [ ] **OWNER** Browser access for Claude, or owner enters the prepared answers
-- [ ] Upload code-4 APK; check per-device compatibility; deselect Vega OS
+- [ ] **OWNER** Browser access for Claude (no browser tool in this session), or owner enters `amazon-console-answers.md` §0–§6
+- [ ] Upload code-5 APK; check per-device compatibility; deselect Vega OS
 - [ ] Listing text, images, privacy label, deletion URL, rating, pricing (Free), US-only
 - [ ] **OWNER** Non-admin reviewer account entered in the console
 - [ ] Save and clear all validation errors
 
 ## Phase 7: Live App Testing
-- [ ] Create a LAT release with code 4; add the owner as tester
-- [ ] Install the Amazon-distributed build on the Firestick (needs the code-4 sideload removed first)
+- [ ] Create a LAT release with code 5; add the owner as tester
+- [ ] Install the Amazon-distributed build on the Firestick (uninstall the code-5 sideload first; Amazon re-signs the app)
 - [ ] Sign-in, playback and navigation on the Amazon-signed build
 - [ ] Fire OS 16: **untested** (no Fire OS 16 device or API 36 emulator available)
 
 ## Phase 8: Submission
 - [ ] **OWNER** Final approval
-- [ ] Binary confirmed as code 4; submit; record confirmation
+- [ ] Binary confirmed as code 5 (`08df95f7…52d5`); submit; record confirmation

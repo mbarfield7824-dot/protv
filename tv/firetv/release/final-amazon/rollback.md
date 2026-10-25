@@ -1,8 +1,10 @@
 # Rollback and recovery
 
-## Current (2026-10-25): code 4 release and the Firestick
+## Current (2026-10-25): code 5 release and the Firestick
 
-- Release: `com.protv.firetv` 1.0.0 / code 4, source `f0d8e92`, APK SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`, upload signer `3014…5a7f`.
+- Release: `com.protv.firetv` 1.0.0 / code 5, source `7ff427f`, APK SHA-256 `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5`, upload signer `3014…5a7f`. Installed on the owner's Firestick (AFTMM, serial G070VM2213661NEC).
+- Superseded code 4 (`e52fea8c…b0b9`, source `f0d8e92`) is kept in `D:\protv-firetv-artifacts\final-1.0.0-code4-20261025\`. It has the same signer, so it could replace code 5 only by uninstalling (Android blocks version downgrades).
+- On 2026-10-25 the debug RC (code 2) was uninstalled with the owner's approval and code 4 installed; code 5 was then installed as an update. The device's package records before and after are in `D:\protv-firetv-artifacts\firestick-records\`.
 - Preserved before the code-4 build, outside the repository, in `D:\protv-firetv-artifacts\pre-final-build-20261025\` (with `SHA256SUMS.txt`):
   - `PROtv-0.2.0-rc1-code2-debug-INSTALLED-ON-FIRESTICK.apk` (`5c3926ea…6ce7`, debug signer `d1fd4ef3…30d2`), the build on the owner's Firestick before code 4.
   - `PROtv-1.0.0-code3-signed-UNUSED.apk` (`cabfa00e…0301`), never installed or uploaded.

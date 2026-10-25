@@ -1,8 +1,8 @@
 # PROtv Fire TV: Amazon Appstore submission package
 
-**Release:** `com.protv.firetv` 1.0.0, version code **4**, targetSdk 36, source `f0d8e92`.
-**Signed APK:** `D:\protv-firetv-artifacts\final-1.0.0-code4-20261025\PROtv-FireTV-1.0.0-code4-release-signed.apk`, SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9`.
-**Status:** built and verified; not uploaded or submitted. Progress is tracked in `RELEASE-CHECKLIST.md`.
+**Release:** `com.protv.firetv` 1.0.0, version code **5**, targetSdk 36, source `7ff427f`.
+**Signed APK:** `D:\protv-firetv-artifacts\final-1.0.0-code5-20261025\PROtv-FireTV-1.0.0-code5-release-signed.apk`, SHA-256 `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5`.
+**Status:** built, verified and installed on the owner's Firestick; not uploaded or submitted. Progress is tracked in `RELEASE-CHECKLIST.md`.
 
 ## Contents
 
@@ -13,11 +13,12 @@
 | `amazon-console-answers.md` | Field-by-field Developer Console answers (devices, privacy label, deletion, rating, reviewer notes) |
 | `store-listing.md` | Title, descriptions, features, keywords, release notes and image plan |
 | `physical-test-checklist.md` | Firestick test script with PASS/FAIL columns |
-| `test-results.md` | Build provenance and automated results for code 4 (and earlier builds) |
+| `test-results.md` | Build provenance and automated results for code 5 (and earlier builds) |
 | `rollback.md` | Artifacts, signers and recovery steps |
 | `privacy-data-review.md` | Data inventory behind the privacy answers |
 | `rights-launch-review.md`, `rights-launch-matrix.md` | Catalog rights evidence shared with Roku |
-| `artwork/` | Store icon, background and device screenshots |
+| `artwork/` | Store icon and background (and older device captures) |
+| `screenshots/` | The five store screenshots, captured from code 5 on the Firestick |
 
 ## Amazon Developer Console
 

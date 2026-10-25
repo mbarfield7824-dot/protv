@@ -1,4 +1,4 @@
-# Amazon Appstore listing: PROtv for Fire TV 1.0.0 (code 4)
+# Amazon Appstore listing: PROtv for Fire TV 1.0.0 (code 5)
 
 Every statement below matches a feature verified in this build. No ratings, awards, user counts or unbuilt features are claimed.
 
@@ -53,6 +53,6 @@ First release of PROtv for Fire TV.
 |---|---|---|---|
 | App icon | 1280×720 PNG, no transparency | `store-app-icon.png` | Meets spec (8-bit RGB) |
 | Background | 1920×1080 PNG/JPG, no transparency | `store-background.png` | Meets spec (8-bit RGB) |
-| Screenshots | 3–10, 1920×1080, JPG or 24-bit PNG | `screenshots-code4/` | To be captured on the Firestick from the code-4 build: Home, Search, Playback, Sign-in QR, Settings (deletion card) |
+| Screenshots | 3–10, 1920×1080, JPG or 24-bit PNG | `../screenshots/` (5 files) | Captured on the owner's Firestick from code 5, signed out, converted to 24-bit RGB PNG: `01-home-featured`, `02-search-results`, `03-playback`, `04-account-sign-in`, `05-settings-account-deletion` |
 
-Screenshots must not show a real account email. Use the reviewer or a test account. Visible posters come from the live catalog. **OWNER:** confirm the 49 live titles are approved for the Amazon US launch (as for Roku) before these screenshots are uploaded; otherwise use screens without posters (Search, Settings, Sign-in QR).
+The screenshots show no account email (all taken signed out). The sign-in code in `04` expired 10 minutes after capture. `03-playback` shows a frame of *Night of the Living Dead* (1968) and the Home hero shows *The Little Shop of Horrors* (1960). Visible posters come from the live catalog. **OWNER:** confirm the 49 live titles are approved for the Amazon US launch (as for Roku) before these screenshots are uploaded; otherwise use screens without posters (Search, Settings, Sign-in QR).

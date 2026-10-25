@@ -1,6 +1,28 @@
 # Fire TV release test results
 
-## Current release: 1.0.0, version code 4 (2026-10-25)
+## Current release: 1.0.0, version code 5 (2026-10-25)
+
+| Item | Value |
+|---|---|
+| Package | `com.protv.firetv` |
+| Version | 1.0.0, versionCode **5**, minSdk 23, targetSdk 36, compileSdk 37 |
+| Source commit | `7ff427f` on `feature/firetv-final-rc-20261024` (built from this exact tree) |
+| Signed APK | `D:\protv-firetv-artifacts\final-1.0.0-code5-20261025\PROtv-FireTV-1.0.0-code5-release-signed.apk` |
+| APK SHA-256 | `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5` |
+| Signer | Same upload key as code 4: cert SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f`; v1 and v2 verified; 1 signer |
+| Build | `testDebugUnitTest lintRelease assembleRelease`, signing values decrypted in memory only |
+
+| Check | Result |
+|---|---|
+| `:app:testDebugUnitTest` | 109 tests, 0 failures |
+| `:app:lintRelease` | 0 errors, 10 warnings (unchanged) |
+| Firestick install | Installed over code 4 as an in-place update (same signer); launches in 1.4 s |
+
+Why code 5: the code-4 Firestick test found a crash. Choosing TV from the menu while a Movies row had focus closed the app (`IllegalStateException: Pin should not be called on an already disposed item`, Compose focus restore into a disposed lazy-row item; log in `D:\protv-firetv-artifacts\firestick-records\20261025-t05-tv-exit-logcat.txt`). Settings also opened with nothing focused after a menu switch. Code 5 parks focus outside the rows while the section changes and draws the QR code in one call. Regression on the Firestick: every menu switch (Home, Movies, TV, Continue Watching, My List, Settings, Search), including from deep rows and empty pages, kept the same process with no crash, and focus landed on the section's first item (Settings: Sign in).
+
+Code 4 (`e52fea8c…b0b9`) was only sideloaded on the owner's Firestick and is superseded.
+
+## Superseded: 1.0.0, version code 4 (2026-10-25)
 
 | Item | Value |
 |---|---|
@@ -26,7 +48,7 @@ Automated checks on that source:
 
 Changes from code 3: targetSdk 36; Back key opt-out; Creator Portal and account deletion shown as address + QR instead of a browser intent; deletion card in Settings for all users; Music, Podcasts and New Releases hidden while empty.
 
-Code 3 (`cabfa00e…0301`) was never uploaded or installed and is superseded. Physical results for code 4 are recorded in `physical-test-checklist.md` and `RELEASE-CHECKLIST.md`.
+Code 3 (`cabfa00e…0301`) was never uploaded or installed and is superseded. Physical results are recorded in `physical-test-checklist.md` and `RELEASE-CHECKLIST.md`.
 
 ## Earlier build: 1.0.0, version code 3 (superseded)
 

@@ -1,15 +1,28 @@
-# Amazon Developer Console answers: PROtv for Fire TV 1.0.0 (code 4)
+# Amazon Developer Console answers: PROtv for Fire TV 1.0.0 (code 5)
 
 Field-by-field answers for the existing draft (app ID `amzn1.devportal.mobileapp.61f50bb711ba4d768754cb2462dd8b19`).
 Every answer below is based on the shipped APK, the live backend, or a cited owner decision.
 Items marked **OWNER** need a fact only the owner can confirm; do not guess them.
 
+## 0. Order of work in the console
+
+1. Sign in at developer.amazon.com > Apps & Services > My Apps > **PROtv** (the existing draft above).
+2. **Upload Your App File** (§1): remove any earlier APK from the draft, upload the code-5 APK, and check that the console shows `com.protv.firetv`, version 1.0.0 (5). Set device support as in §1, deselecting every Vega OS device. Save.
+3. **Target Your App** (§2) and the **privacy label** (§3). Save.
+4. **Appstore Details** (`store-listing.md`): title, short and full description, feature bullets, keywords; icon and background from `artwork/`, screenshots from `screenshots/`. Save.
+5. **Content Rating** (§4) once the OWNER facts are filled in. Save.
+6. **Availability & Pricing** (§5). Save.
+7. **Testing instructions** (§6): paste the text and type the reviewer account into the credentials field yourself.
+8. Every section should show a green check. Record any device the compatibility list marks incompatible in `RELEASE-CHECKLIST.md`.
+9. Optional, recommended: **Live App Testing** with code 5 before submitting (`RELEASE-CHECKLIST.md` Phase 7).
+10. Do not press **Submit App** until the final approval in `RELEASE-CHECKLIST.md` Phase 8.
+
 ## 1. Upload your app file
 
 | Field | Answer |
 |---|---|
-| APK | `PROtv-FireTV-1.0.0-code4-release-signed.apk`, SHA-256 `e52fea8c45c54bfc4f60bd34d7f67e4d70064f4e43fc837e79fef7df36bbe0b9` |
-| Package / version | `com.protv.firetv`, versionName 1.0.0, versionCode 4, minSdk 23, targetSdk 36 |
+| APK | `D:\protv-firetv-artifacts\final-1.0.0-code5-20261025\PROtv-FireTV-1.0.0-code5-release-signed.apk`, SHA-256 `08df95f7d48b18222e9d63b6e5c121e67033302ddf80e39c1a995044283152d5` |
+| Package / version | `com.protv.firetv`, versionName 1.0.0, versionCode 5, minSdk 23, targetSdk 36 |
 | Upload signer | CN=PROtv Android Upload, SHA-256 `301433275fdc7d791dcf6c436499c2b517586de9548eef021f7c2a8482115a7f` |
 | Does the app use Amazon DRM? | No (streams are delivered by Mux; the app has no Amazon DRM wrapper requirement) |
 | Language support | English |
@@ -82,6 +95,8 @@ Expected outcome: a **Mature (17+)** rating while Dead Air (TV-MA) is in the cat
 | Field | Answer |
 |---|---|
 | Marketplaces | **United States only** (matches the Roku launch decision and the rights report). **OWNER:** confirm |
+
+Launch-rights status, from `tv/roku/store/RIGHTS-REPORT.md` (2026-10-24, not a legal opinion; the Fire TV app shows the same live catalog as Roku): of the **49 live titles**, **8** have a verified film-rights basis with no open item, **22** have a verified film basis but material items open, **9** are unresolved and kept live pending evidence, and **10** are earlier admin-confirmed public-domain records marked for re-review. `commercialUseStatus` is `unverified` on every reviewed title because no source copy has been confirmed. 7 more titles are already restricted and not in the catalog. **OWNER:** decide whether the same 49 titles launch on Amazon. Amazon may ask for proof of rights for catalog content during review.
 | Price | Free |
 | Release date | As soon as approved (no scheduled date) |
 
