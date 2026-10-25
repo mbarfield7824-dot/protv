@@ -45,9 +45,14 @@ function platformFromRequest(req) {
   return /^Roku\//i.test(req.get('User-Agent') || '') ? 'roku' : 'default';
 }
 
+// Fire TV launches with the same cleared list. Fire TV builds from 1.0.0 code 6
+// send X-PROtv-Platform: firetv; older sideloaded builds send nothing.
+const LAUNCH_TITLE_IDS = { roku: ROKU_LAUNCH_TITLE_IDS, firetv: ROKU_LAUNCH_TITLE_IDS };
+
 function eligibleForPlatform(videos, platform) {
-  if (platform !== 'roku') return videos;
-  return videos.filter((video) => ROKU_LAUNCH_TITLE_IDS.has(video.id));
+  const allowed = LAUNCH_TITLE_IDS[platform];
+  if (!allowed) return videos;
+  return videos.filter((video) => allowed.has(video.id));
 }
 
 module.exports = { ROKU_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform };

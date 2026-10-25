@@ -55,7 +55,17 @@ test('Roku clients see only launch-cleared titles on every catalog path', async 
   assert.deepEqual((await get('?q=Title', roku)).body.items.map((item) => item.id), [CLEARED], 'search is filtered too');
 });
 
-test('website, Fire TV and other clients keep the full approved catalog', async (context) => {
+test('Fire TV code 6+ sees the same launch-cleared titles on every catalog path', async (context) => {
+  const get = await serve(context);
+  const fireTv = { 'User-Agent': 'okhttp/4.12.0', 'X-PROtv-Platform': 'firetv' };
+  assert.deepEqual((await get('?view=all', fireTv)).body.items.map((item) => item.id), [CLEARED]);
+  assert.equal((await get(`/titles/${CLEARED}/playback`, fireTv)).status, 200);
+  assert.equal((await get(`/titles/${HELD}`, fireTv)).status, 404);
+  assert.equal((await get(`/titles/${HELD}/playback`, fireTv)).status, 404);
+  assert.deepEqual((await get('?q=Title', fireTv)).body.items.map((item) => item.id), [CLEARED]);
+});
+
+test('website, older Fire TV builds and other clients keep the full approved catalog', async (context) => {
   const get = await serve(context);
   for (const headers of [{}, { 'User-Agent': 'Mozilla/5.0' }, { 'User-Agent': 'okhttp/4.12.0' }]) {
     const catalog = await get('?view=all', headers);
