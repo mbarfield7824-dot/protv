@@ -167,14 +167,16 @@ fun SignInScreen(
                         })
                     }
                     Spacer(Modifier.height(18.dp))
-                    Text(
-                        "Deletion requests are made on the PROtv website and reviewed by PROtv.",
-                        color = ProTvColors.Muted,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    ActionButton("Delete account", onClick = { webLink = WebLink.AccountDeletion })
+                    // One line: stacked, the button is squeezed off the bottom of a 1080p panel.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            "Deletion requests are made on the PROtv website and reviewed by PROtv.",
+                            color = ProTvColors.Muted,
+                            fontSize = 14.sp,
+                            modifier = Modifier.widthIn(max = 300.dp),
+                        )
+                        ActionButton("Delete account", onClick = { webLink = WebLink.AccountDeletion })
+                    }
                 }
                 is DeviceLinkState.Pending -> ActivationCode(current, primaryFocus = primaryFocus, onCancel = {
                     controller.cancel()

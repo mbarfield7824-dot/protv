@@ -63,6 +63,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val Midnight = ProTvColors.Midnight
+private const val AttributionIntroMillis = 8_000L
 
 private sealed interface PlaybackState {
     data object Loading : PlaybackState
@@ -85,6 +86,8 @@ fun PlayerScreen(
     onExit: () -> Unit,
     remoteKeys: RemoteKeyDispatcher<KeyEvent>,
     overlayOpen: Boolean = false,
+    /** Creative Commons credit; shown as playback starts and whenever the controls are up. */
+    attribution: String? = null,
 ) {
     BackHandler(enabled = !overlayOpen, onBack = onExit)
     val scope = rememberCoroutineScope()
@@ -126,6 +129,15 @@ fun PlayerScreen(
                     active = !overlayOpen,
                     onControlsVisibleChange = { controlsVisible = it },
                 )
+            }
+            var attributionIntro by remember(titleId, retry) { mutableStateOf(true) }
+            LaunchedEffect(titleId, retry, state is PlaybackState.Ready) {
+                if (state is PlaybackState.Ready) { delay(AttributionIntroMillis); attributionIntro = false }
+            }
+            if (attribution != null && (state !is PlaybackState.Ready || controlsVisible || attributionIntro)) {
+                Text(attribution, color = ProTvColors.White, fontSize = 15.sp,
+                    modifier = Modifier.align(Alignment.TopStart).padding(24.dp)
+                        .background(Color.Black.copy(alpha = .6f)).padding(horizontal = 12.dp, vertical = 8.dp))
             }
             // During playback the account action appears only with the player controls, so a hidden
             // overlay can never hold focus and swallow Select.

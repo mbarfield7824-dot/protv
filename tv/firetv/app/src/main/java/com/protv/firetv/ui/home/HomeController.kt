@@ -13,6 +13,7 @@ import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogRepository
 import com.protv.firetv.data.api.artworkModel
 import com.protv.firetv.data.api.descriptionText
+import com.protv.firetv.data.api.creditsText
 import com.protv.firetv.data.api.landscapeArtworkModel
 import com.protv.firetv.data.api.muxStillArtwork
 import com.protv.firetv.data.api.searchText
@@ -63,6 +64,8 @@ class HomeFeatured(
     val backdropArtwork: Any? = null,
     /** The metadata entry that is the category, shown as the highlighted chip. */
     val category: String? = null,
+    /** Required Creative Commons credit, shown on More Info. */
+    val attribution: String? = null,
 )
 
 /**
@@ -81,6 +84,8 @@ sealed interface HomeState {
         val rails: List<HomeRail>,
         val featured: HomeFeatured? = null,
         val featuredTitles: List<HomeFeatured> = featured?.let(::listOf).orEmpty(),
+        /** Creative Commons credits by catalog ID, shown by the player. */
+        val attributions: Map<String, String> = emptyMap(),
     ) : HomeState
 }
 
@@ -213,9 +218,13 @@ class HomeController(private val repository: CatalogRepository?, private val api
                     null
                 },
                 category = item.category.trim().takeIf { it.isNotEmpty() },
+                attribution = attributionText(item.descriptionText, item.creditsText),
             )
         }
-        return HomeState.Loaded(buildHomeRails(items), featuredTitles.firstOrNull(), featuredTitles)
+        val attributions = items.mapNotNull { item ->
+            attributionText(item.descriptionText, item.creditsText)?.let { item.id to it }
+        }.toMap()
+        return HomeState.Loaded(buildHomeRails(items), featuredTitles.firstOrNull(), featuredTitles, attributions)
     }
 
     private fun buildHomeRails(items: List<CatalogItem>): List<HomeRail> =

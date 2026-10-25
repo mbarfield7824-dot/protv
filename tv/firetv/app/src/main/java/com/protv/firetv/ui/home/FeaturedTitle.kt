@@ -56,7 +56,8 @@ fun previousFeaturedIndex(current: Int, size: Int): Int =
 
 fun sanitizeDescription(description: String?): String? {
     val cleaned = description
-        ?.replace(Regex("(?i)\\b(?:rights|license|source|credit|internal rights notes)\\s*:\\s*[^.\\n]*(?:\\.\\s*|$)"), " ")
+        // A note ends at a full stop followed by a space or the end, so "CC BY 3.0" stays whole.
+        ?.replace(Regex("(?i)\\b(?:rights|license|source|credit|internal rights notes)\\s*:\\s*[^\\n]*?(?:\\.(?=\\s|$)\\s*|$)"), " ")
         ?.replace(Regex("\\s+"), " ")
         ?.trim()
     return cleaned?.takeIf { it.isNotEmpty() }

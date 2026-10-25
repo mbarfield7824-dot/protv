@@ -30,12 +30,14 @@ import com.protv.firetv.playback.PlaybackApiClient
 import com.protv.firetv.playback.PlayerScreen
 import com.protv.firetv.playback.RemoteKeyDispatcher
 import com.protv.firetv.ui.home.HomeController
+import com.protv.firetv.ui.home.HomeState
 import kotlinx.coroutines.launch
 
 private data class SelectedTitle(
     val id: String,
     val title: String,
     val resumePositionSeconds: Double?,
+    val attribution: String? = null,
 )
 
 class MainActivity : ComponentActivity() {
@@ -99,6 +101,7 @@ class MainActivity : ComponentActivity() {
                 PlayerScreen(
                     titleId = selection.id,
                     title = selection.title,
+                    attribution = selection.attribution,
                     startPositionSeconds = selection.resumePositionSeconds,
                     repository = playback,
                     isSignedIn = accountLabel != null,
@@ -132,7 +135,10 @@ class MainActivity : ComponentActivity() {
                 ProTvScreen(
                     controller = home,
                     onSelect = { tile ->
-                        selectedTitle = SelectedTitle(tile.id, tile.title, tile.resumePositionSeconds)
+                        selectedTitle = SelectedTitle(
+                            tile.id, tile.title, tile.resumePositionSeconds,
+                            (home.state as? HomeState.Loaded)?.attributions?.get(tile.id),
+                        )
                     },
                     onExit = { finish() },
                     accountLabel = accountLabel,

@@ -294,6 +294,7 @@ private fun TitleInfo(featured: HomeFeatured, onClose: () -> Unit, onPlay: () ->
             Text(featured.metadata.joinToString("  •  "), fontSize = 14.sp, color = ProTvColors.Cyan)
             Text(featured.description ?: "No synopsis is available for this title.", color = ProTvColors.Silver, fontSize = 16.sp,
                 maxLines = 7, overflow = TextOverflow.Ellipsis)
+            featured.attribution?.let { Text(it, color = ProTvColors.Muted, fontSize = 13.sp) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = onPlay, modifier = Modifier.focusRequester(requester), colors = ProTvButtons.primary()) { Text("Play") }
                 Button(onClick = onClose, colors = ProTvButtons.secondary()) { Text("Close") }

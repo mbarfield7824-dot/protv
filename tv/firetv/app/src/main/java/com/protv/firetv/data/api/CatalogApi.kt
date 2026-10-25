@@ -28,6 +28,7 @@ data class CatalogItem(
     val heroImageUrl: String,
     // Optional hero metadata. Kept loosely typed so an unexpected value can never fail the catalog.
     val description: JsonElement? = null,
+    val credits: JsonElement? = null,
     val contentType: JsonElement? = null,
     val duration: JsonElement? = null,
     val year: JsonElement? = null,
@@ -53,6 +54,7 @@ private fun JsonElement?.positiveInt(): Int? =
     primitive?.content?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 1 }?.toInt()
 
 val CatalogItem.descriptionText: String? get() = description.text()
+val CatalogItem.creditsText: String? get() = credits.text()
 val CatalogItem.contentTypeText: String? get() = contentType.text()
 val CatalogItem.catalogAddedAt: Long?
     get() = sequenceOf(publishedAt, approvedAt, createdAt, submittedAt)
@@ -104,6 +106,10 @@ object ApiClient {
     fun create(baseUrl: String): Retrofit {
         val client = OkHttpClient.Builder()
             .callTimeout(15, TimeUnit.SECONDS)
+            // Lets the API apply a Fire TV launch catalog; the server ignores it unless one is set.
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder().header("X-PROtv-Platform", "firetv").build())
+            }
             .build()
         val json = Json { ignoreUnknownKeys = true }
         return Retrofit.Builder()
