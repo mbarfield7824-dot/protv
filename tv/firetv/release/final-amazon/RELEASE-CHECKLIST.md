@@ -27,7 +27,6 @@ Updated 2026-10-25. `[x]` done and verified · `[ ]` open · **OWNER** needs the
 - [x] Listing text, features, keywords, release notes (`store-listing.md`)
 - [x] Icon 1280×720 and background 1920×1080 meet spec
 - [x] Five 1920×1080 24-bit PNG screenshots from code 5 in `screenshots/`
-- [ ] **OWNER** Confirm the catalog posters and film frames shown may be used in the store listing
 
 ## Phase 5: Content and privacy compliance
 - [x] Privacy label answers from APK dependencies and backend data (`amazon-console-answers.md` §3)
