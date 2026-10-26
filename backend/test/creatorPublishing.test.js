@@ -161,6 +161,74 @@ test('publishing retry returns the existing title without contacting Mux', async
   assert.equal(muxCalls, 0);
 });
 
+test('status requests preserve signature, approval and signed-contract checks', () => {
+  const base = signedRequest().payload;
+  const status = { ...base, action: 'publishing_status', requestId: `${base.project.id}:publishing_status` };
+  const request = signedRequest(status);
+  assert.equal(validateCreatorActionRequest(request.rawBody, request.signature, 'publishing-secret').action, 'publishing_status');
+  assert.throws(() => validateCreatorActionRequest(request.rawBody, 'bad', 'publishing-secret'), /signature/i);
+  for (const change of [{ ownership: { status: 'pending' } }, { approval: null }, { contract: { status: 'link_issued' } }]) {
+    const invalid = signedRequest({ ...status, project: { ...base.project, ...change } });
+    assert.throws(() => validateCreatorActionRequest(invalid.rawBody, invalid.signature, 'publishing-secret'));
+  }
+});
+
+test('status reconciliation confirms Mux readiness without re-ingesting or activating distribution', async () => {
+  const updates = [];
+  let reads = 0;
+  const service = new CreatorPublishingService({
+    dependencies: dependencies({
+      getVideoByCreatorProjectId: async () => ({ id: 'catalog-1', status: 'processing', muxAssetId: 'asset-1', approvalStatus: 'approved' }),
+      getAsset: async (id) => { assert.equal(id, 'asset-1'); reads += 1; return { status: 'ready', duration: 120 }; },
+      updateVideo: async (id, update) => updates.push({ id, update }),
+      createAssetFromUrl: async () => assert.fail('Status checks must not create Mux assets'),
+      createCreatorVideo: async () => assert.fail('Status checks must not reserve catalog titles'),
+      logAdminEvent: async () => assert.fail('Status checks must not activate distribution'),
+    }),
+  });
+  const payload = { action: 'publishing_status', project: { id: 'project-1', catalogId: 'catalog-1' } };
+  assert.deepEqual(await service.execute(payload), {
+    externalId: 'catalog-1', status: 'published', message: 'PROtv confirms approved, playback-ready publication.',
+  });
+  assert.equal(reads, 1);
+  assert.deepEqual(updates, [{ id: 'catalog-1', update: { status: 'ready', muxPlaybackId: 'playback-1', duration: 120 } }]);
+  await assert.rejects(() => service.execute({ ...payload, project: { ...payload.project, catalogId: 'wrong' } }), /could not be verified/);
+  assert.equal(reads, 1);
+});
+
+test('status checks retain processing, failures and approval gates', async () => {
+  for (const [status, assetStatus, approval, playback, expected] of [
+    ['processing', 'preparing', 'approved', null, 'processing'],
+    ['processing', 'errored', 'approved', null, 'failed'],
+    ['ingestion_failed', null, 'approved', null, 'failed'],
+    ['ready', null, 'draft', 'playback-1', 'processing'],
+    ['ready', null, 'approved', null, 'processing'],
+    ['ready', null, 'approved', 'playback-1', 'published'],
+  ]) {
+    const service = new CreatorPublishingService({
+      dependencies: dependencies({
+        getVideoByCreatorProjectId: async () => ({ id: 'catalog-1', status, muxAssetId: 'asset-1', approvalStatus: approval, muxPlaybackId: playback }),
+        getAsset: async () => ({ status: assetStatus }),
+        createAssetFromUrl: async () => assert.fail('Unexpected ingestion'),
+      }),
+    });
+    assert.equal((await service.execute({ action: 'publishing_status', project: { id: 'project-1', catalogId: 'catalog-1' } })).status, expected);
+  }
+});
+
+test('Mux read failures and missing playback IDs never confirm publication', async () => {
+  for (const getAsset of [async () => { throw new Error('Mux unavailable'); }, async () => ({ status: 'ready' })]) {
+    const service = new CreatorPublishingService({
+      dependencies: dependencies({
+        getVideoByCreatorProjectId: async () => ({ id: 'catalog-1', status: 'processing', muxAssetId: 'asset-1' }),
+        getAsset, getPlaybackId: () => null,
+        updateVideo: async () => assert.fail('No verified state to persist'),
+      }),
+    });
+    await assert.rejects(() => service.execute({ action: 'publishing_status', project: { id: 'project-1', catalogId: 'catalog-1' } }), /Mux unavailable|without a public playback ID/);
+  }
+});
+
 test('distribution waits for Mux readiness and activates a ready title', async () => {
   const payload = publishingPayload();
   payload.action = 'distribution';
@@ -364,7 +432,7 @@ test.describe('movie promotional publishing', () => {
     await assert.rejects(store.service.execute(posterPayload()), /Uncertain Mux/);
     assert.equal(store.video().status, 'ingestion_failed');
     const retry = await store.service.execute(posterPayload());
-    assert.equal(retry.status, 'ingestion_failed');
+    assert.equal(retry.status, 'failed');
     assert.equal(muxCalls, 1);
     assert.equal(store.transfers(), 1);
   });

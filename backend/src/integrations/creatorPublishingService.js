@@ -16,7 +16,7 @@ const {
   validatePromotional, posterSource, transferPoster, promotionalBinding,
 } = require('./creatorPromotional');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'distribution']);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'publishing_status', 'distribution']);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 
 function requiredText(value, label, maxLength = 500) {
@@ -63,7 +63,7 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
   if (project.approval?.status !== 'approved') {
     throw new Error('Explicit Administrator approval is required for this action.');
   }
-  if (payload.action === 'publishing' || payload.action === 'distribution') {
+  if (payload.action === 'publishing' || payload.action === 'publishing_status' || payload.action === 'distribution') {
     if (project.contract?.status !== 'signed' || !project.contract.signedAt) {
       throw new Error('A signed creator contract is required before publishing or distribution.');
     }
@@ -141,7 +141,46 @@ class CreatorPublishingService {
     }
 
     if (action === 'publishing') return this.publish(payload);
+    if (action === 'publishing_status') {
+      const video = await this.dependencies.getVideoByCreatorProjectId(project.id);
+      if (!video || project.catalogId !== video.id) {
+        throw new Error('The linked catalog title could not be verified.');
+      }
+      return this.publicationResult(await this.refreshMuxStatus(video));
+    }
     return this.distribute(payload);
+  }
+
+  publicationResult(video) {
+    const failed = ['failed', 'ingestion_failed', 'errored', 'poster_transfer_failed'].includes(video.status);
+    const ready = video.status === 'ready' && Boolean(video.muxPlaybackId) && video.approvalStatus === 'approved';
+    return {
+      externalId: video.id,
+      status: ready ? 'published' : failed ? 'failed' : 'processing',
+      message: ready ? 'PROtv confirms approved, playback-ready publication.'
+        : failed ? `PROtv ingestion failed (${video.status}). Resolve the integration error before retrying.`
+          : video.status === 'ready' ? 'Mux processing is complete; catalog approval or a playback ID is still required.'
+            : 'Mux is processing the approved media. Distribution remains blocked until playback is ready.',
+    };
+  }
+
+  async refreshMuxStatus(video) {
+    if (video.status !== 'processing' || !video.muxAssetId) return video;
+    const asset = await this.dependencies.getAsset(video.muxAssetId);
+    if (asset.status === 'errored') {
+      await this.dependencies.updateVideo(video.id, { status: 'errored' });
+      return { ...video, status: 'errored' };
+    }
+    if (asset.status !== 'ready') return video;
+    const playbackId = this.dependencies.getPlaybackId(asset);
+    if (!playbackId) throw new Error('Mux finished processing without a public playback ID.');
+    const updates = {
+      status: 'ready',
+      muxPlaybackId: playbackId,
+      duration: asset.duration ? Math.round(asset.duration) : video.duration,
+    };
+    await this.dependencies.updateVideo(video.id, updates);
+    return { ...video, ...updates };
   }
 
   async publish({ requestId, project }) {
@@ -159,11 +198,7 @@ class CreatorPublishingService {
         return this.resumePoster(project, promotional, existing);
       }
       await this.audit('publishing', project.id, existing.id, 'Returned existing catalog title for an idempotent retry.');
-      return {
-        externalId: existing.id,
-        status: existing.status,
-        message: `PROtv already has this creator project as catalog title ${existing.id}.`,
-      };
+      return this.publicationResult(existing);
     }
 
     if (!project.media || typeof project.media !== 'object') {
@@ -287,25 +322,8 @@ class CreatorPublishingService {
       throw new Error('The Creator Agent catalog reference does not match the linked PROtv title.');
     }
 
-    let current = video;
-    if (current.status === 'processing' && current.muxAssetId) {
-      const asset = await this.dependencies.getAsset(current.muxAssetId);
-      if (asset.status === 'errored') {
-        await this.dependencies.updateVideo(current.id, { status: 'errored' });
-        throw new Error('Mux could not process this title, so distribution cannot begin.');
-      }
-      if (asset.status === 'ready') {
-        const playbackId = this.dependencies.getPlaybackId(asset);
-        if (!playbackId) throw new Error('Mux finished processing without a public playback ID.');
-        const updates = {
-          status: 'ready',
-          muxPlaybackId: playbackId,
-          duration: asset.duration ? Math.round(asset.duration) : current.duration,
-        };
-        await this.dependencies.updateVideo(current.id, updates);
-        current = { ...current, ...updates };
-      }
-    }
+    const current = await this.refreshMuxStatus(video);
+    if (current.status === 'errored') throw new Error('Mux could not process this title, so distribution cannot begin.');
     if (current.status !== 'ready' || !current.muxPlaybackId) {
       throw new Error('Mux is still processing this title. Retry distribution after playback is ready.');
     }

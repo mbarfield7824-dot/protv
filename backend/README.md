@@ -1,5 +1,15 @@
 # PROtv Backend Setup Guide
 
+## Creator Portal publication status
+
+The signed Creator Agent bridge accepts `publishing_status` for an existing linked
+catalog title. It retains signature, timestamp, ownership, approval and signed-contract
+checks, verifies catalog identity, and reconciles the existing Mux asset through read
+requests only. It never creates an asset, re-ingests media, or activates distribution.
+Responses use `processing`, `failed`, or `published`; the latter requires a ready,
+approved title with a playback ID. A failed Mux lookup does not confirm publication.
+Distribution remains a separate explicitly approved action.
+
 ## What We've Built
 - **Express.js** API server with routes for auth and videos
 - **Firebase** integration (Firestore database + Authentication)
