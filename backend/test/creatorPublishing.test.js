@@ -173,6 +173,22 @@ test('status requests preserve signature, approval and signed-contract checks', 
   }
 });
 
+test('a concurrent catalog reservation returns normalized readiness without duplicate ingestion', async () => {
+  let reads = 0;
+  const service = new CreatorPublishingService({
+    creatorAgentOrigin: 'https://creator.example',
+    dependencies: dependencies({
+      getVideoByCreatorProjectId: async () => ++reads === 1 ? null : ({
+        id: 'catalog-1', status: 'ready', muxPlaybackId: 'playback-1', approvalStatus: 'approved',
+      }),
+      createCreatorVideo: async () => ({ id: 'catalog-1', created: false }),
+      createAssetFromUrl: async () => assert.fail('A concurrent reservation must not create another Mux asset'),
+    }),
+  });
+  assert.equal((await service.execute(publishingPayload())).status, 'published');
+  assert.equal(reads, 2);
+});
+
 test('status reconciliation confirms Mux readiness without re-ingesting or activating distribution', async () => {
   const updates = [];
   let reads = 0;

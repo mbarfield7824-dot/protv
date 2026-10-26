@@ -238,11 +238,7 @@ class CreatorPublishingService {
     if (!reservation.created) {
       const reserved = await this.dependencies.getVideoByCreatorProjectId(project.id);
       if (!reserved) throw new Error('The existing creator catalog reservation could not be loaded.');
-      return {
-        externalId: catalogId,
-        status: reserved.status,
-        message: `PROtv already has this creator project as catalog title ${catalogId}.`,
-      };
+      return this.publicationResult(reserved);
     }
 
     if (promotional.poster) {
