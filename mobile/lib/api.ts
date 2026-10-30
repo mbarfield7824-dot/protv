@@ -1,0 +1,159 @@
+import { API_BASE_URL, DEMO_HLS_URL } from './config';
+import type { CatalogTitle } from '../data/catalog';
+
+type CatalogResponse = { items?: unknown };
+type PlaybackResponse = {
+  id?: unknown;
+  streamType?: unknown;
+  muxPlaybackId?: unknown;
+  playbackToken?: unknown;
+};
+
+export type WatchProgress = {
+  positionSeconds: number;
+  durationSeconds: number;
+  progressPercent: number;
+  updatedAt: number;
+};
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function normalizeCatalogTitle(value: unknown): CatalogTitle | null {
+  const item = objectValue(value);
+  if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
+  const genres = Array.isArray(item.genres)
+    ? item.genres.filter((genre): genre is string => typeof genre === 'string')
+    : [];
+  return {
+    id: item.id,
+    title: item.title,
+    description: typeof item.description === 'string' ? item.description : '',
+    category: typeof item.category === 'string' ? item.category : '',
+    contentType: typeof item.contentType === 'string' ? item.contentType : 'MOVIE',
+    year: typeof item.year === 'number' ? item.year : 0,
+    duration: typeof item.duration === 'number' ? item.duration : 0,
+    maturityRating: typeof item.maturityRating === 'string' ? item.maturityRating : '',
+    genres,
+    ...(typeof item.seriesId === 'string' ? { seriesId: item.seriesId } : {}),
+    ...(typeof item.seriesTitle === 'string' ? { seriesTitle: item.seriesTitle } : {}),
+    ...(typeof item.seasonNumber === 'number' ? { seasonNumber: item.seasonNumber } : {}),
+    ...(typeof item.episodeNumber === 'number' ? { episodeNumber: item.episodeNumber } : {}),
+  };
+}
+
+async function request<T>(path: string, token?: string, init?: RequestInit): Promise<T> {
+  if (!API_BASE_URL) throw new Error('Set EXPO_PUBLIC_API_URL to use the PROtv staging API.');
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+  const payload: unknown = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const body = objectValue(payload);
+    throw new Error(typeof body.error === 'string' ? body.error : `PROtv API request failed (${response.status}).`);
+  }
+  return payload as T;
+}
+
+export async function fetchCatalog(): Promise<CatalogTitle[]> {
+  const payload = await request<CatalogResponse>('/v1/catalog?view=all');
+  if (!Array.isArray(payload.items)) throw new Error('The catalog response did not contain an items list.');
+  return payload.items.map(normalizeCatalogTitle).filter((title): title is CatalogTitle => title !== null);
+}
+
+export async function fetchViewerAccount(token: string): Promise<{
+  favorites: string[];
+  progress: Record<string, WatchProgress>;
+}> {
+  const [favorites, progress] = await Promise.all([
+    request<unknown>('/users/me/favorites', token),
+    request<unknown>('/users/me/progress', token),
+  ]);
+  if (!Array.isArray(favorites) || !favorites.every((id) => typeof id === 'string')) {
+    throw new Error('The My List response is invalid.');
+  }
+  const progressEntries = objectValue(progress);
+  const normalizedProgress: Record<string, WatchProgress> = {};
+  for (const [titleId, value] of Object.entries(progressEntries)) {
+    const entry = objectValue(value);
+    if (
+      !titleId
+      || typeof entry.positionSeconds !== 'number'
+      || !Number.isFinite(entry.positionSeconds)
+      || typeof entry.durationSeconds !== 'number'
+      || !Number.isFinite(entry.durationSeconds)
+      || entry.durationSeconds <= 0
+      || typeof entry.progressPercent !== 'number'
+      || !Number.isInteger(entry.progressPercent)
+      || entry.progressPercent < 0
+      || entry.progressPercent > 100
+      || typeof entry.updatedAt !== 'number'
+      || !Number.isFinite(entry.updatedAt)
+    ) {
+      throw new Error('The Continue Watching response is invalid.');
+    }
+    normalizedProgress[titleId] = {
+      positionSeconds: entry.positionSeconds,
+      durationSeconds: entry.durationSeconds,
+      progressPercent: entry.progressPercent,
+      updatedAt: entry.updatedAt,
+    };
+  }
+  return { favorites, progress: normalizedProgress };
+}
+
+export async function setFavorite(token: string, videoId: string, favorite: boolean): Promise<void> {
+  await request(`/users/me/favorites/${encodeURIComponent(videoId)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ favorite }),
+  });
+}
+
+export async function saveProgress(
+  token: string,
+  videoId: string,
+  positionSeconds: number,
+  durationSeconds: number,
+): Promise<WatchProgress> {
+  return request(`/users/me/progress/${encodeURIComponent(videoId)}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ positionSeconds, durationSeconds }),
+  });
+}
+
+export async function fetchPlaybackUrl(titleId: string): Promise<string> {
+  if (!API_BASE_URL) return DEMO_HLS_URL;
+  const payload = await request<PlaybackResponse>(
+    `/v1/catalog/titles/${encodeURIComponent(titleId)}/playback`,
+  );
+  if (payload.id !== titleId || payload.streamType !== 'on-demand'
+    || typeof payload.muxPlaybackId !== 'string'
+    || !/^[A-Za-z0-9]+$/.test(payload.muxPlaybackId)) {
+    throw new Error('The playback response is invalid.');
+  }
+  const url = `https://stream.mux.com/${payload.muxPlaybackId}.m3u8`;
+  if (payload.playbackToken === undefined) return url;
+  if (typeof payload.playbackToken !== 'string'
+    || !/^[A-Za-z0-9_.-]+$/.test(payload.playbackToken)) {
+    throw new Error('The signed playback token is invalid.');
+  }
+  return `${url}?token=${encodeURIComponent(payload.playbackToken)}`;
+}
+
+export async function fetchCreatorPortalUrl(token: string): Promise<string> {
+  const payload = await request<{ url?: unknown }>('/auth/creator-sso', token, { method: 'POST' });
+  if (typeof payload.url !== 'string') throw new Error('Creator Portal did not return a URL.');
+  const url = new URL(payload.url);
+  if (url.protocol !== 'https:') throw new Error('Creator Portal URL must use HTTPS.');
+  return url.toString();
+}
+
+export const isApiConfigured = Boolean(API_BASE_URL);
