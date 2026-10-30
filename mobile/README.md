@@ -8,8 +8,10 @@ The app is free to watch; no in-app purchases or ads are enabled.
 
 1. Install Node.js compatible with the Expo SDK in this project.
 2. From `mobile/`, run `npm ci`.
-3. Run `npx expo start` and scan the QR code with Expo Go on an Android phone,
-   or press `a` when an Android SDK/emulator is installed.
+3. To build, install, and launch the native Android development app, run
+   `npx expo run:android` from `mobile/` with an Android SDK, ADB, and a
+   compatible Java toolchain configured. To use Expo Go instead, run
+   `npx expo start` and scan its QR code on an Android phone.
 4. Without local configuration, the app uses clearly identified sample catalog
    data, local-only My List/progress state, and a public Mux HLS test stream.
    This is not production media, a production login, or a backend write.
@@ -55,6 +57,6 @@ npm run export:android
 ```
 
 Android emulator/device launch requires Android Studio's SDK/ADB and a Java
-toolchain. The current development host does not have those installed, so a
-local Android APK build is not available here. Do not point the prototype at a
-production API or Firebase project.
+toolchain. The native debug APK is written to
+`android/app/build/outputs/apk/debug/app-debug.apk`. Do not point the
+prototype at a production API or Firebase project.
