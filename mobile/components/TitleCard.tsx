@@ -7,12 +7,10 @@ import { BRAND } from '../constants/brand';
 import type { CatalogTitle } from '../data/catalog';
 
 const PALETTES: [string, string][] = [
-  ['#243A64', '#0E1323'],
-  ['#693D51', '#17111C'],
-  ['#4A654D', '#101A18'],
-  ['#795D38', '#19140F'],
-  ['#3E527A', '#10121C'],
-  ['#54457A', '#15111E'],
+  ['#1F3F8F', '#060B1C'],
+  ['#14306E', '#040814'],
+  ['#1F5BFF', '#050A1E'],
+  ['#0F5C8F', '#040A14'],
 ];
 
 export function TitleCard({
@@ -33,7 +31,7 @@ export function TitleCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View ${title.title}`}
+      accessibilityLabel={`View ${title.title}${typeof progress === 'number' ? `, ${Math.round(progress)} percent watched` : ''}`}
       onPress={() => router.push({ pathname: '/title/[id]', params: { id: title.id } })}
       style={({ pressed }) => [styles.card, compact && styles.compact, width !== undefined && { width, marginRight: 0 }, pressed && styles.pressed]}
     >
@@ -44,7 +42,9 @@ export function TitleCard({
             style={StyleSheet.absoluteFill}
             contentFit="cover"
             recyclingKey={title.id}
-            accessibilityLabel={`${title.title} poster`}
+            cachePolicy="memory-disk"
+            transition={150}
+            accessible={false}
             onError={() => {
               console.warn(`Artwork unavailable for title ${title.id}.`);
               setFailedArtwork(artwork || '');
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   episode: { color: '#DFE3EF', fontSize: 10, fontWeight: '700', marginTop: 7 },
   artMark: { position: 'absolute', top: 16, right: 12, color: 'rgba(255,255,255,0.75)', fontSize: 9, fontWeight: '900' },
   title: { color: BRAND.text, fontSize: 13, fontWeight: '700', marginTop: 9 },
-  subtitle: { color: BRAND.muted, fontSize: 11, marginTop: 3 },
+  subtitle: { color: BRAND.muted, fontSize: 12, marginTop: 3 },
   progressTrack: { height: 3, backgroundColor: 'rgba(255,255,255,0.32)', marginTop: 11, borderRadius: 4 },
   progressFill: { height: 3, backgroundColor: BRAND.accentBright, borderRadius: 4 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },

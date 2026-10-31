@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { BRAND } from '../constants/brand';
 import type { CatalogTitle } from '../data/catalog';
 import { TitleCard } from './TitleCard';
@@ -17,17 +17,18 @@ export function ContentRail({
   if (!items.length) return null;
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>
-        {items.map((item) => (
-          <TitleCard
-            key={item.id}
-            title={item}
-            compact={compact}
-            progress={progressById?.[item.id]}
-          />
-        ))}
-      </ScrollView>
+      <Text accessibilityRole="header" style={styles.heading}>{title}</Text>
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item) => item.id}
+        initialNumToRender={5}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.cards}
+        renderItem={({ item }) => (
+          <TitleCard title={item} compact={compact} progress={progressById?.[item.id]} />
+        )}
+      />
     </View>
   );
 }

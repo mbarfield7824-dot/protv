@@ -43,13 +43,15 @@ The app opens the existing server-issued SSO URL in the system browser and
 rejects other origins; it does not implement a second Creator Portal.
 
 Account & privacy includes profile updates, verification email, password reset,
-sign-out, the approved privacy policy, and a deletion support request.
-`EXPO_PUBLIC_ACCOUNT_DELETION_ENABLED` must remain false until the separately
-reviewed `DELETE /users/me` backend is approved, deployed, and validated. It
-requires recent password reauthentication and removes the viewer profile and
-Firebase account. Administrative/creator claims require support review.
-The supplied `/delete-account` website path is not a verified deletion workflow.
-This backend gate and the mobile gate are independent and both default off.
+sign-out, the approved privacy policy, and account deletion.
+With `EXPO_PUBLIC_ACCOUNT_DELETION_ENABLED=true` (set for iOS EAS builds in
+`eas.json`) the app reauthenticates with the password and submits
+`POST /users/me/deletion-request`, then shows the status from
+`GET /users/me/deletion-request`. This is the same reviewed queue as
+`watchprotv.com/delete-account`; `docs/account-deletion-runbook.md` on
+`feature/account-deletion-page` covers processing and creator-record retention.
+Local and Android builds leave the flag unset and offer the support email.
+The app does not call the undeployed immediate-delete `DELETE /users/me` draft.
 
 ## Signed Android builds
 
@@ -83,6 +85,27 @@ native rebuild without `-SkipPrebuild`.
 This Windows workstation previously required short native-module junctions at
 `D:\g`, `D:\r`, `D:\s`, and `D:\t` to avoid CMake path limits. Dependency installation
 may replace those junctions; restore them only after checking package versions.
+
+## iOS builds
+
+iOS binaries are built with EAS from this shared project; there is no separate iOS app.
+Store metadata, privacy answers, and open blockers are in `../docs/ios-app-store.md`.
+
+```powershell
+npx eas-cli@latest login
+.\scripts\setup-eas-ios.ps1                                  # links the project, sets Firebase client values
+npx eas-cli@latest build:inspect -p ios -e ios-simulator -s archive -o ..\..\eas-inspect   # review what would upload
+npx eas-cli@latest build -p ios --profile ios-simulator      # simulator build, no Apple account needed
+npx eas-cli@latest build -p ios --profile preview            # installable on registered iPhones
+npx eas-cli@latest build -p ios --profile production         # TestFlight / App Store
+```
+
+The root `.easignore` limits uploads to `mobile/` and excludes keys and local env files.
+On iOS the Firebase session is stored in the Keychain (`lib/firebaseAuth.ios.ts`), split
+across items; Android keeps its existing persistence until its next planned release.
+iPhone screens are portrait except the player, which rotates. iPad rotates freely.
+`assets/images/ios-icon.png` is the approved `icon.png` cropped to its drawn square and
+opaque, so the iOS corner mask does not double the artwork's rounded corners.
 
 ## Project architecture
 
@@ -119,8 +142,8 @@ toolchain. The native debug APK is written to
 
 - Dedicated test-account verification of registration, recovery, persisted login,
   My List/progress sync, account management, and verified-email Creator SSO.
-- Deletion deployment approval, complete data-retention review (including Creator
-  Portal records), end-to-end deletion tests, and a real public deletion page.
+- End-to-end deletion-request test with a dedicated test account and a complete
+  data-retention review (including Creator Portal records).
 - Owner-approved privacy text, Google Play Data Safety declarations, store listing,
   D-U-N-S/developer registration, and physical phone/tablet verification.
 - Dependency audit still reports Zod and deepmerge advisories with no compatible

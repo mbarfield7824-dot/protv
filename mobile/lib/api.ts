@@ -22,6 +22,15 @@ function objectValue(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function addedAtField(item: Record<string, unknown>): { addedAt?: number } {
+  for (const key of ['addedAt', 'publishedAt', 'createdAt']) {
+    const value = item[key];
+    const time = typeof value === 'number' ? value : typeof value === 'string' ? Date.parse(value) : NaN;
+    if (Number.isFinite(time) && time > 0) return { addedAt: time };
+  }
+  return {};
+}
+
 function normalizeCatalogTitle(value: unknown): CatalogTitle | null {
   const item = objectValue(value);
   if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
@@ -43,6 +52,10 @@ function normalizeCatalogTitle(value: unknown): CatalogTitle | null {
       typeof item[key] === 'string' && /^(https:\/\/|data:image\/)/i.test(item[key])
         ? [[key, item[key]]] : []
     ))),
+    ...(typeof item.subgenre === 'string' && item.subgenre ? { subgenre: item.subgenre } : {}),
+    ...(typeof item.credits === 'string' && item.credits ? { credits: item.credits } : {}),
+    ...(typeof item.creatorProjectId === 'string' && item.creatorProjectId ? { creatorProjectId: item.creatorProjectId } : {}),
+    ...addedAtField(item),
     ...(typeof item.seriesId === 'string' ? { seriesId: item.seriesId } : {}),
     ...(typeof item.seriesTitle === 'string' ? { seriesTitle: item.seriesTitle } : {}),
     ...(typeof item.seasonNumber === 'number' ? { seasonNumber: item.seasonNumber } : {}),
@@ -177,6 +190,33 @@ export async function fetchCreatorPortalUrl(token: string): Promise<string> {
 
 export const isApiConfigured = Boolean(API_BASE_URL);
 
-export async function deleteViewerAccount(token: string): Promise<void> {
-  await request('/users/me', token, { method: 'DELETE' });
+export type DeletionRequest = {
+  status: string;
+  requestedAt: string | null;
+  updatedAt: string | null;
+  adminMessage: string;
+};
+
+function normalizeDeletionRequest(payload: unknown): DeletionRequest | null {
+  const value = objectValue(payload).request;
+  if (value === null) return null;
+  const item = objectValue(value);
+  if (typeof item.status !== 'string') throw new Error('The account deletion response is invalid.');
+  return {
+    status: item.status,
+    requestedAt: typeof item.requestedAt === 'string' ? item.requestedAt : null,
+    updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : null,
+    adminMessage: typeof item.adminMessage === 'string' ? item.adminMessage : '',
+  };
+}
+
+export async function fetchDeletionRequest(token: string): Promise<DeletionRequest | null> {
+  return normalizeDeletionRequest(await request<unknown>('/users/me/deletion-request', token));
+}
+
+// Submitting is idempotent per account. The token must come from a sign-in within the last five minutes.
+export async function submitDeletionRequest(token: string): Promise<DeletionRequest> {
+  const result = normalizeDeletionRequest(await request<unknown>('/users/me/deletion-request', token, { method: 'POST' }));
+  if (!result) throw new Error('The account deletion response is invalid.');
+  return result;
 }

@@ -15,7 +15,118 @@ export type CatalogTitle = {
   seriesTitle?: string;
   seasonNumber?: number;
   episodeNumber?: number;
+  subgenre?: string;
+  credits?: string;
+  creatorProjectId?: string;
+  addedAt?: number;
 };
+
+export type HomeRail = { key: string; title: string; items: CatalogTitle[] };
+
+type ProgressEntry = { progressPercent: number; updatedAt: number };
+
+const COMPLETED_PERCENT = 95;
+const CLASSIC_CUTOFF_YEAR = 1970;
+
+function text(value: string | undefined) {
+  return (value || '').toLocaleLowerCase();
+}
+
+function inCategory(title: CatalogTitle, ...names: string[]) {
+  const labels = [title.category, title.subgenre, ...title.genres].map(text);
+  return names.some((name) => labels.some((label) => label.includes(name)));
+}
+
+function isSeries(title: CatalogTitle) {
+  return title.contentType === 'EPISODE' || title.contentType === 'SERIES';
+}
+
+function byRecent(progress: Record<string, ProgressEntry>) {
+  return (left: CatalogTitle, right: CatalogTitle) => progress[right.id].updatedAt - progress[left.id].updatedAt;
+}
+
+export function continueWatching(titles: CatalogTitle[], progress: Record<string, ProgressEntry>): CatalogTitle[] {
+  return titles.filter((title) => progress[title.id] && progress[title.id].progressPercent < COMPLETED_PERCENT)
+    .sort(byRecent(progress));
+}
+
+export function watchHistory(titles: CatalogTitle[], progress: Record<string, ProgressEntry>): CatalogTitle[] {
+  return titles.filter((title) => progress[title.id]).sort(byRecent(progress));
+}
+
+// One card per show: its first episode, labelled with the show's name.
+export function seriesCards(titles: CatalogTitle[]): CatalogTitle[] {
+  const shows = new Map<string, CatalogTitle[]>();
+  for (const title of titles) {
+    if (!isSeries(title)) continue;
+    const key = title.seriesId || title.seriesTitle || title.id;
+    shows.set(key, [...(shows.get(key) ?? []), title]);
+  }
+  return [...shows.values()].map((episodes) => {
+    const [first] = seriesEpisodes(episodes[0], titles).concat(episodes);
+    return { ...first, title: first.seriesTitle || first.title };
+  });
+}
+
+export function relatedTitles(title: CatalogTitle, titles: CatalogTitle[], limit = 12): CatalogTitle[] {
+  const episodes = new Set(seriesEpisodes(title, titles).map(({ id }) => id));
+  return titles.filter((item) => item.id !== title.id && !episodes.has(item.id) && (
+    item.category === title.category || item.genres.some((genre) => title.genres.includes(genre))
+  )).slice(0, limit);
+}
+
+export function featuredTitle(titles: CatalogTitle[]): CatalogTitle | undefined {
+  return titles.find((title) => title.heroImageUrl)
+    ?? titles.find((title) => title.contentType === 'MOVIE' && title.posterUrl)
+    ?? titles[0];
+}
+
+// Every rail comes from fields the catalog actually returned; a rail with no matches is omitted.
+export function buildHomeRails(
+  titles: CatalogTitle[],
+  favorites: string[],
+  progress: Record<string, ProgressEntry>,
+): HomeRail[] {
+  const rails: HomeRail[] = [
+    { key: 'continue', title: 'Continue Watching', items: continueWatching(titles, progress) },
+    { key: 'my-list', title: 'My List', items: titles.filter((title) => favorites.includes(title.id)) },
+    {
+      key: 'new',
+      title: 'New Releases',
+      items: titles.filter((title) => title.addedAt).sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)).slice(0, 20),
+    },
+    {
+      key: 'originals',
+      title: 'PROtv Originals',
+      items: titles.filter((title) => text(title.category) === 'originals' || text(title.contentType) === 'original'),
+    },
+    { key: 'creators', title: 'From PROtv Creators', items: titles.filter((title) => title.creatorProjectId) },
+    { key: 'independent', title: 'Independent Films', items: titles.filter((title) => inCategory(title, 'independent')) },
+    { key: 'movies', title: 'Movies', items: titles.filter((title) => title.contentType === 'MOVIE') },
+    { key: 'series', title: 'Series', items: seriesCards(titles) },
+    { key: 'documentaries', title: 'Documentaries', items: titles.filter((title) => inCategory(title, 'documentar')) },
+    {
+      key: 'classic',
+      title: 'Classic Cinema',
+      items: titles.filter((title) => inCategory(title, 'classic cinema')
+        || (title.contentType === 'MOVIE' && title.year > 0 && title.year < CLASSIC_CUTOFF_YEAR)),
+    },
+    { key: 'ai', title: 'AI Cinema', items: titles.filter((title) => inCategory(title, 'ai cinema')) },
+    {
+      key: 'music',
+      title: 'Music and Podcasts',
+      items: titles.filter((title) => ['MUSIC', 'PODCAST'].includes(title.contentType) || inCategory(title, 'music', 'podcast', 'hip-hop')),
+    },
+  ];
+  const named = new Set(['independent', 'documentary', 'ai cinema', 'music', 'podcast', 'originals']);
+  const categories = [...new Set(titles.map((title) => title.category).filter(Boolean))]
+    .filter((category) => !named.has(text(category)));
+  for (const category of categories) {
+    const items = titles.filter((title) => title.category === category);
+    if (items.length > 1) rails.push({ key: `category-${category}`, title: category, items });
+  }
+  return rails.filter((rail) => rail.items.length > 0);
+}
 
 export function seriesEpisodes(title: CatalogTitle | undefined, titles: CatalogTitle[]): CatalogTitle[] {
   if (!title || title.contentType !== 'EPISODE') return [];
@@ -152,6 +263,8 @@ export function titleMatchesQuery(title: CatalogTitle, query: string): boolean {
     title.description,
     title.category,
     title.seriesTitle,
+    title.subgenre,
+    title.credits,
     ...title.genres,
   ]
     .filter(Boolean)

@@ -1,0 +1,24 @@
+# EAS uploads the git root. Only the mobile app may leave this machine.
+/*
+!/mobile
+
+node_modules/
+.expo/
+dist/
+web-build/
+.test-build/
+/mobile/android/
+/mobile/ios/
+/mobile/.claude/
+/mobile/.local-release/
+
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision

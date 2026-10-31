@@ -65,3 +65,65 @@ test('episodes are ordered by season then episode with legacy series-title suppo
   assert.deepEqual(seriesEpisodes(items[0], items).map(({ id }) => id), ['s1e1', 's1e2', 's2']);
   assert.equal(titleMatchesQuery({ title: 'Real movie', description: '', genres: ['Drama'] }, 'drama'), true);
 });
+test('home rails use real fields only and omit empty sections', () => {
+  const { buildHomeRails, seriesCards, relatedTitles, continueWatching, watchHistory } = require('../.test-build/data/catalog');
+  const base = { description: '', genres: [], year: 2020, duration: 90, maturityRating: '' };
+  const items = [
+    { ...base, id: 'old', title: 'Old', category: 'Drama', contentType: 'MOVIE', year: 1938 },
+    { ...base, id: 'ai', title: 'AI', category: 'AI Cinema', contentType: 'MOVIE' },
+    { ...base, id: 'e2', title: 'Two', category: 'Horror', contentType: 'EPISODE', seriesTitle: 'Show', seasonNumber: 1, episodeNumber: 2 },
+    { ...base, id: 'e1', title: 'One', category: 'Horror', contentType: 'EPISODE', seriesTitle: 'Show', seasonNumber: 1, episodeNumber: 1 },
+  ];
+  const keys = buildHomeRails(items, [], {}).map(({ key }) => key);
+  assert.deepEqual(keys, ['movies', 'series', 'classic', 'ai', 'category-Horror']);
+  assert.deepEqual(seriesCards(items).map(({ id, title }) => [id, title]), [['e1', 'Show']]);
+  assert.deepEqual(relatedTitles(items[2], items), []);
+  const progress = { old: { progressPercent: 100, updatedAt: 5 }, ai: { progressPercent: 40, updatedAt: 1 } };
+  assert.deepEqual(continueWatching(items, progress).map(({ id }) => id), ['ai']);
+  assert.deepEqual(watchHistory(items, progress).map(({ id }) => id), ['old', 'ai']);
+  const rails = buildHomeRails(items, ['ai'], progress).map(({ key }) => key);
+  assert.ok(rails.includes('continue') && rails.includes('my-list'));
+});
+test('deletion requests use the reviewed contract and validate responses', async () => {
+  const calls = [];
+  global.fetch = async (url, init) => {
+    calls.push([url, init.method]);
+    return new Response(JSON.stringify({ request: init.method === 'POST' ? { status: 'pending_review', adminMessage: '' } : null }));
+  };
+  assert.equal(await api.fetchDeletionRequest('t'), null);
+  assert.equal((await api.submitDeletionRequest('t')).status, 'pending_review');
+  assert.deepEqual(calls, [
+    ['https://watchprotv.com/api/users/me/deletion-request', undefined],
+    ['https://watchprotv.com/api/users/me/deletion-request', 'POST'],
+  ]);
+  reply({ request: { status: 7 } });
+  await assert.rejects(api.fetchDeletionRequest('t'), /invalid/);
+  reply({ error: 'Sign in again' }, 403);
+  await assert.rejects(api.submitDeletionRequest('t'), /Sign in again/);
+});
+test('Firebase errors become safe messages', () => {
+  const { authErrorMessage } = require('../.test-build/lib/authErrors');
+  assert.match(authErrorMessage({ code: 'auth/invalid-credential' }), /incorrect/);
+  assert.equal(authErrorMessage({ code: 'auth/internal-secret' }, 'Failed'), 'Failed');
+});
+test('chunked secure storage round-trips, clears, and ignores a keychain left by a past install', async () => {
+  const { createChunkedStorage } = require('../.test-build/lib/chunkedStorage');
+  const memory = () => {
+    const map = new Map();
+    return { map, getItem: async (k) => map.get(k) ?? null, setItem: async (k, v) => { map.set(k, v); }, removeItem: async (k) => { map.delete(k); } };
+  };
+  const secure = memory();
+  const marker = memory();
+  const store = createChunkedStorage(secure, marker);
+  const value = 'x'.repeat(4000);
+  await store.setItem('firebase:authUser:key:[DEFAULT]', value);
+  assert.equal(await store.getItem('firebase:authUser:key:[DEFAULT]'), value);
+  assert.ok([...secure.map.keys()].every((k) => /^[A-Za-z0-9._-]+$/.test(k)));
+  assert.ok([...secure.map.values()].every((v) => v.length <= 1800));
+  await store.setItem('firebase:authUser:key:[DEFAULT]', 'short');
+  assert.equal(await store.getItem('firebase:authUser:key:[DEFAULT]'), 'short');
+  assert.equal(secure.map.size, 2);
+  marker.map.clear();
+  assert.equal(await store.getItem('firebase:authUser:key:[DEFAULT]'), null);
+  assert.equal(secure.map.size, 0);
+});

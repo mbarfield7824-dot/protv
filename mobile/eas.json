@@ -1,0 +1,37 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://watchprotv.com/api",
+        "EXPO_PUBLIC_DEMO_MODE": "false",
+        "EXPO_PUBLIC_PRIVACY_URL": "https://watchprotv.com/privacy",
+        "EXPO_PUBLIC_DELETE_ACCOUNT_URL": "https://watchprotv.com/delete-account",
+        "EXPO_PUBLIC_CREATOR_PORTAL_ORIGIN": "https://creators.watchprotv.com",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_ENABLED": "true"
+      }
+    },
+    "ios-simulator": {
+      "extends": "base",
+      "environment": "preview",
+      "distribution": "internal",
+      "ios": { "simulator": true }
+    },
+    "preview": {
+      "extends": "base",
+      "environment": "preview",
+      "distribution": "internal"
+    },
+    "production": {
+      "extends": "base",
+      "environment": "production",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

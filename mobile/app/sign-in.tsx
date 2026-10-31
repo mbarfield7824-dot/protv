@@ -67,7 +67,7 @@ export default function SignInScreen() {
       <SafeAreaView style={styles.screen}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 28 }}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.close}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close sign in" onPress={() => router.back()} style={styles.close}>
           <Text style={styles.closeText}>×</Text>
         </Pressable>
         <BrandMark />
@@ -87,6 +87,8 @@ export default function SignInScreen() {
           <TextInput
             accessibilityLabel="Display name"
             autoCapitalize="words"
+            keyboardAppearance="dark"
+            textContentType="name"
             onChangeText={setDisplayName}
             placeholder="Display name"
             placeholderTextColor={BRAND.muted}
@@ -98,7 +100,10 @@ export default function SignInScreen() {
           accessibilityLabel="Email address"
           autoCapitalize="none"
           autoComplete="email"
+          autoCorrect={false}
+          keyboardAppearance="dark"
           keyboardType="email-address"
+          textContentType="username"
           onChangeText={setEmail}
           placeholder="Email address"
           placeholderTextColor={BRAND.muted}
@@ -109,6 +114,8 @@ export default function SignInScreen() {
           accessibilityLabel="Password"
           autoCapitalize="none"
           autoComplete={registerMode ? 'new-password' : 'password'}
+          keyboardAppearance="dark"
+          textContentType={registerMode ? 'newPassword' : 'password'}
           onChangeText={setPassword}
           placeholder="Password"
           placeholderTextColor={BRAND.muted}
@@ -151,14 +158,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BRAND.background },
   center: { flex: 1, backgroundColor: BRAND.background, alignItems: 'center', justifyContent: 'center', padding: 24 },
   header: { height: 60, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  close: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: BRAND.elevated },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: BRAND.elevated },
   closeText: { color: BRAND.text, fontSize: 24, lineHeight: 26 },
   form: { paddingHorizontal: 24, paddingTop: 24, maxWidth: 540, width: '100%', alignSelf: 'center' },
   kicker: { color: BRAND.teal, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   title: { color: BRAND.text, fontSize: 30, fontWeight: '900', marginTop: 8 },
   subtitle: { color: BRAND.muted, fontSize: 13, lineHeight: 19, marginTop: 7, marginBottom: 14 },
-  input: { height: 50, color: BRAND.text, backgroundColor: BRAND.surface, borderColor: BRAND.border, borderWidth: 1, borderRadius: 9, paddingHorizontal: 14, marginTop: 10 },
-  button: { height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.accent, marginTop: 16 },
+  input: { minHeight: 50, color: BRAND.text, fontSize: 16, backgroundColor: BRAND.surface, borderColor: BRAND.border, borderWidth: 1, borderRadius: 9, paddingHorizontal: 14, marginTop: 10 },
+  button: { minHeight: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.accent, marginTop: 16 },
   buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   textAction: { paddingVertical: 12, alignItems: 'center' },
   actionText: { color: BRAND.accentBright, fontSize: 12, fontWeight: '700' },

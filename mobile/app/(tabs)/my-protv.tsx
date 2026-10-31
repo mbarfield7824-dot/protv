@@ -7,6 +7,7 @@ import { ContentRail } from '../../components/ContentRail';
 import { Notice, ScreenFrame } from '../../components/ScreenFrame';
 import { BRAND } from '../../constants/brand';
 import { useMobile } from '../../context/MobileProvider';
+import { continueWatching, watchHistory } from '../../data/catalog';
 
 function ActionRow({
   title,
@@ -40,7 +41,8 @@ export default function MyProtvScreen() {
     [progress],
   );
   const savedTitles = titles.filter((title) => favorites.includes(title.id));
-  const continueTitles = titles.filter((title) => progress[title.id]);
+  const continueTitles = continueWatching(titles, progress);
+  const historyTitles = watchHistory(titles, progress);
   const tablet = width >= 700;
 
   const openCreator = async () => {
@@ -112,7 +114,7 @@ export default function MyProtvScreen() {
       ) : null}
       {creatorError ? <Notice tone="error">{creatorError}</Notice> : null}
       <View style={styles.actions}>
-        <Text style={styles.sectionTitle}>Creator access</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Account and creators</Text>
         <ActionRow
           title="Account & privacy"
           detail="Profile, password, privacy, and deletion"
@@ -126,6 +128,7 @@ export default function MyProtvScreen() {
       </View>
       <ContentRail title="Continue Watching" items={continueTitles} progressById={progressById} />
       <ContentRail title="My List" items={savedTitles} compact />
+      <ContentRail title="Watch History" items={historyTitles} progressById={progressById} compact />
     </ScreenFrame>
   );
 }
@@ -153,9 +156,9 @@ const styles = StyleSheet.create({
   profileName: { color: BRAND.text, fontSize: 17, fontWeight: '800', marginTop: 4 },
   profileEmail: { color: BRAND.muted, fontSize: 11, marginTop: 3 },
   verifyText: { color: BRAND.gold, fontSize: 10, marginTop: 6 },
-  signInButton: { backgroundColor: BRAND.accent, borderRadius: 8, paddingHorizontal: 15, paddingVertical: 10, marginLeft: 12 },
+  signInButton: { minHeight: 44, justifyContent: 'center', backgroundColor: BRAND.accent, borderRadius: 8, paddingHorizontal: 15, marginLeft: 12 },
   signInText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  signOutButton: { borderWidth: 1, borderColor: BRAND.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, marginLeft: 10 },
+  signOutButton: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: BRAND.border, borderRadius: 8, paddingHorizontal: 12, marginLeft: 10 },
   signOutText: { color: BRAND.text, fontSize: 11, fontWeight: '700' },
   stats: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 18, paddingVertical: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: BRAND.border },
   stat: { flex: 1, alignItems: 'center' },

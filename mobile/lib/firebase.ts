@@ -13,6 +13,7 @@ import {
   type User,
   type Auth,
 } from 'firebase/auth';
+import { authErrorMessage } from './authErrors';
 import { FIREBASE_CONFIG, FIREBASE_CONFIGURED } from './config';
 import { createFirebaseAuth } from './firebaseAuth';
 
@@ -25,22 +26,35 @@ if (FIREBASE_CONFIGURED) {
 
 export { firebaseAuth, FIREBASE_CONFIGURED };
 
+async function friendly<T>(action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (error) {
+    throw new Error(authErrorMessage(error));
+  }
+}
+
 export async function registerViewer(email: string, password: string, displayName: string): Promise<User> {
-  if (!firebaseAuth) throw new Error('Firebase is not configured for this prototype.');
-  const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
-  await updateProfile(credential.user, { displayName: displayName.trim() });
-  await sendEmailVerification(credential.user);
-  return credential.user;
+  const auth = firebaseAuth;
+  if (!auth) throw new Error('Firebase is not configured for this prototype.');
+  return friendly(async () => {
+    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    await updateProfile(credential.user, { displayName: displayName.trim() });
+    await sendEmailVerification(credential.user);
+    return credential.user;
+  });
 }
 
 export async function signInViewer(email: string, password: string): Promise<void> {
-  if (!firebaseAuth) throw new Error('Firebase is not configured for this prototype.');
-  await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+  const auth = firebaseAuth;
+  if (!auth) throw new Error('Firebase is not configured for this prototype.');
+  await friendly(() => signInWithEmailAndPassword(auth, email.trim(), password));
 }
 
 export async function sendViewerPasswordReset(email: string): Promise<void> {
-  if (!firebaseAuth) throw new Error('Firebase is not configured for this prototype.');
-  await sendPasswordResetEmail(firebaseAuth, email.trim());
+  const auth = firebaseAuth;
+  if (!auth) throw new Error('Firebase is not configured for this prototype.');
+  await friendly(() => sendPasswordResetEmail(auth, email.trim()));
 }
 
 export async function signOutViewer(): Promise<void> {
@@ -51,7 +65,8 @@ export async function signOutViewer(): Promise<void> {
 export async function reauthenticateViewer(password: string): Promise<User> {
   const user = firebaseAuth?.currentUser;
   if (!user?.email) throw new Error('Sign in before managing your account.');
-  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  const email = user.email;
+  await friendly(() => reauthenticateWithCredential(user, EmailAuthProvider.credential(email, password)));
   return user;
 }
 

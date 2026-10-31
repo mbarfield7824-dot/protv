@@ -11,8 +11,14 @@
       "bundleIdentifier": "com.protv.mobile",
       "supportsTablet": true,
       "buildNumber": "1",
+      "icon": "./assets/images/ios-icon.png",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
       }
     },
     "android": {
@@ -42,8 +48,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
+          "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#07080D"
+          "backgroundColor": "#000000"
         }
       ],
       "expo-video",
