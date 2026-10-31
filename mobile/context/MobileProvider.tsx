@@ -29,6 +29,7 @@ import {
   signInViewer,
   signOutViewer,
 } from '../lib/firebase';
+import { DEMO_MODE } from '../lib/config';
 
 type MobileContextValue = {
   user: User | null;
@@ -41,6 +42,8 @@ type MobileContextValue = {
   signOut: typeof signOutViewer;
   titles: CatalogTitle[];
   catalogError: string;
+  catalogLoading: boolean;
+  refreshCatalog: () => void;
   usingFixtures: boolean;
   favorites: string[];
   progress: Record<string, WatchProgress>;
@@ -57,12 +60,15 @@ export function MobileProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(FIREBASE_CONFIGURED);
   const [authError, setAuthError] = useState('');
-  const [titles, setTitles] = useState(DEMO_TITLES);
+  const [titles, setTitles] = useState<CatalogTitle[]>(DEMO_MODE ? DEMO_TITLES : []);
   const [catalogError, setCatalogError] = useState('');
-  const [usingFixtures, setUsingFixtures] = useState(!isApiConfigured);
-  const [favorites, setFavorites] = useState(isApiConfigured ? [] : DEMO_FAVORITES);
+  const [catalogLoading, setCatalogLoading] = useState(!DEMO_MODE);
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  const refreshCatalog = useCallback(() => setCatalogRevision((current) => current + 1), []);
+  const usingFixtures = DEMO_MODE;
+  const [favorites, setFavorites] = useState<string[]>(DEMO_MODE ? DEMO_FAVORITES : []);
   const [progress, setProgress] = useState<Record<string, WatchProgress>>(
-    isApiConfigured ? {} : demoProgress(),
+    DEMO_MODE ? demoProgress() : {},
   );
   const [accountError, setAccountError] = useState('');
 
@@ -76,34 +82,37 @@ export function MobileProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    if (!isApiConfigured) return;
+    if (DEMO_MODE) return;
     let active = true;
+    setCatalogLoading(true);
+    setCatalogError('');
     fetchCatalog()
       .then((result) => {
         if (active) {
           setTitles(result);
-          setUsingFixtures(false);
           setCatalogError('');
         }
       })
       .catch((error: unknown) => {
         if (active) {
-          setUsingFixtures(true);
           setCatalogError(error instanceof Error ? error.message : 'The live catalog could not be loaded.');
         }
-      });
+      })
+      .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [catalogRevision]);
 
   useEffect(() => {
     if (!user || !isApiConfigured) {
-      setFavorites(isApiConfigured ? [] : DEMO_FAVORITES);
-      setProgress(isApiConfigured ? {} : demoProgress());
+      setFavorites(DEMO_MODE ? DEMO_FAVORITES : []);
+      setProgress(DEMO_MODE ? demoProgress() : {});
       setAccountError('');
       return;
     }
     let active = true;
     setAccountError('');
+    setFavorites([]);
+    setProgress({});
     user.getIdToken()
       .then(fetchViewerAccount)
       .then((account) => {
@@ -126,7 +135,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     const shouldFavorite = !favorites.includes(titleId);
     const currentUser = user;
     setAccountError('');
-    if (!isApiConfigured) {
+    if (DEMO_MODE) {
       setFavorites((current) => shouldFavorite
         ? [...new Set([...current, titleId])]
         : current.filter((id) => id !== titleId));
@@ -145,7 +154,11 @@ export function MobileProvider({ children }: PropsWithChildren) {
     positionSeconds: number,
     durationSeconds: number,
   ) => {
-    if (!Number.isFinite(positionSeconds) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
+    if (!Number.isFinite(positionSeconds) || positionSeconds < 0
+      || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      setAccountError('Invalid playback progress could not be saved.');
+      return;
+    }
     if (isApiConfigured && !user) return;
     const entry: WatchProgress = {
       positionSeconds,
@@ -187,6 +200,8 @@ export function MobileProvider({ children }: PropsWithChildren) {
     signOut: signOutViewer,
     titles,
     catalogError,
+    catalogLoading,
+    refreshCatalog,
     usingFixtures,
     favorites,
     progress,
@@ -196,7 +211,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     playbackUrl: fetchPlaybackUrl,
     creatorPortalUrl,
   }), [
-    user, authLoading, authError, register, titles, catalogError, usingFixtures,
+    user, authLoading, authError, register, titles, catalogError, catalogLoading, refreshCatalog, usingFixtures,
     favorites, progress, accountError, toggleFavorite, recordProgress, creatorPortalUrl,
   ]);
 

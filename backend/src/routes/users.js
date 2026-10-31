@@ -1,10 +1,13 @@
 const express = require('express');
 const admin = require('firebase-admin');
-const { db } = require('../firebase');
+const { db, auth } = require('../firebase');
+const { createAccountDeletionHandler } = require('../auth/accountDeletion');
 const { verifyToken } = require('../middleware/auth');
 const { restoredWatchProgress } = require('../watchProgress');
 
 const router = express.Router();
+
+router.delete('/me', createAccountDeletionHandler({ db, auth }));
 
 function requireFirestore(res) {
   if (db) return true;

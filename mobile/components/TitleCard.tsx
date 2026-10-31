@@ -1,5 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BRAND } from '../constants/brand';
 import type { CatalogTitle } from '../data/catalog';
@@ -17,20 +19,39 @@ export function TitleCard({
   title,
   progress,
   compact = false,
+  width,
 }: {
   title: CatalogTitle;
   progress?: number;
   compact?: boolean;
+  width?: number;
 }) {
+  const [failedArtwork, setFailedArtwork] = useState('');
+  const artwork = title.posterUrl || title.thumbnailUrl;
+  const showArtwork = Boolean(artwork && failedArtwork !== artwork);
   const palette = PALETTES[Math.abs(title.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % PALETTES.length];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`View ${title.title}`}
       onPress={() => router.push({ pathname: '/title/[id]', params: { id: title.id } })}
-      style={({ pressed }) => [styles.card, compact && styles.compact, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, compact && styles.compact, width !== undefined && { width, marginRight: 0 }, pressed && styles.pressed]}
     >
-      <LinearGradient colors={palette} style={[styles.art, compact && styles.compactArt]}>
+      <LinearGradient colors={palette} style={styles.art}>
+        {showArtwork ? (
+          <Image
+            source={{ uri: artwork }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            recyclingKey={title.id}
+            accessibilityLabel={`${title.title} poster`}
+            onError={() => {
+              console.warn(`Artwork unavailable for title ${title.id}.`);
+              setFailedArtwork(artwork || '');
+            }}
+          />
+        ) : null}
+        {!showArtwork ? <>
         <View style={styles.artLine} />
         <Text style={styles.category}>{title.category || title.contentType}</Text>
         <Text numberOfLines={3} style={[styles.artTitle, compact && styles.compactTitle]}>{title.title}</Text>
@@ -38,6 +59,7 @@ export function TitleCard({
           <Text style={styles.episode}>S{title.seasonNumber ?? 1} · E{title.episodeNumber ?? 1}</Text>
         ) : null}
         <Text style={styles.artMark}>PROtv</Text>
+        </> : null}
         {typeof progress === 'number' ? (
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${Math.min(100, Math.max(0, progress))}%` }]} />
@@ -56,7 +78,7 @@ const styles = StyleSheet.create({
   card: { width: 142, marginRight: 12 },
   compact: { width: 116 },
   art: {
-    height: 196,
+    aspectRatio: 2 / 3,
     borderRadius: 12,
     padding: 13,
     justifyContent: 'flex-end',
@@ -64,7 +86,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  compactArt: { height: 164 },
   artLine: {
     position: 'absolute',
     top: 16,

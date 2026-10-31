@@ -1,12 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BrandHeader } from '../../components/BrandHeader';
 import { ContentRail } from '../../components/ContentRail';
 import { Notice, ScreenFrame } from '../../components/ScreenFrame';
 import { BRAND } from '../../constants/brand';
 import { useMobile } from '../../context/MobileProvider';
+import { seriesEpisodes } from '../../data/catalog';
 
 export default function TitleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,7 +16,7 @@ export default function TitleScreen() {
   const [favoriteError, setFavoriteError] = useState('');
   const title = titles.find((item) => item.id === id);
   const episodes = useMemo(
-    () => title?.seriesId ? titles.filter((item) => item.seriesId === title.seriesId) : [],
+    () => seriesEpisodes(title, titles),
     [title, titles],
   );
 
@@ -37,10 +39,15 @@ export default function TitleScreen() {
       {usingFixtures ? <Notice>Prototype preview · title and playback data are samples.</Notice> : null}
       <View style={styles.hero}>
         <LinearGradient colors={['#243A64', '#392B45', '#0B0D14']} style={StyleSheet.absoluteFill} />
+        {title.heroImageUrl || title.posterUrl || title.thumbnailUrl ? (
+          <Image source={{ uri: title.heroImageUrl || title.posterUrl || title.thumbnailUrl }} style={StyleSheet.absoluteFill}
+            contentFit="cover" onError={() => console.warn(`Title artwork unavailable for ${title.id}.`)} />
+        ) : null}
+        <LinearGradient colors={['transparent', '#07080D']} style={StyleSheet.absoluteFill} />
         <View style={styles.heroOrnament} />
         <Text style={styles.heroLabel}>{title.category.toUpperCase()}  ·  PROtv</Text>
         <Text style={styles.heroTitle}>{title.title}</Text>
-        <Text style={styles.heroSub}>{title.year || 'PROtv'}  ·  {title.maturityRating || 'All audiences'}  ·  {title.duration} min</Text>
+        <Text style={styles.heroSub}>{title.year || 'PROtv'}  ·  {title.maturityRating || 'Not rated'}  ·  {title.duration} min</Text>
       </View>
       <View style={styles.body}>
         {isEpisode && title.seriesTitle ? (
@@ -91,7 +98,7 @@ export default function TitleScreen() {
               >
                 <View style={styles.episodeNumber}><Text style={styles.episodeNumberText}>{episode.episodeNumber}</Text></View>
                 <Text style={styles.episodeName} numberOfLines={2}>{episode.title}</Text>
-                <Text style={styles.episodeRuntime}>{episode.duration} min</Text>
+                <Text style={styles.episodeRuntime}>S{episode.seasonNumber ?? 1} · E{episode.episodeNumber ?? 1} · {episode.duration} min</Text>
               </Pressable>
             ))}
           </ScrollView>

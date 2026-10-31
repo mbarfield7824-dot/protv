@@ -8,11 +8,24 @@ export type CatalogTitle = {
   duration: number;
   maturityRating: string;
   genres: string[];
+  posterUrl?: string;
+  thumbnailUrl?: string;
+  heroImageUrl?: string;
   seriesId?: string;
   seriesTitle?: string;
   seasonNumber?: number;
   episodeNumber?: number;
 };
+
+export function seriesEpisodes(title: CatalogTitle | undefined, titles: CatalogTitle[]): CatalogTitle[] {
+  if (!title || title.contentType !== 'EPISODE') return [];
+  return titles.filter((item) => item.contentType === 'EPISODE' && (
+    title.seriesId ? item.seriesId === title.seriesId
+      : Boolean(title.seriesTitle) && item.seriesTitle === title.seriesTitle
+  )).sort((left, right) => (left.seasonNumber ?? 1) - (right.seasonNumber ?? 1)
+    || (left.episodeNumber ?? 1) - (right.episodeNumber ?? 1)
+    || left.id.localeCompare(right.id));
+}
 
 export const DEMO_TITLES: CatalogTitle[] = [
   {

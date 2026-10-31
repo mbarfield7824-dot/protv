@@ -19,6 +19,7 @@ export default function RootLayout() {
           <Stack.Screen name="title/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="sign-in" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="account" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" options={{ title: 'Not found' }} />
         </Stack>
       </MobileProvider>

@@ -1,4 +1,4 @@
-import { API_BASE_URL, DEMO_HLS_URL } from './config';
+import { API_BASE_URL, CREATOR_PORTAL_ORIGIN, DEMO_HLS_URL, DEMO_MODE } from './config';
 import type { CatalogTitle } from '../data/catalog';
 
 type CatalogResponse = { items?: unknown };
@@ -35,9 +35,14 @@ function normalizeCatalogTitle(value: unknown): CatalogTitle | null {
     category: typeof item.category === 'string' ? item.category : '',
     contentType: typeof item.contentType === 'string' ? item.contentType : 'MOVIE',
     year: typeof item.year === 'number' ? item.year : 0,
-    duration: typeof item.duration === 'number' ? item.duration : 0,
+    duration: typeof item.duration === 'number' && Number.isFinite(item.duration) && item.duration > 0
+      ? Math.ceil(item.duration / 60) : 0,
     maturityRating: typeof item.maturityRating === 'string' ? item.maturityRating : '',
     genres,
+    ...Object.fromEntries(['posterUrl', 'thumbnailUrl', 'heroImageUrl'].flatMap((key) => (
+      typeof item[key] === 'string' && /^(https:\/\/|data:image\/)/i.test(item[key])
+        ? [[key, item[key]]] : []
+    ))),
     ...(typeof item.seriesId === 'string' ? { seriesId: item.seriesId } : {}),
     ...(typeof item.seriesTitle === 'string' ? { seriesTitle: item.seriesTitle } : {}),
     ...(typeof item.seasonNumber === 'number' ? { seasonNumber: item.seasonNumber } : {}),
@@ -46,16 +51,24 @@ function normalizeCatalogTitle(value: unknown): CatalogTitle | null {
 }
 
 async function request<T>(path: string, token?: string, init?: RequestInit): Promise<T> {
-  if (!API_BASE_URL) throw new Error('Set EXPO_PUBLIC_API_URL to use the PROtv staging API.');
+  if (!API_BASE_URL) throw new Error('The PROtv API is not configured.');
+  if (!API_BASE_URL.startsWith('https://')) throw new Error('The PROtv API must use HTTPS.');
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
+    signal: AbortSignal.timeout(20000),
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
-  const payload: unknown = await response.json().catch(() => ({}));
+  const bodyText = await response.text();
+  let payload: unknown;
+  try {
+    payload = bodyText ? JSON.parse(bodyText) : null;
+  } catch {
+    throw new Error(`PROtv returned an invalid response (${response.status}). Please try again.`);
+  }
   if (!response.ok) {
     const body = objectValue(payload);
     throw new Error(typeof body.error === 'string' ? body.error : `PROtv API request failed (${response.status}).`);
@@ -66,7 +79,9 @@ async function request<T>(path: string, token?: string, init?: RequestInit): Pro
 export async function fetchCatalog(): Promise<CatalogTitle[]> {
   const payload = await request<CatalogResponse>('/v1/catalog?view=all');
   if (!Array.isArray(payload.items)) throw new Error('The catalog response did not contain an items list.');
-  return payload.items.map(normalizeCatalogTitle).filter((title): title is CatalogTitle => title !== null);
+  const titles = payload.items.map(normalizeCatalogTitle);
+  if (titles.some((title) => title === null)) throw new Error('The catalog contains an invalid title.');
+  return titles.filter((title): title is CatalogTitle => title !== null);
 }
 
 export async function fetchViewerAccount(token: string): Promise<{
@@ -88,6 +103,7 @@ export async function fetchViewerAccount(token: string): Promise<{
       !titleId
       || typeof entry.positionSeconds !== 'number'
       || !Number.isFinite(entry.positionSeconds)
+      || entry.positionSeconds < 0
       || typeof entry.durationSeconds !== 'number'
       || !Number.isFinite(entry.durationSeconds)
       || entry.durationSeconds <= 0
@@ -130,7 +146,7 @@ export async function saveProgress(
 }
 
 export async function fetchPlaybackUrl(titleId: string): Promise<string> {
-  if (!API_BASE_URL) return DEMO_HLS_URL;
+  if (DEMO_MODE) return DEMO_HLS_URL;
   const payload = await request<PlaybackResponse>(
     `/v1/catalog/titles/${encodeURIComponent(titleId)}/playback`,
   );
@@ -152,8 +168,15 @@ export async function fetchCreatorPortalUrl(token: string): Promise<string> {
   const payload = await request<{ url?: unknown }>('/auth/creator-sso', token, { method: 'POST' });
   if (typeof payload.url !== 'string') throw new Error('Creator Portal did not return a URL.');
   const url = new URL(payload.url);
-  if (url.protocol !== 'https:') throw new Error('Creator Portal URL must use HTTPS.');
+  if (url.protocol !== 'https:' || url.origin !== CREATOR_PORTAL_ORIGIN
+    || url.username || url.password) {
+    throw new Error('Creator Portal returned an unapproved destination.');
+  }
   return url.toString();
 }
 
 export const isApiConfigured = Boolean(API_BASE_URL);
+
+export async function deleteViewerAccount(token: string): Promise<void> {
+  await request('/users/me', token, { method: 'DELETE' });
+}

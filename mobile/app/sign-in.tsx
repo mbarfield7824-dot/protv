@@ -1,11 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { BrandMark } from '../components/BrandHeader';
 import { Notice } from '../components/ScreenFrame';
 import { BRAND } from '../constants/brand';
 import { useMobile } from '../context/MobileProvider';
 import { FIREBASE_CONFIGURED } from '../lib/firebase';
+import { PRIVACY_URL } from '../lib/config';
 
 export default function SignInScreen() {
   const { user, signIn, register, resetPassword } = useMobile();
@@ -22,6 +25,8 @@ export default function SignInScreen() {
     setError('');
     setMessage('');
     try {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) throw new Error('Enter a valid email address.');
+      if (registerMode && password.length < 6) throw new Error('Use at least six characters for your password.');
       if (registerMode) await register(email, password, displayName);
       else await signIn(email, password);
       router.back();
@@ -33,6 +38,7 @@ export default function SignInScreen() {
   };
 
   const forgotPassword = async () => {
+    setBusy(true);
     setError('');
     setMessage('');
     try {
@@ -40,6 +46,8 @@ export default function SignInScreen() {
       setMessage('Password reset instructions were sent.');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Password reset could not be sent.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -56,6 +64,8 @@ export default function SignInScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <SafeAreaView style={styles.screen}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 28 }}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.close}>
           <Text style={styles.closeText}>×</Text>
@@ -75,6 +85,7 @@ export default function SignInScreen() {
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {registerMode ? (
           <TextInput
+            accessibilityLabel="Display name"
             autoCapitalize="words"
             onChangeText={setDisplayName}
             placeholder="Display name"
@@ -84,6 +95,7 @@ export default function SignInScreen() {
           />
         ) : null}
         <TextInput
+          accessibilityLabel="Email address"
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
@@ -94,6 +106,7 @@ export default function SignInScreen() {
           value={email}
         />
         <TextInput
+          accessibilityLabel="Password"
           autoCapitalize="none"
           autoComplete={registerMode ? 'new-password' : 'password'}
           onChangeText={setPassword}
@@ -112,17 +125,24 @@ export default function SignInScreen() {
           <Text style={styles.buttonText}>{busy ? 'Please wait…' : registerMode ? 'Create account' : 'Sign in'}</Text>
         </Pressable>
         {!registerMode ? (
-          <Pressable disabled={!FIREBASE_CONFIGURED || !email} onPress={() => void forgotPassword()} style={styles.textAction}>
+          <Pressable disabled={busy || !FIREBASE_CONFIGURED || !email} onPress={() => void forgotPassword()} style={styles.textAction}>
             <Text style={styles.actionText}>Forgot password?</Text>
           </Pressable>
         ) : null}
-        <Pressable onPress={() => { setRegisterMode((current) => !current); setError(''); setMessage(''); }} style={styles.textAction}>
+        <Pressable disabled={busy} onPress={() => { setRegisterMode((current) => !current); setError(''); setMessage(''); }} style={styles.textAction}>
           <Text style={styles.actionText}>
             {registerMode ? 'Already have an account? Sign in' : 'New to PROtv? Create an account'}
           </Text>
         </Pressable>
         <Text style={styles.legal}>Free to watch · Your stories, your place.</Text>
+        <Pressable onPress={() => {
+          void WebBrowser.openBrowserAsync(PRIVACY_URL).catch((reason: unknown) => {
+            setError(reason instanceof Error ? reason.message : 'Privacy policy could not be opened.');
+          });
+        }} style={styles.textAction}><Text style={styles.actionText}>Privacy policy</Text></Pressable>
       </View>
+      </ScrollView>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }

@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -10,7 +11,7 @@ import { useMobile } from '../../context/MobileProvider';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
-  const { titles, progress, catalogError, usingFixtures } = useMobile();
+  const { titles, progress, catalogError, catalogLoading, refreshCatalog, usingFixtures } = useMobile();
   const progressById = useMemo(
     () => Object.fromEntries(Object.entries(progress).map(([id, entry]) => [id, entry.progressPercent])),
     [progress],
@@ -23,6 +24,16 @@ export default function HomeScreen() {
   return (
     <ScreenFrame header={false}>
       <BrandHeader />
+      {catalogLoading ? <Notice>Loading the PROtv collection...</Notice> : null}
+      {catalogError ? (
+        <View>
+          <Notice tone="error">{catalogError}</Notice>
+          <Pressable accessibilityRole="button" onPress={refreshCatalog} style={styles.retry}>
+            <Text style={styles.infoButtonText}>Retry catalog</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {!catalogLoading && !catalogError && !titles.length ? <Notice>No titles are available right now.</Notice> : null}
       {usingFixtures ? (
         <Notice tone={catalogError ? 'error' : 'info'}>
           {catalogError
@@ -31,12 +42,21 @@ export default function HomeScreen() {
         </Notice>
       ) : null}
       {featured ? (
-        <View style={[styles.hero, { height: heroHeight }]}>
+        <View style={[styles.hero, { minHeight: heroHeight }]}>
           <LinearGradient
             colors={['#11182A', '#212B48', '#34283D', '#10121B']}
             locations={[0, 0.4, 0.72, 1]}
             style={StyleSheet.absoluteFill}
           />
+          {featured.heroImageUrl || featured.posterUrl || featured.thumbnailUrl ? (
+            <Image
+              source={{ uri: featured.heroImageUrl || featured.posterUrl || featured.thumbnailUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              onError={() => console.warn(`Featured artwork unavailable for ${featured.id}.`)}
+            />
+          ) : null}
+          <LinearGradient colors={['rgba(7,8,13,0.12)', 'rgba(7,8,13,0.96)']} style={StyleSheet.absoluteFill} />
           <View style={styles.heroOrbit} />
           <View style={styles.heroShade} />
           <View style={styles.heroContent}>
@@ -44,7 +64,7 @@ export default function HomeScreen() {
             <Text style={[styles.heroTitle, width >= 700 && styles.heroTitleLarge]}>{featured.title}</Text>
             <Text numberOfLines={3} style={styles.heroCopy}>{featured.description}</Text>
             <View style={styles.metaRow}>
-              <Text style={styles.meta}>{featured.year}  ·  {featured.maturityRating || 'All audiences'}</Text>
+              <Text style={styles.meta}>{featured.year}  ·  {featured.maturityRating || 'Not rated'}</Text>
               <Text style={styles.metaDot}>●</Text>
               <Text style={styles.meta}>{featured.category}</Text>
             </View>
@@ -65,7 +85,7 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           </View>
-          <View style={styles.heroIndex}><Text style={styles.heroIndexText}>01 / PROtv ORIGINALS</Text></View>
+          <View style={styles.heroIndex}><Text style={styles.heroIndexText}>FEATURED ON PROtv</Text></View>
         </View>
       ) : null}
       <View style={styles.welcome}>
@@ -73,9 +93,10 @@ export default function HomeScreen() {
         <Text style={styles.welcomeCopy}>Independent film, original series, music, and more.</Text>
       </View>
       <ContentRail title="Continue Watching" items={continueWatching} progressById={progressById} />
-      <ContentRail title="Made for the curious" items={titles.slice(1, 6)} />
+      <ContentRail title="Movies" items={titles.filter((title) => title.contentType === 'MOVIE')} />
       <ContentRail title="Series & episodes" items={series} />
-      <ContentRail title="A little of everything" items={titles.slice(2)} compact />
+      <ContentRail title="Music" items={titles.filter((title) => title.contentType === 'MUSIC')} />
+      <ContentRail title="Explore PROtv" items={titles} compact />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.footerTags}>
         {['Independent film', 'Documentaries', 'Black Cinema', 'Music'].map((tag) => (
           <View key={tag} style={styles.footerTag}><Text style={styles.footerTagText}>{tag}</Text></View>
@@ -102,7 +123,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3,5,11,0.15)',
   },
-  heroContent: { paddingHorizontal: 24, paddingBottom: 30, maxWidth: 620 },
+  heroContent: { paddingHorizontal: 24, paddingTop: 80, paddingBottom: 30, maxWidth: 620 },
+  retry: { alignSelf: 'flex-start', margin: 20, padding: 12, borderRadius: 8, backgroundColor: BRAND.accent },
   eyebrow: { color: BRAND.teal, fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 12 },
   heroTitle: { color: BRAND.text, fontSize: 42, fontWeight: '900', letterSpacing: -1.6, lineHeight: 47 },
   heroTitleLarge: { fontSize: 58, lineHeight: 62 },

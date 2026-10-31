@@ -29,7 +29,7 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
       }
     },
   };
-  require.cache[firebasePath] = { exports: { db: { collection: () => ({ doc: () => ref }) } } };
+  require.cache[firebasePath] = { exports: { auth: null, db: { collection: () => ({ doc: () => ref }) } } };
   require.cache[authPath] = { exports: { verifyToken: (req, res, next) => { req.user = { uid: 'test-viewer' }; next(); } } };
   delete require.cache[usersPath];
   const app = express();

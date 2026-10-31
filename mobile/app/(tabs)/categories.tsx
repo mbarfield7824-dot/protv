@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { TitleCard } from '../../components/TitleCard';
 import { BRAND } from '../../constants/brand';
-import { CATEGORIES } from '../../data/catalog';
 import { useMobile } from '../../context/MobileProvider';
 
 const CATEGORY_COLORS: [string, string][] = [
@@ -17,11 +16,15 @@ const CATEGORY_COLORS: [string, string][] = [
 export default function CategoriesScreen() {
   const [selected, setSelected] = useState('All');
   const { titles } = useMobile();
+  const categories = useMemo(() => ['All', ...new Set(titles.flatMap((title) => [
+    title.category, ...title.genres, ...(title.contentType === 'EPISODE' ? ['Series'] : []),
+  ]).filter(Boolean))].sort((a, b) => a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [titles]);
   const { width } = useWindowDimensions();
   const columns = width >= 800 ? 5 : width >= 600 ? 4 : 2;
   const cardWidth = (width - 40 - (columns - 1) * 12) / columns;
   const results = useMemo(() => selected === 'All' ? titles : titles.filter((title) => (
     title.category === selected || title.genres.includes(selected)
+      || (selected === 'Series' && title.contentType === 'EPISODE')
   )), [selected, titles]);
 
   return (
@@ -29,7 +32,7 @@ export default function CategoriesScreen() {
       <Text style={styles.kicker}>CURATED FOR YOUR MOOD</Text>
       <Text style={styles.title}>Categories</Text>
       <View style={styles.chips}>
-        {CATEGORIES.map((category, index) => (
+        {categories.map((category) => (
           <Pressable
             key={category}
             accessibilityRole="button"
@@ -52,7 +55,7 @@ export default function CategoriesScreen() {
         contentContainerStyle={styles.grid}
         ListEmptyComponent={<Text style={styles.empty}>More titles are on the way.</Text>}
         renderItem={({ item }) => (
-          <View style={{ width: cardWidth }}><TitleCard title={item} /></View>
+          <TitleCard title={item} width={cardWidth} />
         )}
       />
       <View style={styles.discoverCard}>

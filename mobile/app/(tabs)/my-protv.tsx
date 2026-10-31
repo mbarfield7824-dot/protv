@@ -75,7 +75,12 @@ export default function MyProtvScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => void signOut()}
+            onPress={() => {
+              setCreatorError('');
+              void signOut().catch((error: unknown) => setCreatorError(
+                error instanceof Error ? error.message : 'Sign out failed.',
+              ));
+            }}
             style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}
           >
             <Text style={styles.signOutText}>Sign out</Text>
@@ -108,6 +113,11 @@ export default function MyProtvScreen() {
       {creatorError ? <Notice tone="error">{creatorError}</Notice> : null}
       <View style={styles.actions}>
         <Text style={styles.sectionTitle}>Creator access</Text>
+        <ActionRow
+          title="Account & privacy"
+          detail="Profile, password, privacy, and deletion"
+          onPress={() => router.push('/account')}
+        />
         <ActionRow
           title="Open Creator Portal"
           detail="Share your film or series with PROtv"

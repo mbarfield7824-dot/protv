@@ -21,6 +21,25 @@ The existing approved Mux-ready automatic publishing behavior is unchanged.
 
 ## Project Structure
 
+### Mobile viewer account deletion (undeployed; disabled by default)
+
+`DELETE /users/me` is gated by `ACCOUNT_DELETION_ENABLED=true`. Do not enable
+or deploy it without separate approval and a retention review covering the
+Creator Portal and any other account-linked systems. No deployment is performed
+by the mobile build.
+
+The handler requires a non-revoked Firebase token from an interactive
+password/Google session authenticated in the last five minutes. It rejects
+administrative/creator claims, revokes refresh tokens, removes approved device
+session records in bounded batches, recursively deletes the viewer profile
+(including My List/progress), and deletes the Firebase Auth user last. Failures
+are surfaced rather than reported as success. Review concurrent authenticated
+writes and cross-system retention before production enablement.
+
+The mobile gate `EXPO_PUBLIC_ACCOUNT_DELETION_ENABLED` also defaults false; the
+app offers a support request until the approved endpoint is deployed and tested.
+Focused checks: `node --test test/accountDeletion.test.js test/usersWatchProgress.test.js`.
+
 ### Fire TV catalog recency and progress compatibility
 
 The public catalog adds optional normalized ISO `publishedAt`, `approvedAt`, `createdAt`, and

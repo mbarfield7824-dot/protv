@@ -42,7 +42,7 @@ export default function SearchScreen() {
           scrollEnabled={false}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.grid}
-          renderItem={({ item }) => <View style={{ width: cardWidth }}><TitleCard title={item} /></View>}
+          renderItem={({ item }) => <TitleCard title={item} width={cardWidth} />}
         />
       ) : (
         <View style={styles.empty}>
