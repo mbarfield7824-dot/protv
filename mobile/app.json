@@ -58,6 +58,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f9f68c38-8aa8-41ee-8f2d-7ef37887dd15"
+      }
+    },
+    "owner": "prophecyentertainment"
   }
 }
