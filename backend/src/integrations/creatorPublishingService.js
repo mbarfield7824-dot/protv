@@ -16,7 +16,7 @@ const {
   validatePromotional, posterSource, transferPoster, promotionalBinding,
 } = require('./creatorPromotional');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'publishing_status', 'distribution']);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution']);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 
 function requiredText(value, label, maxLength = 500) {
@@ -63,14 +63,15 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
   if (project.approval?.status !== 'approved') {
     throw new Error('Explicit Administrator approval is required for this action.');
   }
-  if (payload.action === 'publishing' || payload.action === 'publishing_status' || payload.action === 'distribution') {
+  if (isMusicVideo(project) !== (payload.action === 'music_publishing') && (payload.action === 'publishing' || payload.action === 'music_publishing')) {
+    throw new Error('Music Videos must use Music publishing, and only Music Videos may use it.');
+  }
+  if (['publishing', 'music_publishing', 'publishing_status', 'distribution'].includes(payload.action)) {
     if (project.contract?.status !== 'signed' || !project.contract.signedAt) {
       throw new Error('A signed creator contract is required before publishing or distribution.');
     }
-    if (payload.action === 'publishing') {
-      validatePromotional(project.promotional);
-      if (isMusicVideo(project)) validateMusicPublication(project);
-    }
+    if (payload.action === 'publishing') validatePromotional(project.promotional);
+    if (payload.action === 'music_publishing') validateMusicPublication(project);
   }
   return payload;
 }
@@ -182,7 +183,7 @@ class CreatorPublishingService {
       };
     }
 
-    if (action === 'publishing') return this.publish(payload);
+    if (action === 'publishing' || action === 'music_publishing') return this.publish(payload);
     if (action === 'publishing_status') {
       const video = await this.dependencies.getVideoByCreatorProjectId(project.id);
       if (!video || project.catalogId !== video.id) {

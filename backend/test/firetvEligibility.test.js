@@ -86,3 +86,26 @@ test('the Fire TV launch list holds no restricted or rights-hold title', () => {
   assert.equal(FIRETV_LAUNCH_TITLE_IDS.size, 28);
   for (const id of [...restricted, ...held]) assert.ok(!FIRETV_LAUNCH_TITLE_IDS.has(id), id);
 });
+
+test('Music stays off device catalogs while the website keeps it', async (context) => {
+  const music = title('creator_music', { contentType: 'MUSIC', musicFormat: 'music_video', category: 'Music' });
+  const app = express();
+  app.use('/v1/catalog', createCatalogRouter({ loadApproved: async () => [...records, music] }));
+  const server = app.listen(0);
+  context.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}/v1/catalog`;
+  const ids = async (query, headers = {}) => (await (await fetch(`${base}${query}`, { headers })).json()).items.map((item) => item.id);
+  const allIds = records.map((item) => item.id).sort();
+
+  // The exact requests shipped in the Roku, Fire TV and mobile builds.
+  assert.deepEqual((await ids('?view=all', { 'User-Agent': ROKU_UA })).sort(), allIds);
+  assert.deepEqual((await ids('?view=all')).sort(), allIds);
+  assert.deepEqual(await ids('?view=all', FIRE_TV), [CLEARED]);
+  assert.equal((await fetch(`${base}/titles/creator_music/playback`, { headers: FIRE_TV })).status, 404);
+
+  assert.ok((await ids('')).includes('creator_music'));
+  assert.deepEqual(await ids('?view=music'), ['creator_music']);
+  assert.ok(!(await ids('?view=movies')).includes('creator_music'));
+  assert.equal((await fetch(`${base}/titles/creator_music/playback`)).status, 200);
+});

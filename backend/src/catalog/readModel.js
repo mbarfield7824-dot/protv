@@ -82,7 +82,14 @@ function matchesMusic(video) {
   );
 }
 
-function browse(videos, { view = 'all', q = '' } = {}) {
+// Roku, Fire TV and mobile builds request view=all explicitly, and none has been approved or
+// tested for Music. The website omits the parameter and reads Music through view=music.
+function withoutUnapprovedDeviceContent(videos, requestedView) {
+  return requestedView === 'all' ? videos.filter((video) => video.contentType !== 'MUSIC') : videos;
+}
+
+function browse(videos, { view: requestedView, q = '' } = {}) {
+  const view = requestedView === undefined ? 'all' : requestedView;
   if (!VIEWS.has(view)) throw new RangeError('view must be all, movies, documentaries, or music.');
   if (typeof q !== 'string' || q.length > 200) {
     throw new RangeError('q must be a string of at most 200 characters.');
@@ -90,7 +97,7 @@ function browse(videos, { view = 'all', q = '' } = {}) {
   const terms = q.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const candidates = view === 'documentaries'
     ? videos.filter(matchesDocumentary)
-    : view === 'music' ? videos.filter(matchesMusic) : videos;
+    : view === 'music' ? videos.filter(matchesMusic) : withoutUnapprovedDeviceContent(videos, requestedView);
   return playableCatalog(candidates, videos).filter((video) => {
     if (view === 'movies' && String(video.contentType || '').toUpperCase() !== 'MOVIE') return false;
     const text = [

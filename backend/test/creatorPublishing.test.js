@@ -528,6 +528,8 @@ function musicVideoPayload(overrides = {}) {
   const id = base.project.id;
   return {
     ...base,
+    action: 'music_publishing',
+    requestId: `${id}:music_publishing`,
     project: {
       ...base.project,
       title: 'Synthetic Music Video',
@@ -585,7 +587,7 @@ test.describe('Music Video publishing', () => {
     const signature = require('crypto').createHmac('sha256', secret).update(`${project.id}:poster-1:poster:${expires}`).digest('hex');
     project.promotional.poster.sourceUrl = `${originalPosterCheck}?expires=${expires}&signature=${signature}`;
     service.publishingSecret = secret;
-    const result = await service.execute({ requestId: `${project.id}:publishing`, action: 'publishing', project });
+    const result = await service.execute({ requestId: `${project.id}:music_publishing`, action: 'music_publishing', project });
     assert.equal(result.status, 'processing');
     assert.equal(reserved.contentType, 'MUSIC');
     assert.equal(reserved.musicFormat, 'music_video');
@@ -605,6 +607,14 @@ test.describe('Music Video publishing', () => {
     assert.equal(service.publicationResult(ready).status, 'published');
     assert.deepEqual(browse([ready], { view: 'music' }).map(({ id, musicFormat, category }) => [id, musicFormat, category]), [['creator_music', 'music_video', 'Music']]);
     assert.deepEqual(browse([ready], { view: 'movies' }), []);
+  });
+
+  test('a Music Video cannot use the movie action and a film cannot use the Music action', () => {
+    const asMovie = musicVideoPayload();
+    const movie = signedRequest({ ...asMovie, action: 'publishing', requestId: `${asMovie.project.id}:publishing` });
+    assert.throws(() => validateCreatorActionRequest(movie.rawBody, movie.signature, 'publishing-secret'), /Music publishing/);
+    const film = signedRequest({ ...signedRequest().payload, action: 'music_publishing', requestId: `${asMovie.project.id}:music_publishing` });
+    assert.throws(() => validateCreatorActionRequest(film.rawBody, film.signature, 'publishing-secret'), /Music publishing/);
   });
 
   test('film publishing remains classified as a movie', async () => {
