@@ -522,3 +522,100 @@ test('Firestore poster retry updates are transactional and reject stale or appro
       await assert.rejects(module.exports.updateCreatorPosterTransfer('movie', current, {}), /Firestore unavailable/);
   });
 });
+
+function musicVideoPayload(overrides = {}) {
+  const base = publishingPayload();
+  const id = base.project.id;
+  return {
+    ...base,
+    project: {
+      ...base.project,
+      title: 'Synthetic Music Video',
+      contentType: 'Music Video',
+      approval: { status: 'approved' },
+      musicRights: { status: 'verified', note: 'Synthetic rights evidence.' },
+      metadata: { synopsis: 'A video.', genre: 'Hip-Hop', language: 'English', maturityRating: 'TV-14' },
+      promotional: {
+        credits: 'Directed by Synthetic',
+        poster: { assetId: 'poster-1', mimeType: 'image/png', bytes: 100, sourceUrl: `https://creator.example/api/integrations/protv/promotional/${id}/poster-1` },
+      },
+      ...overrides,
+    },
+  };
+}
+
+test.describe('Music Video publishing', () => {
+  test('rejects a Music Video missing rights, poster, credits, language or maturity', () => {
+    const complete = musicVideoPayload();
+    const accepted = signedRequest(complete);
+    assert.equal(validateCreatorActionRequest(accepted.rawBody, accepted.signature, 'publishing-secret').project.contentType, 'Music Video');
+    for (const [change, message] of [
+      [{ musicRights: { status: 'incomplete' } }, /rights/i],
+      [{ musicRights: undefined }, /rights/i],
+      [{ promotional: { credits: 'Credits only' } }, /poster/i],
+      [{ promotional: { ...complete.project.promotional, credits: ' ' } }, /credits/i],
+      [{ metadata: { synopsis: 'A video.', maturityRating: 'TV-14' } }, /language/i],
+      [{ metadata: { synopsis: 'A video.', language: 'English' } }, /maturity/i],
+      [{ contract: { status: 'link_issued' } }, /signed/i],
+      [{ approval: null }, /approval/i],
+      [{ ownership: { status: 'pending' } }, /ownership/i],
+    ]) {
+      const invalid = signedRequest(musicVideoPayload(change));
+      assert.throws(() => validateCreatorActionRequest(invalid.rawBody, invalid.signature, 'publishing-secret'), message);
+    }
+  });
+
+  test('reserves a MUSIC title and stays out of the public catalog until Mux playback is ready', async () => {
+    const { browse, isViewerEligible } = require('../src/catalog/readModel');
+    let reserved;
+    const updates = [];
+    const service = new CreatorPublishingService({
+      creatorAgentOrigin: 'https://creator.example',
+      dependencies: dependencies({
+        createCreatorVideo: async (_id, video) => { reserved = video; return { id: 'creator_music', created: true }; },
+        updateVideo: async (id, update) => { updates.push(update); return true; },
+        updateCreatorPosterTransfer: async () => true,
+        transferPoster: async () => 'https://storage.example/poster.png',
+      }),
+    });
+    const project = musicVideoPayload().project;
+    const originalPosterCheck = project.promotional.poster.sourceUrl;
+    const secret = 'publishing-secret';
+    const expires = String(Date.now() + 60_000);
+    const signature = require('crypto').createHmac('sha256', secret).update(`${project.id}:poster-1:poster:${expires}`).digest('hex');
+    project.promotional.poster.sourceUrl = `${originalPosterCheck}?expires=${expires}&signature=${signature}`;
+    service.publishingSecret = secret;
+    const result = await service.execute({ requestId: `${project.id}:publishing`, action: 'publishing', project });
+    assert.equal(result.status, 'processing');
+    assert.equal(reserved.contentType, 'MUSIC');
+    assert.equal(reserved.musicFormat, 'music_video');
+    assert.equal(reserved.category, 'Music');
+    assert.deepEqual(reserved.genres, ['Hip-Hop']);
+    assert.equal(reserved.credits, 'Directed by Synthetic');
+    assert.equal(reserved.language, 'English');
+    assert.equal(reserved.maturityRating, 'TV-14');
+    assert.match(reserved.rightsVerificationNotes, /music rights/);
+    assert.equal(reserved.approvalStatus, 'draft');
+    assert.ok(updates.some((update) => update.status === 'processing' && update.approvalStatus === 'approved'));
+
+    const title = { ...reserved, id: 'creator_music', approvalStatus: 'approved', status: 'processing' };
+    assert.equal(isViewerEligible(title), false);
+    assert.deepEqual(browse([title], { view: 'music' }), []);
+    const ready = { ...title, status: 'ready', muxPlaybackId: 'playback-1' };
+    assert.equal(service.publicationResult(ready).status, 'published');
+    assert.deepEqual(browse([ready], { view: 'music' }).map(({ id, musicFormat, category }) => [id, musicFormat, category]), [['creator_music', 'music_video', 'Music']]);
+    assert.deepEqual(browse([ready], { view: 'movies' }), []);
+  });
+
+  test('film publishing remains classified as a movie', async () => {
+    let reserved;
+    const service = new CreatorPublishingService({
+      creatorAgentOrigin: 'https://creator.example',
+      dependencies: dependencies({ createCreatorVideo: async (_id, video) => { reserved = video; return { id: 'catalog-1', created: true }; } }),
+    });
+    await service.execute(publishingPayload());
+    assert.equal(reserved.contentType, 'MOVIE');
+    assert.equal(reserved.category, 'Drama');
+    assert.equal(reserved.musicFormat, undefined);
+  });
+});

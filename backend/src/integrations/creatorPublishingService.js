@@ -67,7 +67,10 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     if (project.contract?.status !== 'signed' || !project.contract.signedAt) {
       throw new Error('A signed creator contract is required before publishing or distribution.');
     }
-    if (payload.action === 'publishing') validatePromotional(project.promotional);
+    if (payload.action === 'publishing') {
+      validatePromotional(project.promotional);
+      if (isMusicVideo(project)) validateMusicPublication(project);
+    }
   }
   return payload;
 }
@@ -90,11 +93,50 @@ function parseSourceUrl(value, creatorAgentOrigin) {
   return sourceUrl.toString();
 }
 
+function isMusicVideo(project) {
+  return String(project?.contentType).trim().toLowerCase() === 'music video';
+}
+
+function validateMusicPublication(project) {
+  if (project.musicRights?.status !== 'verified') {
+    throw new Error('Music rights must be verified before publishing a Music Video.');
+  }
+  if (!requiredPromotionalPoster(project.promotional)) {
+    throw new Error('A poster is required before publishing a Music Video.');
+  }
+  if (!optionalText(project.promotional.credits, 5000)) {
+    throw new Error('Credits are required before publishing a Music Video.');
+  }
+  if (!optionalText(project.metadata?.language, 100) || !optionalText(project.metadata?.maturityRating, 50)) {
+    throw new Error('Language and maturity rating are required before publishing a Music Video.');
+  }
+}
+
+function requiredPromotionalPoster(promotional) {
+  return validatePromotional(promotional).poster;
+}
+
 function metadataFromProject(project) {
   const metadata = project.metadata && typeof project.metadata === 'object' && !Array.isArray(project.metadata)
     ? project.metadata
     : {};
   const genre = optionalText(metadata.genre, 100) || 'Independent';
+  if (isMusicVideo(project)) {
+    const musicGenre = optionalText(metadata.genre, 100);
+    return {
+      title: requiredText(project.title, 'Project title', 300),
+      description: optionalText(metadata.synopsis, 5000) || optionalText(project.description, 5000),
+      category: 'Music',
+      categories: ['Music'],
+      genre: 'Music',
+      genres: musicGenre ? [musicGenre] : [],
+      creator: optionalText(project.creatorName, 300),
+      contentType: 'MUSIC',
+      musicFormat: 'music_video',
+      language: optionalText(metadata.language, 100),
+      maturityRating: optionalText(metadata.maturityRating, 50),
+    };
+  }
   return {
     title: requiredText(project.title, 'Project title', 300),
     description: optionalText(metadata.synopsis, 5000) || optionalText(project.description, 5000),
@@ -229,7 +271,9 @@ class CreatorPublishingService {
       rightsHolder: optionalText(project.ownership.copyrightHolderName, 300)
         || optionalText(project.creatorName, 300),
       commercialUseStatus: 'verified-contract',
-      rightsVerificationNotes: 'Ownership and signed contract were verified in the PROtv Creator Agent before Administrator-approved publishing.',
+      rightsVerificationNotes: isMusicVideo(project)
+        ? `Ownership, music rights and signed contract were verified in the PROtv Creator Agent before Administrator-approved publishing. ${optionalText(project.musicRights.note, 2000)}`.trim()
+        : 'Ownership and signed contract were verified in the PROtv Creator Agent before Administrator-approved publishing.',
       creatorContractReference: optionalText(project.contract.reference, 300),
       creatorContractSignedAt: project.contract.signedAt,
       ...transferState,
