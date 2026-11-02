@@ -61,6 +61,7 @@ function episodeData({ project, episode, submission, authorization }) {
     creatorEpisodeId: episode.id, creatorMediaId: episode.media.assetId, creatorMediaSha256: episode.media.sha256,
     creatorContractReference: project.contract.reference, creatorContractSignedAt: project.contract.signedAt,
     creatorEpisodeAuthorization: authorization,
+    ...(project.contract.rokuCleared === true ? { rokuCleared: true } : {}),
     copyrightStatus: 'creator-owned', rightsHolder: project.ownership.copyrightHolderName,
     commercialUseStatus: 'verified-contract',
   };

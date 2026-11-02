@@ -7,6 +7,8 @@ const {
   getCreatorEpisode,
   claimCreatorEpisode,
   updateCreatorEpisode,
+  getTitleViewMetrics,
+  getCatalogViewMetrics,
 } = require('../firebase');
 const {
   createAssetFromUrl,
@@ -24,8 +26,14 @@ const {
 const { checkPremiereReadiness } = require('./premiereReadiness');
 const { EPISODE_ACTIONS, CreatorEpisodeService, validateEpisodeRequest } = require('./creatorEpisodes');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', ...EPISODE_ACTIONS]);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', 'view_metrics', 'catalog_view_metrics', ...EPISODE_ACTIONS]);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
+const MAX_VIEW_METRIC_TITLES = 500;
+
+const validReportingStart = () => {
+  const value = process.env.PLAYBACK_REPORTING_STARTED_AT || '';
+  return Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+};
 
 function requiredText(value, label, maxLength = 500) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength) {
@@ -36,6 +44,13 @@ function requiredText(value, label, maxLength = 500) {
 
 function optionalText(value, maxLength = 5000) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function validateViewMetricTitleIds(titleIds) {
+  if (!Array.isArray(titleIds) || titleIds.length > MAX_VIEW_METRIC_TITLES
+    || titleIds.some((id) => typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id))) {
+    throw new Error(`titleIds must list at most ${MAX_VIEW_METRIC_TITLES} valid catalog IDs.`);
+  }
 }
 
 function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now()) {
@@ -56,6 +71,15 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
   }
   if (payload.action === 'premiere_readiness') {
     if (payload.requestId !== 'premiere_readiness') throw new Error('requestId must identify the readiness check.');
+    return payload;
+  }
+  if (payload.action === 'catalog_view_metrics') {
+    if (payload.requestId !== 'catalog_view_metrics') throw new Error('requestId must identify the catalog view metrics request.');
+    return payload;
+  }
+  if (payload.action === 'view_metrics') {
+    if (payload.requestId !== 'view_metrics') throw new Error('requestId must identify the view metrics request.');
+    validateViewMetricTitleIds(payload.titleIds);
     return payload;
   }
   if (EPISODE_ACTIONS.has(payload.action)) return validateEpisodeRequest(payload, now);
@@ -171,6 +195,8 @@ class CreatorPublishingService {
     creatorAgentOrigin = '',
     publishingSecret = process.env.PROTV_PUBLISHING_SECRET || '',
     dependencies = {
+      getTitleViewMetrics,
+      getCatalogViewMetrics,
       createCreatorVideo,
       getVideoByCreatorProjectId,
       updateVideo,
@@ -197,6 +223,12 @@ class CreatorPublishingService {
   async execute(payload) {
     const { action, project } = payload;
     if (action === 'premiere_readiness') return checkPremiereReadiness();
+    if (action === 'view_metrics') {
+      return { reportingStartedAt: validReportingStart(), titles: await this.dependencies.getTitleViewMetrics(payload.titleIds) };
+    }
+    if (action === 'catalog_view_metrics') {
+      return { reportingStartedAt: validReportingStart(), titles: await this.dependencies.getCatalogViewMetrics() };
+    }
     if (EPISODE_ACTIONS.has(action)) return this.episodes.execute(payload);
     if (action === 'licensing' || action === 'contracting') {
       const externalId = `creator_${action}_${project.id}`;
@@ -291,6 +323,7 @@ class CreatorPublishingService {
       approvalStatus: 'draft',
       status: 'initializing',
       copyrightStatus: 'creator-owned',
+      ...(project.contract.rokuCleared === true ? { rokuCleared: true } : {}),
       licenseType: optionalText(project.contract.scheduleCode, 20)
         ? `Creator Schedule ${optionalText(project.contract.scheduleCode, 20)}`
         : 'Creator Contract',

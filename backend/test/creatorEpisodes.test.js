@@ -298,7 +298,8 @@ test('Fire TV only sees an episode an Administrator cleared; other clients are u
   const lookalike = { ...episode(3, { firetvCleared: true }), creatorEpisodeId: undefined };
   assert.deepEqual(eligibleForPlatform([cleared, uncleared, lookalike], 'firetv').map((item) => item.id), [cleared.id]);
   assert.equal(eligibleForPlatform([cleared, uncleared], 'default').length, 2);
-  assert.equal(eligibleForPlatform([cleared, uncleared], 'roku').length, 2);
+  assert.equal(eligibleForPlatform([cleared, uncleared], 'roku').length, 0);
+  assert.equal(eligibleForPlatform([{ ...uncleared, rokuCleared: true }], 'roku').length, 1);
 });
 
 test('no public catalog route reveals an unreleased episode, including by direct ID', async () => {

@@ -18,8 +18,9 @@ function createCatalogRouter({
     return req ? eligibleForPlatform(videos, platformFromRequest(req)) : videos;
   };
 
-  // Responses differ by platform, so caches must key on the header that picks it.
+  // Responses differ by platform, so caches must key on the headers that pick it.
   router.use((req, res, next) => {
+    res.vary('User-Agent');
     res.vary('X-PROtv-Platform');
     next();
   });

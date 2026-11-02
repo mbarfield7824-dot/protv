@@ -410,7 +410,40 @@ async function updateVideoApproval(videoId, approvalData) {
   }
 }
 
+// Counts only, for the Creator Portal. Titles that do not exist are left out.
+// Earlier fields such as playStarts predate reporting and are not read.
+async function getTitleViewMetrics(titleIds) {
+  if (!titleIds.length) return [];
+  if (!db) throw new Error('View metrics require Firestore.');
+  const [videos, metrics] = await Promise.all([
+    db.getAll(...titleIds.map((id) => db.collection('videos').doc(id))),
+    db.getAll(...titleIds.map((id) => db.collection('playbackTitleMetrics').doc(id))),
+  ]);
+  const count = (doc, field) => (doc.exists && Number.isSafeInteger(doc.data()[field]) ? doc.data()[field] : 0);
+  return videos.flatMap((video, index) => (video.exists ? [{
+    id: video.id,
+    websiteViews: count(metrics[index], 'websiteViews'),
+    websitePlayStarts: count(metrics[index], 'websitePlayStarts'),
+  }] : []));
+}
+
+// Every title viewers can currently watch, for Administrators.
+async function getCatalogViewMetrics() {
+  const { playableCatalog } = require('./catalog/readModel');
+  const titles = playableCatalog(await getApprovedVideos());
+  const counts = new Map();
+  for (let start = 0; start < titles.length; start += 300) {
+    const batch = await getTitleViewMetrics(titles.slice(start, start + 300).map((title) => title.id));
+    batch.forEach((item) => counts.set(item.id, item));
+  }
+  return titles.flatMap((title) => (counts.has(title.id) ? [{
+    ...counts.get(title.id), title: title.title, contentType: title.contentType, seriesTitle: title.seriesTitle || '',
+  }] : []));
+}
+
 module.exports = {
+  getTitleViewMetrics,
+  getCatalogViewMetrics,
   getCreatorEpisode,
   claimCreatorEpisode,
   updateCreatorEpisode,

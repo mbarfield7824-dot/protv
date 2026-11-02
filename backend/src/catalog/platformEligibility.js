@@ -48,12 +48,30 @@ function clearedEpisode(video) {
 // Android send nothing and are unchanged. The header is self-declared, so this
 // controls what the Fire TV app shows; it is not access control.
 function platformFromRequest(req) {
-  return String(req.get('X-PROtv-Platform') || '').trim().toLowerCase() || 'default';
+  const declared = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
+  if (declared) return declared;
+  // The released Roku app sends no platform header; Roku firmware identifies itself in the User-Agent.
+  return /^Roku\//i.test(req.get('User-Agent') || '') ? 'roku' : 'default';
+}
+
+// Live before publishing recorded rokuCleared; each signed agreement was read on 2026-11-02.
+const ROKU_REVIEWED_CREATOR_TITLE_IDS = new Set([
+  'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: replacement agreement, PROtv platform and associated applications, worldwide
+  'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6', // UNITED NATIONS: Schedule B naming TV apps
+]);
+
+// Roku is fail-closed. A title reaches Roku only with reviewed rights evidence for the copy PROtv streams
+// (tv/roku/store/ROKU-LAUNCH-CATALOG.md and backend/docs/roku-distribution-rights.md) or a signed Schedule naming
+// TV or PROtv apps, recorded as rokuCleared when the title is published. rokuHold withdraws a title whatever else applies.
+function rokuEligible(video) {
+  if (video.rokuHold === true) return false;
+  return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || ROKU_REVIEWED_CREATOR_TITLE_IDS.has(video.id) || video.rokuCleared === true;
 }
 
 function eligibleForPlatform(videos, platform) {
+  if (platform === 'roku') return videos.filter(rokuEligible);
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
 
-module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform };
+module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform, rokuEligible };

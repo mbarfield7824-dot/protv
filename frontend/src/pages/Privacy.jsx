@@ -16,8 +16,10 @@ export default function Privacy() {
         <section className="info-copy">
           <h2>Information we use</h2>
           <p>When you create an account, PROtv uses account details such as your email address and display name. We also store the titles you add to My List and your watch progress (the title, your position and when you last watched) so My List and Continue Watching work across the website and your TVs.</p>
+          <p>When playback starts on the website, PROtv records play starts and counts a platform-reported view after at least 30 seconds of content playback. Pauses, buffering, seeking, advertisements, and playback faster than normal speed do not count toward that threshold.</p>
+          <p>For repeat-view deduplication, signed-in activity is associated with a protected pseudonymous account identifier. Guest playback uses a random first-party browser identifier stored in local storage; it is not a fingerprint and does not identify guests across devices. Deduplication lasts 24 hours. Playback event and session records are retained for up to seven days, and temporary rate-limit records use a keyed hash of the request address rather than storing the raw address. Browser Do Not Track disables playback tracking.</p>
           <h2>How it is used</h2>
-          <p>We use this information to operate the platform, secure accounts, provide support, and improve the viewing experience. We do not sell personal information.</p>
+          <p>We use this information to operate the platform, secure accounts, provide support, and improve the viewing experience. View counts are private platform-reported playback metrics shared with the creator of a title and PROtv administrators; they are not unique-person counts or audited audience figures. They are not used to calculate creator payments or revenue shares. We do not sell personal information.</p>
           <h2>PROtv on your TV</h2>
           <p>PROtv's TV apps use the same PROtv account as the website. When you link a TV with an activation code at watchprotv.com/activate, we keep a record of that link. A signed-in TV app stores your sign-in and recent watch progress on the TV itself. Watch progress saved while browsing as a guest stays on that TV and is not sent to PROtv. Uninstalling the app removes what it stored on that TV.</p>
           <h2>Service providers</h2>

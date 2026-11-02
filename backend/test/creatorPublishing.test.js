@@ -629,3 +629,30 @@ test.describe('Music Video publishing', () => {
     assert.equal(reserved.musicFormat, undefined);
   });
 });
+
+function signedViewMetrics(titleIds) {
+  const rawBody = JSON.stringify({ requestId: 'view_metrics', timestamp: Date.now(), action: 'view_metrics', titleIds });
+  return { rawBody, signature: crypto.createHmac('sha256', 'publishing-secret').update(rawBody).digest('hex') };
+}
+
+test('view metrics need a signed request and return only counts for the requested titles', async () => {
+  const { rawBody, signature } = signedViewMetrics(['creator_a', 'creator_b']);
+  assert.throws(() => validateCreatorActionRequest(rawBody, 'bad', 'publishing-secret'));
+  const payload = validateCreatorActionRequest(rawBody, signature, 'publishing-secret');
+  const requested = [];
+  const service = new CreatorPublishingService({ dependencies: {
+    getTitleViewMetrics: async (ids) => { requested.push(...ids); return [{ id: 'creator_a', websiteViews: 3, websitePlayStarts: 5 }]; },
+  } });
+  process.env.PLAYBACK_REPORTING_STARTED_AT = '2026-11-02T00:00:00Z';
+  assert.deepEqual(await service.execute(payload), { reportingStartedAt: '2026-11-02T00:00:00.000Z', titles: [{ id: 'creator_a', websiteViews: 3, websitePlayStarts: 5 }] });
+  delete process.env.PLAYBACK_REPORTING_STARTED_AT;
+  assert.equal((await service.execute(payload)).reportingStartedAt, null);
+  assert.deepEqual([...new Set(requested)], ['creator_a', 'creator_b']);
+});
+
+test('view metrics reject malformed or oversized title lists', () => {
+  for (const titleIds of ['creator_a', ['../secrets'], Array.from({ length: 501 }, (_, index) => `t${index}`)]) {
+    const { rawBody, signature } = signedViewMetrics(titleIds);
+    assert.throws(() => validateCreatorActionRequest(rawBody, signature, 'publishing-secret'), /titleIds/);
+  }
+});

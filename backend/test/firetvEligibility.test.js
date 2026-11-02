@@ -54,25 +54,22 @@ test('Fire TV code 6+ sees only launch-cleared titles on every catalog path', as
   assert.deepEqual((await get('?q=Title', FIRE_TV)).body.items.map((item) => item.id), [CLEARED], 'search is filtered too');
 });
 
-test('Roku, the website, Android and older Fire TV builds keep the full approved catalog', async (context) => {
+test('the website, Android and older Fire TV builds keep the full approved catalog', async (context) => {
   const get = await serve(context);
-  const clients = [{}, { 'User-Agent': ROKU_UA }, { 'User-Agent': 'Mozilla/5.0' }, { 'User-Agent': 'okhttp/4.12.0' }];
+  const clients = [{}, { 'User-Agent': 'Mozilla/5.0' }, { 'User-Agent': 'okhttp/4.12.0' }];
   for (const headers of clients) {
     const catalog = await get('?view=all', headers);
     assert.equal(catalog.body.items.length, 3, JSON.stringify(headers));
     assert.equal((await get(`/titles/${HELD}/playback`, headers)).status, 200);
     assert.equal((await get('/series', headers)).body.items.length, 1);
     assert.match(catalog.vary, /X-PROtv-Platform/);
-    assert.doesNotMatch(catalog.vary, /User-Agent/, 'no cache split by User-Agent');
   }
 });
 
-test('no Roku filter: neither the Roku user agent nor a roku header narrows the catalog', async (context) => {
-  const get = await serve(context);
-  assert.equal((await get('?view=all', { 'X-PROtv-Platform': 'roku' })).body.items.length, 3);
-  assert.equal((await get('?view=all', { 'User-Agent': ROKU_UA })).body.items.length, 3);
-  assert.equal(platformFromRequest({ get: (name) => (name === 'User-Agent' ? ROKU_UA : '') }), 'default');
+test('the Roku user agent or header selects Roku; a header wins over the user agent', async () => {
+  assert.equal(platformFromRequest({ get: (name) => (name === 'User-Agent' ? ROKU_UA : '') }), 'roku');
   assert.equal(platformFromRequest({ get: (name) => (name === 'X-PROtv-Platform' ? ' FireTV ' : '') }), 'firetv');
+  assert.equal(platformFromRequest({ get: (name) => (name === 'User-Agent' ? 'okhttp/4.12.0' : '') }), 'default');
 });
 
 test('the Fire TV launch list holds no restricted or rights-hold title', () => {
@@ -99,7 +96,7 @@ test('Music stays off device catalogs while the website keeps it', async (contex
   const allIds = records.map((item) => item.id).sort();
 
   // The exact requests shipped in the Roku, Fire TV and mobile builds.
-  assert.deepEqual((await ids('?view=all', { 'User-Agent': ROKU_UA })).sort(), allIds);
+  assert.deepEqual(await ids('?view=all', { 'User-Agent': ROKU_UA }), [CLEARED]);
   assert.deepEqual((await ids('?view=all')).sort(), allIds);
   assert.deepEqual(await ids('?view=all', FIRE_TV), [CLEARED]);
   assert.equal((await fetch(`${base}/titles/creator_music/playback`, { headers: FIRE_TV })).status, 404);
