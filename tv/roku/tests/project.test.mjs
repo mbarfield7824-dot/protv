@@ -257,7 +257,7 @@ test('account flow uses existing contracts and does not persist or expose sessio
   assert.equal((`${scene}\n${http}`.match(/roRegistrySection/g) || []).length, 1);
   assert.doesNotMatch(`${scene}\n${http}`, /WriteAsciiFile/);
   const keys = new Set([...scene.matchAll(/m\.storage\.(?:read|write|remove)\("(\w+)"/g)].map(match => match[1]));
-  assert.deepEqual([...keys].sort(), ['account', 'guestProgress']);
+  assert.deepEqual([...keys].sort(), ['account', 'guestProgress', 'playbackGuestId']);
   assert.match(scene, /sub forgetAccount\(\)\s+m\.storage\.remove\("account"\)/);
   assert.equal((scene.match(/forgetAccount\(\)/g) || []).length, 3, 'sign-out and rejected sessions forget the saved sign-in');
   assert.equal((scene.match(/storeAccount\(\)/g) || []).length, 3, 'saved after sign-in and after each token refresh');

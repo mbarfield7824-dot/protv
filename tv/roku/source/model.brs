@@ -931,3 +931,40 @@ function TvAuthMessage(statusCode as Integer, code as String) as String
     if statusCode = 0 then return "PROtv could not be reached. Check your connection and try again."
     return "PROtv sign-in is temporarily unavailable. Try again shortly."
 end function
+
+' Website-style view reporting: only forward playback at normal speed adds up. A jump
+' (seek, resume offset) or a position that stands still (paused, buffering) adds nothing.
+function NewViewTracker() as Object
+    return { played: 0.0, last: -1.0, started: false, qualified: false, startedAt: 0 }
+end function
+
+' Returns "play_start", "qualified_view" or "".
+function ViewTrackerStep(tracker as Object, state as String, position as Float, nowSeconds as Integer) as String
+    if state <> "playing"
+        tracker.last = -1.0
+        return ""
+    end if
+    if not tracker.started
+        tracker.started = true
+        tracker.startedAt = nowSeconds
+        tracker.last = position
+        return "play_start"
+    end if
+    if tracker.last >= 0
+        delta = position - tracker.last
+        if delta > 0 and delta <= 1.5 then tracker.played = tracker.played + delta
+    end if
+    tracker.last = position
+    if not tracker.qualified and tracker.played >= 30 and nowSeconds - tracker.startedAt >= 31
+        tracker.qualified = true
+        return "qualified_view"
+    end if
+    return ""
+end function
+
+' The body of POST /playback/events. Holds no account or device details beyond a random ID.
+function ViewEventBody(eventType as String, titleId as String, sessionId as String, guestId as String) as String
+    body = { "videoId": titleId, "sessionId": sessionId, "guestId": guestId, "eventType": eventType, "platform": "roku" }
+    if eventType = "qualified_view" then body["playedSeconds"] = 30
+    return FormatJson(body)
+end function

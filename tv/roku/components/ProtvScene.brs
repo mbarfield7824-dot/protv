@@ -59,6 +59,8 @@ sub init()
     m.storage = RegistryStorage()
     ' Tests substitute fake tasks; the app always uses HttpTask.
     m.newTask = HttpTaskNode
+    m.randomId = DeviceRandomId
+    m.viewEventTasks = []
     m.newStore = ChannelStoreNode
     m.newDialog = KeyboardDialogNode
     ' Sidebar order; parallel to the children of the nav group.
@@ -1218,6 +1220,8 @@ sub playStream(url as String, preview as String)
     if resumeAt > 0 then content.PlayStart = resumeAt
     m.video.content = content
     m.lastSavedPosition = resumeAt
+    m.viewTracker = NewViewTracker()
+    m.viewSessionId = m.randomId()
     m.status.text = ""
     m.previewBase = preview
     m.scrubbing = false
@@ -1238,6 +1242,7 @@ sub videoState()
     if not m.playbackActive then return
     setBusy("buffer", m.video.state = "buffering")
     renderPlayerOverlay()
+    reportViewProgress()
     if m.video.state = "playing"
         signalLaunchComplete()
         schedulePlayerHide()
@@ -1342,6 +1347,7 @@ sub playerHideTimerFired()
 end sub
 
 sub playerPositionChanged()
+    reportViewProgress()
     if m.playbackActive and m.playerOverlay.visible and not m.scrubbing then renderPlayerOverlay()
 end sub
 
@@ -1391,6 +1397,44 @@ sub closeVideo()
     if m.rowsStale or m.account = invalid then refreshRows()
     focusDetails()
 end sub
+
+' Reports a play start and a 30-second view. The server repeats the checks and deduplicates;
+' a failed report never affects playback, and nothing about it is shown to the viewer.
+sub reportViewProgress()
+    if not m.playbackActive or m.viewTracker = invalid or m.selected = invalid then return
+    eventType = ViewTrackerStep(m.viewTracker, m.video.state, NumberOr(m.video.position, 0) * 1.0, CurrentEpochSeconds())
+    if eventType = "" then return
+    task = m.newTask()
+    task.kind = "view-event"
+    task.path = "/playback/events"
+    task.method = "POST"
+    task.contentType = "application/json"
+    task.body = ViewEventBody(eventType, Text(m.selected.id), m.viewSessionId, playbackGuestId())
+    task.observeField("result", "viewEventFinished")
+    m.viewEventTasks.Push(task)
+    task.control = "run"
+end sub
+
+sub viewEventFinished()
+    active = []
+    for each task in m.viewEventTasks
+        if task.result = invalid or task.state <> "stop" then active.Push(task)
+    end for
+    m.viewEventTasks = active
+end sub
+
+function DeviceRandomId() as String
+    return CreateObject("roDeviceInfo").GetRandomUUID()
+end function
+
+' A random ID kept on this TV, so one TV counts once per title per 24 hours.
+function playbackGuestId() as String
+    id = m.storage.read("playbackGuestId")
+    if id <> "" then return id
+    id = m.randomId()
+    m.storage.write("playbackGuestId", id)
+    return id
+end function
 
 ' The one teardown for every exit (Back, end, error, deep link). Clears
 ' playback-only UI and state; saved progress is untouched.

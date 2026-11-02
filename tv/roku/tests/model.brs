@@ -254,6 +254,45 @@ sub Main()
     Assert(IsFavorite(favorites, "a") and not IsFavorite(favorites, "A"), "favorite IDs are exact")
     Assert(FavoriteItems([approved, creator], favorites)[0].id = "creator_1", "My List shows most recent first")
     Assert(ToggleFavorite(favorites, "a", false).Count() = 1 and ToggleFavorite(favorites, "b", true)[2] = "b", "toggle adds and removes")
+    vt = NewViewTracker()
+    Assert(ViewTrackerStep(vt, "buffering", 0.0, 100) = "", "view tracker: buffering does not start")
+    Assert(ViewTrackerStep(vt, "playing", 0.0, 100) = "play_start", "view tracker: first playing starts")
+    Assert(ViewTrackerStep(vt, "playing", 0.5, 101) = "", "view tracker: only one start")
+    nowAt = 101
+    position = 0.5
+    for i = 1 to 40
+        position = position + 0.5
+        nowAt = nowAt + 1
+        ViewTrackerStep(vt, "paused", position, nowAt)
+    end for
+    Assert(vt.played < 1, "view tracker: paused time does not count")
+    ViewTrackerStep(vt, "playing", 600.0, nowAt)
+    ViewTrackerStep(vt, "playing", 3000.0, nowAt)
+    Assert(vt.played < 1, "view tracker: seeking does not count")
+    result = ""
+    guard = 0
+    position = 3000.0
+    while result = "" and guard < 200
+        position = position + 0.5
+        nowAt = nowAt + 1
+        result = ViewTrackerStep(vt, "playing", position, nowAt)
+        guard = guard + 1
+    end while
+    Assert(result = "qualified_view" and vt.played >= 30 and vt.played < 31, "view tracker: qualifies at 30 played seconds")
+    Assert(ViewTrackerStep(vt, "playing", position + 0.5, nowAt + 1) = "", "view tracker: qualifies once")
+    fast = NewViewTracker()
+    ViewTrackerStep(fast, "playing", 0.0, 100)
+    position = 0.0
+    fastResult = ""
+    for i = 1 to 70
+        position = position + 0.5
+        outcome = ViewTrackerStep(fast, "playing", position, 101)
+        if outcome <> "" then fastResult = outcome
+    end for
+    Assert(fastResult = "", "view tracker: waits for 31 seconds of real time")
+    parsed = ParseJson(ViewEventBody("qualified_view", "t1", "s1", "g1"))
+    Assert(parsed.platform = "roku" and parsed.playedSeconds = 30 and parsed.videoId = "t1", "view event body for a view")
+    Assert(ParseJson(ViewEventBody("play_start", "t1", "s1", "g1")).playedSeconds = invalid, "view event body for a start")
     print "PROTV_TESTS_PASSED="; m.passed.ToStr()
     print "PROTV_TESTS_FAILED="; m.failed.ToStr()
 end sub

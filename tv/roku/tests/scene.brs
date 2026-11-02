@@ -49,6 +49,8 @@ sub Main()
     m.selected = invalid
     m.tasks = []
     m.newTask = FakeTask
+    m.randomId = FakeRandomId
+    m.viewEventTasks = []
     for each id in ["heroPlay", "heroInfo", "heroList", "detailList", "profileButton", "railCount", "synopsisFocus", "statusPanel", "detailDescription", "accountAction", "accountCreate", "accountReset", "accountSignOut", "accountBack"]
         m.top.nodes[id] = FocusNode()
     end for
@@ -1103,3 +1105,7 @@ sub Check(condition as Boolean, label as String)
         print "FAIL: "; label
     end if
 end sub
+
+function FakeRandomId() as String
+    return "e2ac6747-b9d8-42f0-9679-8111a8fcc020"
+end function
