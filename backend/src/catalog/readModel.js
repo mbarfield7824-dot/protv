@@ -1,4 +1,5 @@
 const { isMusicFormat } = require('./music');
+const { releaseAllowed } = require('./releases');
 const {
   PODCAST_SHOW,
   PODCAST_EPISODE,
@@ -17,6 +18,7 @@ function isViewerEligible(video, videos = []) {
   }
   return video?.approvalStatus === 'approved'
     && video.status === 'ready'
+    && releaseAllowed(video)
     && typeof video.id === 'string'
     && Boolean(video.id.trim())
     && typeof video.muxPlaybackId === 'string'

@@ -43,6 +43,23 @@ async function createAssetFromUrl(inputUrl) {
   return asset;
 }
 
+// No playback policy means no playback ID: the asset cannot be streamed until one is added.
+async function createPrivateAssetFromUrl(inputUrl, { passthrough } = {}) {
+  return mux.video.assets.create({
+    inputs: [{ url: inputUrl }],
+    video_quality: 'basic',
+    ...(passthrough ? { passthrough } : {}),
+  });
+}
+
+async function addPublicPlaybackId(assetId) {
+  return mux.video.assets.createPlaybackId(assetId, { policy: 'public' });
+}
+
+async function deletePlaybackId(assetId, playbackId) {
+  return mux.video.assets.deletePlaybackId(assetId, playbackId);
+}
+
 async function getAsset(assetId) {
   return mux.video.assets.retrieve(assetId);
 }
@@ -104,9 +121,13 @@ async function verifyWebhook(rawBody, headers) {
 
 module.exports = {
   mux,
+  mux,
   createDirectUpload,
   getUpload,
   createAssetFromUrl,
+  createPrivateAssetFromUrl,
+  addPublicPlaybackId,
+  deletePlaybackId,
   getAsset,
   getPlaybackId,
   uploadLocalFile,

@@ -37,6 +37,12 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
+// A scheduled episode carries its own Fire TV clearance: an Administrator ticks it, per season, when
+// scheduling a series with verified ownership and a signed agreement. It is never set by default.
+function clearedEpisode(video) {
+  return video.contentType === 'EPISODE' && Boolean(video.creatorEpisodeId) && video.firetvCleared === true;
+}
+
 // Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
 // send X-PROtv-Platform: firetv; older sideloaded builds, Roku, the website and
 // Android send nothing and are unchanged. The header is self-declared, so this
@@ -47,7 +53,7 @@ function platformFromRequest(req) {
 
 function eligibleForPlatform(videos, platform) {
   if (platform !== 'firetv') return videos;
-  return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id));
+  return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
 
 module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform };

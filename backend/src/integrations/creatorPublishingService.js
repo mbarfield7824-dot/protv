@@ -4,9 +4,15 @@ const {
   getVideoByCreatorProjectId,
   updateVideo,
   updateCreatorPosterTransfer,
+  getCreatorEpisode,
+  claimCreatorEpisode,
+  updateCreatorEpisode,
 } = require('../firebase');
 const {
   createAssetFromUrl,
+  createPrivateAssetFromUrl,
+  addPublicPlaybackId,
+  deletePlaybackId,
   getAsset,
   getPlaybackId,
 } = require('../mux');
@@ -15,8 +21,10 @@ const { logAdminEvent } = require('../adminBot/adminAudit');
 const {
   validatePromotional, posterSource, transferPoster, promotionalBinding,
 } = require('./creatorPromotional');
+const { checkPremiereReadiness } = require('./premiereReadiness');
+const { EPISODE_ACTIONS, CreatorEpisodeService, validateEpisodeRequest } = require('./creatorEpisodes');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution']);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', ...EPISODE_ACTIONS]);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 
 function requiredText(value, label, maxLength = 500) {
@@ -46,6 +54,11 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
   if (!Number.isFinite(payload.timestamp) || Math.abs(now - payload.timestamp) > REQUEST_WINDOW_MS) {
     throw new Error('The Creator Agent request has expired.');
   }
+  if (payload.action === 'premiere_readiness') {
+    if (payload.requestId !== 'premiere_readiness') throw new Error('requestId must identify the readiness check.');
+    return payload;
+  }
+  if (EPISODE_ACTIONS.has(payload.action)) return validateEpisodeRequest(payload, now);
   const project = payload.project;
   if (!project || typeof project !== 'object' || Array.isArray(project)) {
     throw new Error('Project details are required.');
@@ -57,6 +70,9 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     throw new Error('requestId must identify the creator project and action.');
   }
   requiredText(project.title, 'Project title', 300);
+  if (String(project.contentType).trim().toLowerCase() === 'series') {
+    throw new Error('Series are published one episode at a time, not through the title bridge.');
+  }
   if (project.ownership?.status !== 'verified') {
     throw new Error('Creator ownership must be verified before this action.');
   }
@@ -160,7 +176,13 @@ class CreatorPublishingService {
       updateVideo,
       updateCreatorPosterTransfer,
       transferPoster,
+      getCreatorEpisode,
+      claimCreatorEpisode,
+      updateCreatorEpisode,
       createAssetFromUrl,
+      createPrivateAssetFromUrl,
+      addPublicPlaybackId,
+      deletePlaybackId,
       getAsset,
       getPlaybackId,
       logAdminEvent,
@@ -169,10 +191,13 @@ class CreatorPublishingService {
     this.creatorAgentOrigin = creatorAgentOrigin;
     this.publishingSecret = publishingSecret;
     this.dependencies = dependencies;
+    this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, dependencies });
   }
 
   async execute(payload) {
     const { action, project } = payload;
+    if (action === 'premiere_readiness') return checkPremiereReadiness();
+    if (EPISODE_ACTIONS.has(action)) return this.episodes.execute(payload);
     if (action === 'licensing' || action === 'contracting') {
       const externalId = `creator_${action}_${project.id}`;
       await this.audit(action, project.id, externalId, 'Accepted approved Creator Agent milestone.');
