@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { FEATURED_PODCAST } from '../data/featuredPodcast';
+import PodcastArtwork from './PodcastArtwork';
+import '../styles/FeaturedPodcast.css';
 
 const ROTATE_MS = 9000;
 
@@ -34,10 +37,14 @@ function formatMeta(video) {
   ].filter(Boolean);
 }
 
-export default function CinematicHero({ brand, titles = [] }) {
+export default function CinematicHero({ brand, titles = [], featuredPodcast = false }) {
   const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useAuth();
-  const slides = [{ kind: 'brand', ...brand }, ...titles.map((video) => ({ kind: 'title', video }))];
+  const slides = [
+    { kind: 'brand', ...brand },
+    ...(featuredPodcast ? [{ kind: 'podcast' }] : []),
+    ...titles.map((video) => ({ kind: 'title', video })),
+  ];
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -56,7 +63,7 @@ export default function CinematicHero({ brand, titles = [] }) {
 
   return (
     <section
-      className="ptv-hero"
+      className={`ptv-hero ${current.kind === 'podcast' ? 'mmwf-carousel' : ''}`}
       aria-roledescription="carousel"
       aria-label="Featured on PROtv"
       onMouseEnter={() => setHovered(true)}
@@ -66,7 +73,7 @@ export default function CinematicHero({ brand, titles = [] }) {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       }}
     >
-      {slides.map((slide, slideIndex) => (
+      {slides.map((slide, slideIndex) => slide.kind !== 'podcast' && (
         <Backdrop
           key={slide.kind === 'brand' ? 'brand' : slide.video.id}
           src={slide.kind === 'brand' ? slide.imageUrl : slide.video.backdrop}
@@ -78,7 +85,23 @@ export default function CinematicHero({ brand, titles = [] }) {
       ))}
       <div className="ptv-hero__shade" aria-hidden="true" />
 
-      {current.kind === 'brand' ? (
+      {current.kind === 'podcast' ? (
+        <div className="mmwf-carousel__layout">
+          <div className="ptv-hero__content is-title">
+            <p className="ptv-hero__kicker">Podcast Spotlight / <strong>PROtv</strong></p>
+            <h1 className="ptv-hero__title">{FEATURED_PODCAST.title}</h1>
+            <p className="mmwf-hosts">With <strong>{FEATURED_PODCAST.hosts}</strong></p>
+            <p className="ptv-hero__desc">{FEATURED_PODCAST.tagline}</p>
+            <div className="ptv-hero__actions">
+              <button type="button" className="ptv-btn ptv-btn--primary ptv-btn--lg"
+                onClick={() => navigate(FEATURED_PODCAST.path)}>Explore the Podcast</button>
+              <button type="button" className="ptv-btn ptv-btn--ghost ptv-btn--lg"
+                onClick={() => navigate(`${FEATURED_PODCAST.path}#episodes`)}>Episodes</button>
+            </div>
+          </div>
+          <PodcastArtwork priority />
+        </div>
+      ) : current.kind === 'brand' ? (
         <div className="ptv-hero__content" key="brand">
           <p className="ptv-hero__kicker">
             Independent Stories. <strong>Unlimited Possibilities.</strong>
@@ -136,11 +159,12 @@ export default function CinematicHero({ brand, titles = [] }) {
           <div className="ptv-hero__dots" role="tablist" aria-label="Choose featured slide">
             {slides.map((slide, slideIndex) => (
               <button
-                key={slide.kind === 'brand' ? 'brand' : slide.video.id}
+                key={slide.kind === 'title' ? slide.video.id : slide.kind}
                 type="button"
                 role="tab"
                 aria-selected={slideIndex === activeIndex}
-                aria-label={slide.kind === 'brand' ? 'PROtv brand hero' : slide.video.title}
+                aria-label={slide.kind === 'brand' ? 'PROtv brand hero'
+                  : slide.kind === 'podcast' ? FEATURED_PODCAST.title : slide.video.title}
                 className={slideIndex === activeIndex ? 'is-active' : ''}
                 onClick={() => go(slideIndex)}
               />

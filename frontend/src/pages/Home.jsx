@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import CinematicHero from '../components/CinematicHero';
+import FeaturedPodcastSpotlight from '../components/FeaturedPodcastSpotlight';
 import ContinueWatchingRail from '../components/ContinueWatchingRail';
 import CategoryShowcase from '../components/CategoryShowcase';
 import StreamingRail from '../components/StreamingRail';
@@ -322,11 +323,12 @@ export default function Home() {
     <ProTVShell>
       <ProTVHeader />
       <main>
-        <CinematicHero brand={brandSlide} titles={heroTitles} />
+        <CinematicHero brand={brandSlide} titles={heroTitles} featuredPodcast />
 
         <div className="ptv-stack ptv-stack--lead">
         <CategoryShowcase tiles={categoryTiles} activeId={selection} />
         <ContinueWatchingRail items={continueWatchingItems} />
+        <FeaturedPodcastSpotlight />
 
           {destination && (
             destination.comingSoon ? (

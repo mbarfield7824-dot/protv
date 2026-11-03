@@ -4,6 +4,8 @@ import { api } from '../api';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
+import FeaturedPodcastSpotlight from '../components/FeaturedPodcastSpotlight';
+import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import '../styles/Movies.css';
 import '../styles/Podcasts.css';
 
@@ -44,6 +46,7 @@ export default function Podcasts() {
           <h1>PODCASTS</h1>
           <p className="movies-page__description">Discover original voices and video Podcast Shows on PROtv.</p>
         </header>
+        <FeaturedPodcastSpotlight />
         {loading ? (
           <p className="movies-state" role="status">Loading Podcasts...</p>
         ) : error ? (
@@ -55,7 +58,8 @@ export default function Podcasts() {
         ) : shows.length ? (
           <div className="podcasts-grid">
             {shows.map((show) => (
-              <Link className="podcasts-card" key={show.id} to={`/podcasts/${encodeURIComponent(show.id)}`}>
+              <Link className="podcasts-card" key={show.id}
+                to={isFeaturedPodcast(show) ? FEATURED_PODCAST.path : `/podcasts/${encodeURIComponent(show.id)}`}>
                 {show.artworkUrl && <img src={show.artworkUrl} alt="" loading="lazy" />}
                 <div className="podcasts-card__copy">
                   <h2>{show.title}</h2>

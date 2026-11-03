@@ -25,6 +25,7 @@ import CollectionPage from './pages/CollectionPage';
 import Music from './pages/Music';
 import Podcasts from './pages/Podcasts';
 import PodcastShow from './pages/PodcastShow';
+import FeaturedPodcast from './pages/FeaturedPodcast';
 import SafetyReport from './pages/SafetyReport';
 import Activate from './pages/Activate';
 import AccountDeletion from './pages/AccountDeletion';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/delete-account" element={<AccountDeletion />} />
           <Route path="/music" element={<Music />} />
           <Route path="/podcasts" element={<Podcasts />} />
+          <Route path="/podcast/me-and-my-white-friend" element={<FeaturedPodcast />} />
           <Route path="/podcasts/:showId" element={<PodcastShow />} />
           <Route path="/report" element={<SafetyReport />} />
           <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />

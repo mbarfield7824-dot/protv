@@ -68,6 +68,7 @@ export default function ProTVHeader() {
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/' && !location.hash;
+    if (to === '/podcasts' && location.pathname === '/podcast/me-and-my-white-friend') return true;
     if (to.startsWith('/#')) return location.pathname === '/' && location.hash === to.slice(1);
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
   };

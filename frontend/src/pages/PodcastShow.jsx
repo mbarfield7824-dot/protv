@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
 import { safetyReportUrl } from '../data/safetyReports';
+import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
@@ -11,6 +12,7 @@ import '../styles/Podcasts.css';
 
 export default function PodcastShow() {
   const { showId } = useParams();
+  const { hash } = useLocation();
   const [show, setShow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,6 +40,10 @@ export default function PodcastShow() {
       request.current += 1;
     };
   }, [load]);
+
+  if (!loading && !error && isFeaturedPodcast(show)) {
+    return <Navigate to={`${FEATURED_PODCAST.path}${hash}`} replace />;
+  }
 
   return (
     <ProTVShell>

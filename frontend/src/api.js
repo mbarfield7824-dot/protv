@@ -114,8 +114,8 @@ export const api = {
     return podcastCatalogItems(payload);
   },
 
-  async getPodcastShow(id) {
-    const res = await fetch(podcastCatalogUrl(API_URL, id), { cache: 'no-store' });
+  async getPodcastShow(id, { signal } = {}) {
+    const res = await fetch(podcastCatalogUrl(API_URL, id), { cache: 'no-store', ...(signal ? { signal } : {}) });
     if (res.status === 404) return null;
     const payload = await res.json();
     if (!res.ok) throw new Error(payload.error || 'The Podcast Show is temporarily unavailable.');
