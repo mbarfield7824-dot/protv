@@ -6,6 +6,18 @@
   background: linear-gradient(135deg, #101b49, #070912 70%);
 }
 
+.podcasts-collection .podcasts-collection__intro {
+  padding: 0;
+  margin-bottom: 24px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.podcasts-collection .mmwf-spotlight {
+  margin: 0 0 32px;
+}
+
 .podcasts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));

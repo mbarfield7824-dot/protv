@@ -5,7 +5,7 @@ import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
 import FeaturedPodcastSpotlight from '../components/FeaturedPodcastSpotlight';
-import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
+import { isFeaturedPodcast } from '../data/featuredPodcast';
 import '../styles/Movies.css';
 import '../styles/Podcasts.css';
 
@@ -37,12 +37,13 @@ export default function Podcasts() {
     };
   }, [load]);
 
+  const otherShows = shows.filter((show) => !isFeaturedPodcast(show));
+
   return (
     <ProTVShell>
       <ProTVHeader />
-      <main className="movies-page podcasts-page">
-        <header className="movies-page__intro">
-          <p className="movies-page__eyebrow">PROtv Collection</p>
+      <main className="movies-page podcasts-page podcasts-collection">
+        <header className="movies-page__intro podcasts-collection__intro">
           <h1>PODCASTS</h1>
           <p className="movies-page__description">Discover original voices and video Podcast Shows on PROtv.</p>
         </header>
@@ -55,11 +56,11 @@ export default function Podcasts() {
             <p>{error}</p>
             <button type="button" className="movies-state__action" onClick={() => void load()}>Try Again</button>
           </section>
-        ) : shows.length ? (
+        ) : otherShows.length ? (
           <div className="podcasts-grid">
-            {shows.map((show) => (
+            {otherShows.map((show) => (
               <Link className="podcasts-card" key={show.id}
-                to={isFeaturedPodcast(show) ? FEATURED_PODCAST.path : `/podcasts/${encodeURIComponent(show.id)}`}>
+                to={`/podcasts/${encodeURIComponent(show.id)}`}>
                 {show.artworkUrl && <img src={show.artworkUrl} alt="" loading="lazy" />}
                 <div className="podcasts-card__copy">
                   <h2>{show.title}</h2>
@@ -70,12 +71,7 @@ export default function Podcasts() {
               </Link>
             ))}
           </div>
-        ) : (
-          <section className="movies-state">
-            <h2>No Podcast Shows are available yet.</h2>
-            <p>Published Shows will appear here.</p>
-          </section>
-        )}
+        ) : null}
       </main>
       <ProTVFooter />
     </ProTVShell>

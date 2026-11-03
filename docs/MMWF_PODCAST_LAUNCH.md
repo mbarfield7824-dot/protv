@@ -393,3 +393,19 @@ vercel rollback dpl_FkvRDdiXkQeTKz8ZMznne2Pq1rJt --yes --scope pro-tv1
 Save any unsaved Episode details before refreshing the website to load this
 update, then reselect the local video file. Browser file selections cannot be
 restored across a page refresh.
+
+### Podcast collection presentation cleanup
+
+The collection previously rendered Me and My White Friend twice once its Show
+was published: the premium spotlight and a catalog card repeating its full
+description. The collection now presents this property only in the spotlight,
+while other published Shows retain their normal catalog cards and links.
+The collection heading is a simple unboxed introduction, not a second banner.
+Empty collections no longer add a contradictory "No Podcast Shows" panel beneath
+the featured property. Loading, API error and retry behavior remain explicit.
+The homepage spotlight and the individual Podcast pages are unchanged.
+
+Validation: production build, lint and all 157 frontend tests passed. Chromium
+checks at 1440, 768, 390 and 320px confirmed exactly one featured title/link,
+loaded supplied artwork, a flat heading, no overflow and working navigation.
+Rendered tests also verify retention of other Shows and error/retry behavior.

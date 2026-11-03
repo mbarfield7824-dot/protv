@@ -28,6 +28,7 @@ let vite;
 let Page;
 let Home;
 let PodcastShow;
+let Podcasts;
 let Hero;
 let AuthContext;
 let api;
@@ -56,6 +57,7 @@ before(async () => {
   ({ default: Home } = await vite.ssrLoadModule('/src/pages/Home.jsx'));
   ({ default: Hero } = await vite.ssrLoadModule('/src/components/CinematicHero.jsx'));
   ({ default: PodcastShow } = await vite.ssrLoadModule('/src/pages/PodcastShow.jsx'));
+  ({ default: Podcasts } = await vite.ssrLoadModule('/src/pages/Podcasts.jsx'));
   ({ AuthContext } = await vite.ssrLoadModule('/src/context/authState.js'));
   ({ api } = await vite.ssrLoadModule('/src/api.js'));
 });
@@ -94,6 +96,40 @@ test('actual production route and original/cropped supplied artwork are present'
   for (const name of ['me-and-my-white-friend.png', 'me-and-my-white-friend-banner.png']) {
     assert.ok(existsSync(path.join(frontendRoot, 'src', 'assets', name)));
   }
+});
+
+test('Podcast collection presents the featured property once and retains other published Shows', async () => {
+  api.getPodcastShows = async () => [show, {
+    id: 'other-show', title: 'Another published Podcast', host: 'Other host',
+    contentType: 'PODCAST_SHOW', description: 'Another real catalog description',
+  }];
+  await mount(Podcasts, {}, '/podcasts');
+  assert.equal(document.querySelectorAll('h1').length, 1);
+  assert.equal([...document.querySelectorAll('h2')].filter(item => item.textContent === show.title).length, 1);
+  assert.equal(document.querySelectorAll('.mmwf-spotlight').length, 1);
+  assert.equal(document.querySelectorAll('main a[href="/podcast/me-and-my-white-friend"]').length, 1);
+  assert.equal(document.querySelectorAll('.podcasts-card').length, 1);
+  assert.equal(document.querySelector('.podcasts-card').getAttribute('href'), '/podcasts/other-show');
+  assert.match(document.querySelector('.podcasts-card').textContent, /Another real catalog description/);
+});
+
+test('Podcast collection does not add a redundant empty panel beside the featured preview and retains API errors', async () => {
+  for (const items of [[], [show]]) {
+    api.getPodcastShows = async () => items;
+    await mount(Podcasts, {}, '/podcasts');
+    assert.equal(document.querySelectorAll('.mmwf-spotlight').length, 1);
+    assert.equal(document.querySelector('.podcasts-grid'), null);
+    assert.equal(document.querySelector('.movies-state'), null);
+    assert.doesNotMatch(document.querySelector('main').textContent, /No Podcast Shows/);
+  }
+  api.getPodcastShows = async () => { throw new Error('Catalog maintenance'); };
+  await mount(Podcasts, {}, '/podcasts');
+  assert.match(document.querySelector('[role="alert"]').textContent, /Catalog maintenance/);
+  api.getPodcastShows = async () => [show];
+  await act(async () => document.querySelector('[role="alert"] button').click());
+  await settle();
+  assert.equal(document.querySelector('[role="alert"]'), null);
+  assert.equal(document.querySelectorAll('.mmwf-spotlight').length, 1);
 });
 
 test('empty public catalog shows official hosts/copy and Coming Soon with no playable placeholders', async () => {
