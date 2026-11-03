@@ -409,3 +409,26 @@ Validation: production build, lint and all 157 frontend tests passed. Chromium
 checks at 1440, 768, 390 and 320px confirmed exactly one featured title/link,
 loaded supplied artwork, a flat heading, no overflow and working navigation.
 Rendered tests also verify retention of other Shows and error/retry behavior.
+
+Collection cleanup production receipt:
+
+- Commit: `5861427dadd44f39928caaa01692846d61540b57`.
+- Branch: `fix/podcast-collection-duplicates`.
+- Deployment: `dpl_DVbjpbrEk1bCa1VdYa4okiY6GqmD` (READY).
+- Immutable URL: <https://protv-af1dgk1mf-pro-tv1.vercel.app>.
+- Live collection verified at 1440, 768, 390 and 320px with a single featured
+  property, no duplicate card, loaded artwork, working navigation and no errors.
+  The integrated browser also confirmed one featured heading and zero duplicate
+  cards after reloading the public domain.
+- All 55 public title records and the one published Podcast Show matched the
+  snapshot before this visual-only deployment. No content writes occurred.
+- Clean Vercel production build succeeded. Deployment used a checked 426-file
+  isolated worktree, `--skip-domain`, then source/readiness verification and
+  explicit promotion after reconfirming the previous production deployment.
+  No Git push, Render deployment or licensing change occurred.
+
+To undo only this collection presentation change:
+
+```powershell
+vercel rollback dpl_DvBwRbusN94uDjuqbU52Sgt6gv6h --yes --scope pro-tv1
+```
