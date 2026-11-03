@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api';
 import {
   createPodcastReconciler, episodeActions, episodeAfterShowSave, episodeForm, episodePayload, mergeEpisodeStatus,
   recoverPodcastConflict, showForm, showPayload,
-  isManualPodcastUpload,
+  isManualPodcastUpload, episodeIngestionBlocker,
 } from '../admin/podcastAdmin';
 import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import banner from '../assets/me-and-my-white-friend-banner.png';
@@ -33,6 +33,8 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
   const reconciler = useRef(createPodcastReconciler());
   const active = useRef(true);
   const initialized = useRef(false);
+  const episodeFormRef = useRef(null);
+  const ingestionHelpId = useId();
 
   useEffect(() => {
     onBusyChange?.(Boolean(pending || processing));
@@ -103,6 +105,10 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
   const showHasEdits = selectedShow && JSON.stringify(showDraft) !== JSON.stringify(showForm(selectedShow));
   const episodeHasEdits = selectedEpisode && JSON.stringify(episodeDraft) !== JSON.stringify(episodeForm(selectedEpisode));
   const { canIngest, canApprove } = episodeActions(selectedEpisode);
+  const ingestionBlocker = stale ? 'Refresh the Admin catalog before uploading.'
+    : processing ? `Video ${processing}. Keep this page open while the upload is monitored.`
+      : pending ? `${pending} is in progress.`
+        : episodeIngestionBlocker(selectedEpisode);
 
   const selectShow = (show) => {
     window.clearTimeout(pollTimer.current);
@@ -276,10 +282,20 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
   };
 
   const ingest = async (kind) => {
-    if (!selectedEpisodeId || !canIngest || processing || busy.current || stale || episodeHasEdits) return;
+    if (!selectedEpisodeId || !canIngest || processing || busy.current || stale) return;
     const id = selectedEpisodeId;
     if (kind === 'file' && !file) { setError('Select a video file.'); return; }
     if (kind === 'url' && !sourceUrl.trim()) { setError('Enter a video file URL.'); return; }
+    if (episodeHasEdits) {
+      if (!episodeFormRef.current?.reportValidity()) {
+        setError('Complete the required Episode metadata and rights fields before uploading.');
+        return;
+      }
+      const saved = await saveEpisode();
+      if (!saved || !active.current) return;
+      const blocker = episodeIngestionBlocker(saved);
+      if (blocker) { setError(blocker); return; }
+    }
     const started = await run('Start Episode ingestion', () => kind === 'file'
       ? api.podcastUploadUrl(id)
       : api.podcastFromUrl(id, sourceUrl.trim()), { allowStaleResult: true });
@@ -403,7 +419,7 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
             </form>
             </details>
             {(selectedShowId || shows.length > 0) && (
-              <form className="admin-form podcast-admin-episode-form" onSubmit={(event) => { event.preventDefault(); void saveEpisode(); }}>
+              <form ref={episodeFormRef} className="admin-form podcast-admin-episode-form" onSubmit={(event) => { event.preventDefault(); void saveEpisode(); }}>
                 <fieldset className="podcast-admin-fields" disabled={formsDisabled}>
                 <h3>{selectedEpisodeId ? 'Edit Episode' : 'Create Episode'}</h3>
                 {!selectedEpisodeId && <div className="admin-reference-notice">
@@ -470,8 +486,12 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
                       onClick={() => void episodeAction('unpublish')}>Unpublish Episode</button>
                     : <button type="button" className="admin-secondary admin-button-confirm" disabled={Boolean(pending || stale || episodeHasEdits || processing || !canApprove)}
                       onClick={() => void episodeAction('approve')}>Approve Episode</button>)}
+                  {selectedEpisode && !['draft', 'approved'].includes(selectedEpisode.approvalStatus) && (
+                    <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || processing)}
+                      onClick={() => void episodeAction('unpublish')}>Return Episode to Draft</button>
+                  )}
                 </div>
-                {episodeHasEdits && <p className="admin-subtitle">Save Episode changes before approval or ingestion.</p>}
+                {episodeHasEdits && <p className="admin-subtitle">Save Episode changes before approval. Upload actions will save your changes first.</p>}
                 {!canApprove && selectedEpisode?.approvalStatus !== 'approved' && <p className="admin-subtitle">Approval requires ready video with a Mux playback ID.</p>}
                 </fieldset>
               </form>
@@ -483,14 +503,20 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
                 disabled={Boolean(pending || stale || processing)} onClick={resumeStatus}>Check / Resume Status</button>}
               <label>Video file<input key={`${selectedShowId}:${selectedEpisodeId}`} type="file" accept="video/*" disabled={Boolean(pending || processing || stale)}
                 onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
-              <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || processing || !canIngest || episodeHasEdits || !file)}
-                onClick={() => void ingest('file')}>Upload File</button>
+              <button type="button" className="admin-secondary" aria-describedby={ingestionHelpId}
+                disabled={Boolean(pending || stale || processing || !canIngest || !file)}
+                onClick={() => void ingest('file')}>{episodeHasEdits ? 'Save Changes & Upload File' : 'Upload File'}</button>
               {(processing === 'uploading' || progress > 0) && <p role="status">Upload: {progress}%</p>}
               <label>Or video file URL<input type="url" value={sourceUrl} disabled={Boolean(pending || processing || stale)}
                 onChange={(event) => setSourceUrl(event.target.value)} /></label>
-              <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || processing || !canIngest || episodeHasEdits || !sourceUrl.trim())}
-                onClick={() => void ingest('url')}>Ingest URL</button>
-              <p className="admin-subtitle">Only saved, draft Episodes can start ingestion. Upload and transcoding never approve an Episode.</p>
+              <button type="button" className="admin-secondary" aria-describedby={ingestionHelpId}
+                disabled={Boolean(pending || stale || processing || !canIngest || !sourceUrl.trim())}
+                onClick={() => void ingest('url')}>{episodeHasEdits ? 'Save Changes & Ingest URL' : 'Ingest URL'}</button>
+              <p id={ingestionHelpId} role="status">{ingestionBlocker || (episodeHasEdits
+                ? 'Your Episode metadata has unsaved changes. Upload will save them first, then start ingestion using your selected file or URL.'
+                : !file && !sourceUrl.trim() ? 'Choose a video file or enter a video file URL to start ingestion.'
+                  : 'Ready to upload. Select Upload File or Ingest URL to start.')}</p>
+              <p className="admin-subtitle">Only draft Episodes can start ingestion. Upload and transcoding never approve an Episode.</p>
             </div>}
           </div>
         </div>

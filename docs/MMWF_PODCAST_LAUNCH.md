@@ -341,3 +341,25 @@ vercel rollback dpl_APUP85JRBLrLQ1VvKTTbTowR4LPo --yes --scope pro-tv1
 ```
 
 Website rollback does not undo season metadata entered later by administrators.
+
+### Ingestion button usability correction
+
+Unsaved Episode metadata (including a changed season) previously disabled both
+ingestion buttons, even after choosing a file, with the save instruction above
+the ingestion panel. Upload now explicitly offers **Save Changes & Upload File**
+or **Save Changes & Ingest URL**. It validates required fields, saves metadata,
+refreshes the saved record, then starts ingestion only if that save succeeds.
+Failed or invalid saves retain the selected file and do not request Mux uploads.
+
+The ingestion panel now states its exact blocking reason: stale catalog,
+operation in progress, approval not draft, processing already active, or media
+asset already present. A non-draft record must explicitly return to draft;
+uploading never silently unpublishes or approves a title. Empty-source prompts
+and unsaved-change instructions are beside the buttons and linked accessibly.
+
+Validation includes an isolated HTTP integration exercise using the actual
+frontend API/XHR client and actual backend Podcast router, with injected local
+storage and Mux-service fixtures. It saved the changed season, requested an
+upload URL, conditionally claimed ingestion, transferred actual file bytes by
+HTTP PUT and polled to ready while leaving approval draft. External Mux
+transcoding was simulated; no test media or production records were ingested.

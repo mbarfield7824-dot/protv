@@ -95,12 +95,20 @@ export function episodeAfterShowSave(draft, showId) {
 
 export function episodeActions(episode) {
   return {
-    canIngest: episode?.approvalStatus === 'draft'
-      && episode.status !== 'processing'
-      && (!episode.muxAssetId || episode.status === 'errored')
-      && (!episode.muxUploadId || episode.status !== 'processing'),
+    canIngest: Boolean(episode) && !episodeIngestionBlocker(episode),
     canApprove: episode?.status === 'ready' && Boolean(episode.muxPlaybackId),
   };
+}
+
+export function episodeIngestionBlocker(episode) {
+  if (!episode) return 'Save an Episode draft before uploading its video.';
+  if (episode.approvalStatus !== 'draft') {
+    return `Episode approval status is ${episode.approvalStatus || 'missing'}. ${episode.approvalStatus === 'approved'
+      ? 'Use Unpublish Episode' : 'Use Return Episode to Draft'} before uploading.`;
+  }
+  if (episode.status === 'processing') return 'This Episode is already processing. Use Check / Resume Status to check the existing upload.';
+  if (episode.muxAssetId && episode.status !== 'errored') return 'This Episode already has a video asset. Create a new Episode for a different video.';
+  return '';
 }
 
 export function createPodcastReconciler() {

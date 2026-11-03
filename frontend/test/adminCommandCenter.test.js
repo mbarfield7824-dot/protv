@@ -271,6 +271,90 @@ test('switching sections preserves mounted tool drafts and upload file selection
   assert.equal(document.querySelector('.admin-assistant-panel'), assistant);
 });
 
+test('episode edits save before file or URL ingestion; failed saves never start Mux and preserve the selected file', async () => {
+  const show = { id: 'show-upload', contentType: 'PODCAST_SHOW', title: 'Me and My White Friend', approvalStatus: 'approved' };
+  const episode = {
+    id: 'episode-upload', contentType: 'PODCAST_EPISODE', podcastShowId: show.id,
+    title: 'Actual draft episode', episodeNumber: 6, seasonNumber: 1, approvalStatus: 'draft',
+    rightsHolder: 'Producer', rightsVerificationNotes: 'Reviewed actual evidence',
+  };
+  for (const kind of ['file', 'url', 'failed-save', 'invalid-metadata']) {
+    const catalog = [show, { ...episode }];
+    await mount(auth, { catalog, entry: '/admin#mmwf' });
+    await click('Season 1 / Episode 6. Actual draft episode — draft', document.querySelector('.podcast-admin-episodes'));
+    const form = document.querySelector('.podcast-admin-episode-form');
+    const ingestion = document.querySelector('.podcast-admin-ingestion');
+    const calls = [];
+    api.editPodcastEpisode = async (id, body) => {
+      calls.push('save');
+      assert.equal(id, episode.id);
+      assert.equal(body.seasonNumber, 2);
+      if (kind === 'failed-save') throw new Error('Episode metadata could not be saved');
+      catalog[1] = { ...catalog[1], ...body };
+      return catalog[1];
+    };
+    api.podcastUploadUrl = async (id) => {
+      calls.push('upload-url');
+      assert.equal(id, episode.id);
+      assert.equal(catalog[1].seasonNumber, 2);
+      catalog[1] = { ...catalog[1], status: 'processing', muxUploadId: 'mux-upload' };
+      return { videoId: id, uploadId: 'mux-upload', uploadUrl: 'https://upload.example.test/file' };
+    };
+    api.podcastFromUrl = async (id, url) => {
+      calls.push('ingest-url');
+      assert.equal(id, episode.id);
+      assert.equal(url, 'https://example.test/actual.mp4');
+      catalog[1] = { ...catalog[1], status: 'processing', muxAssetId: 'mux-asset' };
+      return { videoId: id, assetId: 'mux-asset' };
+    };
+    const file = new window.File(['local video bytes'], 'episode6.mp4', { type: 'video/mp4' });
+    api.uploadFileToMux = async (url, selected, progress) => {
+      calls.push('upload-bytes');
+      assert.equal(url, 'https://upload.example.test/file');
+      assert.equal(selected, file);
+      progress(100);
+    };
+    await change(labeledField(form, 'Season number'), '2');
+    if (kind === 'invalid-metadata') await change(labeledField(form, 'Episode title'), '');
+    if (kind === 'url') {
+      await change(labeledField(ingestion, 'Or video file URL'), 'https://example.test/actual.mp4');
+    } else {
+      const input = labeledField(ingestion, 'Video file');
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      await act(async () => input.dispatchEvent(new window.Event('change', { bubbles: true })));
+    }
+    const label = kind === 'url' ? 'Save Changes & Ingest URL' : 'Save Changes & Upload File';
+    const button = [...ingestion.querySelectorAll('button')].find(item => item.textContent === label);
+    assert.equal(button.disabled, false, 'Unsaved metadata must not silently disable ingestion');
+    await click(label, ingestion);
+    if (kind === 'invalid-metadata') {
+      assert.deepEqual(calls, []);
+      assert.match(document.querySelector('[role="alert"]').textContent, /required Episode metadata and rights fields/);
+      assert.equal(labeledField(ingestion, 'Video file').files[0], file);
+    } else if (kind === 'failed-save') {
+      assert.deepEqual(calls, ['save']);
+      assert.match(document.querySelector('[role="alert"]').textContent, /metadata could not be saved/);
+      assert.equal(labeledField(ingestion, 'Video file').files[0], file);
+    } else {
+      assert.deepEqual(calls, kind === 'file' ? ['save', 'upload-url', 'upload-bytes'] : ['save', 'ingest-url']);
+      assert.equal(catalog[1].approvalStatus, 'draft');
+    }
+  }
+});
+
+test('an approved episode without media explains how to unlock uploading instead of silently disabling it', async () => {
+  const show = { id: 'show', contentType: 'PODCAST_SHOW', title: 'Me and My White Friend', approvalStatus: 'approved' };
+  const episode = {
+    id: 'episode', title: 'Premature approval', contentType: 'PODCAST_EPISODE', podcastShowId: show.id,
+    episodeNumber: 1, approvalStatus: 'approved', rightsHolder: 'Producer', rightsVerificationNotes: 'Evidence',
+  };
+  await mount(auth, { catalog: [show, episode], entry: '/admin#mmwf' });
+  await click('Episode 1. Premature approval — approved', document.querySelector('.podcast-admin-episodes'));
+  const ingestion = document.querySelector('.podcast-admin-ingestion');
+  assert.match(ingestion.textContent, /Use Unpublish Episode before uploading/);
+  assert.equal([...ingestion.querySelectorAll('button')].find(item => item.textContent === 'Upload File').disabled, true);
+});
+
 test('Admin navigation pauses during an upload request and resumes after failure', async () => {
   await mount();
   await navigate('Upload Content');

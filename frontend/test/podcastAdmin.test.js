@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createPodcastReconciler, episodeActions, episodeAfterShowSave, episodeForm, episodePayload,
-  isPodcast, isManualPodcastUpload, mergeEpisodeStatus, recoverPodcastConflict, showForm, showPayload,
+  isPodcast, isManualPodcastUpload, episodeIngestionBlocker, mergeEpisodeStatus, recoverPodcastConflict, showForm, showPayload,
 } from '../src/admin/podcastAdmin.js';
 
 const shows = [
@@ -147,6 +147,22 @@ test('processing recovery preserves private fields and gates ingestion/approval 
   const assetReady = { ...ready, muxAssetId: 'asset-1' };
   assert.deepEqual(episodeActions(assetReady), { canIngest: false, canApprove: true });
   assert.deepEqual(episodeActions({ ...assetReady, status: 'errored' }), { canIngest: true, canApprove: false });
+});
+
+test('every ingestion restriction has an actionable local explanation', () => {
+  const draft = { approvalStatus: 'draft' };
+  assert.equal(episodeActions(draft).canIngest, true);
+  assert.equal(episodeIngestionBlocker(draft), '');
+  for (const [episode, explanation] of [
+    [undefined, /Save an Episode draft/],
+    [{ approvalStatus: 'approved' }, /Unpublish Episode/],
+    [{ approvalStatus: 'rejected' }, /Return Episode to Draft/],
+    [{ ...draft, status: 'processing' }, /Check \/ Resume Status/],
+    [{ ...draft, muxAssetId: 'asset' }, /already has a video asset/],
+  ]) {
+    assert.equal(episodeActions(episode).canIngest, false);
+    assert.match(episodeIngestionBlocker(episode), explanation);
+  }
 });
 
 test('conflict recovery distinguishes a refreshed catalog from a failed refresh', async () => {
