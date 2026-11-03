@@ -363,3 +363,33 @@ storage and Mux-service fixtures. It saved the changed season, requested an
 upload URL, conditionally claimed ingestion, transferred actual file bytes by
 HTTP PUT and polled to ready while leaving approval draft. External Mux
 transcoding was simulated; no test media or production records were ingested.
+
+Production receipt for this correction:
+
+- Commit: `60fbdf33d7ca0f43871119f2bbacd482915139aa`.
+- Branch: `fix/mmwf-ingestion-controls`.
+- Deployment: `dpl_DvBwRbusN94uDjuqbU52Sgt6gv6h` (READY).
+- Immutable URL: <https://protv-4mg5vg3vj-pro-tv1.vercel.app>.
+- Local and clean Vercel production builds passed, along with lint, all 155
+  frontend tests and 11 backend Podcast tests. Existing dependency advisories
+  and the large-chunk warning are unchanged.
+- Live bundle contains the save-and-upload actions, required-field error and
+  local blocker messages. Browser checks passed at desktop/tablet/mobile sizes
+  with supplied artwork, carousel navigation and existing movie/series/music
+  pages unaffected; no uncaught runtime errors.
+- All 52 public catalog records and the public Podcast catalog matched the
+  pre-deployment snapshot. This deployment performed no authenticated production
+  content writes and did not verify the user's actual video against live Mux.
+- Deployment used a checked 426-file tracked-only worktree, `--skip-domain`,
+  source/readiness verification, and promotion after rechecking production.
+  No Git push, Render service or licensing change occurred.
+
+Current rollback, only to undo the ingestion-control correction:
+
+```powershell
+vercel rollback dpl_FkvRDdiXkQeTKz8ZMznne2Pq1rJt --yes --scope pro-tv1
+```
+
+Save any unsaved Episode details before refreshing the website to load this
+update, then reselect the local video file. Browser file selections cannot be
+restored across a page refresh.
