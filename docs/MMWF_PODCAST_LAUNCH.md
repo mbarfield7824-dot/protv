@@ -263,3 +263,40 @@ Rollback target for this follow-up is the **immediately preceding Podcast
 design release**, `dpl_GEqDVFKyfUtji9kdxu34yn5WUEtg`,
 <https://protv-6pw846mnj-pro-tv1.vercel.app>. Do not use the older initial-launch
 rollback if the intent is only to undo the Admin upload integration.
+
+### Admin integration production receipt
+
+- Source commit: `f264573ec1307ed6cddb005b50bb7a6552e7c6e7`
+- Branch: `feature/mmwf-admin-uploads`
+- Deployment: `dpl_APUP85JRBLrLQ1VvKTTbTowR4LPo` (READY)
+- Immutable URL: <https://protv-q7pd370fh-pro-tv1.vercel.app>
+- Direct protected workspace: <https://watchprotv.com/admin#mmwf>
+- Build used existing Vercel production settings and clean lockfile installs.
+  The upload manifest contained 426 files from an isolated tracked-only Git
+  worktree; local environment credentials and unrelated workspaces were excluded.
+  Deployment was created with `--skip-domain` and promoted only after readiness,
+  catalog and authentication checks. Production was checked for intervening
+  changes immediately before promotion.
+- Live Chromium checks passed at 1440, 768, 390 and 320px. Artwork loaded, six
+  homepage carousel slides remained, spotlight navigation worked, existing
+  movie/series/music pages rendered, and there were no uncaught runtime errors.
+- All 53 pre-deployment public records retained their IDs, types, descriptions,
+  media references, artwork, durations, release/approval fields and episode
+  relationships. The public Podcast Show list remained empty. The page honestly
+  remains Coming Soon until the administrator completes Show/Episode approvals.
+- The new attachment API returned HTTP 401 without a website administrator
+  token, and the live JavaScript bundle includes the new workspace and API.
+  Authenticated write-flow verification used local fixtures, not production
+  credentials or actual content mutations.
+- No episodes, rights agreements, licensing schedules or revenue shares were
+  changed. No Git push or unrelated Render deployment was triggered.
+
+The current rollback command, **only if this Admin release needs reverting**, is:
+
+```powershell
+vercel rollback dpl_GEqDVFKyfUtji9kdxu34yn5WUEtg --yes --scope pro-tv1
+```
+
+This restores the approved Podcast design without the Admin upload additions.
+This deployment itself made no catalog data changes. Any administrator edits
+made later are data changes and are not undone by a website deployment rollback.
