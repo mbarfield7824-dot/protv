@@ -150,9 +150,8 @@ test('production routing retains title HTML and bundles the template plus approv
   assert.deepEqual(config.rewrites.find((rule) => rule.source === '/title/:id'), {
     source: '/title/:id', destination: '/api/index?path=v1/catalog/titles/:id/html',
   });
-  assert.deepEqual(config.functions['api/index.js'].includeFiles, [
-    'frontend/dist/index.html', 'frontend/src/assets/me-and-my-white-friend-banner.png',
-  ]);
+  assert.equal(config.functions['api/index.js'].includeFiles,
+    '{frontend/dist/index.html,frontend/src/assets/me-and-my-white-friend-banner.png}');
 });
 
 test('built HTML includes homepage metadata and supplies the real React assets for title responses', async () => {

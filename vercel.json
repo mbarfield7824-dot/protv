@@ -5,7 +5,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 300,
-      "includeFiles": ["frontend/dist/index.html", "frontend/src/assets/me-and-my-white-friend-banner.png"]
+      "includeFiles": "{frontend/dist/index.html,frontend/src/assets/me-and-my-white-friend-banner.png}"
     }
   },
   "headers": [
