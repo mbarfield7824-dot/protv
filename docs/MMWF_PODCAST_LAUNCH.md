@@ -308,3 +308,36 @@ vercel rollback dpl_GEqDVFKyfUtji9kdxu34yn5WUEtg --yes --scope pro-tv1
 This restores the approved Podcast design without the Admin upload additions.
 This deployment itself made no catalog data changes. Any administrator edits
 made later are data changes and are not undone by a website deployment rollback.
+
+### Podcast seasons follow-up - November 3, 2026
+
+Optional season numbering is deployed from commit
+`f7d6396ac694a877d4a33d13d564ddd5b853d60c` on
+`feature/mmwf-podcast-seasons`. The Admin form, creation, attachment, editing,
+public catalog ordering, featured and generic Show labels, and player all
+preserve the supplied season. Missing seasons remain unset, not inferred.
+
+- Deployment: `dpl_FkvRDdiXkQeTKz8ZMznne2Pq1rJt` (READY).
+- Immutable URL: <https://protv-mpu9lxule-pro-tv1.vercel.app>.
+- Local production build, lint, 152 frontend tests and 11 backend tests passed.
+- Local authenticated UI fixtures verified seasons on both existing-upload
+  attachment and new file upload; desktop, tablet and mobile layouts passed.
+- Live bundle contains the season input and validation. Public browser checks
+  passed at 1440, 768, 390 and 320px with loaded artwork, working homepage
+  carousel and existing movie, series and music pages; no uncaught errors.
+- All 52 public catalog records and the empty public Show list matched the
+  snapshot immediately before this deployment. No records were migrated,
+  reclassified, published or otherwise modified by this release.
+- Deployment used an isolated tracked-only worktree with a checked 426-file
+  manifest, successful clean production build, `--skip-domain`, then promotion
+  after source/readiness/catalog checks and reconfirmation of the live rollback.
+- No Git push, Render deployment, agreement or revenue-share change occurred.
+
+To undo only the season update, the current rollback target is the preceding
+Admin integration, not the older Podcast design release:
+
+```powershell
+vercel rollback dpl_APUP85JRBLrLQ1VvKTTbTowR4LPo --yes --scope pro-tv1
+```
+
+Website rollback does not undo season metadata entered later by administrators.
