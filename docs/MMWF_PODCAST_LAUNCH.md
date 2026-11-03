@@ -1,4 +1,4 @@
-# Me and My White Friend - approval candidate
+# Me and My White Friend - approved website release
 
 ## Application and local preview
 
@@ -57,9 +57,14 @@ redirect to the branded page; other Shows remain unchanged.
 
 ## Production safety and rollback
 
-**Public deployment is not approved. Do not push this branch or deploy it until
-the owner approves the actual mockup.** No Vercel deployment, alias, Render
-service, or catalog write is part of this assignment.
+The owner approved the website design and production deployment on November 3,
+2026. This approval covers only the podcast page, homepage hero, and Podcast
+Spotlight. It does not authorize publishing episodes or changing licensing.
+Deploy from an isolated checkout of the committed release, excluding the
+shared workspace's unrelated untracked files. Use the existing Vercel project
+with production settings and `--skip-domain`, verify the READY build, then
+promote that deployment. Do not push to a branch that could trigger unrelated
+Render services.
 
 The feature branch is based on the verified live `main` commit, not the older
 mobile development branch:
@@ -101,7 +106,9 @@ feature does not modify catalog records.
 - Published-episode rendering, missing-art fallback, actual-ID watch links,
   held/invalid Episode exclusion, unavailable API/retry, focus refresh, and
   generic Show redirection are covered by automated rendered tests.
-- No production deployment or catalog mutation was performed.
+- Pre-release validation was rerun after owner approval: production build and
+  full lint passed, all 148 frontend tests and nine backend Podcast tests passed.
+- No catalog mutation is included in this release.
 
 The only content dependencies are the approved Podcast Show/Episode records
 and optional separate promotional photos. Neither is required to approve the
