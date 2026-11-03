@@ -113,12 +113,13 @@ test('published catalog episodes render actual metadata and real player routes; 
   api.getPodcastShows = async () => [show];
   api.getPodcastShow = async (id) => {
     assert.equal(id, show.id);
-    return { ...show, episodes: [episode, { ...episode, id: 'held', releaseStatus: 'held' }] };
+    return { ...show, episodes: [{ ...episode, seasonNumber: 2 }, { ...episode, id: 'held', releaseStatus: 'held' }] };
   };
   await mount();
   assert.match(document.body.textContent, /The actual catalog title/);
   assert.match(document.body.textContent, /The actual catalog description/);
   assert.match(document.body.textContent, /30m/);
+  assert.match(document.querySelector('.mmwf-episode__copy').textContent, /Season 2 \/ Episode 2/);
   assert.equal(document.querySelectorAll('.mmwf-episode').length, 1);
   const links = [...document.querySelectorAll('a[href^="/player/"]')];
   assert.ok(links.length >= 2);

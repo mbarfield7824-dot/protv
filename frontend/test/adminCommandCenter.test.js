@@ -208,6 +208,7 @@ test('featured workspace attaches a selected existing upload only on confirmatio
     assert.equal(body.confirmed, true);
     assert.equal(body.podcastShowId, show.id);
     assert.equal(body.episodeNumber, 3);
+    assert.equal(body.seasonNumber, 2);
     assert.equal(body.title, upload.title);
     const converted = { ...upload, ...body, contentType: 'PODCAST_EPISODE', approvalStatus: 'draft' };
     catalog.splice(1, 1, converted);
@@ -227,12 +228,15 @@ test('featured workspace attaches a selected existing upload only on confirmatio
   assert.equal(labeledField(form, 'Rights holder').value, upload.rightsHolder);
   assert.equal(form.querySelector('button[type="submit"]').disabled, true);
   await change(labeledField(form, 'Episode number'), '3');
+  await change(labeledField(form, 'Season number'), '2');
   await act(async () => form.querySelector('input[type="checkbox"]').click());
   assert.equal(form.querySelector('button[type="submit"]').disabled, false);
   await click('Attach Uploaded Video as Draft', form);
   assert.equal(attachments, 1);
   assert.equal(approvals, 0);
   assert.equal(catalog[1].approvalStatus, 'draft');
+  assert.equal(catalog[1].seasonNumber, 2);
+  assert.match(document.querySelector('.podcast-admin-episodes').textContent, /Season 2 \/ Episode 3/);
   form = document.querySelector('.podcast-admin-episode-form');
   assert.equal(form.querySelector('select option[value="real-upload"]'), null);
   await click('Approve Episode', form);

@@ -7,6 +7,7 @@ import {
 } from '../admin/podcastAdmin';
 import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import banner from '../assets/me-and-my-white-friend-banner.png';
+import { podcastEpisodeLabel, podcastEpisodeOrder } from '../data/playerCatalog';
 
 const MAX_POLLS = 45;
 
@@ -96,7 +97,7 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
   const selectedShow = shows.find((item) => item.id === selectedShowId);
   const episodes = catalog.filter((item) =>
     item.contentType === 'PODCAST_EPISODE' && item.podcastShowId === selectedShowId
-  ).sort((a, b) => a.episodeNumber - b.episodeNumber || a.id.localeCompare(b.id));
+  ).sort(podcastEpisodeOrder);
   const selectedEpisode = catalog.find((item) => item.id === selectedEpisodeId && item.contentType === 'PODCAST_EPISODE');
   const parent = shows.find((item) => item.id === episodeDraft.podcastShowId);
   const showHasEdits = selectedShow && JSON.stringify(showDraft) !== JSON.stringify(showForm(selectedShow));
@@ -362,7 +363,7 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
                     <button type="button" key={episode.id}
                       className={`podcast-admin-select ${selectedEpisodeId === episode.id ? 'active' : ''}`}
                       disabled={Boolean(pending || stale || processing)} onClick={() => selectEpisode(episode)}>
-                      {episode.episodeNumber}. {episode.title} — {episode.approvalStatus || 'draft'}
+                      {podcastEpisodeLabel(episode)}. {episode.title} — {episode.approvalStatus || 'draft'}
                     </button>
                   ))}
                 </div>}
@@ -446,8 +447,10 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
                 )}
                 <div className="admin-form-row">
                   <label>Episode title<input required value={episodeDraft.title} onChange={episodeField('title')} /></label>
+                  <label>Season number (optional)<input min="1" step="1" type="number" value={episodeDraft.seasonNumber} onChange={episodeField('seasonNumber')} /></label>
                   <label>Episode number<input required min="1" step="1" type="number" value={episodeDraft.episodeNumber} onChange={episodeField('episodeNumber')} /></label>
                 </div>
+                <p className="admin-subtitle">Enter a season for season-based releases. Leave blank for episodes without a season; existing episodes are not assigned a season automatically.</p>
                 <label>Description<textarea value={episodeDraft.description} onChange={episodeField('description')} /></label>
                 <div className="admin-form-row">
                   <label>Episode thumbnail URL<input type="url" value={episodeDraft.thumbnailUrl} onChange={episodeField('thumbnailUrl')} /></label>

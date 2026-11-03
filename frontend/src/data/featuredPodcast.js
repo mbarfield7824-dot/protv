@@ -1,4 +1,5 @@
 import { loadWithinDeadline } from '../utils/requestDeadline.js';
+import { podcastEpisodeOrder } from './playerCatalog.js';
 
 export const FEATURED_PODCAST = {
   title: 'Me and My White Friend',
@@ -30,7 +31,7 @@ export function featuredPodcastEpisodes(show) {
     && (!episode.status || episode.status === 'ready')
     && (!episode.approvalStatus || episode.approvalStatus === 'approved')
     && episode.releaseStatus !== 'held'
-  ));
+  )).sort(podcastEpisodeOrder);
 }
 
 export function episodeRuntime(episode) {

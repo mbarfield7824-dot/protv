@@ -33,6 +33,14 @@ also see **Manage / Upload Episodes** on the featured Podcast page.
    are prefilled. Save the Show draft, review it and explicitly publish the Show.
 2. Create an Episode with its actual title, number, rights holder and verification
    notes. Save the draft, then upload the video in the Episode ingestion panel.
+   **Season number (optional)** supports season-based releases, including uploads
+   attached from the existing catalog. Enter a positive whole number; leave it
+   blank for unseasoned episodes. No season is inferred for existing content.
+   Season and episode numbers can be edited without reuploading media.
+   Admin and viewer listings sort by season, then episode number; episodes
+   without a season remain first, with their original Episode-only labels.
+   Supplied seasons appear on the featured page, other Podcast Show pages and
+   the player. Publication and rights requirements are unchanged.
 3. If the file was already uploaded through the ordinary Movies/Series uploader,
    choose it under **Episode video source**. Confirm that it belongs to this
    Podcast, enter its actual episode number and rights evidence, and select

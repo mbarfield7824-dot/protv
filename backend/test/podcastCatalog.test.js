@@ -66,6 +66,24 @@ test('Show publication is independent of readiness, but episodes need both gates
   assert.equal(isViewerEligible(episode, [movie]), false);
 });
 
+test('Podcast seasons are optional for legacy episodes, validated when supplied and sorted before episode numbers', () => {
+  for (const seasonNumber of [undefined, null, 1, 2]) {
+    assert.equal(validatePodcastEpisodeReference({ ...episode, seasonNumber }, show), show.id);
+  }
+  for (const seasonNumber of [0, -1, 1.5, '2', '', 9007199254740992]) {
+    assert.throws(() => validatePodcastEpisodeReference({ ...episode, seasonNumber }, show), /seasonNumber/);
+  }
+  const result = podcastCatalog([
+    show, { ...episode, id: 's2e1', seasonNumber: 2, episodeNumber: 1 },
+    { ...episode, id: 's1e9', seasonNumber: 1, episodeNumber: 9 },
+    { ...episode, id: 'legacy' },
+    { ...episode, id: 's1e1', seasonNumber: 1, episodeNumber: 1 },
+  ])[0].episodes;
+  assert.deepEqual(result.map(item => item.id), ['legacy', 's1e1', 's1e9', 's2e1']);
+  assert.equal(result[0].seasonNumber, null);
+  assert.equal(result[3].seasonNumber, 2);
+});
+
 test('Podcast projections keep private metadata out; Movies, TV Series and Music retain their behavior', () => {
   const records = [{ ...show, category: 'Music' }, episode, movie, tv, music];
   const items = browse(records);

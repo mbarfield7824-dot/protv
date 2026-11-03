@@ -67,7 +67,7 @@ function podcastCatalog(videos) {
     .map((show) => ({
       ...publicPodcastShow(show),
       episodes: episodes.filter((episode) => episode.podcastShowId === show.id)
-        .sort((left, right) => left.episodeNumber - right.episodeNumber || left.id.localeCompare(right.id)),
+        .sort(episodeOrder),
     }))
     .sort((left, right) => left.id.localeCompare(right.id));
 }

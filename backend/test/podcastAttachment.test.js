@@ -46,7 +46,7 @@ test('attaching manual uploads preserves media and licensing and requires separa
   context.after(() => server.close());
   await new Promise((resolve) => server.once('listening', resolve));
   const metadata = {
-    title: upload.title, podcastShowId: show.id, episodeNumber: 1,
+    title: upload.title, podcastShowId: show.id, seasonNumber: 2, episodeNumber: 1,
     rightsHolder: upload.rightsHolder, rightsVerificationNotes: upload.rightsVerificationNotes,
     confirmed: true,
   };
@@ -61,7 +61,8 @@ test('attaching manual uploads preserves media and licensing and requires separa
   for (const changes of [
     { confirmed: false }, { rightsHolder: '' }, { rightsVerificationNotes: '' },
     { podcastShowId: 'missing' }, { podcastShowId: upload.id }, { episodeNumber: 0 },
-    { episodeNumber: 1.5 }, { approvalStatus: 'approved' }, { muxPlaybackId: 'injected' },
+    { episodeNumber: 1.5 }, { seasonNumber: 0 }, { seasonNumber: 1.5 }, { seasonNumber: '2' },
+    { approvalStatus: 'approved' }, { muxPlaybackId: 'injected' },
   ]) assert.equal((await attach({ ...metadata, ...changes })).status, 400);
   for (const changes of [
     { status: 'processing' }, { muxPlaybackId: '' }, { contentType: 'MUSIC' },
@@ -79,6 +80,7 @@ test('attaching manual uploads preserves media and licensing and requires separa
   assert.equal(result.data.id, upload.id);
   assert.equal(result.data.approvalStatus, 'draft');
   assert.equal(result.data.podcastShowId, show.id);
+  assert.equal(result.data.seasonNumber, 2);
   assert.equal(result.data.podcastAttachedBy, 'admin');
   assert.equal(result.data.podcastPreviousContentType, 'EPISODE');
   for (const key of ['muxPlaybackId', 'muxAssetId', 'muxUploadId', 'duration', 'licenseType', 'rightsEndAt', 'revenueShare', 'releaseStatus']) {

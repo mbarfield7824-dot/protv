@@ -11,7 +11,7 @@ const {
 const SHOW_FIELDS = ['title', 'description', 'artworkUrl', 'host', 'creator', 'category', 'genres'];
 const EPISODE_FIELDS = [
   'title', 'description', 'thumbnailUrl', 'posterUrl', 'category', 'genres',
-  'podcastShowId', 'episodeNumber', 'rightsHolder', 'rightsVerificationNotes',
+  'podcastShowId', 'seasonNumber', 'episodeNumber', 'rightsHolder', 'rightsVerificationNotes',
 ];
 class InputError extends Error {}
 
@@ -63,6 +63,7 @@ function episodeData(body, parent) {
     category: text(body.category, 'category'),
     genres: genres(body.genres),
     podcastShowId: body.podcastShowId,
+    seasonNumber: body.seasonNumber ?? null,
     episodeNumber: body.episodeNumber,
     rightsHolder: text(body.rightsHolder, 'rightsHolder', true),
     rightsVerificationNotes: text(body.rightsVerificationNotes, 'rightsVerificationNotes', true),
@@ -128,7 +129,7 @@ function createAdminPodcastRouter({
     return {
       status: episode.status, approvalStatus: episode.approvalStatus,
       muxUploadId: episode.muxUploadId, muxAssetId: episode.muxAssetId,
-      podcastShowId: episode.podcastShowId, episodeNumber: episode.episodeNumber,
+      podcastShowId: episode.podcastShowId, seasonNumber: episode.seasonNumber, episodeNumber: episode.episodeNumber,
       title: episode.title, rightsHolder: episode.rightsHolder,
       rightsVerificationNotes: episode.rightsVerificationNotes,
     };

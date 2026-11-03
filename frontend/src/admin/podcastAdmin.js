@@ -3,7 +3,7 @@ export const EMPTY_SHOW = {
 };
 export const EMPTY_EPISODE = {
   title: '', description: '', thumbnailUrl: '', posterUrl: '', category: '', genres: '',
-  podcastShowId: '', episodeNumber: '', rightsHolder: '', rightsVerificationNotes: '',
+  podcastShowId: '', seasonNumber: '', episodeNumber: '', rightsHolder: '', rightsVerificationNotes: '',
 };
 
 function genres(value) {
@@ -21,7 +21,7 @@ export function episodeForm(episode, showId = '') {
   if (!episode) return { ...EMPTY_EPISODE, podcastShowId: showId };
   return Object.fromEntries(Object.keys(EMPTY_EPISODE).map((key) => [
     key, key === 'genres' ? genres(episode.genres)
-      : key === 'episodeNumber' ? String(episode.episodeNumber ?? '')
+      : key === 'episodeNumber' || key === 'seasonNumber' ? String(episode[key] ?? '')
         : episode[key] || '',
   ]));
 }
@@ -49,6 +49,10 @@ export function episodePayload(form, shows) {
   if (!/^[1-9]\d*$/.test(String(form.episodeNumber).trim()) || !Number.isSafeInteger(number)) {
     throw new Error('Episode number must be a positive whole number.');
   }
+  const season = String(form.seasonNumber ?? '').trim();
+  if (season && (!/^[1-9]\d*$/.test(season) || !Number.isSafeInteger(Number(season)))) {
+    throw new Error('Season number must be a positive whole number.');
+  }
   return {
     ...fields(form, [
       'title', 'description', 'thumbnailUrl', 'posterUrl', 'category',
@@ -56,6 +60,7 @@ export function episodePayload(form, shows) {
     ]),
     genres: parsedGenres(form.genres),
     podcastShowId: form.podcastShowId,
+    seasonNumber: season ? Number(season) : null,
     episodeNumber: number,
   };
 }

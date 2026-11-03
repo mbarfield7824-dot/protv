@@ -115,6 +115,17 @@ test('Podcast Admin authors draft Shows and Episodes, enforces references and ri
   const episodeId = episode.data.id;
   assert.equal(records.get(episodeId).approvalStatus, 'draft');
   assert.equal(records.get(episodeId).podcastShowId, showId);
+  assert.equal(records.get(episodeId).seasonNumber, null);
+  for (const seasonNumber of [0, -1, 1.5, '2', '', 9007199254740992]) {
+    assert.equal((await request('/episodes', { ...episodeBody, seasonNumber })).status, 400);
+    assert.equal((await request(`/episodes/${episodeId}`, { seasonNumber }, 'PATCH')).status, 400);
+  }
+  assert.equal((await request(`/episodes/${episodeId}`, { seasonNumber: 2 }, 'PATCH')).status, 200);
+  assert.equal(records.get(episodeId).seasonNumber, 2);
+  assert.equal((await request(`/episodes/${episodeId}`, { description: 'Updated description' }, 'PATCH')).status, 200);
+  assert.equal(records.get(episodeId).seasonNumber, 2, 'Unrelated metadata edit preserves the season');
+  assert.equal((await request(`/episodes/${episodeId}`, { seasonNumber: null }, 'PATCH')).status, 200);
+  assert.equal(records.get(episodeId).seasonNumber, null);
   assert.equal((await request(`/episodes/${episodeId}/approve`, {})).status, 400);
   assert.equal((await request(`/episodes/${episodeId}`, { rightsHolder: '' }, 'PATCH')).status, 400);
   assert.equal((await request(`/episodes/${episodeId}`, { approvalStatus: 'approved' }, 'PATCH')).status, 400);

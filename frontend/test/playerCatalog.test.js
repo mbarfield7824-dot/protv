@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  fetchPlayerTitle, normalizePlayerTitle, podcastEpisodePlayerUrl, podcastParentUrl,
+  fetchPlayerTitle, normalizePlayerTitle, podcastEpisodeLabel, podcastEpisodeOrder, podcastEpisodePlayerUrl, podcastParentUrl,
 } from '../src/data/playerCatalog.js';
 import { podcastResultUrl } from '../src/data/podcastCatalog.js';
 
@@ -12,6 +12,19 @@ const episode = {
 };
 const playback = { id: episode.id, streamType: 'on-demand', muxPlaybackId: 'current_mux_id' };
 const response = (payload, status = 200) => ({ ok: status === 200, status, json: async () => payload });
+
+test('Podcast seasons retain legacy labels and order by season before episode', () => {
+  assert.equal(podcastEpisodeLabel(episode), 'Episode 2');
+  assert.equal(podcastEpisodeLabel({ ...episode, seasonNumber: 2 }), 'Season 2 / Episode 2');
+  const records = [
+    { ...episode, id: 's2e1', seasonNumber: 2, episodeNumber: 1 },
+    { ...episode, id: 's1e9', seasonNumber: 1, episodeNumber: 9 },
+    { ...episode, id: 'legacy', seasonNumber: null },
+    { ...episode, id: 's1e1', seasonNumber: 1, episodeNumber: 1 },
+  ];
+  assert.deepEqual(records.sort(podcastEpisodeOrder).map(item => item.id), ['legacy', 's1e1', 's1e9', 's2e1']);
+  assert.equal(normalizePlayerTitle({ ...episode, seasonNumber: 2 }, episode.id).seasonNumber, 2);
+});
 
 test('player normalization retains Podcast identity, parent, metadata, artwork, and Episode number', () => {
   assert.deepEqual(normalizePlayerTitle(episode, episode.id), episode);

@@ -40,12 +40,18 @@ test('Episode selects stable parent ID, validates positive integer, and preserve
   });
   assert.deepEqual(episodePayload(form, shows), {
     title: 'Pilot', description: '', thumbnailUrl: '', posterUrl: '',
-    category: '', genres: [], podcastShowId: 'stable-show-2', episodeNumber: 3,
+    category: '', genres: [], podcastShowId: 'stable-show-2', seasonNumber: null, episodeNumber: 3,
     rightsHolder: 'Producer', rightsVerificationNotes: 'Documentation pending',
   });
   assert.throws(() => episodePayload({ ...form, podcastShowId: 'Old Title' }, shows), /existing Podcast Show/);
   for (const episodeNumber of ['0', '1.5', '-2', 'abc', '9007199254740992']) {
     assert.throws(() => episodePayload({ ...form, episodeNumber }, shows), /positive whole/);
+  }
+  assert.equal(episodePayload({ ...form, seasonNumber: '2' }, shows).seasonNumber, 2);
+  assert.equal(episodeForm({ ...episodePayload(form, shows), seasonNumber: 2 }).seasonNumber, '2');
+  assert.equal(episodeForm({ title: 'Legacy episode' }).seasonNumber, '');
+  for (const seasonNumber of ['0', '1.5', '-2', 'abc', '9007199254740992']) {
+    assert.throws(() => episodePayload({ ...form, seasonNumber }, shows), /Season number.*positive whole/);
   }
 });
 

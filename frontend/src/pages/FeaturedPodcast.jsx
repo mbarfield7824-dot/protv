@@ -5,7 +5,7 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
 import PodcastArtwork from '../components/PodcastArtwork';
 import { FEATURED_PODCAST, episodeRuntime } from '../data/featuredPodcast';
-import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
+import { podcastEpisodeLabel, podcastEpisodePlayerUrl } from '../data/playerCatalog';
 import { useFeaturedPodcast } from '../hooks/useFeaturedPodcast';
 import { useAuth } from '../hooks/useAuth';
 import banner from '../assets/me-and-my-white-friend-banner.png';
@@ -81,7 +81,7 @@ export default function FeaturedPodcast() {
                   </Link>
                   <div className="mmwf-episode__copy">
                     <p className="mmwf-eyebrow">
-                      EPISODE {episode.episodeNumber}
+                      {podcastEpisodeLabel(episode)}
                       {episodeRuntime(episode) && <span> / {episodeRuntime(episode)}</span>}
                     </p>
                     <h3>{episode.title || `Episode ${episode.episodeNumber}`}</h3>

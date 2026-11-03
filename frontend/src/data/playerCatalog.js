@@ -1,5 +1,15 @@
 import { loadWithinDeadline } from '../utils/requestDeadline.js';
 
+export function podcastEpisodeOrder(left, right) {
+  return (left.seasonNumber ?? 0) - (right.seasonNumber ?? 0)
+    || left.episodeNumber - right.episodeNumber
+    || left.id.localeCompare(right.id);
+}
+
+export function podcastEpisodeLabel(episode) {
+  return `${episode.seasonNumber ? `Season ${episode.seasonNumber} / ` : ''}Episode ${episode.episodeNumber}`;
+}
+
 export function podcastEpisodePlayerUrl(episode) {
   if (episode?.contentType !== 'PODCAST_EPISODE' || typeof episode.id !== 'string' || !episode.id) {
     throw new Error('A Podcast Episode ID is required.');

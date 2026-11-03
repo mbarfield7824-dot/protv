@@ -50,6 +50,10 @@ function podcastEpisodeReferenceError(episode, show) {
   if (!Number.isSafeInteger(episode.episodeNumber) || episode.episodeNumber < 1) {
     return 'Podcast episodeNumber must be a positive whole number.';
   }
+  if (episode.seasonNumber != null
+    && (!Number.isSafeInteger(episode.seasonNumber) || episode.seasonNumber < 1)) {
+    return 'Podcast seasonNumber must be a positive whole number when provided.';
+  }
   return null;
 }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { api } from '../api';
-import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
+import { podcastEpisodeLabel, podcastEpisodePlayerUrl } from '../data/playerCatalog';
 import { safetyReportUrl } from '../data/safetyReports';
 import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import ProTVShell from '../components/ProTVShell';
@@ -96,7 +96,7 @@ export default function PodcastShow() {
                     <li key={episode.id} className="podcasts-episode">
                       {episode.thumbnailUrl && <img src={episode.thumbnailUrl} alt="" loading="lazy" />}
                       <div>
-                        <p className="movies-page__eyebrow">Episode {episode.episodeNumber}</p>
+                        <p className="movies-page__eyebrow">{podcastEpisodeLabel(episode)}</p>
                         <h3>{episode.title}</h3>
                         {episode.description && <p>{episode.description}</p>}
                         <Link className="movies-state__action" to={podcastEpisodePlayerUrl(episode)}

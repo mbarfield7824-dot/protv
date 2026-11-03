@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
 import { api } from '../api';
-import { podcastParentUrl } from '../data/playerCatalog';
+import { podcastEpisodeLabel, podcastParentUrl } from '../data/playerCatalog';
 import { createPlaybackTracker, getOrCreatePlaybackGuestId } from '../data/playbackTracking';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
@@ -344,7 +344,7 @@ export default function Player() {
             {isPodcast && (
               <>
                 <Link className="player-back" to={podcastParentUrl(video.podcastShowId)}>Return to Show</Link>
-                <p className="episode-position">Podcast Episode {video.episodeNumber}</p>
+                <p className="episode-position">Podcast {podcastEpisodeLabel(video)}</p>
               </>
             )}
             {isEpisode && video.seriesTitle && <p className="episode-series">{video.seriesTitle}</p>}
