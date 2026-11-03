@@ -7,11 +7,13 @@ import PodcastArtwork from '../components/PodcastArtwork';
 import { FEATURED_PODCAST, episodeRuntime } from '../data/featuredPodcast';
 import { podcastEpisodePlayerUrl } from '../data/playerCatalog';
 import { useFeaturedPodcast } from '../hooks/useFeaturedPodcast';
+import { useAuth } from '../hooks/useAuth';
 import banner from '../assets/me-and-my-white-friend-banner.png';
 import '../styles/FeaturedPodcast.css';
 
 export default function FeaturedPodcast() {
   const { show, episodes, loading, error, refresh } = useFeaturedPodcast();
+  const { isAdmin } = useAuth();
   const { hash } = useLocation();
   useEffect(() => {
     if (hash === '#episodes' || hash === '#about-the-podcast') {
@@ -54,6 +56,9 @@ export default function FeaturedPodcast() {
             <div><p className="mmwf-eyebrow">PULL UP A CHAIR</p><h2 id="episodes-title">The Episodes</h2></div>
             <span className="mmwf-section-label">ME AND MY WHITE FRIEND</span>
           </div>
+          {isAdmin && <p className="mmwf-admin-link">
+            <Link className="ptv-btn ptv-btn--ghost" to="/admin#mmwf">Manage / Upload Episodes</Link>
+          </p>}
           {loading ? (
             <div className="mmwf-episode-state" role="status">Finding published episodes...</div>
           ) : error ? (

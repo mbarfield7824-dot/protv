@@ -1,11 +1,11 @@
 const express = require('express');
 const {
-  addVideo, getVideoById, updateVideo, updateVideoApproval, updatePodcastIngestion, VideoNotFoundError,
+  addVideo, getVideoById, updateVideo, updateVideoApproval, updatePodcastIngestion, attachManualPodcastUpload, VideoNotFoundError,
 } = require('../firebase');
 const { verifyAdmin } = require('../middleware/auth');
 const { createDirectUpload, createAssetFromUrl } = require('../mux');
 const {
-  PODCAST_SHOW, PODCAST_EPISODE, validatePodcastEpisodeReference,
+  PODCAST_SHOW, PODCAST_EPISODE, validatePodcastEpisodeReference, PodcastAttachmentError,
 } = require('./podcasts');
 
 const SHOW_FIELDS = ['title', 'description', 'artworkUrl', 'host', 'creator', 'category', 'genres'];
@@ -80,7 +80,7 @@ function isMissing(error) {
 }
 
 function createAdminPodcastRouter({
-  store = { addVideo, getVideoById, updateVideo, updateVideoApproval, updatePodcastIngestion },
+  store = { addVideo, getVideoById, updateVideo, updateVideoApproval, updatePodcastIngestion, attachManualPodcastUpload },
   media = { createDirectUpload, createAssetFromUrl },
   authorize = verifyAdmin,
 } = {}) {
@@ -117,7 +117,7 @@ function createAdminPodcastRouter({
   }
 
   function respondError(res, error) {
-    if (error instanceof InputError) {
+    if (error instanceof InputError || error instanceof PodcastAttachmentError) {
       return res.status(400).json({ error: error.message });
     }
     console.error('Podcast Admin operation failed:', error);
@@ -133,6 +133,19 @@ function createAdminPodcastRouter({
       rightsVerificationNotes: episode.rightsVerificationNotes,
     };
   }
+
+  router.post('/episodes/:id/attach-upload', async (req, res) => {
+    try {
+      requireFields(req.body, [...EPISODE_FIELDS, 'confirmed']);
+      if (req.body.confirmed !== true) throw new InputError('Confirm that this uploaded video belongs to the selected Podcast Show.');
+      const data = episodeData(req.body, await parentFor(req.body.podcastShowId));
+      const episode = await store.attachManualPodcastUpload(req.params.id, data, req.user.uid);
+      return res.json(episode);
+    } catch (error) {
+      if (isMissing(error)) return res.status(404).json({ error: 'Uploaded video not found.' });
+      return respondError(res, error);
+    }
+  });
 
   router.post('/shows', async (req, res) => {
     try {

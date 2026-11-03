@@ -75,6 +75,15 @@ export function isPodcast(video) {
   return video.contentType === 'PODCAST_SHOW' || video.contentType === 'PODCAST_EPISODE';
 }
 
+export function isManualPodcastUpload(video) {
+  return ['MOVIE', 'EPISODE'].includes(video.contentType)
+    && video.status === 'ready'
+    && typeof video.muxPlaybackId === 'string' && Boolean(video.muxPlaybackId.trim())
+    && !video.muxPlaybackId.startsWith('demo-playback')
+    && video.muxPlaybackPolicy !== 'signed'
+    && !Object.keys(video).some((key) => key.startsWith('creator') && key !== 'creator' && video[key]);
+}
+
 export function episodeAfterShowSave(draft, showId) {
   return draft.podcastShowId ? draft : { ...draft, podcastShowId: showId };
 }

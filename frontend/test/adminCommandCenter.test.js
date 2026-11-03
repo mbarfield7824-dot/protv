@@ -57,7 +57,7 @@ async function settle() {
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
 }
 
-async function mount(value = auth) {
+async function mount(value = auth, { catalog = [], entry = '/admin' } = {}) {
   await act(async () => root?.unmount());
   document.body.innerHTML = '<div id="root"></div>';
   requests = [];
@@ -68,7 +68,7 @@ async function mount(value = auth) {
     api[name] = async () => { requests.push(name); return status; };
   }
   for (const name of ['getAdminAllVideos', 'getAdminBotAudit', 'getDistributorIngestionAudit']) {
-    api[name] = async () => { requests.push(name); return []; };
+    api[name] = async () => { requests.push(name); return name === 'getAdminAllVideos' ? catalog : []; };
   }
   api.getPublicDomainCandidates = async () => ({
     items: [], status: { pending: 0, processing: 0, failed: 0 }, discovery: status,
@@ -76,7 +76,7 @@ async function mount(value = auth) {
   api.getAdminSafetyReports = async () => ({ items: [], nextCursor: null });
   root = createRoot(document.getElementById('root'));
   await act(async () => root.render(
-    React.createElement(MemoryRouter, { initialEntries: ['/admin'] },
+    React.createElement(MemoryRouter, { initialEntries: [entry] },
       React.createElement(AuthContext.Provider, { value }, React.createElement(Admin)))
   ));
   await settle();
@@ -132,6 +132,7 @@ test('every destination opens its existing tool, including all upload workflows'
     ['Catalog & Metadata', '.catalog-editor'],
     ['Series & Seasons', '.admin-form'],
     ['Shows & Episodes', '.podcast-admin'],
+    ['Me and My White Friend', '.podcast-admin'],
     ['Public Domain Discovery', '.admin-bot-panel'],
     ['Distributor Feed', '.admin-bot-panel'],
     ['Safety Reports', '.safety-queue'],
@@ -156,6 +157,87 @@ test('every destination opens its existing tool, including all upload workflows'
   assert.equal(document.querySelector('.admin-content-form').closest('[hidden]'), null);
   await click('Upload File', document.querySelector('[aria-label="Upload method"]'));
   assert.ok(document.querySelector('label:not([hidden]) input[type="file"]'));
+});
+
+function labeledField(form, label) {
+  const element = [...form.querySelectorAll('label')].find((item) => item.textContent.startsWith(label));
+  assert.ok(element, `Missing field: ${label}`);
+  return element.querySelector('input, select, textarea');
+}
+
+async function change(field, value) {
+  await act(async () => {
+    const prototype = field.tagName === 'SELECT' ? window.HTMLSelectElement.prototype
+      : field.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(field, value);
+    field.dispatchEvent(new window.Event(field.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+  });
+  await settle();
+}
+
+test('featured hash opens prefilled official Show draft, without creating or publishing records', async () => {
+  await mount(auth, { entry: '/admin#mmwf' });
+  assert.equal(workspace().getAttribute('aria-label'), 'Me and My White Friend');
+  const form = document.querySelector('.podcast-admin-show-form');
+  assert.equal(labeledField(form, 'Title').value, 'Me and My White Friend');
+  assert.equal(labeledField(form, 'Host').value, 'Reg and Marv');
+  assert.match(labeledField(form, 'Description').value, /Different backgrounds. Real conversations/);
+  assert.match(labeledField(form, 'Show artwork URL').value, /me-and-my-white-friend-banner.png/);
+  assert.equal(labeledField(form, 'Title').readOnly, true);
+  assert.equal(document.querySelector('.podcast-admin-episode-form'), null);
+  assert.deepEqual(requests, ['getAdminAllVideos']);
+});
+
+test('featured workspace attaches a selected existing upload only on confirmation, then exposes explicit approval', async () => {
+  const show = {
+    id: 'real-show', contentType: 'PODCAST_SHOW', title: 'Me and My White Friend',
+    description: 'Actual show', host: 'Reg and Marv', category: 'Podcasts', approvalStatus: 'approved',
+  };
+  const upload = {
+    id: 'real-upload', contentType: 'EPISODE', title: 'Actual uploaded title',
+    status: 'ready', muxPlaybackId: 'real-playback', approvalStatus: 'approved',
+    rightsHolder: 'Producer', rightsVerificationNotes: 'Reviewed actual permission',
+  };
+  const catalog = [show, upload, { ...upload, id: 'protected-upload', creatorProjectId: 'portal' }];
+  await mount(auth, { entry: '/admin#mmwf', catalog });
+  let attachments = 0;
+  let approvals = 0;
+  api.attachPodcastUpload = async (id, body) => {
+    attachments += 1;
+    assert.equal(id, upload.id);
+    assert.equal(body.confirmed, true);
+    assert.equal(body.podcastShowId, show.id);
+    assert.equal(body.episodeNumber, 3);
+    assert.equal(body.title, upload.title);
+    const converted = { ...upload, ...body, contentType: 'PODCAST_EPISODE', approvalStatus: 'draft' };
+    catalog.splice(1, 1, converted);
+    return converted;
+  };
+  api.approvePodcastEpisode = async (id) => {
+    approvals += 1;
+    assert.equal(id, upload.id);
+    catalog[1] = { ...catalog[1], approvalStatus: 'approved' };
+    return catalog[1];
+  };
+  let form = document.querySelector('.podcast-admin-episode-form');
+  const picker = labeledField(form, 'Episode video source');
+  assert.equal(picker.querySelector('option[value="protected-upload"]'), null);
+  await change(picker, upload.id);
+  assert.equal(labeledField(form, 'Episode title').value, upload.title);
+  assert.equal(labeledField(form, 'Rights holder').value, upload.rightsHolder);
+  assert.equal(form.querySelector('button[type="submit"]').disabled, true);
+  await change(labeledField(form, 'Episode number'), '3');
+  await act(async () => form.querySelector('input[type="checkbox"]').click());
+  assert.equal(form.querySelector('button[type="submit"]').disabled, false);
+  await click('Attach Uploaded Video as Draft', form);
+  assert.equal(attachments, 1);
+  assert.equal(approvals, 0);
+  assert.equal(catalog[1].approvalStatus, 'draft');
+  form = document.querySelector('.podcast-admin-episode-form');
+  assert.equal(form.querySelector('select option[value="real-upload"]'), null);
+  await click('Approve Episode', form);
+  assert.equal(approvals, 1);
+  assert.equal(catalog[1].approvalStatus, 'approved');
 });
 
 test('switching sections preserves mounted tool drafts and upload file selection', async () => {

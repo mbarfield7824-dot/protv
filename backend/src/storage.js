@@ -125,6 +125,18 @@ function updatePodcastIngestion(id, expected, updates) {
   return true;
 }
 
+function attachManualPodcastUpload(id, metadata, actor) {
+  const { manualPodcastAttachment } = require('./catalog/podcasts');
+  const videos = loadVideos();
+  if (!videos[id]) throw new Error('Video not found');
+  const changes = manualPodcastAttachment(
+    { ...videos[id], id }, { ...videos[metadata.podcastShowId], id: metadata.podcastShowId }, metadata, actor
+  );
+  videos[id] = { ...videos[id], ...changes };
+  saveVideos(videos);
+  return { ...videos[id], id };
+}
+
 function deleteVideo(id) {
   const videos = loadVideos();
   if (!videos[id]) {
@@ -207,6 +219,7 @@ module.exports = {
   createCreatorVideo,
   updateVideo,
   updatePodcastIngestion,
+  attachManualPodcastUpload,
   deleteVideo,
   updateVideoApproval,
   getAllVideosAdmin,

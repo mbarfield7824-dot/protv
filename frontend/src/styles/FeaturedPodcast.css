@@ -188,6 +188,8 @@
   letter-spacing: 0.12em;
 }
 
+.mmwf-admin-link { margin-bottom: 20px !important; }
+
 .mmwf-episode-state {
   padding: 32px;
   border: 1px solid var(--protv-border);

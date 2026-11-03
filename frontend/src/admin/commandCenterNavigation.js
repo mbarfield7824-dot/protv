@@ -9,6 +9,7 @@ export const ADMIN_GROUPS = [
     { mode: 'bulk', label: 'Series & Seasons', description: 'Upload a season with per-episode titles and numbering.' },
   ] },
   { title: 'Podcasts', items: [
+    { mode: 'mmwf', label: 'Me and My White Friend', description: 'Upload Reg and Marv episodes or attach an existing upload to the featured Podcast.' },
     { mode: 'podcasts', label: 'Shows & Episodes', description: 'Manage Podcast Shows, Episode drafts and publishing.' },
   ] },
   { title: 'Discovery', items: [

@@ -269,6 +269,7 @@ export const api = {
   approvePodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/approve`, { method: 'POST', body: {} }),
   unpublishPodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),
   createPodcastEpisode: (data) => podcastRequest('episodes', { method: 'POST', body: data }),
+  attachPodcastUpload: (id, data) => podcastRequest(`episodes/${encodeURIComponent(id)}/attach-upload`, { method: 'POST', body: data }),
   editPodcastEpisode: (id, data) => podcastRequest(`episodes/${encodeURIComponent(id)}`, { method: 'PATCH', body: data }),
   approvePodcastEpisode: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/approve`, { method: 'POST', body: {} }),
   unpublishPodcastEpisode: (id) => podcastRequest(`episodes/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),

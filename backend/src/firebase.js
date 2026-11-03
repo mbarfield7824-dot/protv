@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 const path = require('path');
-const { podcastIngestionMatches } = require('./catalog/podcasts');
+const { podcastIngestionMatches, manualPodcastAttachment } = require('./catalog/podcasts');
 
 // Vercel supplies the credential as a protected JSON environment variable;
 // local development keeps using the ignored credential file.
@@ -263,6 +263,22 @@ async function updatePodcastIngestion(videoId, expected, updates) {
   }
 }
 
+async function attachManualPodcastUpload(videoId, metadata, actor) {
+  if (!db) return localVideoStorage().attachManualPodcastUpload(videoId, metadata, actor);
+  return db.runTransaction(async (transaction) => {
+    const ref = db.collection('videos').doc(videoId);
+    const parentRef = db.collection('videos').doc(metadata.podcastShowId);
+    const snapshot = await transaction.get(ref);
+    const parent = await transaction.get(parentRef);
+    if (!snapshot.exists) throw new VideoNotFoundError('Video not found');
+    const video = { ...snapshot.data(), id: snapshot.id };
+    const show = parent.exists ? { ...parent.data(), id: parent.id } : null;
+    const changes = manualPodcastAttachment(video, show, metadata, actor);
+    transaction.update(ref, changes);
+    return { ...video, ...changes };
+  });
+}
+
 async function deleteVideo(videoId) {
   if (!db) {
     return localVideoStorage().deleteVideo(videoId);
@@ -464,6 +480,7 @@ module.exports = {
   getVideoById,
   updateVideo,
   updatePodcastIngestion,
+  attachManualPodcastUpload,
   deleteVideo,
   getVideoByUploadId,
   getVideoByAssetId,

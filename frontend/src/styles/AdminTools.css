@@ -43,6 +43,17 @@
 }
 
 .admin-command__workspace .admin-subtitle { margin: 0; }
+.admin-command__workspace .podcast-admin-show-settings > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--protv-electric-blue);
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-command__workspace .podcast-admin-show-settings > summary:focus-visible {
+  outline: 2px solid var(--protv-electric-blue);
+  outline-offset: 3px;
+}
 .admin-command__workspace .admin-video-id { color: var(--protv-muted) !important; }
 .admin-command__workspace a { color: var(--protv-electric-blue); }
 

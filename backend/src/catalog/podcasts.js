@@ -1,6 +1,31 @@
 const PODCAST_SHOW = 'PODCAST_SHOW';
 const PODCAST_EPISODE = 'PODCAST_EPISODE';
 
+class PodcastAttachmentError extends Error {}
+
+function manualPodcastAttachment(video, show, metadata, actor) {
+  const fail = (message) => { throw new PodcastAttachmentError(message); };
+  if (!show || show.contentType !== PODCAST_SHOW) fail('Select an existing Podcast Show.');
+  if (!video || !['MOVIE', 'EPISODE'].includes(video.contentType)
+    || Object.keys(video).some((key) => key.startsWith('creator') && key !== 'creator' && video[key])
+    || video.muxPlaybackPolicy === 'signed') {
+    fail('Only ordinary manual movie or TV uploads can be attached. Creator Portal content must use its existing publishing workflow.');
+  }
+  if (video.status !== 'ready' || typeof video.muxPlaybackId !== 'string'
+    || !video.muxPlaybackId.trim() || video.muxPlaybackId.startsWith('demo-playback')) {
+    fail('Wait for the uploaded video to finish processing before attaching it.');
+  }
+  validatePodcastEpisodeReference({ contentType: PODCAST_EPISODE, ...metadata }, show);
+  return {
+    ...metadata,
+    contentType: PODCAST_EPISODE,
+    approvalStatus: 'draft', approvedAt: null, approvedBy: null, approvalNotes: '',
+    podcastAttachedBy: actor,
+    podcastAttachedAt: new Date().toISOString(),
+    podcastPreviousContentType: video.contentType,
+  };
+}
+
 function podcastIngestionMatches(record, expected) {
   return record?.contentType === PODCAST_EPISODE
     && Object.entries(expected).every(([key, value]) => (record[key] ?? null) === (value ?? null));
@@ -53,6 +78,8 @@ function publicPodcastShow(show) {
 }
 
 module.exports = {
+  PodcastAttachmentError,
+  manualPodcastAttachment,
   PODCAST_SHOW,
   PODCAST_EPISODE,
   podcastIngestionMatches,

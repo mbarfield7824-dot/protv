@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import AdminCommandCenter, { AdminShell } from '../admin/AdminCommandCenter';
 import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
@@ -21,8 +22,9 @@ const BULK_UPLOAD_CONCURRENCY = 3;
 
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
-  const [mode, setMode] = useState('overview');
-  const [visitedModes, setVisitedModes] = useState([]);
+  const { hash } = useLocation();
+  const [mode, setMode] = useState(hash === '#mmwf' ? 'mmwf' : 'overview');
+  const [visitedModes, setVisitedModes] = useState(hash === '#mmwf' ? ['mmwf'] : []);
   const [resetVersion, setResetVersion] = useState(0);
   const [form, setForm] = useState({
     title: '',
@@ -56,9 +58,10 @@ export default function Admin() {
   const [error, setError] = useState('');
   const [manualUploadDraft, setManualUploadDraft] = useState(null);
   const [contentSubmitting, setContentSubmitting] = useState(false);
+  const [podcastBusy, setPodcastBusy] = useState(false);
   const pollRef = useRef(null);
   const bulkPollRef = useRef(null);
-  const uploadActive = contentSubmitting || ['uploading', 'processing'].includes(status)
+  const uploadActive = podcastBusy || contentSubmitting || ['uploading', 'processing'].includes(status)
     || (status === 'bulk-uploading' && bulkUploads.some((upload) => !['ready', 'errored'].includes(upload.status)));
 
   useEffect(() => {
@@ -545,6 +548,14 @@ export default function Admin() {
             ))}
           </nav>
         )}
+        {['file', 'url', 'add-content'].includes(mode) && (
+          <div className="admin-reference-notice">
+            Uploading Reg and Marv?{' '}
+            <button type="button" className="admin-secondary" disabled={uploadActive}
+              onClick={() => selectMode('mmwf')}>Open Me and My White Friend uploads</button>
+            <p>Use the Podcast workspace so episodes are connected to the featured page, not Movies or TV Series.</p>
+          </div>
+        )}
 
         {visitedModes.some((item) => item === 'file' || item === 'url') && (
           <form
@@ -974,7 +985,8 @@ export default function Admin() {
           <div hidden={mode !== 'review-content'}><AdminContentReview /></div>
         )}
         {visitedModes.includes('edit-catalog') && <div hidden={mode !== 'edit-catalog'}><AdminCatalogEditor /></div>}
-        {visitedModes.includes('podcasts') && <div hidden={mode !== 'podcasts'}><AdminPodcasts /></div>}
+        {visitedModes.includes('podcasts') && <div hidden={mode !== 'podcasts'}><AdminPodcasts onBusyChange={setPodcastBusy} /></div>}
+        {visitedModes.includes('mmwf') && <div hidden={mode !== 'mmwf'}><AdminPodcasts featured onBusyChange={setPodcastBusy} /></div>}
         {visitedModes.includes('safety-reports') && <div hidden={mode !== 'safety-reports'}><AdminSafetyReports /></div>}
         {visitedModes.includes('account-deletion-requests') && <div hidden={mode !== 'account-deletion-requests'}><AdminAccountDeletionRequests /></div>}
         {visitedModes.includes('admin-bot') && <div hidden={mode !== 'admin-bot'}><AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} /></div>}

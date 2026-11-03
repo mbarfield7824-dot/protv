@@ -3,11 +3,14 @@ import { api } from '../api';
 import {
   createPodcastReconciler, episodeActions, episodeAfterShowSave, episodeForm, episodePayload, mergeEpisodeStatus,
   recoverPodcastConflict, showForm, showPayload,
+  isManualPodcastUpload,
 } from '../admin/podcastAdmin';
+import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
+import banner from '../assets/me-and-my-white-friend-banner.png';
 
 const MAX_POLLS = 45;
 
-export default function AdminPodcasts() {
+export default function AdminPodcasts({ featured = false, onBusyChange }) {
   const [catalog, setCatalog] = useState([]);
   const [selectedShowId, setSelectedShowId] = useState('');
   const [selectedEpisodeId, setSelectedEpisodeId] = useState('');
@@ -22,10 +25,18 @@ export default function AdminPodcasts() {
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
+  const [attachmentId, setAttachmentId] = useState('');
+  const [attachmentConfirmed, setAttachmentConfirmed] = useState(false);
   const busy = useRef(false);
   const pollTimer = useRef(null);
   const reconciler = useRef(createPodcastReconciler());
   const active = useRef(true);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    onBusyChange?.(Boolean(pending || processing));
+    return () => onBusyChange?.(false);
+  }, [pending, processing, onBusyChange]);
 
   const refresh = useCallback(async () => {
     const records = await api.getAdminAllVideos();
@@ -34,6 +45,20 @@ export default function AdminPodcasts() {
     if (active.current) {
       setCatalog(records);
       setStale(false);
+      if (featured && !initialized.current) {
+        const matches = records.filter(isFeaturedPodcast);
+        if (matches.length > 1) throw new Error('Multiple Me and My White Friend Shows exist. Resolve the duplicate Show identity before attaching episodes.');
+        initialized.current = true;
+        const show = matches[0];
+        setSelectedShowId(show?.id || '');
+        setShowDraft(show ? showForm(show) : showForm({
+          title: FEATURED_PODCAST.title,
+          description: [FEATURED_PODCAST.tagline, ...FEATURED_PODCAST.description].join('\n\n'),
+          host: FEATURED_PODCAST.hosts, category: 'Podcasts', genres: ['Conversation'],
+          artworkUrl: new URL(banner, window.location.origin).href,
+        }));
+        setEpisodeDraft(episodeForm(null, show?.id));
+      }
       if (recovered.PODCAST_SHOW) {
         setSelectedShowId(recovered.PODCAST_SHOW.id);
         setShowDraft(showForm(recovered.PODCAST_SHOW));
@@ -41,11 +66,13 @@ export default function AdminPodcasts() {
       }
       if (recovered.PODCAST_EPISODE) {
         setSelectedEpisodeId(recovered.PODCAST_EPISODE.id);
+        setAttachmentId('');
+        setAttachmentConfirmed(false);
         setEpisodeDraft(episodeForm(recovered.PODCAST_EPISODE));
       }
     }
     return records;
-  }, []);
+  }, [featured]);
 
   useEffect(() => {
     active.current = true;
@@ -63,7 +90,9 @@ export default function AdminPodcasts() {
     };
   }, [refresh]);
 
-  const shows = catalog.filter((item) => item.contentType === 'PODCAST_SHOW');
+  const allShows = catalog.filter((item) => item.contentType === 'PODCAST_SHOW');
+  const shows = featured ? allShows.filter(isFeaturedPodcast) : allShows;
+  const manualUploads = catalog.filter(isManualPodcastUpload);
   const selectedShow = shows.find((item) => item.id === selectedShowId);
   const episodes = catalog.filter((item) =>
     item.contentType === 'PODCAST_EPISODE' && item.podcastShowId === selectedShowId
@@ -77,6 +106,8 @@ export default function AdminPodcasts() {
   const selectShow = (show) => {
     window.clearTimeout(pollTimer.current);
     setProcessing('');
+    setAttachmentId('');
+    setAttachmentConfirmed(false);
     setFile(null);
     setSourceUrl('');
     setProgress(0);
@@ -90,6 +121,8 @@ export default function AdminPodcasts() {
   const selectEpisode = (episode) => {
     window.clearTimeout(pollTimer.current);
     setProcessing('');
+    setAttachmentId('');
+    setAttachmentConfirmed(false);
     setSelectedEpisodeId(episode?.id || '');
     setEpisodeDraft(episodeForm(episode, selectedShowId));
     setProgress(0);
@@ -162,6 +195,10 @@ export default function AdminPodcasts() {
 
   const saveEpisode = () => run('Save Episode draft', async () => {
     const payload = episodePayload(episodeDraft, shows);
+    if (attachmentId) {
+      if (!attachmentConfirmed) throw new Error('Confirm the selected upload belongs to this Podcast before attaching it.');
+      return api.attachPodcastUpload(attachmentId, { ...payload, confirmed: true });
+    }
     const id = reconciler.current.idFor('PODCAST_EPISODE', selectedEpisodeId);
     return id
       ? api.editPodcastEpisode(id, payload)
@@ -172,6 +209,8 @@ export default function AdminPodcasts() {
     const episode = records.find((item) => item.id === result.id);
     if (!episode) throw new Error('Saved Episode not found in Admin catalog.');
     setSelectedEpisodeId(episode.id);
+    setAttachmentId('');
+    setAttachmentConfirmed(false);
     setEpisodeDraft(episodeForm(episode));
     if (episode.podcastShowId !== selectedShowId) {
       setSelectedShowId(episode.podcastShowId);
@@ -283,7 +322,7 @@ export default function AdminPodcasts() {
   return (
     <section className="podcast-admin">
       <div className="podcast-admin-heading">
-        <h2>Podcast Shows &amp; Episodes</h2>
+        <h2>{featured ? 'Me and My White Friend - Episode Manager' : 'Podcast Shows & Episodes'}</h2>
         <button type="button" className="admin-refresh-btn" disabled={Boolean(pending)}
           onClick={() => {
             setError('');
@@ -295,11 +334,21 @@ export default function AdminPodcasts() {
       {loading && <p role="status">Loading protected Admin catalog...</p>}
       {error && <p className="admin-error" role="alert">{error}</p>}
       {notice && <p className="admin-success" role="status">{notice}</p>}
+      {featured && <div className="admin-tool-intro">
+        <p><strong>Reg and Marv: upload here to appear on the featured Podcast page.</strong></p>
+        <ol>
+          <li>{selectedShow ? 'Review the Show status below.' : 'Save the prefilled Show draft once.'} Publish the Show when its details are approved.</li>
+          <li>Create an Episode with its title, number and rights evidence. Save it, then upload the video below. Or choose an already-uploaded video.</li>
+          <li>When the video is ready, explicitly approve the Episode. Only approved Episodes under a published Show appear on the website.</li>
+        </ol>
+        <a href={FEATURED_PODCAST.path} target="_blank" rel="noreferrer">View the Podcast page</a>
+        {selectedShow && <p>Show status: <strong>{selectedShow.approvalStatus === 'approved' ? 'Published' : 'Draft - episodes stay hidden'}</strong>. Linked episodes: {episodes.length}.</p>}
+      </div>}
       {!loading && <>
         <div className="podcast-admin-layout">
           <div className="podcast-admin-list">
             <h3>Shows ({shows.length})</h3>
-            <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || processing)} onClick={() => selectShow(null)}>New Show</button>
+            {!featured && <button type="button" className="admin-secondary" disabled={Boolean(pending || stale || processing)} onClick={() => selectShow(null)}>New Show</button>}
             {shows.map((show) => (
               <div key={show.id}>
                 <button type="button" className={`podcast-admin-select ${selectedShowId === show.id ? 'active' : ''}`}
@@ -321,11 +370,13 @@ export default function AdminPodcasts() {
             ))}
           </div>
           <div className="podcast-admin-forms">
+            <details className="podcast-admin-show-settings" open={!featured || selectedShow?.approvalStatus !== 'approved'}>
+              <summary hidden={!featured || !selectedShow}>Show Details &amp; Publishing</summary>
             <form className="admin-form podcast-admin-show-form" onSubmit={(event) => { event.preventDefault(); void saveShow(); }}>
               <fieldset className="podcast-admin-fields" disabled={formsDisabled}>
               <h3>{selectedShowId ? 'Edit Show' : 'Create Show'}</h3>
               {selectedShowId && <p className="admin-subtitle">Stable Show ID: {selectedShowId}</p>}
-              <label>Title<input required value={showDraft.title} onChange={showField('title')} /></label>
+              <label>Title<input required readOnly={featured} value={showDraft.title} onChange={showField('title')} /></label>
               <label>Description<textarea value={showDraft.description} onChange={showField('description')} /></label>
               <label>Show artwork URL<input type="url" value={showDraft.artworkUrl} onChange={showField('artworkUrl')} /></label>
               <div className="admin-form-row">
@@ -349,10 +400,36 @@ export default function AdminPodcasts() {
               <p className="admin-subtitle">Unpublishing a Show hides its Episodes without changing their individual approval status.</p>
               </fieldset>
             </form>
+            </details>
             {(selectedShowId || shows.length > 0) && (
               <form className="admin-form podcast-admin-episode-form" onSubmit={(event) => { event.preventDefault(); void saveEpisode(); }}>
                 <fieldset className="podcast-admin-fields" disabled={formsDisabled}>
                 <h3>{selectedEpisodeId ? 'Edit Episode' : 'Create Episode'}</h3>
+                {!selectedEpisodeId && <div className="admin-reference-notice">
+                  <label>Episode video source
+                    <select value={attachmentId} onChange={(event) => {
+                      const id = event.target.value;
+                      setAttachmentId(id);
+                      setAttachmentConfirmed(false);
+                      const upload = manualUploads.find((item) => item.id === id);
+                      setEpisodeDraft(episodeForm(upload ? {
+                        ...upload, podcastShowId: selectedShowId, episodeNumber: '',
+                        category: 'Podcasts',
+                      } : null, selectedShowId));
+                    }}>
+                      <option value="">Upload a new video after saving this draft</option>
+                      {manualUploads.map((upload) => <option key={upload.id} value={upload.id}>
+                        Already uploaded: {upload.title} ({upload.contentType}) - {upload.id}
+                      </option>)}
+                    </select>
+                  </label>
+                  {attachmentId && <>
+                    <p>This reuses the existing upload and playback ID. It changes that title from Movies / TV Series into a Podcast Episode and resets approval to draft. No reupload or licensing change is made. Existing release restrictions remain.</p>
+                    <label><input type="checkbox" checked={attachmentConfirmed}
+                      onChange={(event) => setAttachmentConfirmed(event.target.checked)} />
+                      I confirm this is an episode of the selected Podcast and want to attach this uploaded video.</label>
+                  </>}
+                </div>}
                 <label>Parent Show
                   <select required value={episodeDraft.podcastShowId} onChange={episodeField('podcastShowId')}>
                     <option value="">Select a Show</option>
@@ -364,6 +441,9 @@ export default function AdminPodcasts() {
                     ? 'The parent Show is published. This Episode also needs its own approval and ready video to appear publicly.'
                     : 'This Show is a draft. Its Episodes remain hidden until the Show is published, even if independently approved.'}
                 </p>
+                {selectedEpisode?.releaseStatus && selectedEpisode.releaseStatus !== 'published' && (
+                  <p role="status">Release status: {selectedEpisode.releaseStatus}. Approval does not remove existing release holds or schedules.</p>
+                )}
                 <div className="admin-form-row">
                   <label>Episode title<input required value={episodeDraft.title} onChange={episodeField('title')} /></label>
                   <label>Episode number<input required min="1" step="1" type="number" value={episodeDraft.episodeNumber} onChange={episodeField('episodeNumber')} /></label>
@@ -381,7 +461,7 @@ export default function AdminPodcasts() {
                 <label>Rights verification notes<textarea required value={episodeDraft.rightsVerificationNotes} onChange={episodeField('rightsVerificationNotes')} /></label>
                 <p className="admin-subtitle">Rights notes document review; they do not independently establish clearance. Changing an approved Episode’s Show or rights resets its approval to draft.</p>
                 <div className="form-actions">
-                  <button className="admin-submit" type="submit" disabled={Boolean(pending || stale)}>{pending || (selectedEpisode?.approvalStatus === 'approved' ? 'Save Metadata' : 'Save Draft')}</button>
+                  <button className="admin-submit" type="submit" disabled={Boolean(pending || stale || (attachmentId && !attachmentConfirmed))}>{pending || (attachmentId ? 'Attach Uploaded Video as Draft' : selectedEpisode?.approvalStatus === 'approved' ? 'Save Metadata' : 'Save Draft')}</button>
                   {selectedEpisode && (selectedEpisode.approvalStatus === 'approved'
                     ? <button type="button" className="admin-secondary admin-button-warning" disabled={Boolean(pending || stale)}
                       onClick={() => void episodeAction('unpublish')}>Unpublish Episode</button>

@@ -2,13 +2,24 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createPodcastReconciler, episodeActions, episodeAfterShowSave, episodeForm, episodePayload,
-  isPodcast, mergeEpisodeStatus, recoverPodcastConflict, showForm, showPayload,
+  isPodcast, isManualPodcastUpload, mergeEpisodeStatus, recoverPodcastConflict, showForm, showPayload,
 } from '../src/admin/podcastAdmin.js';
 
 const shows = [
   { id: 'stable-show-1', title: 'Old Title', contentType: 'PODCAST_SHOW', approvalStatus: 'draft' },
   { id: 'stable-show-2', title: 'Old Title', contentType: 'PODCAST_SHOW', approvalStatus: 'approved' },
 ];
+
+test('attach-existing picker only offers ready ordinary manual uploads', () => {
+  const upload = { contentType: 'EPISODE', status: 'ready', muxPlaybackId: 'actual-id', creator: 'A host' };
+  assert.equal(isManualPodcastUpload(upload), true);
+  assert.equal(isManualPodcastUpload({ ...upload, contentType: 'MOVIE' }), true);
+  for (const change of [
+    { status: 'processing' }, { muxPlaybackId: '' }, { muxPlaybackId: 'demo-playback-test' },
+    { contentType: 'PODCAST_EPISODE' }, { contentType: 'MUSIC' },
+    { creatorProjectId: 'project' }, { creatorEpisodeId: 'episode' }, { muxPlaybackPolicy: 'signed' },
+  ]) assert.equal(isManualPodcastUpload({ ...upload, ...change }), false);
+});
 
 test('Show payload preserves editable metadata but never sends ID or approval', () => {
   const form = showForm({ ...shows[0], description: 'About', genres: ['Culture', 'Music'] });

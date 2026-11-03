@@ -23,6 +23,33 @@ restarting the preview.
 
 ## Catalog and artwork
 
+### Manual website episode uploads
+
+Open **Admin > Podcasts > Me and My White Friend**, or `/admin#mmwf`.
+The regular Upload Content workspace links here, and signed-in administrators
+also see **Manage / Upload Episodes** on the featured Podcast page.
+
+1. If no Show exists, its official title, host, description and supplied artwork
+   are prefilled. Save the Show draft, review it and explicitly publish the Show.
+2. Create an Episode with its actual title, number, rights holder and verification
+   notes. Save the draft, then upload the video in the Episode ingestion panel.
+3. If the file was already uploaded through the ordinary Movies/Series uploader,
+   choose it under **Episode video source**. Confirm that it belongs to this
+   Podcast, enter its actual episode number and rights evidence, and select
+   **Attach Uploaded Video as Draft**. This reclassifies the same record; it
+   preserves its ID, Mux media, duration, licensing fields and release restrictions.
+   The title leaves Movies/TV Series and its approval resets to draft for review.
+   It does not duplicate or reupload media.
+4. Once ready, explicitly **Approve Episode**. The parent Show must also be
+   published. Uploading, saving or attaching never approves either record.
+   Existing release holds/schedules must also allow public availability.
+
+Only ready ordinary manual Movies/TV Episodes can be attached. Creator Portal,
+signed-playback and already-typed Podcast content cannot be converted through
+this shortcut. The backend rechecks the source and parent inside the same
+Firestore transaction. No admin credentials or publishing actions are exposed
+to visitors. Administrator workflow work is locked during active upload/polling.
+
 The feature uses the supplied original PNG and a lossless banner crop removing
 only its surrounding blank margin. No stock or generated imagery is used.
 No separate promotional photographs were supplied; no gallery or invented
@@ -203,3 +230,36 @@ baseline. These automated advisories were not an exploitability assessment.
 The existing large-JavaScript-chunk build warning also remains. The build
 succeeded; dependency remediation needs a separate tested change, not an
 automatic breaking `npm audit fix --force` during this approved design release.
+
+## Admin upload integration follow-up - November 3, 2026
+
+The regular uploader creates Movies or TV Episodes; those records do not have a
+Podcast Show relationship and must not be guessed into the public Podcast list.
+The protected workspace now offers both new Podcast Episode ingestion and
+explicit attachment of an existing ready manual upload. The same catalog ID and
+Mux media are reused, rather than duplicating content. Show settings collapse
+after publication so routine episode uploads remain prominent.
+
+Validation before deployment:
+
+- Production build and frontend lint succeeded.
+- All 151 frontend tests and 10 focused backend Podcast tests passed.
+- All four changed backend modules passed `node --check`.
+- Chromium reviewed desktop 1440px, tablet 768px and mobile 390px/320px layouts.
+  No horizontal overflow or uncaught browser errors occurred.
+- A local-only authenticated fixture rendered the actual Admin components and
+  exercised first-time Show setup, new Episode draft/file upload/readiness,
+  existing-upload selection/confirmation/attachment, and separate approval.
+  The fixture did not authenticate against or write to production.
+- The production-build preview retained six homepage slides, supplied artwork,
+  Coming Soon, and existing movie, series and music pages.
+
+No uploaded title has been selected, reclassified or approved by this code
+release. The administrator must choose the correct upload and confirm its
+relationship, rights evidence and publication on the website. Creator Portal
+content remains on its original signed-agreement/approval path.
+
+Rollback target for this follow-up is the **immediately preceding Podcast
+design release**, `dpl_GEqDVFKyfUtji9kdxu34yn5WUEtg`,
+<https://protv-6pw846mnj-pro-tv1.vercel.app>. Do not use the older initial-launch
+rollback if the intent is only to undo the Admin upload integration.
