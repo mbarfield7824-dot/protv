@@ -265,6 +265,26 @@ export const api = {
   },
 
   createPodcastShow: (data) => podcastRequest('shows', { method: 'POST', body: data }),
+  async getAdminShortLinks(cursor) {
+    const response = await fetch(`${API_URL}/admin/short-links${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { headers: await authenticatedHeaders() });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to load short links.');
+    return result;
+  },
+  async saveAdminShortLink(id, data) {
+    const response = await fetch(`${API_URL}/admin/short-links${id ? `/${encodeURIComponent(id)}` : ''}`, {
+      method: id ? 'PATCH' : 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to save short link.');
+    return result;
+  },
+  async resolveShortLink(slug) {
+    const response = await fetch(`${API_URL}/short-links/resolve/${encodeURIComponent(slug)}?format=json`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Short link not found.');
+    return result;
+  },
   editPodcastShow: (id, data) => podcastRequest(`shows/${encodeURIComponent(id)}`, { method: 'PATCH', body: data }),
   approvePodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/approve`, { method: 'POST', body: {} }),
   unpublishPodcastShow: (id) => podcastRequest(`shows/${encodeURIComponent(id)}/unpublish`, { method: 'POST', body: {} }),

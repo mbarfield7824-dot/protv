@@ -1,4 +1,53 @@
 /* Admin — real movie ingestion page */
+.admin-short-links fieldset {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(65, 105, 225, 0.4);
+  border-radius: 12px;
+}
+
+.admin-short-links input,
+.admin-short-links select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-short-links input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-short-links .short-link-active {
+  flex-direction: row;
+  align-items: center;
+}
+
+.admin-short-links p {
+  color: #b7c5df;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.short-link-list {
+  display: grid;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+}
+
+.short-link-list li {
+  min-width: 0;
+  padding: 20px;
+  background: #080f20;
+  border: 1px solid #20365f;
+  border-radius: 12px;
+}
+
+.short-link-list a { color: #67b1ff; }
+
 .admin-page {
   min-height: 100vh;
   background: #000;

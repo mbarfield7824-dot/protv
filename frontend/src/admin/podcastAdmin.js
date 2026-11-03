@@ -1,3 +1,5 @@
+import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast.js';
+
 export const EMPTY_SHOW = {
   title: '', description: '', artworkUrl: '', host: '', creator: '', category: '', genres: '',
 };
@@ -12,6 +14,11 @@ function genres(value) {
 
 export function showForm(show) {
   if (!show) return { ...EMPTY_SHOW };
+  if (isFeaturedPodcast(show)) show = {
+    ...show, host: FEATURED_PODCAST.hosts,
+    description: typeof show.description === 'string'
+      ? show.description.replace(/\b(?:Reggie )?Reg and Marv\b/g, FEATURED_PODCAST.hosts) : '',
+  };
   return Object.fromEntries(Object.keys(EMPTY_SHOW).map((key) => [
     key, key === 'genres' ? genres(show.genres) : show[key] || '',
   ]));

@@ -384,6 +384,10 @@ test('Vercel bridge preserves catalog view and search without changing legacy vi
     assert.equal(bridge(catalog, {}), '/api/v1/catalog?view=movies&q=Black+Cinema');
     const legacy = { query: { path: 'videos', view: 'movies' } };
     assert.equal(bridge(legacy, {}), '/api/videos');
+    assert.equal(bridge({ query: { path: 'short-links/resolve/MMWF', format: 'json' } }, {}),
+      '/api/short-links/resolve/MMWF?format=json');
+    assert.equal(bridge({ query: { path: 'admin/short-links', cursor: 'mmwf' } }, {}),
+      '/api/admin/short-links?cursor=mmwf');
   } finally {
     delete require.cache[bridgePath];
     if (previousBridge) require.cache[bridgePath] = previousBridge;

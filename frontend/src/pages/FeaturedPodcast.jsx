@@ -29,7 +29,7 @@ export default function FeaturedPodcast() {
             <Link className="mmwf-back" to="/podcasts">← All Podcasts</Link>
             <p className="mmwf-eyebrow">FEATURED ON <span>PROtv</span></p>
             <h1 id="podcast-title">Me and My <br /><span>White Friend</span></h1>
-            <p className="mmwf-hosts">A podcast with <strong>Reg and Marv</strong></p>
+            <p className="mmwf-hosts">A podcast with <strong>{FEATURED_PODCAST.hosts}</strong></p>
             <p className="mmwf-tagline">{FEATURED_PODCAST.tagline}</p>
             <div className="mmwf-hero__actions">
               {episodes.length > 0 ? (
@@ -100,7 +100,7 @@ export default function FeaturedPodcast() {
               <span className="mmwf-coming-soon__mark" aria-hidden="true">▶</span>
               <div><p className="mmwf-eyebrow">THE CONVERSATION IS JUST GETTING STARTED</p>
                 <h3>Episodes Coming Soon</h3>
-                <p>Reg and Marv are coming to PROtv. Published episodes will appear right here. Stay tuned.</p>
+                <p>{FEATURED_PODCAST.hosts} are coming to PROtv. Published episodes will appear right here. Stay tuned.</p>
               </div>
               <span className="mmwf-coming-soon__badge">ON THE HORIZON</span>
             </div>
@@ -112,8 +112,8 @@ export default function FeaturedPodcast() {
             <p className="mmwf-eyebrow">FRIENDSHIP. PERSONALITY. CONNECTION.</p>
             <h2 id="about-podcast-title">Different walks of life.<br /><span>Plenty in common.</span></h2>
             <div className="mmwf-host-card">
-              <span className="mmwf-host-card__initials" aria-hidden="true">R / M</span>
-              <div><p className="mmwf-eyebrow">YOUR HOSTS</p><h3>Reg and Marv</h3></div>
+              <span className="mmwf-host-card__initials" aria-hidden="true">RR / M</span>
+              <div><p className="mmwf-eyebrow">YOUR HOSTS</p><h3>{FEATURED_PODCAST.hosts}</h3></div>
             </div>
           </div>
           <div className="mmwf-about__description">

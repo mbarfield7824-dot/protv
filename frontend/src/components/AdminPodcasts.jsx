@@ -352,7 +352,7 @@ export default function AdminPodcasts({ featured = false, onBusyChange }) {
       {error && <p className="admin-error" role="alert">{error}</p>}
       {notice && <p className="admin-success" role="status">{notice}</p>}
       {featured && <div className="admin-tool-intro">
-        <p><strong>Reg and Marv: upload here to appear on the featured Podcast page.</strong></p>
+        <p><strong>{FEATURED_PODCAST.hosts}: upload here to appear on the featured Podcast page.</strong></p>
         <ol>
           <li>{selectedShow ? 'Review the Show status below.' : 'Save the prefilled Show draft once.'} Publish the Show when its details are approved.</li>
           <li>Create an Episode with its title, number and rights evidence. Save it, then upload the video below. Or choose an already-uploaded video.</li>

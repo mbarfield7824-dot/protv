@@ -1,17 +1,8 @@
 import { loadWithinDeadline } from '../utils/requestDeadline.js';
 import { podcastEpisodeOrder } from './playerCatalog.js';
+import featuredPodcast from '../../../shared/featuredPodcast.json' with { type: 'json' };
 
-export const FEATURED_PODCAST = {
-  title: 'Me and My White Friend',
-  hosts: 'Reg and Marv',
-  path: '/podcast/me-and-my-white-friend',
-  tagline: 'Different backgrounds. Real conversations. One unforgettable friendship.',
-  description: [
-    'Me and My White Friend brings together Reg and Marv for an entertaining podcast built around friendship, personality, and authentic conversation.',
-    "With two unique perspectives and natural chemistry, the hosts bring humor, honesty, and their own experiences to the table. It's a refreshing reminder that even when we come from different walks of life, there's plenty we can laugh about, learn from, and connect over.",
-    'Unfiltered, relatable, and full of personality, Me and My White Friend celebrates the conversations and connections that bring people together.',
-  ],
-};
+export const FEATURED_PODCAST = featuredPodcast;
 
 export function isFeaturedPodcast(show) {
   const normalize = (value) => String(value || '').toLowerCase().replace(/&/g, 'and')

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import BrandSlogan from './BrandSlogan';
 
 const COLUMNS = [
   {
@@ -61,7 +62,7 @@ export default function ProTVFooter() {
     <footer className="ptv-footer">
       <div className="ptv-footer__brand">
         <Link to="/" className="ptv-wordmark ptv-wordmark--footer" aria-label="PROtv home">PRO<span>tv</span></Link>
-        <p>Independent Stories. Unlimited Possibilities.</p>
+        <p><BrandSlogan /></p>
         <small>© {new Date().getFullYear()} PROtv. All rights reserved.</small>
       </div>
       <div className="ptv-footer__cols">

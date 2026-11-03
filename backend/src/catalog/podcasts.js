@@ -1,5 +1,11 @@
 const PODCAST_SHOW = 'PODCAST_SHOW';
 const PODCAST_EPISODE = 'PODCAST_EPISODE';
+const featuredPodcast = require('../../../shared/featuredPodcast.json');
+
+function isFeaturedPodcast(show) {
+  const normalize = (value) => String(value || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+  return show?.contentType === PODCAST_SHOW && normalize(show.title) === normalize(featuredPodcast.title);
+}
 
 class PodcastAttachmentError extends Error {}
 
@@ -72,8 +78,9 @@ function publicPodcastShow(show) {
     id: show.id,
     contentType: PODCAST_SHOW,
     title: show.title,
-    description: typeof show.description === 'string' ? show.description : '',
-    host: typeof show.host === 'string' ? show.host : '',
+    description: typeof show.description === 'string' ? isFeaturedPodcast(show)
+      ? show.description.replace(/\b(?:Reggie )?Reg and Marv\b/g, featuredPodcast.hosts) : show.description : '',
+    host: isFeaturedPodcast(show) ? featuredPodcast.hosts : typeof show.host === 'string' ? show.host : '',
     creator: typeof show.creator === 'string' ? show.creator : '',
     category: typeof show.category === 'string' ? show.category : '',
     genres: Array.isArray(show.genres) ? show.genres.filter((genre) => typeof genre === 'string') : [],
@@ -82,6 +89,7 @@ function publicPodcastShow(show) {
 }
 
 module.exports = {
+  isFeaturedPodcast,
   PodcastAttachmentError,
   manualPodcastAttachment,
   PODCAST_SHOW,

@@ -9,7 +9,7 @@ export const ADMIN_GROUPS = [
     { mode: 'bulk', label: 'Series & Seasons', description: 'Upload a season with per-episode titles and numbering.' },
   ] },
   { title: 'Podcasts', items: [
-    { mode: 'mmwf', label: 'Me and My White Friend', description: 'Upload Reg and Marv episodes or attach an existing upload to the featured Podcast.' },
+    { mode: 'mmwf', label: 'Me and My White Friend', description: 'Upload Reggie Reg and Marv episodes or attach an existing upload to the featured Podcast.' },
     { mode: 'podcasts', label: 'Shows & Episodes', description: 'Manage Podcast Shows, Episode drafts and publishing.' },
   ] },
   { title: 'Discovery', items: [
@@ -23,6 +23,7 @@ export const ADMIN_GROUPS = [
     { mode: 'account-deletion-requests', label: 'Account Deletion Requests', description: 'Track deletion requests and verify the manual deletion runbook.' },
   ] },
   { title: 'Tools', items: [
+    { mode: 'short-links', label: 'Short Links', description: 'Manage memorable creator and content links, activation and sharing.' },
     { mode: 'assistant', label: 'Administrator Assistant', description: 'Ask operational questions and confirm proposed catalog changes.' },
   ] },
 ];

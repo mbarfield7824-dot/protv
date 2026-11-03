@@ -16,7 +16,7 @@ test('featured property matches only the exact official Podcast Show, allowing l
   assert.equal(isFeaturedPodcast({ ...show, title: 'Me and My White Friend Bonus' }), false);
   assert.equal(isFeaturedPodcast({ ...show, contentType: 'EPISODE' }), false);
   assert.equal(isFeaturedPodcast(null), false);
-  assert.equal(FEATURED_PODCAST.hosts, 'Reg and Marv');
+  assert.equal(FEATURED_PODCAST.hosts, 'Reggie Reg and Marv');
   assert.equal(FEATURED_PODCAST.description.length, 3);
 });
 

@@ -13,7 +13,7 @@ export default function CreatorBanner({ imageUrl, stats = [] }) {
         <h2 id="ptv-creator-title">Get your story on <span>PRO<em>tv</em></span></h2>
         <p>
           Are you an independent filmmaker, producer, artist or content creator?{' '}
-          PROtv is looking for independent content to showcase to a growing audience.
+          Bring your work to PROtv, where the fire lives.
         </p>
         <div className="ptv-creator__actions">
           <CreatorPortalButton className="ptv-btn ptv-btn--primary">Submit Your Film <span aria-hidden="true">→</span></CreatorPortalButton>

@@ -5,7 +5,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 300,
-      "includeFiles": "frontend/dist/index.html"
+      "includeFiles": ["frontend/dist/index.html", "frontend/src/assets/me-and-my-white-friend-banner.png"]
     }
   },
   "headers": [
@@ -23,6 +23,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/podcast/me-and-my-white-friend",
+      "destination": "/api/index?path=short-links/featured-page"
+    },
     {
       "source": "/sponsors",
       "destination": "/sponsors/index.html"
@@ -42,6 +46,10 @@
     {
       "source": "/api/:path*",
       "destination": "/api/index?path=:path*"
+    },
+    {
+      "source": "/:slug([A-Za-z0-9][A-Za-z0-9-]{0,63})",
+      "destination": "/api/index?path=short-links/resolve/:slug"
     },
     {
       "source": "/((?!api/|robots\\.txt$|sitemap\\.xml$).*)",

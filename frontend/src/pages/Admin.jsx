@@ -5,6 +5,7 @@ import AdminContentForm from '../components/AdminContentForm';
 import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import AdminPodcasts from '../components/AdminPodcasts';
+import AdminShortLinks from '../components/AdminShortLinks';
 import AdminSafetyReports from '../components/AdminSafetyReports';
 import AdminAccountDeletionRequests from '../components/AdminAccountDeletionRequests';
 import AdminBotPanel from '../components/AdminBotPanel';
@@ -23,8 +24,9 @@ const BULK_UPLOAD_CONCURRENCY = 3;
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
   const { hash } = useLocation();
-  const [mode, setMode] = useState(hash === '#mmwf' ? 'mmwf' : 'overview');
-  const [visitedModes, setVisitedModes] = useState(hash === '#mmwf' ? ['mmwf'] : []);
+  const initialMode = hash === '#mmwf' ? 'mmwf' : hash === '#short-links' ? 'short-links' : 'overview';
+  const [mode, setMode] = useState(initialMode);
+  const [visitedModes, setVisitedModes] = useState(initialMode === 'overview' ? [] : [initialMode]);
   const [resetVersion, setResetVersion] = useState(0);
   const [form, setForm] = useState({
     title: '',
@@ -550,7 +552,7 @@ export default function Admin() {
         )}
         {['file', 'url', 'add-content'].includes(mode) && (
           <div className="admin-reference-notice">
-            Uploading Reg and Marv?{' '}
+            Uploading Reggie Reg and Marv?{' '}
             <button type="button" className="admin-secondary" disabled={uploadActive}
               onClick={() => selectMode('mmwf')}>Open Me and My White Friend uploads</button>
             <p>Use the Podcast workspace so episodes are connected to the featured page, not Movies or TV Series.</p>
@@ -992,6 +994,7 @@ export default function Admin() {
         {visitedModes.includes('admin-bot') && <div hidden={mode !== 'admin-bot'}><AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} /></div>}
         {visitedModes.includes('distributor-ingestion') && <div hidden={mode !== 'distributor-ingestion'}><DistributorIngestionPanel /></div>}
         {visitedModes.includes('assistant') && <div hidden={mode !== 'assistant'}><AdminAssistantPanel /></div>}
+        {visitedModes.includes('short-links') && <div hidden={mode !== 'short-links'}><AdminShortLinks /></div>}
     </AdminCommandCenter>
   );
 }

@@ -19,6 +19,7 @@ const { createReportRouters } = require('./reports/router');
 const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, posterNotFound } = require('./integrations/creatorPosterStore');
 const { createTitlePosterRouter } = require('./integrations/titlePosterUpload');
 const { createPlaybackRouter } = require('./playback/router');
+const { createShortLinkRouters } = require('./shortLinks/router');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -55,6 +56,9 @@ app.use(`${apiPrefix}/mux`, (req, res, next) => {
 });
 app.use(`${apiPrefix}/v1/catalog`, createCatalogRouter());
 app.use(`${apiPrefix}/admin/podcasts`, createAdminPodcastRouter());
+const shortLinks = createShortLinkRouters();
+app.use(`${apiPrefix}/short-links`, shortLinks.publicRouter);
+app.use(`${apiPrefix}/admin/short-links`, shortLinks.adminRouter);
 app.use(`${apiPrefix}/v1/live`, createLiveRouter());
 app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
 // Mounted before the users router so the existing favorites/progress routes are untouched.

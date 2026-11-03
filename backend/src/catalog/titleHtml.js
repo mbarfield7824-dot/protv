@@ -40,6 +40,7 @@ function titleHtml(template, title) {
     `<meta property="og:title" content="${escapeHtml(name || 'PROtv')}">`,
     `<meta property="og:description" content="${escapeHtml(description)}">`,
     `<meta property="og:url" content="${escapeHtml(canonical)}">`,
+    '<meta property="og:site_name" content="PROtv">',
     '<meta property="og:type" content="video.other">',
     '<meta name="twitter:card" content="summary_large_image">',
     `<meta name="twitter:title" content="${escapeHtml(name || 'PROtv')}">`,
@@ -57,10 +58,11 @@ function titleHtml(template, title) {
   const body = `<div id="root"><main class="title-page"><section class="title-hero"><div class="title-hero__content"><h1>${escapeHtml(name)}</h1><p class="title-description">${escapeHtml(typeof title.description === 'string' ? title.description : '')}</p></div></section></main></div>`
     + `<script id="protv-initial-title" type="application/json">${initialData}</script>`;
   return template
+    .replace(/<meta\s+(?:property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
     .replace(/<meta\s+name="description"[^>]*>\s*/g, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
     .replace(/<title>[^]*?<\/title>/, () => metadata)
     .replace('<div id="root"></div>', () => body);
 }
 
-module.exports = { loadTitleTemplate, titleHtml };
+module.exports = { loadTitleTemplate, titleHtml, escapeHtml };

@@ -4,7 +4,9 @@ module.exports = (req, res) => {
   const path = req.query && req.query.path;
   if (typeof path === 'string') {
     if (path === 'v1/catalog' || path.startsWith('v1/catalog/')
-      || path === 'admin/reports' || path.startsWith('admin/reports/')) {
+      || path === 'admin/reports' || path.startsWith('admin/reports/')
+      || path === 'short-links' || path.startsWith('short-links/')
+      || path === 'admin/short-links' || path.startsWith('admin/short-links/')) {
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(req.query)) {
         if (key === 'path') continue;

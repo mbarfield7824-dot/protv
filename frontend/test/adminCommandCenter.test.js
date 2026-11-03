@@ -74,6 +74,7 @@ async function mount(value = auth, { catalog = [], entry = '/admin' } = {}) {
     items: [], status: { pending: 0, processing: 0, failed: 0 }, discovery: status,
   });
   api.getAdminSafetyReports = async () => ({ items: [], nextCursor: null });
+  api.getAdminShortLinks = async () => ({ items: [], nextCursor: null });
   root = createRoot(document.getElementById('root'));
   await act(async () => root.render(
     React.createElement(MemoryRouter, { initialEntries: [entry] },
@@ -136,6 +137,7 @@ test('every destination opens its existing tool, including all upload workflows'
     ['Public Domain Discovery', '.admin-bot-panel'],
     ['Distributor Feed', '.admin-bot-panel'],
     ['Safety Reports', '.safety-queue'],
+    ['Short Links', '.admin-short-links'],
     ['Administrator Assistant', '.admin-assistant-panel'],
   ];
   for (const [label, selector] of destinations) {
@@ -180,12 +182,59 @@ test('featured hash opens prefilled official Show draft, without creating or pub
   assert.equal(workspace().getAttribute('aria-label'), 'Me and My White Friend');
   const form = document.querySelector('.podcast-admin-show-form');
   assert.equal(labeledField(form, 'Title').value, 'Me and My White Friend');
-  assert.equal(labeledField(form, 'Host').value, 'Reg and Marv');
+  assert.equal(labeledField(form, 'Host').value, 'Reggie Reg and Marv');
   assert.match(labeledField(form, 'Description').value, /Different backgrounds. Real conversations/);
   assert.match(labeledField(form, 'Show artwork URL').value, /me-and-my-white-friend-banner.png/);
   assert.equal(labeledField(form, 'Title').readOnly, true);
   assert.equal(document.querySelector('.podcast-admin-episode-form'), null);
   assert.deepEqual(requests, ['getAdminAllVideos']);
+});
+
+test('short-link Admin supports create, explicit activation, edits, conflict errors and Copy Link', async () => {
+  await mount(auth, { entry: '/admin#short-links' });
+  assert.equal(workspace().getAttribute('aria-label'), 'Short Links');
+  let records = [];
+  const saved = [];
+  api.getAdminShortLinks = async () => ({ items: structuredClone(records), nextCursor: null });
+  api.saveAdminShortLink = async (id, body) => {
+    saved.push({ id, body });
+    const record = { ...body, id: body.slug.toLowerCase(), version: (body.version || 0) + 1 };
+    records = [record]; return record;
+  };
+  await click('Prepare Official /MMWF');
+  const form = document.querySelector('.admin-short-links form');
+  assert.equal(labeledField(form, 'Slug').value, 'MMWF');
+  assert.equal(labeledField(form, 'Internal destination').value, '/podcast/me-and-my-white-friend');
+  assert.equal(form.querySelector('input[type="checkbox"]').checked, true);
+  const submit = async () => {
+    await act(async () => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+    await settle();
+  };
+  await submit();
+  assert.equal(saved[0].id, undefined);
+  assert.equal(saved[0].body.active, true);
+  assert.match(document.body.textContent, /MMWF saved and active/);
+  let copied;
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    writeText: async value => { copied = value; },
+  } });
+  await click('Copy /MMWF');
+  assert.equal(copied, 'https://watchprotv.com/MMWF');
+  await click('Edit /MMWF');
+  await act(async () => form.querySelector('input[type="checkbox"]').click());
+  await submit();
+  assert.equal(saved[1].id, 'mmwf');
+  assert.equal(saved[1].body.version, 1);
+  assert.equal(saved[1].body.active, false);
+  assert.match(document.body.textContent, /MMWF saved as inactive/);
+  api.saveAdminShortLink = async () => { throw new Error('This link changed. Refresh before editing.'); };
+  await submit();
+  assert.match(document.querySelector('[role="alert"]').textContent, /changed. Refresh/);
+  navigator.clipboard.writeText = async () => { throw new Error('Clipboard permission denied'); };
+  await click('Copy /MMWF');
+  assert.match(document.querySelector('[role="alert"]').textContent, /Clipboard permission denied/);
+  await mount({ ...auth, user: null, isAdmin: false }, { entry: '/admin#short-links' });
+  assert.equal(document.querySelector('.admin-short-links'), null);
 });
 
 test('featured workspace attaches a selected existing upload only on confirmation, then exposes explicit approval', async () => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import banner from '../assets/me-and-my-white-friend-banner.png';
 import original from '../assets/me-and-my-white-friend.png';
+import { FEATURED_PODCAST } from '../data/featuredPodcast';
 
 export default function PodcastArtwork({ priority = false }) {
   const [failed, setFailed] = useState(false);
@@ -22,7 +23,7 @@ export default function PodcastArtwork({ priority = false }) {
           }}
         />
       </div>
-      <figcaption><span /> REG &amp; MARV <span /> TWO PERSPECTIVES. ONE FRIENDSHIP.</figcaption>
+      <figcaption><span /> {FEATURED_PODCAST.hosts.toUpperCase()} <span /> TWO PERSPECTIVES. ONE FRIENDSHIP.</figcaption>
     </figure>
   );
 }

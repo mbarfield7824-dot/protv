@@ -3,6 +3,7 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { CreatorPortalButton } from '../components/CreatorExperience';
 import { useAuth } from '../hooks/useAuth';
+import brand from '../../../shared/brand.json';
 import '../styles/Creators.css';
 
 const contentFocus = [
@@ -63,7 +64,7 @@ export default function Creators() {
               </p>
               <p className="creators-hero__supporting">
                 PROtv is looking for independent stories and creators. Share what you make with a platform
-                built around distinctive storytelling.
+                built around distinctive storytelling. {brand.plainTitle}
               </p>
               <div className="creators-hero__actions">
                 <CreatorPortalButton className="creators-button creators-button--primary">

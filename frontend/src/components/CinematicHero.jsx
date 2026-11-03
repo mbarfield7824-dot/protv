@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import BrandSlogan from './BrandSlogan';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { FEATURED_PODCAST } from '../data/featuredPodcast';
@@ -104,7 +105,7 @@ export default function CinematicHero({ brand, titles = [], featuredPodcast = fa
       ) : current.kind === 'brand' ? (
         <div className="ptv-hero__content" key="brand">
           <p className="ptv-hero__kicker">
-            Independent Stories. <strong>Unlimited Possibilities.</strong>
+            <BrandSlogan />
           </p>
           <h1 className="ptv-hero__brand">PRO<span>tv</span></h1>
           <p className="ptv-hero__lede">

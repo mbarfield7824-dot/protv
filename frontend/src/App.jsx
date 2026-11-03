@@ -29,6 +29,7 @@ import FeaturedPodcast from './pages/FeaturedPodcast';
 import SafetyReport from './pages/SafetyReport';
 import Activate from './pages/Activate';
 import AccountDeletion from './pages/AccountDeletion';
+import ShortLink from './pages/ShortLink';
 import { AuthProvider } from './context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import './App.css';
@@ -81,6 +82,7 @@ function App() {
           <Route path="/podcasts/:showId" element={<PodcastShow />} />
           <Route path="/report" element={<SafetyReport />} />
           <Route path="/cartoons" element={<CollectionPage category="Cartoons" />} />
+          <Route path="/:slug" element={<ShortLink />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

@@ -1,0 +1,13 @@
+{
+  "reserved": [
+    "admin", "api", "login", "logout", "signin", "signup", "auth", "activate",
+    "movies", "documentaries", "search", "my-list", "title", "player", "profile",
+    "about", "contact", "faq", "terms", "privacy", "acceptable-use-policy",
+    "dmca-policy", "history", "series", "shows", "creators", "delete-account",
+    "music", "podcasts", "podcast", "report", "cartoons", "sponsors",
+    "assets", "icons", "favicon", "robots", "sitemap", "short-links", "health",
+    "users", "videos", "mux", "posters", "playback", "v1", "admin-bot",
+    "distributor-ingestion", "admin-assistant", "ads", "reports", "settings",
+    "account", "register", "reset-password", "undefined", "null"
+  ]
+}

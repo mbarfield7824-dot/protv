@@ -1,5 +1,6 @@
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BrandSlogan from '../components/BrandSlogan';
 import '../styles/InfoPages.css';
 
 export default function About() {
@@ -9,7 +10,7 @@ export default function About() {
       <main className="info-content">
         <section className="info-hero">
           <p className="info-eyebrow">About PROtv</p>
-          <h1>Built for creators, culture, and community.</h1>
+          <h1>PROtv — <BrandSlogan /></h1>
           <p className="info-lead">
             PROtv is an independent streaming platform built for creators, culture, and community.
           </p>
