@@ -135,3 +135,71 @@ Coming Soon mockup. Three pending videos are not represented as playable.
 - [Catalog logic tests](../frontend/test/featuredPodcast.test.js)
 - [Rendered regression tests](../frontend/test/featuredPodcastPage.test.js)
 - This launch/rollback record.
+
+## Production deployment receipt - November 3, 2026
+
+The approved release is live:
+
+- Podcast: <https://watchprotv.com/podcast/me-and-my-white-friend>
+- Homepage: <https://watchprotv.com/>
+- Deployed release commit: `8267a36b4e158449fd7cb8365fd8fbe559e0db55`
+- Feature implementation commit: `50c4fff9a84c5afda78cedbebfae960d6eda0166`
+- Local branch: `feature/mmwf-podcast-launch`
+- Deployment: `dpl_GEqDVFKyfUtji9kdxu34yn5WUEtg` (READY)
+- Immutable URL: <https://protv-6pw846mnj-pro-tv1.vercel.app>
+- Previous deployment/rollback: `dpl_2nCRMDT8DcoujvXHEyXXsoHgeZBC`
+- Previous production commit: `cac9afc10e9871ac3fc7ca84d6ab3c4283c303bf`
+
+Immediately before release, `origin/main` and the live deployment still matched
+that previous production commit. It is an ancestor of the release, and there
+were no backend, API handler, or Vercel configuration changes. The deployment
+used only committed files in an isolated checkout. The upload manifest was
+checked for credentials and unrelated workspace files. Vercel built with the
+existing production environment and install commands, reached READY with
+`--skip-domain`, then was explicitly promoted to the public site.
+
+Live verification passed:
+
+- Desktop 1440px, tablet 768px, mobile 390px and 320px in Chromium.
+- Actual supplied logo loaded; both original and banner asset URLs returned 200.
+- No horizontal page overflow or clipped mobile hero content.
+- Six homepage slides retained; keyboard selection, next/previous, direct
+  Podcast navigation, mobile hero and Podcast Spotlight passed.
+- Podcast page and About anchor worked, with Episodes Coming Soon displayed
+  and zero playable episode links. The public Podcast catalog remained empty.
+- Existing real movie, series, Music browse and Music detail pages rendered.
+- All 52 public catalog records retained IDs, titles, types, playback IDs,
+  release/approval fields, artwork, runtimes, descriptions and series links
+  compared with the pre-release public snapshot.
+- Homepage, Podcast collection, sponsor page, privacy and account deletion
+  routes returned HTTP 200. No uncaught browser runtime errors occurred.
+
+No episode was ingested, approved or published; no licensing agreements,
+rights records, schedules or revenue shares were altered. No Render service
+was triggered. No Git push was performed, avoiding unrelated deployment
+automations. The branch and all release changes are committed locally.
+Before a future Git-based deployment, integrate this feature into the intended
+release branch so an older `main` build does not remove it.
+
+### Rollback command
+
+Only if a rollback is required, an authorized operator can run:
+
+```powershell
+vercel rollback dpl_2nCRMDT8DcoujvXHEyXXsoHgeZBC --yes --scope pro-tv1
+```
+
+This restores the prior production deployment. Verify the public domain,
+existing movie/series/Music routes and catalog afterward. No data restoration
+is needed for this website-only release. The command was inspected but was
+not executed; production remains on the new approved release.
+
+### Existing dependency warnings
+
+Vercel's clean install reported npm audit advisories in the existing lockfiles:
+root: 14 (9 moderate, 4 high, 1 critical); frontend: 16 (6 moderate, 10 high).
+The lockfiles and dependency versions are unchanged from the prior production
+baseline. These automated advisories were not an exploitability assessment.
+The existing large-JavaScript-chunk build warning also remains. The build
+succeeded; dependency remediation needs a separate tested change, not an
+automatic breaking `npm audit fix --force` during this approved design release.
