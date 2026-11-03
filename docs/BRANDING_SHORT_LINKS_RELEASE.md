@@ -5,6 +5,7 @@
 READY FOR APPROVAL. Not publicly deployed, not pushed, and no production registry
 records seeded. Branch: `feature/brand-short-links`, based on `56cb498`, preserving
 the deployed Podcast collection cleanup, ingestion controls, seasons and uploads.
+Implementation commit: `e4a6a81fc848c9b055d01576c4848c94d96b5026`.
 Upstream `main` remains `cac9afc10e9871ac3fc7ca84d6ab3c4283c303bf`.
 
 The current live rollback deployment is `dpl_DVbjpbrEk1bCa1VdYa4okiY6GqmD`,
@@ -117,6 +118,11 @@ No episodes were published or altered by this assignment.
   Browser review completed with zero uncaught JavaScript errors.
 - Same **55 public catalog IDs** before and after the assignment; no production
   writes or Render triggers.
+- Vercel dry-run packaging from an isolated tracked-only worktree passed:
+  440 source files, including the shared registry/brand definitions, server
+  modules and original PNG. No deployment was created. Private environment
+  files and unrelated untracked applications were absent; the existing tracked
+  frontend environment file contains only the public relative API setting.
 
 The existing large-bundle Vite warning remains. Dependency advisories from the
 baseline were not changed. Live Firestore persistence, Vercel edge routing,
