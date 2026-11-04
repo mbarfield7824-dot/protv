@@ -178,7 +178,12 @@ test('initial data is inert, escaped, route matched and invalid JSON is logged',
     description: '<img src=x onerror=alert(1)> & \u2028' };
   const page = new JSDOM(titleHtml(template, unsafe), { runScripts: 'dangerously' });
   assert.equal(page.window.document.querySelector('h1').textContent, unsafe.title);
-  assert.equal(page.window.document.querySelectorAll('script').length, 1);
+  assert.equal(page.window.document.querySelectorAll('script').length, 2);
+  assert.ok(page.window.document.querySelector('script#protv-initial-title[type="application/json"]'));
+  const jsonLd = page.window.document.querySelector('script[type="application/ld+json"]');
+  assert.ok(jsonLd);
+  assert.equal(JSON.parse(jsonLd.textContent)['@graph'][0].name, unsafe.title);
+  assert.equal(page.window.document.querySelectorAll('script:not([type="application/json"]):not([type="application/ld+json"])').length, 0);
   assert.equal(page.window.document.querySelector('img'), null);
   assert.deepEqual(readInitialTitle(initial.id, page.window.document), unsafe);
   assert.equal(readInitialTitle('another-id', page.window.document), null);

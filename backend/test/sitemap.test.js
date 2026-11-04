@@ -14,7 +14,7 @@ function title(id, overrides = {}) {
   };
 }
 
-test('sitemap contains only the homepage and existing eligible title URLs', () => {
+test('sitemap includes eligible titles and published podcast detail URLs', () => {
   const show = title('show', { contentType: 'PODCAST_SHOW' });
   const xml = catalogSitemap([
     title('movie'), title('movie'), title('a&<"\'/ space'),
@@ -37,12 +37,37 @@ test('sitemap contains only the homepage and existing eligible title URLs', () =
     'https://watchprotv.com/title/episode',
     'https://watchprotv.com/title/movie',
     'https://watchprotv.com/title/music',
+    'https://watchprotv.com/podcasts/show',
   ]);
   assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
   assert.ok(xml.includes('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'));
   assert.equal(/<lastmod>|<priority>|<changefreq>/.test(xml), false);
-  assert.equal(/watchprotv\.com\/(admin|profile|player|search|report|music|podcasts|api)\b/.test(xml), false);
+  assert.equal(/watchprotv\.com\/(admin|profile|player|search|report|music|podcast|api)\b/.test(xml), false);
   assert.equal(catalogSitemap([]).match(/<url>/g).length, 1);
+});
+
+test('sitemap adds only public series and podcast details and excludes private or held content', () => {
+  const seriesEpisode = title('tv-episode', {
+    contentType: 'EPISODE', seriesTitle: 'Public Series', seasonNumber: 1, episodeNumber: 1,
+  });
+  const privateMovie = title('private', { visibility: 'private' });
+  const signedMovie = title('signed', { muxPlaybackPolicy: 'signed' });
+  const heldMovie = title('held', { rightsHold: true });
+  const futureMovie = title('future', { releaseStatus: 'scheduled', releaseAt: '2099-01-01T00:00:00Z' });
+  const hiddenShow = title('hidden-show', { contentType: 'PODCAST_SHOW', visibility: 'private' });
+  const hiddenPodcastEpisode = title('hidden-episode', {
+    contentType: 'PODCAST_EPISODE', podcastShowId: 'hidden-show', episodeNumber: 1,
+  });
+  const xml = catalogSitemap([
+    seriesEpisode, privateMovie, signedMovie, heldMovie, futureMovie, hiddenShow, hiddenPodcastEpisode,
+  ]);
+  const locations = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+  assert.deepEqual(locations, [
+    'https://watchprotv.com/',
+    'https://watchprotv.com/title/tv-episode',
+    `https://watchprotv.com/series/${Buffer.from('public series').toString('base64url')}`,
+  ]);
+  assert.doesNotMatch(xml, /\/player\/|\/podcast\/|\/podcasts\/|private|signed|held|hidden/);
 });
 
 async function serve(context, loadApproved) {

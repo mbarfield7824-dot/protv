@@ -1,4 +1,5 @@
-const { playableCatalog } = require('./readModel');
+const { playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
+const { previewEligible } = require('./socialMetadata');
 
 function escapeXml(value) {
   return value.replace(/[<>&"']/g, (character) => ({
@@ -7,10 +8,17 @@ function escapeXml(value) {
 }
 
 function catalogSitemap(videos) {
+  const publicVideos = videos.filter(previewEligible);
   const urls = [
     'https://watchprotv.com/',
-    ...playableCatalog(videos).map((title) => (
+    ...playableCatalog(publicVideos).map((title) => (
       `https://watchprotv.com/title/${encodeURIComponent(title.id)}`
+    )),
+    ...seriesCatalog(publicVideos).map((series) => (
+      `https://watchprotv.com/series/${encodeURIComponent(series.key)}`
+    )),
+    ...podcastCatalog(publicVideos).map((show) => (
+      `https://watchprotv.com/podcasts/${encodeURIComponent(show.id)}`
     )),
   ];
   const entries = [...new Set(urls)]

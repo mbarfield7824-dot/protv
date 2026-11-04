@@ -347,15 +347,23 @@ disallowing account, admin, utility, player, and API paths. Robots directives
 control crawling, not access control or guaranteed removal from search results.
 
 Vercel routes `/sitemap.xml` to the existing catalog API's `/v1/catalog/sitemap.xml`
-endpoint. Each request generates XML containing the homepage and deduplicated
-`https://watchprotv.com/title/{id}` URLs using the existing approved, ready,
-playable catalog rules. No dates or other metadata are invented. Catalog failures
+endpoint. Each request generates XML containing the homepage, deduplicated
+`https://watchprotv.com/title/{id}` URLs, and public `/series/{key}` and
+`/podcasts/{id}` detail URLs when those catalogs have eligible published content.
+Entries use the existing approval, readiness, release, rights, privacy, and
+playback eligibility gates; player URLs, short links, and private or held content
+are excluded. No dates or other sitemap metadata are invented. Catalog failures
 return an explicit 503 rather than a successful but incomplete sitemap.
 
 Direct `/title/{id}` requests use the same eligible public catalog to insert
 escaped title, description, canonical, Open Graph, and Twitter metadata into the
 built React HTML. Real title and description text also appear inside the React
 root before JavaScript loads, alongside safely escaped public JSON initial data.
+Eligible canonical title pages also include server-rendered Schema.org VideoObject
+JSON-LD, with Movie or TVEpisode entities where the catalog type supports them.
+Public series detail pages include TVSeries JSON-LD. Only recorded year,
+episode/season, duration, and public artwork fields are used; an upload date is
+omitted when the catalog does not provide one.
 The existing React scripts, appearance, and playback
 remain unchanged. The Vercel function includes `frontend/dist/index.html`; build
 the frontend before serving this HTML endpoint locally. Only existing absolute
@@ -367,7 +375,7 @@ component takes over with route-matched initial data, removes the JSON element,
 and refreshes normally without clearing valid content during temporary failures.
 A confirmed API 404 still removes unavailable content; cancelled requests cannot
 overwrite another title. Metadata updates during client-side navigation remain
-outside this phase. Robots and sitemap behavior are unchanged.
+outside this phase. Robots behavior is unchanged.
 The static homepage has its canonical URL in a homepage-only HTTP `Link` header,
 so other SPA fallback pages do not inherit a homepage canonical from the shared
 HTML template.

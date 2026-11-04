@@ -5,6 +5,7 @@ const { catalogSitemap } = require('./sitemap');
 const { eligibleForPlatform, platformFromRequest } = require('./platformEligibility');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
+const { seriesStructuredData, titleStructuredData } = require('./structuredData');
 
 function createCatalogRouter({
   loadApproved = db
@@ -103,9 +104,13 @@ function createCatalogRouter({
       }
       const template = await loadHtmlTemplate();
       const route = kind === 'podcast' ? 'podcasts' : kind === 'series' ? 'series' : 'title';
+      const canonical = `${ORIGIN}/${route}/${encodeURIComponent(req.params.id)}`;
+      const metadata = contentMetadata(content, kind, req.params.id);
+      const structuredData = kind === 'title' && !req.path.endsWith('/player-html')
+        ? titleStructuredData(content, canonical, metadata.image)
+        : kind === 'series' ? seriesStructuredData(content, canonical, metadata.image) : null;
       const html = kind === 'title' && !req.path.endsWith('/player-html') ? titleHtml(template, content)
-        : socialMetadata(template, contentMetadata(content, kind, req.params.id),
-          `${ORIGIN}/${route}/${encodeURIComponent(req.params.id)}`);
+        : socialMetadata(template, metadata, canonical, structuredData);
       return res.type('html').send(html);
     } catch (error) {
       console.error('Failed to render public title metadata:', error);

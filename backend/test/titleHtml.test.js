@@ -5,6 +5,7 @@ const path = require('node:path');
 const express = require('express');
 const { titleHtml, loadTitleTemplate } = require('../src/catalog/titleHtml');
 const { createCatalogRouter } = require('../src/catalog/router');
+const { seriesKey } = require('../src/catalog/readModel');
 
 const template = '<html><head><title>PROtv</title><meta name="description" content="Home"><link rel="canonical" href="https://watchprotv.com/"><script src="/assets/app.js"></script></head><body><div id="root"></div></body></html>';
 const record = {
@@ -44,9 +45,65 @@ test('initial JSON cannot terminate its script or inject executable markup', () 
   const json = html.match(/<script id="protv-initial-title" type="application\/json">([^]*?)<\/script>/)[1];
   assert.deepEqual(JSON.parse(json), title);
   assert.doesNotMatch(json, /[<>&\u2028\u2029]/);
-  assert.equal((html.match(/<script\b/g) || []).length, 2);
+  assert.equal((html.match(/<script\b/g) || []).length, 3);
   assert.ok(html.includes('<h1>&lt;/script&gt;&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</h1>'));
   assert.equal((html.match(/<main\b/g) || []).length, 1);
+});
+
+test('public movie and TV episode HTML includes supported JSON-LD without invented upload dates', async (context) => {
+  const movie = { ...record, year: 1978, duration: 5400 };
+  const tvEpisode = {
+    ...record, id: 'episode', contentType: 'EPISODE', seriesTitle: 'A Public Series',
+    seasonNumber: 2, episodeNumber: 3, episodeTitle: 'Episode Name', year: 1991,
+    thumbnailUrl: 'https://images.example/poster.jpg?X-Goog-Signature=SECRET',
+  };
+  const base = await serve(context, [movie, tvEpisode]);
+  const movieResponse = await fetch(`${base}/public/html`);
+  const movieHtml = await movieResponse.text();
+  const movieData = JSON.parse(movieHtml.match(/<script type="application\/ld\+json">([^]*?)<\/script>/)[1]);
+  assert.deepEqual(movieData['@graph'].map((item) => item['@type']), ['Movie', 'VideoObject']);
+  assert.equal(movieData['@graph'][0].description, movie.description);
+  assert.equal(movieData['@graph'][1].description, movie.description);
+  assert.equal(movieData['@graph'][0].datePublished, '1978');
+  assert.equal(movieData['@graph'][1].duration, 'PT1H30M');
+  assert.equal(movieData['@graph'][1].contentUrl, 'https://stream.mux.com/ready.m3u8');
+  assert.equal(movieHtml.includes('uploadDate'), false);
+
+  const episodeResponse = await fetch(`${base}/episode/html`);
+  const episodeHtml = await episodeResponse.text();
+  const episodeData = JSON.parse(episodeHtml.match(/<script type="application\/ld\+json">([^]*?)<\/script>/)[1]);
+  assert.equal(episodeData['@graph'][0]['@type'], 'TVEpisode');
+  assert.equal(episodeData['@graph'][0].name, 'Episode Name');
+  assert.equal(episodeData['@graph'][0].description, tvEpisode.description);
+  assert.equal(episodeData['@graph'][1].description, tvEpisode.description);
+  assert.equal(episodeData['@graph'][0].episodeNumber, 3);
+  assert.equal(episodeData['@graph'][0].partOfSeason.seasonNumber, 2);
+  assert.equal(episodeData['@graph'][0].partOfSeries.name, 'A Public Series');
+  const episodeOgImage = episodeHtml.match(/<meta property="og:image" content="([^"]+)"/)[1];
+  assert.equal(episodeData['@graph'][1].thumbnailUrl, episodeOgImage);
+  assert.doesNotMatch(JSON.stringify(episodeData), /SECRET|images\.example/);
+
+  const catalogBase = base.slice(0, -'/titles'.length);
+  const seriesResponse = await fetch(`${catalogBase}/series/${seriesKey(tvEpisode.seriesTitle)}/html`);
+  const seriesHtml = await seriesResponse.text();
+  const seriesData = JSON.parse(seriesHtml.match(/<script type="application\/ld\+json">([^]*?)<\/script>/)[1]);
+  assert.equal(seriesData['@type'], 'TVSeries');
+  assert.equal(seriesData.name, 'A Public Series');
+  assert.equal(seriesData.description, undefined, 'the public series catalog has no series-level description');
+  const seriesOgImage = seriesHtml.match(/<meta property="og:image" content="([^"]+)"/)[1];
+  assert.equal(seriesData.image, seriesOgImage);
+  assert.doesNotMatch(JSON.stringify(seriesData), /SECRET|images\.example/);
+  assert.equal(seriesData.numberOfSeasons, 1);
+  assert.equal(seriesData.numberOfEpisodes, 1);
+});
+
+test('JSON-LD omits publication dates unless a valid public year is projected', () => {
+  for (const year of [null, 999, 10000, 'circa 1980']) {
+    const html = titleHtml(template, { ...record, year, releaseDate: '2001-02-03', releaseAt: '2020-04-05T00:00:00Z' });
+    const jsonLd = JSON.parse(html.match(/<script type="application\/ld\+json">([^]*?)<\/script>/)[1]);
+    assert.equal(jsonLd['@graph'][0].datePublished, undefined, String(year));
+    assert.doesNotMatch(JSON.stringify(jsonLd), /2001|2020/);
+  }
 });
 
 test('catalog strings and URLs are escaped without replacement-string interpolation', () => {

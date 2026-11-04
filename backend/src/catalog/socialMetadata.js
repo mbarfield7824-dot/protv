@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const { isViewerEligible, publicTitle, podcastCatalog, seriesCatalog } = require('./readModel');
 const { isFeaturedPodcast } = require('./podcasts');
 const { releaseAllowed } = require('./releases');
+const { structuredDataScript } = require('./structuredData');
 
 const ORIGIN = 'https://watchprotv.com';
 const FEATURED_ARTWORK = '/api/short-links/artwork/mmwf';
@@ -80,7 +81,7 @@ function contentMetadata(content, kind = 'title', id = content.id) {
   return { title, description, type, image: `${ORIGIN}/api/social/artwork/${kind}/${encodeURIComponent(id)}?v=${version}` };
 }
 
-function socialMetadata(template, metadata, canonical) {
+function socialMetadata(template, metadata, canonical, structuredData = null) {
   if (!/<title>[^]*?<\/title>/.test(template) || !template.includes('</head>')) {
     throw new Error('The built social HTML template is invalid.');
   }
@@ -100,10 +101,12 @@ function socialMetadata(template, metadata, canonical) {
       .map(([key, value]) => `<meta name="${key}" content="${escapeHtml(value)}">`),
     `<link rel="canonical" href="${escapeHtml(canonical)}">`,
   ].join('\n');
-  return template
+  const html = template
     .replace(/<meta\s+(?:property="og:[^"]*"|name="twitter:[^"]*"|name="description")[^>]*>\s*/g, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
     .replace(/<title>[^]*?<\/title>/, () => tags);
+  if (!structuredData) return html;
+  return html.replace('</head>', `${structuredDataScript(structuredData)}</head>`);
 }
 
 module.exports = {
