@@ -182,6 +182,10 @@ export default function Title() {
             )}
 
             {present(video.description) && <p className="title-description">{video.description}</p>}
+            {video.comingSoon && (
+              <p className="title-premiere"><strong>Coming Soon to PROtv</strong>
+                {!video.releaseAt && ' · Premiere date to be announced'}</p>
+            )}
             {video.releaseAt && (
               <p className="title-premiere">Premiere: <time dateTime={video.releaseAt}>
                 {new Date(video.releaseAt).toLocaleString('en-US', {

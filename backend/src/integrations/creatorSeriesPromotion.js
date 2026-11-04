@@ -2,10 +2,12 @@ const crypto = require('crypto');
 const { validatePromotional, posterSource } = require('./creatorPromotional');
 const { seriesKey } = require('../catalog/readModel');
 
-// A Creator Portal series becomes a public PROtv show record (Coming Soon until its first episode is released)
-// using the trailer, artwork and synopsis already in the Creator Portal. The trailer is fetched once into a
-// signed-playback Mux asset and reused on every later sync; a public token is only issued while the record is
-// approved. Episodes are untouched: they stay held until their own release, and no TV platform flag is set.
+// Owner-published Coming Soon listings for existing Creator Portal projects. A series becomes a public SERIES
+// record (Coming Soon until its first episode is released); a film becomes a MOVIE record with no media at all.
+// Title, poster and synopsis come from the project. The trailer is fetched once into a signed-playback Mux asset and
+// reused on every later sync; a public token is only issued while the listing is published. This is separate from
+// final release: records are linked by comingSoonProjectId (never creatorProjectId, which the release flow uses),
+// episodes and full media are never touched, and no TV platform flag is set.
 const SERIES_PROMOTION_ACTIONS = new Set(['series_promotion', 'series_promotion_status', 'series_promotion_withdraw']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
@@ -22,26 +24,24 @@ function text(value, label, max, { required = true } = {}) {
 function validateSeriesPromotionRequest(payload) {
   const { project, approval, trailer, schedule } = payload;
   if (!SERIES_PROMOTION_ACTIONS.has(payload.action) || !UUID.test(String(project?.id || ''))
-    || payload.requestId !== `${payload.action}:${project.id}` || project.contentType !== 'Series') {
-    throw new Error('A series trailer request must identify one creator series.');
+    || payload.requestId !== `${payload.action}:${project.id}` || !['Series', 'Film'].includes(project.contentType)) {
+    throw new Error('A Coming Soon request must identify one Creator Portal series or film.');
   }
-  // Taking a page down must work even after the agreement is revoked.
+  // Taking a listing down must always work.
   if (payload.action === 'series_promotion_withdraw') return payload;
-  if (project.ownership?.status !== 'verified' || project.contract?.status !== 'signed'
-    || !Number.isFinite(Date.parse(project.contract.signedAt)) || project.contract.revokedAt
-    || project.contract.contentType !== 'Series' || project.contractApproval !== 'approved'
-    || typeof project.contract.reference !== 'string' || !project.contract.reference.trim()) {
-    throw new Error('Verified ownership and a valid signed series agreement are required before a trailer is shown.');
+  // The Owner/Administrator's explicit confirmation that promotional rights permit the listing is the gate.
+  if (approval?.promotionalRightsConfirmed !== true) {
+    throw new Error("Confirmation that the project's promotional rights permit this Coming Soon listing is required.");
   }
   if (!UUID.test(String(approval?.actorId || '')) || approval.role !== 'admin' || !Number.isFinite(Date.parse(approval.approvedAt))
     || !UUID.test(String(trailer?.assetId || '')) || approval.trailerAssetId !== trailer.assetId) {
     throw new Error('Explicit Administrator approval of this exact trailer is required.');
   }
   text(approval.rightsConfirmation, 'Promotional rights evidence', 2000);
-  text(project.title, 'Series title', 300);
-  text(project.synopsis, 'Series synopsis', 5000, { required: false });
-  text(project.genre, 'Series genre', 100, { required: false });
-  text(project.ownership.copyrightHolderName, 'Rights holder', 300);
+  text(project.title, 'Title', 300);
+  text(project.synopsis, 'Synopsis', 5000, { required: false });
+  text(project.genre, 'Genre', 100, { required: false });
+  text(project.rightsHolder, 'Rights holder', 300);
   if (!VIDEO_TYPES.has(trailer.mimeType) || !Number.isSafeInteger(trailer.bytes) || trailer.bytes <= 0) {
     throw new Error('The trailer must be an MP4, QuickTime or WebM video.');
   }
@@ -87,14 +87,14 @@ function seriesRecord(payload, now) {
   const title = project.title.trim();
   const genre = (project.genre || '').trim() || 'Independent';
   return {
-    contentType: 'SERIES', title, seriesTitle: title, description: (project.synopsis || '').trim(),
-    category: genre, genre,
-    creatorProjectId: project.id, creatorContractReference: project.contract.reference,
-    creatorContractSignedAt: project.contract.signedAt,
-    creatorTrailerApproval: { actorId: approval.actorId, approvedAt: approval.approvedAt, trailerAssetId: approval.trailerAssetId },
-    rightsHolder: project.ownership.copyrightHolderName.trim(), rightsVerificationNotes: approval.rightsConfirmation.trim(),
-    copyrightStatus: 'creator-owned', commercialUseStatus: 'verified-contract',
-    // Only a premiere an Administrator confirmed in the Creator Portal. Null means "to be announced".
+    contentType: project.contentType === 'Series' ? 'SERIES' : 'MOVIE', title,
+    ...(project.contentType === 'Series' ? { seriesTitle: title } : {}),
+    description: (project.synopsis || '').trim(), category: genre, genre,
+    comingSoonProjectId: project.id,
+    comingSoonApproval: { actorId: approval.actorId, approvedAt: approval.approvedAt, trailerAssetId: approval.trailerAssetId },
+    rightsHolder: project.rightsHolder.trim(), rightsVerificationNotes: approval.rightsConfirmation.trim(),
+    // A promotional listing only: no full media, no release status, no platform flags.
+    // Only a premiere the Owner/Administrator entered or confirmed in the Creator Portal. Null means "to be announced".
     premiereAt: schedule.premiereAt, airingWeekday: schedule.weekday, airingTime: schedule.localTime, airingTimeZone: schedule.timeZone,
     status: 'ready', approvalStatus: 'approved', visibility: 'public',
     approvedBy: 'creator-agent', approvedAt: new Date(now).toISOString(), withdrawnAt: null,
@@ -104,10 +104,9 @@ function seriesRecord(payload, now) {
 // Pure decision for the claim transaction. A trailer is ingested only when this record has no copy of the approved
 // asset yet (or the previous attempt failed); otherwise the existing Mux asset is reused.
 function planSeriesClaim(existing, data, trailerAssetId, now, token) {
-  if (existing && existing.contentType !== 'SERIES') throw new Error('The target catalog record is not a show record.');
-  // Checked again inside the transaction: only a record already linked to this exact project may be updated.
-  if (existing && existing.creatorProjectId !== data.creatorProjectId) {
-    throw new Error('This show record is not linked to this creator series and was not changed.');
+  // Checked again inside the transaction: only a listing already linked to this exact project may be updated.
+  if (existing && (existing.contentType !== data.contentType || existing.comingSoonProjectId !== data.comingSoonProjectId)) {
+    throw new Error("This record is not this project's Coming Soon listing and was not changed.");
   }
   if (existing?.trailerUploadId) throw new Error('An Administrator trailer upload is in progress on this show record. Try again when it finishes.');
   const needsTrailer = existing?.creatorTrailerAssetId !== trailerAssetId
@@ -139,10 +138,10 @@ function promotionResult(video, note = '') {
     externalId: video.id,
     status: withdrawn ? 'withdrawn' : ready ? 'published' : failed ? 'failed' : 'processing',
     trailerReady: !withdrawn && ready,
-    message: [withdrawn ? 'The show page is not public.'
+    message: [withdrawn ? 'The Coming Soon listing is not public.'
       : ready ? 'The Coming Soon page is public with Watch Trailer.'
-        : failed ? `The show page is public; the trailer failed to process: ${video.trailerError || 'Mux could not process it.'}`
-          : 'The show page is public. The trailer is processing privately and Watch Trailer appears when it is ready.', note]
+        : failed ? `The Coming Soon listing is public; the trailer failed to process: ${video.trailerError || 'Mux could not process it.'}`
+          : 'The Coming Soon listing is public. The trailer is processing privately and Watch Trailer appears when it is ready.', note]
       .filter(Boolean).join(' '),
   };
 }
@@ -158,32 +157,35 @@ class CreatorSeriesPromotionService {
     if (payload.action === 'series_promotion_withdraw') return this.withdraw(payload);
     const target = await this.resolve(payload.project);
     if (payload.action === 'series_promotion_status') {
-      if (!target.existing || target.existing.creatorProjectId !== payload.project.id) throw new Error('This series has not been sent to PROtv.');
+      if (!target.existing) throw new Error('This project has no Coming Soon listing on PROtv.');
       return promotionResult(await this.refresh(target.existing));
     }
     return this.promote(payload, target);
   }
 
-  // One show record per series, found only by its stable creator-project link: creator_series_<projectId> carrying
-  // creatorProjectId === projectId. A title match never claims a record. Any other show or episode using the same
-  // title (manual, legacy or another creator's) makes the request ambiguous, so it is refused and nothing is written.
+  // One listing per project, found only by its stable link: coming_soon_<projectId> carrying comingSoonProjectId.
+  // A title match never claims a record. For a series, any other show or episode using the same title (manual, legacy
+  // or another creator's) would merge into its page, so the request is refused and nothing is written. The project's
+  // own released episodes (creatorProjectId) belong on the page and are allowed.
   async resolve(project) {
-    const id = `creator_series_${project.id}`;
+    const id = `coming_soon_${project.id}`;
     const records = await this.dependencies.getAllVideos();
-    const linked = records.filter((record) => record.contentType === 'SERIES' && record.creatorProjectId === project.id);
+    const linked = records.filter((record) => record.comingSoonProjectId === project.id);
     if (linked.length > 1 || linked.some((record) => record.id !== id)) {
-      throw new Error('More than one PROtv show record claims this creator series. An Administrator must resolve it first.');
+      throw new Error("More than one PROtv record claims this project's Coming Soon listing. An Administrator must resolve it first.");
     }
     const occupant = records.find((record) => record.id === id);
-    if (occupant && (occupant.contentType !== 'SERIES' || occupant.creatorProjectId !== project.id)) {
-      throw new Error('The PROtv record reserved for this series belongs to something else. An Administrator must resolve it first.');
+    if (occupant && occupant.comingSoonProjectId !== project.id) {
+      throw new Error('The PROtv record reserved for this listing belongs to something else. An Administrator must resolve it first.');
     }
-    const key = seriesKey(project.title);
-    const conflict = records.some((record) => record.id !== id && ['SERIES', 'EPISODE'].includes(record.contentType)
-      && seriesKey(record.seriesTitle || (record.contentType === 'SERIES' ? record.title : '')) === key
-      && record.creatorProjectId !== project.id);
-    if (conflict) {
-      throw new Error('Another PROtv show or episode already uses this title without a link to this creator series. It was not claimed; an Administrator must resolve the title first.');
+    if (project.contentType === 'Series') {
+      const key = seriesKey(project.title);
+      const conflict = records.some((record) => record.id !== id && ['SERIES', 'EPISODE'].includes(record.contentType)
+        && seriesKey(record.seriesTitle || (record.contentType === 'SERIES' ? record.title : '')) === key
+        && record.creatorProjectId !== project.id);
+      if (conflict) {
+        throw new Error('Another PROtv show or episode already uses this title without a link to this project. It was not claimed; an Administrator must resolve the title first.');
+      }
     }
     return { id, existing: linked[0] || null };
   }
@@ -202,7 +204,7 @@ class CreatorSeriesPromotionService {
     let video = { ...claim.video, id: target.id };
     const notes = [];
     if (claim.busy) notes.push('The trailer is already being sent to Mux.');
-    if (!target.existing) await this.audit('series_promotion_create', project.id, target.id, 'Created a show record from the approved Creator Portal series.');
+    if (!target.existing) await this.audit('series_promotion_create', project.id, target.id, 'Created the Coming Soon listing for an existing Creator Portal project.');
     if (claim.claimed) video = await this.ingestTrailer(video, sourceUrl, payload.trailer.assetId, token);
     if (payload.poster && video.creatorPosterAssetId !== payload.poster.assetId) {
       video = await this.transferPoster(video, project.id, payload.poster, notes);
@@ -245,7 +247,7 @@ class CreatorSeriesPromotionService {
       const posterUrl = await this.dependencies.transferPoster(projectId, poster, { origin: this.origin, secret: this.secret });
       if (typeof posterUrl !== 'string' || !posterUrl || posterUrl.includes('/api/integrations/protv/')) throw new Error('No durable poster URL.');
       const updates = { posterUrl, thumbnailUrl: posterUrl, creatorPosterAssetId: poster.assetId };
-      await this.update(video.id, (current) => current.creatorProjectId === projectId, updates);
+      await this.update(video.id, (current) => current.comingSoonProjectId === projectId, updates);
       return { ...video, ...updates };
     } catch {
       notes.push('The artwork could not be copied this time; the page shows the title until the next sync.');
@@ -276,12 +278,12 @@ class CreatorSeriesPromotionService {
 
   async withdraw({ project }) {
     const linked = (await this.dependencies.getAllVideos())
-      .find((record) => record.id === `creator_series_${project.id}` && record.contentType === 'SERIES' && record.creatorProjectId === project.id);
-    if (!linked) return { externalId: `creator_series_${project.id}`, status: 'withdrawn', trailerReady: false, message: 'Nothing was public on PROtv.' };
+      .find((record) => record.id === `coming_soon_${project.id}` && record.comingSoonProjectId === project.id);
+    if (!linked) return { externalId: `coming_soon_${project.id}`, status: 'withdrawn', trailerReady: false, message: 'Nothing was public on PROtv.' };
     // Hidden, not deleted: the Mux asset is kept so a later approval does not process the trailer again.
     const updates = { approvalStatus: 'draft', withdrawnAt: new Date().toISOString() };
-    await this.update(linked.id, (current) => current.creatorProjectId === project.id, updates);
-    await this.audit('series_promotion_withdraw', project.id, linked.id, 'Withdrew the show page and trailer from public view.');
+    await this.update(linked.id, (current) => current.comingSoonProjectId === project.id, updates);
+    await this.audit('series_promotion_withdraw', project.id, linked.id, 'Unpublished the Coming Soon listing and trailer from public view.');
     return promotionResult({ ...linked, ...updates });
   }
 

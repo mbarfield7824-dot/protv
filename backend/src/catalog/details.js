@@ -10,9 +10,15 @@ function metadataAllowed(record, now = Date.now()) {
     && (!record.rightsEndAt || Date.parse(record.rightsEndAt) > now);
 }
 
+// A Coming Soon film listing: promotional metadata and trailer only, never full media.
+function comingSoonFilm(record) {
+  return record?.contentType === 'MOVIE' && typeof record.comingSoonProjectId === 'string' && Boolean(record.comingSoonProjectId);
+}
+
 function detailEligible(record, records) {
   if (!metadataAllowed(record)) return false;
   if (record.contentType === 'SERIES') return record.status === 'ready' && releaseAllowed(record);
+  if (comingSoonFilm(record)) return record.status === 'ready' && releaseAllowed(record);
   const context = records.filter(parent => metadataAllowed(parent) && releaseAllowed(parent));
   return isViewerEligible(record, context)
     || (['MOVIE', 'EPISODE'].includes(record.contentType)
@@ -31,8 +37,13 @@ function titleDetails(record, records) {
     ...Object.fromEntries(['cast', 'creator', 'director', 'language', 'subtitles']
       .filter(field => typeof record[field] === 'string').map(field => [field, record[field]])),
     ...(typeof record.rating === 'number' ? { rating: record.rating } : {}),
-    watchAvailable: record.contentType !== 'SERIES' && isViewerEligible(record, records),
+    watchAvailable: record.contentType !== 'SERIES' && !comingSoonFilm(record) && isViewerEligible(record, records),
     ...(record.releaseStatus === 'scheduled' ? { releaseAt: record.releaseAt } : {}),
+    ...(comingSoonFilm(record) ? {
+      comingSoon: true,
+      ...(Number.isFinite(Date.parse(record.premiereAt)) && Date.parse(record.premiereAt) > Date.now()
+        ? { releaseAt: new Date(Date.parse(record.premiereAt)).toISOString() } : {}),
+    } : {}),
   };
 }
 

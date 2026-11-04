@@ -64,24 +64,25 @@ and does not grant device rights. Upload its trailer and poster with the existin
 the draft in Review Content. Its trailer and synopsis appear on the matching series detail page. Episode trailers
 remain independent and are never silently reused as show trailers. Duplicate show records are rejected.
 
-### Creator Portal trailers and Coming Soon pages
+### Coming Soon trailers (Owner/Administrator)
 
-A series trailer already uploaded in the Creator Portal is reused, not uploaded again. An Administrator opens the
-series in the Creator Portal (Release details → **PROtv Coming Soon**), records where the signed agreement grants
-promotional use, and approves. The portal then sends the signed `series_promotion` action to
-`/videos/integrations/creator-actions`; PROtv creates or updates exactly one `SERIES` record, `creator_series_<projectId>`,
-identified only by its stored `creatorProjectId` link. A title match never claims a record: if any other show or episode
-already uses the title, or the reserved ID holds an unlinked record, the request is refused and nothing is written until an
-Administrator resolves it. PROtv then copies the poster through the existing hardened poster
-transfer, and has Mux fetch the trailer once from a short-lived signed portal link as a signed-playback asset. Later
-syncs reuse that asset. The page is public at once as **Coming Soon**; Watch Trailer appears when Mux finishes.
+The Owner/Administrator publishes a Coming Soon listing for a project that already exists in the Creator Portal:
+open the project → **Release details** → **Coming Soon Trailer**. Upload a trailer (or select the project's existing
+trailer or teaser), preview it, optionally enter an Eastern Time premiere date, tick the confirmation that the
+project's promotional rights permit it, and choose **Publish Coming Soon**. **Unpublish Coming Soon** removes the
+public listing and keeps the project and its trailer. Uploading never publishes anything, and only the chosen project
+is ever sent.
 
-Premiere date and weekly slot come only from premieres an Administrator confirmed in the portal's weekly schedule;
-without one the page says "Premiere date to be announced". Schedule changes refresh the page automatically.
-Episodes are not touched: they stay held with no playback ID until their own release. The record carries no Roku
-or Fire TV flag. Replacing the trailer in the portal stops it showing until it is approved again; **Withdraw from
-PROtv** hides the page (`approvalStatus: draft`) and keeps the Mux asset for re-approval. Requires
-`CREATOR_AGENT_ORIGIN`, `PROTV_PUBLISHING_SECRET` and the Mux signing keys, all already used by episodes and trailers.
+The portal sends the signed `series_promotion` action to `/videos/integrations/creator-actions`. PROtv writes exactly
+one record, `coming_soon_<projectId>`, linked only by `comingSoonProjectId`: a `SERIES` show page for a series, or a
+`MOVIE` title page with no media for a film. It is never linked by `creatorProjectId`, so the final release workflow
+(`creator_<projectId>` movies and `creator_episode_*` episodes) is unaffected. A title match never claims a record: if
+another unlinked show or episode uses a series' title, or the reserved ID holds something else, nothing is written.
+Title, poster and synopsis come from the project; the poster uses the existing hardened transfer. Mux fetches the
+trailer once from a short-lived signed portal link as a signed-playback asset, reused on later syncs. The listing is
+public at once; Watch Trailer appears when Mux finishes. Without a premiere date it says "Premiere date to be
+announced". No Roku or Fire TV flag is set. Unpublishing sets `approvalStatus: draft` and keeps the Mux asset.
+Requires `CREATOR_AGENT_ORIGIN`, `PROTV_PUBLISHING_SECRET` and the Mux signing keys.
 
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

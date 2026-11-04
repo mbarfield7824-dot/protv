@@ -30,11 +30,9 @@ function payload(overrides = {}) {
     action, requestId: `${action}:${PROJECT}`, timestamp: Date.now(),
     project: {
       id: PROJECT, title: 'Synthetic Show', synopsis: 'A synthetic synopsis.', genre: 'Drama', contentType: 'Series',
-      ownership: { status: 'verified', copyrightHolderName: 'Synthetic Holder' },
-      contract: { status: 'signed', signedAt: '2026-10-01T00:00:00.000Z', revokedAt: null, reference: 'synthetic-envelope', seriesSubmissionId: PROJECT, contentType: 'Series' },
-      contractApproval: 'approved', ...overrides.project,
+      rightsHolder: 'Synthetic Holder', ...overrides.project,
     },
-    approval: { actorId: ADMIN, role: 'admin', approvedAt: '2026-11-04T12:00:00.000Z', trailerAssetId: trailer, rightsConfirmation: 'PRIVATE CLAUSE NOTE', ...overrides.approval },
+    approval: { actorId: ADMIN, role: 'admin', approvedAt: '2026-11-04T12:00:00.000Z', trailerAssetId: trailer, promotionalRightsConfirmed: true, rightsConfirmation: 'PRIVATE CLAUSE NOTE', ...overrides.approval },
     trailer: { assetId: trailer, mimeType: 'video/mp4', bytes: 1000, sourceUrl: signed(`/api/integrations/protv/promotional-video/${PROJECT}/${trailer}`, trailer, 'trailer') },
     poster: overrides.poster === null ? null : { assetId: POSTER, mimeType: 'image/jpeg', bytes: 500, sourceUrl: signed(`/api/integrations/protv/promotional/${PROJECT}/${POSTER}`, POSTER, 'poster') },
     schedule: { premiereAt: null, weekday: null, localTime: null, timeZone: 'America/New_York', ...overrides.schedule },
@@ -72,16 +70,15 @@ const heldEpisode = {
   muxAssetId: 'private-episode-asset',
 };
 
-test('validation requires a signed series agreement and Administrator approval of the exact trailer', () => {
+test('validation requires the Owner/Administrator rights confirmation and approval of the exact trailer', () => {
   assert.doesNotThrow(() => validateSeriesPromotionRequest(payload()));
-  assert.throws(() => validateSeriesPromotionRequest(payload({ project: { contract: { ...payload().project.contract, status: 'expired' } } })), /signed series agreement/);
-  assert.throws(() => validateSeriesPromotionRequest(payload({ project: { contract: { ...payload().project.contract, revokedAt: '2026-11-01T00:00:00.000Z' } } })), /signed series agreement/);
-  assert.throws(() => validateSeriesPromotionRequest(payload({ project: { ownership: { status: 'pending', copyrightHolderName: 'x' } } })), /Verified ownership/);
+  assert.doesNotThrow(() => validateSeriesPromotionRequest(payload({ project: { contentType: 'Film' } })));
+  assert.throws(() => validateSeriesPromotionRequest(payload({ approval: { promotionalRightsConfirmed: false } })), /promotional rights/);
+  assert.throws(() => validateSeriesPromotionRequest(payload({ project: { contentType: 'Music Video' } })), /series or film/);
   assert.throws(() => validateSeriesPromotionRequest(payload({ approval: { trailerAssetId: POSTER } })), /exact trailer/);
   assert.throws(() => validateSeriesPromotionRequest(payload({ approval: { role: 'creator' } })), /Administrator/);
   assert.throws(() => validateSeriesPromotionRequest(payload({ schedule: { weekday: 'Someday' } })), /schedule/);
-  // Withdrawal still works after the agreement is revoked.
-  assert.doesNotThrow(() => validateSeriesPromotionRequest(payload({ action: 'series_promotion_withdraw', project: { contract: { status: 'revoked' } } })));
+  assert.doesNotThrow(() => validateSeriesPromotionRequest(payload({ action: 'series_promotion_withdraw', approval: { promotionalRightsConfirmed: false } })));
 });
 
 test('the signed bridge accepts the new action through the existing HMAC check', () => {
@@ -102,7 +99,9 @@ test('the trailer link must be the signed Creator Portal link for the approved a
 test('creates one show record, sends the trailer to Mux once with signed playback, and reuses it afterwards', async () => {
   const { records, mux, service, all } = harness([heldEpisode]);
   const first = await service.execute(payload());
-  assert.equal(first.externalId, `creator_series_${PROJECT}`);
+  assert.equal(first.externalId, `coming_soon_${PROJECT}`);
+  assert.equal(records.get(first.externalId).comingSoonProjectId, PROJECT);
+  assert.equal(records.get(first.externalId).creatorProjectId, undefined, 'the final release lookup never sees the listing');
   assert.equal(first.status, 'processing');
   assert.equal(mux.created.length, 1);
   assert.deepEqual(mux.created[0].options, { playbackPolicy: 'signed' });
@@ -146,7 +145,7 @@ test('Watch Trailer plays through the public catalog while unreleased episodes s
   t.after(() => new Promise(resolve => server.close(resolve)));
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const trailer = await (await fetch(`${base}/titles/creator_series_${PROJECT}/trailer/playback`)).json();
+  const trailer = await (await fetch(`${base}/titles/coming_soon_${PROJECT}/trailer/playback`)).json();
   assert.equal(trailer.muxPlaybackId, 'signed-asset-1');
   assert.equal(trailer.playbackToken, 'token-signed-asset-1');
   const shows = await (await fetch(`${base}/series-details`)).json();
@@ -179,7 +178,7 @@ test('an existing show record with the same title is never claimed by title alon
   const { records, mux, service } = harness([manual]);
   assert.equal(seriesKey(manual.title), seriesKey('Synthetic Show'));
   const before = snapshot(records);
-  await assert.rejects(service.execute(payload()), /without a link to this creator series/);
+  await assert.rejects(service.execute(payload()), /without a link to this project/);
   assert.equal(snapshot(records), before, 'the existing record and its ownership are unchanged');
   assert.equal(mux.created.length, 0);
 });
@@ -193,7 +192,7 @@ test('a manual or legacy episode using the title also blocks the request', async
 });
 
 test('a record squatting on the reserved ID without the project link is not overwritten', async () => {
-  const squatter = { id: `creator_series_${PROJECT}`, contentType: 'SERIES', title: 'Unrelated', seriesTitle: 'Unrelated', approvalStatus: 'draft' };
+  const squatter = { id: `coming_soon_${PROJECT}`, contentType: 'SERIES', title: 'Unrelated', seriesTitle: 'Unrelated', approvalStatus: 'draft' };
   const { records, service } = harness([squatter]);
   const before = snapshot(records);
   await assert.rejects(service.execute(payload()), /belongs to something else/);
@@ -201,8 +200,8 @@ test('a record squatting on the reserved ID without the project link is not over
 });
 
 test('two show records claiming the same creator series are ambiguous and refused', async () => {
-  const a = { id: `creator_series_${PROJECT}`, contentType: 'SERIES', title: 'Synthetic Show', seriesTitle: 'Synthetic Show', creatorProjectId: PROJECT };
-  const b = { id: 'copy-show', contentType: 'SERIES', title: 'Copy', seriesTitle: 'Copy', creatorProjectId: PROJECT };
+  const a = { id: `coming_soon_${PROJECT}`, contentType: 'SERIES', title: 'Synthetic Show', seriesTitle: 'Synthetic Show', comingSoonProjectId: PROJECT };
+  const b = { id: 'copy-show', contentType: 'SERIES', title: 'Copy', seriesTitle: 'Copy', comingSoonProjectId: PROJECT };
   const { records, service } = harness([a, b]);
   const before = snapshot(records);
   await assert.rejects(service.execute(payload()), /More than one/);
@@ -212,15 +211,15 @@ test('two show records claiming the same creator series are ambiguous and refuse
 test('the transaction refuses a record that lost its project link between read and write', async () => {
   const { records, service } = harness();
   await service.execute(payload());
-  const id = `creator_series_${PROJECT}`;
+  const id = `coming_soon_${PROJECT}`;
   const original = service.dependencies.getAllVideos;
   service.dependencies.getAllVideos = async () => {
     const all = await original();
-    records.set(id, { ...records.get(id), creatorProjectId: 'someone-else' });
+    records.set(id, { ...records.get(id), comingSoonProjectId: 'someone-else' });
     return all;
   };
-  await assert.rejects(service.execute(payload()), /not linked to this creator series/);
-  assert.equal(records.get(id).creatorProjectId, 'someone-else');
+  await assert.rejects(service.execute(payload()), /not this project's Coming Soon listing/);
+  assert.equal(records.get(id).comingSoonProjectId, 'someone-else');
 });
 
 test('refuses a title that belongs to a different creator series', async () => {
@@ -235,11 +234,11 @@ test('a re-approved replacement trailer hides the old one at once and retires it
   mux.status = 'ready';
   await service.execute(payload());
   await service.execute(payload());
-  assert.equal(records.get(`creator_series_${PROJECT}`).trailerPlaybackId, 'signed-asset-1');
+  assert.equal(records.get(`coming_soon_${PROJECT}`).trailerPlaybackId, 'signed-asset-1');
   mux.status = 'preparing';
   const replacement = '55555555-5555-4555-8555-555555555555';
   await service.execute(payload({ trailerId: replacement }));
-  const show = records.get(`creator_series_${PROJECT}`);
+  const show = records.get(`coming_soon_${PROJECT}`);
   assert.equal(mux.created.length, 2);
   assert.equal(show.trailerAssetId, 'asset-2');
   assert.equal(show.trailerPlaybackId, null);
@@ -258,7 +257,7 @@ test('withdrawing hides the page and trailer but keeps the Mux asset for a later
   assert.deepEqual(mux.deleted, []);
   await service.execute(payload());
   assert.equal(mux.created.length, 1, 're-approval reuses the processed trailer');
-  assert.equal(records.get(`creator_series_${PROJECT}`).approvalStatus, 'approved');
+  assert.equal(records.get(`coming_soon_${PROJECT}`).approvalStatus, 'approved');
 });
 
 test('Roku and Fire TV catalogs do not receive the show record', async () => {
@@ -276,4 +275,38 @@ test('a forged or expired trailer link is rejected before anything is written', 
   await assert.rejects(service.execute(bad), /expired|signature/);
   assert.equal(records.size, 0);
   assert.equal(mux.created.length, 0);
+});
+
+test('a film gets a Coming Soon title page with Watch Trailer, no playback and no effect on its final release', async t => {
+  const film = (extra = {}) => payload({ project: { contentType: 'Film', title: 'Synthetic Film' }, ...extra });
+  const { records, mux, service, all } = harness();
+  mux.status = 'ready';
+  await service.execute(film({ schedule: { premiereAt: '2099-05-01T00:00:00.000Z' } }));
+  await service.execute(film({ schedule: { premiereAt: '2099-05-01T00:00:00.000Z' } }));
+  const id = `coming_soon_${PROJECT}`;
+  assert.equal(records.get(id).contentType, 'MOVIE');
+  assert.equal(records.get(id).muxPlaybackId, undefined);
+  // The final-release flow looks titles up by creatorProjectId and must not find the listing.
+  assert.equal(all().find(record => record.creatorProjectId === PROJECT), undefined);
+  const detail = titleDetails(records.get(id), all());
+  assert.equal(detail.comingSoon, true);
+  assert.equal(detail.watchAvailable, false);
+  assert.equal(detail.trailerAvailable, true);
+  assert.equal(detail.releaseAt, '2099-05-01T00:00:00.000Z');
+  const app = express();
+  app.use(createCatalogRouter({ loadApproved: async () => all().filter(record => record.approvalStatus === 'approved'), signPlaybackToken: async v => `token-${v}` }));
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(`${base}/titles/${id}/trailer/playback`)).status, 200);
+  assert.equal((await fetch(`${base}/titles/${id}/playback`)).status, 404);
+  assert.equal((await fetch(`${base}/titles/${id}`)).status, 404);
+  const movies = await (await fetch(`${base}/details`)).json();
+  assert.deepEqual(movies.items.map(item => [item.id, item.watchAvailable]), [[id, false]]);
+  await service.execute(film({ action: 'series_promotion_withdraw' }));
+  assert.equal((await fetch(`${base}/titles/${id}/trailer/playback`)).status, 404);
+  assert.equal((await fetch(`${base}/titles/${id}/details`)).status, 404);
+  assert.ok(records.has(id), 'unpublishing keeps the record and its trailer asset');
+  assert.deepEqual(mux.deleted, []);
 });
