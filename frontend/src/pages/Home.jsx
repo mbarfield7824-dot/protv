@@ -61,6 +61,7 @@ function normalizeApiVideo(raw) {
     contentType: raw.contentType || 'MOVIE',
     genres: [...new Set([...(raw.genres || []), category, subgenre].filter(Boolean))],
     categories: Array.isArray(raw.categories) ? raw.categories.filter((item) => typeof item === 'string') : [],
+    protvOriginal: raw.protvOriginal === true,
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     seasonNumber: raw.seasonNumber,
@@ -97,11 +98,6 @@ function withBackdrop(video) {
   };
 }
 
-function isOriginal(video) {
-  return String(video.category || '').toLowerCase() === 'originals'
-    || String(video.contentType || '').toLowerCase() === 'original';
-}
-
 function HomeSkeleton() {
   return (
     <ProTVShell>
@@ -122,6 +118,7 @@ function HomeSkeleton() {
 export default function Home() {
   const [apiVideos, setApiVideos] = useState([]);
   const [comingSoon, setComingSoon] = useState([]);
+  const [originals, setOriginals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
@@ -134,6 +131,10 @@ export default function Home() {
     const comingSoonRequest = api.getComingSoon()
       .then((items) => setComingSoon(Array.isArray(items) ? items : []))
       .catch(() => setComingSoon([]));
+    // PROtv Originals are an Administrator designation, independent of genre; a failure only hides the row.
+    const originalsRequest = api.getOriginals()
+      .then((items) => setOriginals(Array.isArray(items) ? items : []))
+      .catch(() => setOriginals([]));
     try {
       const data = await api.getVideos();
       if (Array.isArray(data) && data.length > 0) {
@@ -152,7 +153,7 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to load live videos:', error);
     } finally {
-      await comingSoonRequest;
+      await Promise.all([comingSoonRequest, originalsRequest]);
       setLoading(false);
     }
   }
@@ -270,6 +271,15 @@ export default function Home() {
     fallback: FALLBACK_POSTER,
   };
 
+  // PROtv Originals is a permanent Browse tile, right after Coming Soon.
+  const originalsTile = {
+    category: { id: 'originals', name: 'PROtv Originals' },
+    count: originals.length,
+    comingSoon: originals.length === 0,
+    artwork: originals.find((item) => item.artwork)?.artwork || '',
+    fallback: FALLBACK_POSTER,
+  };
+
   // ---- New on PROtv / Spotlight -----------------------------------------
   const newOnProtv = isLive
     ? [...movieCatalog].sort((left, right) => catalogTimestamp(right) - catalogTimestamp(left)).slice(0, 12)
@@ -285,7 +295,6 @@ export default function Home() {
     : null;
 
   // ---- Editorial rails --------------------------------------------------
-  const originals = movieCatalog.filter(isOriginal);
   const editorialRails = RAILS_AFTER_SPOTLIGHT
     .map((rail) => ({ ...rail, items: movieCatalog.filter((video) => matchesCategory(video, rail)).slice(0, 12) }))
     .filter((rail) => rail.items.length > 0);
@@ -346,7 +355,7 @@ export default function Home() {
         <CinematicHero brand={brandSlide} titles={heroTitles} featuredPodcast />
 
         <div className="ptv-stack ptv-stack--lead">
-        <CategoryShowcase tiles={[comingSoonTile, ...categoryTiles]} activeId={selection} />
+        <CategoryShowcase tiles={[comingSoonTile, originalsTile, ...categoryTiles]} activeId={selection} />
         <ContinueWatchingRail items={continueWatchingItems} />
         <FeaturedPodcastSpotlight />
 
@@ -378,13 +387,17 @@ export default function Home() {
               {comingSoon.map((item) => <ComingSoonCard key={item.id} item={item} />)}
             </StreamingRail>
           )}
+          {originals.length > 0 && (
+            <StreamingRail id="originals" title="PROtv Originals">
+              {originals.map((item) => <ComingSoonCard key={item.id} item={item} />)}
+            </StreamingRail>
+          )}
         </div>
 
         <SpotlightFeature video={spotlight} />
 
         <div className="ptv-stack">
           {editorialRails.map(renderRail)}
-          {originals.length > 0 && renderRail({ id: 'originals', title: 'PROtv Originals', items: originals })}
         </div>
 
         <CreatorBanner imageUrl={creatorArt} stats={stats} />

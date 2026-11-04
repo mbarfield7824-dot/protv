@@ -1011,11 +1011,19 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.ptv-card__badge {
+.ptv-card__badges {
   position: absolute;
   z-index: 1;
   top: 10px;
   left: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.ptv-card__badge {
   padding: 4px 8px;
   border-radius: 4px;
   background: var(--ptv-blue);
@@ -1028,7 +1036,29 @@
   pointer-events: none;
 }
 
-.ptv-card--coming .ptv-card__poster { display: block; }
+.ptv-card__badge--original {
+  border: 1px solid var(--ptv-blue);
+  border-left-width: 3px;
+  background: rgba(5, 6, 15, 0.92);
+}
+
+.ptv-card--discovery .ptv-card__poster { display: block; }
+
+/* "PROtv Original" mark on title and show pages. */
+.ptv-original-mark {
+  display: inline-block;
+  margin: 0 0 10px !important;
+  padding: 5px 10px;
+  border: 1px solid var(--ptv-blue, #2563eb);
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: rgba(5, 6, 15, 0.85);
+  color: #fff !important;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
 
 .ptv-card__poster img {
   display: block;

@@ -265,6 +265,7 @@ export default function AdminCatalogEditor() {
         description: video.description || '',
         category: catalogCategory(video),
         categories: catalogCategories(video),
+        ...(['MOVIE', 'SERIES'].includes(video.contentType || 'MOVIE') ? { protvOriginal: video.protvOriginal === true } : {}),
         subgenre: video.subgenre || '',
         thumbnailUrl: video.thumbnailUrl || '',
         year: video.year || '',
@@ -380,6 +381,7 @@ export default function AdminCatalogEditor() {
           <header className="catalog-record-heading">
             <h3>{video.title || 'Untitled content'}</h3>
             <span className="admin-status-pill" data-approval-status={video.approvalStatus}>{video.approvalStatus || 'draft'}</span>
+            {video.protvOriginal === true && <span className="admin-original-pill">PROtv Original</span>}
           </header>
           <label>
             Title
@@ -404,6 +406,19 @@ export default function AdminCatalogEditor() {
               });
             }}
           />
+          {['MOVIE', 'SERIES'].includes(video.contentType || 'MOVIE') && (
+            <label className="admin-field-wide admin-original-toggle">
+              <input
+                type="checkbox"
+                checked={video.protvOriginal === true}
+                onChange={(event) => updateDraftFields(video.id, { protvOriginal: event.target.checked })}
+              />
+              <span>
+                <strong>PROtv Original</strong>
+                <small>Brands this title as a PROtv Original and adds it to the PROtv Originals row. It does not change genres, approval, rights or release.</small>
+              </span>
+            </label>
+          )}
           {CATEGORY_SUBGENRES[video.category]?.length > 0 && (
             <label>
               Subcategory

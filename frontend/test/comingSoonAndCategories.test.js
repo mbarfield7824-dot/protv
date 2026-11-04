@@ -67,6 +67,7 @@ const railTitles = (id) => [...document.querySelectorAll(`#${id} .ptv-card__titl
 test('the homepage shows a Coming Soon row and Browse tile that open detail pages, with no Play action', async () => {
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [upcoming];
+  api.getOriginals = async () => [];
   await mount(Home);
   assert.deepEqual(railTitles('coming-soon'), ['Synthetic Upcoming Show']);
   const card = document.querySelector('#coming-soon .ptv-card');
@@ -82,6 +83,7 @@ test('the homepage shows a Coming Soon row and Browse tile that open detail page
 test('with nothing published the row is hidden, while the Browse tile keeps an empty state', async () => {
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [];
+  api.getOriginals = async () => [];
   await mount(Home);
   assert.equal(document.querySelector('section#coming-soon .ptv-card'), null);
   assert.ok(document.querySelector('#categories a[href="/#coming-soon"]'));
@@ -123,4 +125,60 @@ test('Admin can set a primary genre and add or remove more categories, and savin
   assert.equal(saved[0].category, 'Black Cinema');
   assert.deepEqual(saved[0].categories, ['Black Cinema', 'Drama', 'Independent']);
   assert.ok(!chip('Black Cinema'), 'the primary genre is not offered twice');
+});
+
+test('PROtv Originals: a permanent Browse tile and a row that shares Coming Soon titles without duplicating them', async () => {
+  const original = { ...upcoming, comingSoon: true, protvOriginal: true, categories: ['Black Cinema', 'Drama'] };
+  api.getVideos = async () => [film];
+  api.getComingSoon = async () => [original];
+  api.getOriginals = async () => [original];
+  await mount(Home);
+  assert.deepEqual(railTitles('originals'), [original.title]);
+  assert.deepEqual(railTitles('coming-soon'), [original.title]);
+  const card = document.querySelector('#originals .ptv-card');
+  assert.equal(card.querySelector('a').getAttribute('href'), '/series/abc');
+  assert.deepEqual([...card.querySelectorAll('.ptv-card__badge')].map((item) => item.textContent), ['PROtv Original', 'Coming Soon']);
+  assert.equal(card.querySelector('.ptv-card__action--play'), null);
+  const tiles = [...document.querySelectorAll('#categories a')].map((item) => item.getAttribute('href'));
+  assert.deepEqual(tiles.slice(0, 2), ['/#coming-soon', '/#originals']);
+
+  api.getOriginals = async () => [];
+  await mount(Home);
+  assert.equal(document.querySelector('section#originals .ptv-card'), null);
+  assert.ok(document.querySelector('#categories a[href="/#originals"]'), 'the Browse tile is permanent');
+  await mount(Home, '/#originals');
+  assert.match(document.querySelector('#originals').textContent, /PROtv Originals are coming soon/);
+});
+
+test('a released Original keeps its badge on regular cards and keeps its normal Play action', async () => {
+  api.getVideos = async () => [{ ...film, protvOriginal: true }];
+  api.getComingSoon = async () => [];
+  api.getOriginals = async () => [{ id: film.id, kind: 'title', href: `/title/${film.id}`, title: film.title, comingSoon: false, watchAvailable: true, protvOriginal: true }];
+  await mount(Home);
+  const card = document.querySelector('#new-on-protv .ptv-card');
+  assert.equal(card.querySelector('.ptv-card__badge--original').textContent, 'PROtv Original');
+  assert.ok(card.querySelector('.ptv-card__action--play'));
+  assert.match(document.querySelector('#originals .ptv-card').textContent, /Now streaming/);
+});
+
+test('Admin can designate and remove a PROtv Original alongside categories', async () => {
+  const saved = [];
+  api.getAdminAllVideos = async () => [{ ...film, category: 'Independent', categories: ['Independent'], approvalStatus: 'approved' }];
+  api.updateVideoMetadata = async (id, body) => { saved.push(body); return { ...film, ...body, id }; };
+  await mount(Editor, '/admin');
+  const toggle = document.querySelector('.admin-original-toggle input');
+  assert.equal(toggle.checked, false);
+  await act(async () => toggle.click());
+  const chip = [...document.querySelectorAll('.admin-category-chip')].find((item) => item.textContent.includes('Black Cinema'));
+  await act(async () => chip.click());
+  const save = () => [...document.querySelectorAll('button')].find((item) => item.textContent === 'Save');
+  await act(async () => save().click());
+  await settle();
+  assert.equal(saved[0].protvOriginal, true);
+  assert.deepEqual(saved[0].categories, ['Independent', 'Black Cinema']);
+  assert.ok(document.querySelector('.admin-original-pill'));
+  await act(async () => document.querySelector('.admin-original-toggle input').click());
+  await act(async () => save().click());
+  await settle();
+  assert.equal(saved[1].protvOriginal, false);
 });

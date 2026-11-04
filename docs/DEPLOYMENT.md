@@ -97,5 +97,15 @@ group by) and **Also show in** chips for more categories (stored in `categories`
 at most 8). A title appears in every matching category row. New on PROtv stays automatic, by approval recency.
 An edit that sends only `category` keeps the other categories. Saving a show record keeps its `seriesTitle`.
 
+### PROtv Originals
+
+PROtv Original is an Administrator branding designation, not a genre: `protvOriginal: true` on a movie or show record,
+set in Admin → Catalog & Metadata with the **PROtv Original** checkbox (who and when are recorded). It never changes
+categories, approval, rights, release or Roku/Fire TV eligibility, and nothing sets it automatically. A Coming Soon
+listing can be an Original; a released Creator Portal film inherits the designation from its Coming Soon listing, and a
+show stays an Original as episodes are released. `GET /api/v1/catalog/originals` feeds the homepage **PROtv Originals**
+row (after Coming Soon) and the permanent **PROtv Originals** Browse tile; each title appears once, with the same public
+eligibility and playback rules as everywhere else.
+
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

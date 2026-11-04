@@ -14,7 +14,7 @@ function SeriesPresentation({ series }) {
           ? <img src={series.artwork} alt="" />
           : <span aria-hidden="true">{series.title}</span>}
         <div className="series-feature__shade" />
-        <p className="series-feature__eyebrow">{series.comingSoon ? 'Coming Soon' : 'PROtv Series'}</p>
+        <p className="series-feature__eyebrow">{[series.protvOriginal && 'PROtv Original', series.comingSoon ? 'Coming Soon' : !series.protvOriginal && 'PROtv Series'].filter(Boolean).join(' · ')}</p>
       </div>
       <div className="series-feature__details">
         <div>

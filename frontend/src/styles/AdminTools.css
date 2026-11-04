@@ -663,3 +663,44 @@
   margin-top: 8px;
   opacity: .75;
 }
+
+/* PROtv Original designation in the catalog editor. */
+.admin-original-pill {
+  margin-left: 8px;
+  padding: 3px 9px;
+  border: 1px solid #2563eb;
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: #05060f;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.admin-original-toggle {
+  display: flex !important;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid rgba(37, 99, 235, .45);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.admin-original-toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: #2563eb;
+}
+
+.admin-original-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-original-toggle small {
+  opacity: .75;
+}

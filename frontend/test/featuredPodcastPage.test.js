@@ -214,6 +214,8 @@ test('homepage preserves brand and titles, adds spotlight, and hero next/previou
   await act(async () => document.querySelector('[aria-label="PROtv brand hero"]').click());
   assert.match(document.querySelector('h1').textContent, /PROtv/);
   api.getVideos = async () => [];
+  api.getComingSoon = async () => [];
+  api.getOriginals = async () => [];
   await mount(Home, {}, '/');
   assert.ok(document.querySelector('.mmwf-spotlight a[href="/podcast/me-and-my-white-friend"]'));
   assert.ok(document.querySelector('[aria-label="Me and My White Friend"]'));

@@ -7,7 +7,7 @@ const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
 const { seriesStructuredData, titleStructuredData } = require('./structuredData');
 const { signPlayback } = require('../mux');
-const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog } = require('./details');
+const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
 
 function createCatalogRouter({
   loadApproved = db
@@ -57,6 +57,15 @@ function createCatalogRouter({
     } catch (error) {
       console.error('Failed to load Coming Soon titles:', error);
       return res.status(503).json({ error: 'Coming Soon titles are temporarily unavailable.' });
+    }
+  });
+
+  router.get('/originals', async (req, res) => {
+    try {
+      return res.json({ items: originalsCatalog(await load(req)) });
+    } catch (error) {
+      console.error('Failed to load PROtv Originals:', error);
+      return res.status(503).json({ error: 'PROtv Originals are temporarily unavailable.' });
     }
   });
 

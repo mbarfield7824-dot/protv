@@ -1,5 +1,6 @@
 const { isViewerEligible, publicTitle, seriesKey } = require('./readModel');
 const { releaseAllowed } = require('./releases');
+const { originalProjectIds, isProtvOriginal } = require('./originals');
 
 function metadataAllowed(record, now = Date.now()) {
   return record?.approvalStatus === 'approved'
@@ -60,6 +61,7 @@ function titleDetails(record, records) {
       .filter(field => typeof record[field] === 'string').map(field => [field, record[field]])),
     ...(typeof record.rating === 'number' ? { rating: record.rating } : {}),
     categories: categoriesOf(record),
+    protvOriginal: isProtvOriginal(record, originalProjectIds(records)),
     watchAvailable: record.contentType !== 'SERIES' && !comingSoonFilm(record) && isViewerEligible(record, records),
     ...(record.releaseStatus === 'scheduled' ? { releaseAt: record.releaseAt } : {}),
     ...(comingSoonFilm(record) ? {
@@ -111,6 +113,7 @@ function seriesDetails(records) {
       description: show?.description || '',
       category: show?.category || episodes[0]?.category || '',
       categories: show ? categoriesOf(show) : episodes[0]?.categories || [],
+      protvOriginal: show?.protvOriginal === true,
       artwork: artwork?.thumbnailUrl || artwork?.posterUrl || '',
       ...(show?.trailerStatus === 'ready' && show.trailerPlaybackId
         ? { trailerAvailable: true, trailerTitleId: show.id } : {}),
@@ -122,20 +125,44 @@ function seriesDetails(records) {
 // title is not released. Promotional metadata only; nothing here is playable. Soonest confirmed premiere first.
 function comingSoonCatalog(records) {
   const shows = seriesDetails(records).filter(series => series.comingSoon).map(series => ({
-    id: `series-${series.key}`, kind: 'series', href: `/series/${encodeURIComponent(series.key)}`,
-    title: series.title, description: series.description, artwork: series.artwork, categories: series.categories,
-    ...(series.premiereAt ? { premiereAt: series.premiereAt } : {}),
-    ...(series.airingSchedule ? { airingSchedule: series.airingSchedule } : {}),
-    trailerAvailable: Boolean(series.trailerAvailable),
+    ...seriesCard(series),
   }));
-  const films = records.filter(comingSoonFilm).map(record => titleDetails(record, records)).filter(Boolean).map(detail => ({
-    id: detail.id, kind: 'title', href: `/title/${encodeURIComponent(detail.id)}`,
-    title: detail.title, description: detail.description, artwork: detail.posterUrl || detail.thumbnailUrl, categories: detail.categories,
-    ...(detail.releaseAt ? { premiereAt: detail.releaseAt } : {}),
-    trailerAvailable: Boolean(detail.trailerAvailable),
-  }));
+  const films = records.filter(comingSoonFilm).map(record => titleDetails(record, records)).filter(Boolean).map(filmCard);
   const time = item => (item.premiereAt ? Date.parse(item.premiereAt) : Infinity);
   return [...shows, ...films].sort((a, b) => time(a) - time(b) || a.title.localeCompare(b.title));
 }
 
-module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails, comingSoonCatalog, categoriesOf };
+// Discovery card for a show (shared by Coming Soon and PROtv Originals).
+function seriesCard(series) {
+  return {
+    id: `series-${series.key}`, kind: 'series', href: `/series/${encodeURIComponent(series.key)}`,
+    title: series.title, description: series.description, artwork: series.artwork, categories: series.categories,
+    comingSoon: Boolean(series.comingSoon), episodeCount: series.episodeCount, protvOriginal: Boolean(series.protvOriginal),
+    ...(series.premiereAt ? { premiereAt: series.premiereAt } : {}),
+    ...(series.airingSchedule ? { airingSchedule: series.airingSchedule } : {}),
+    trailerAvailable: Boolean(series.trailerAvailable),
+  };
+}
+
+// Discovery card for a film (shared by Coming Soon and PROtv Originals). watchAvailable follows existing playback rules.
+function filmCard(detail) {
+  return {
+    id: detail.id, kind: 'title', href: `/title/${encodeURIComponent(detail.id)}`,
+    title: detail.title, description: detail.description, artwork: detail.posterUrl || detail.thumbnailUrl, categories: detail.categories,
+    comingSoon: Boolean(detail.comingSoon), watchAvailable: Boolean(detail.watchAvailable), protvOriginal: Boolean(detail.protvOriginal),
+    ...(detail.releaseAt && !detail.watchAvailable ? { premiereAt: detail.releaseAt } : {}),
+    trailerAvailable: Boolean(detail.trailerAvailable),
+  };
+}
+
+// PROtv Originals discovery: designated shows (Coming Soon or released) and designated films, using the same public
+// eligibility as every other page. A film's Coming Soon listing and its released title never both appear.
+function originalsCatalog(records) {
+  const shows = seriesDetails(records).filter(series => series.protvOriginal).map(seriesCard);
+  const ids = originalProjectIds(records);
+  const films = records.filter(record => record.contentType === 'MOVIE' && isProtvOriginal(record, ids))
+    .map(record => titleDetails(record, records)).filter(Boolean).map(filmCard);
+  return [...shows, ...films].sort((a, b) => Number(a.comingSoon) - Number(b.comingSoon) || a.title.localeCompare(b.title));
+}
+
+module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog, categoriesOf };

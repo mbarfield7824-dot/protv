@@ -156,6 +156,12 @@ export const api = {
     return (await res.json()).items;
   },
 
+  async getOriginals() {
+    const res = await fetch(`${API_URL}/v1/catalog/originals`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('PROtv Originals are temporarily unavailable.');
+    return (await res.json()).items;
+  },
+
   async createSeriesTrailerRecord(body) {
     const res = await fetch(`${API_URL}/admin/title-trailers/series-record`, {
       method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(body),

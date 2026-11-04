@@ -43,6 +43,11 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
             event.currentTarget.src = fallbackArtworkUrl(video, FALLBACK_POSTER);
           }}
         />
+        {video.protvOriginal && (
+          <span className="ptv-card__badges" aria-hidden="true">
+            <span className="ptv-card__badge ptv-card__badge--original">PROtv Original</span>
+          </span>
+        )}
         <div className="ptv-card__actions">
           {video.watchAvailable !== false && <button type="button" className="ptv-card__action ptv-card__action--play" aria-label={`Watch ${video.title}`} onClick={stop(watch)}>
             <span aria-hidden="true">▶</span>

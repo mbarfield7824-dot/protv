@@ -182,6 +182,7 @@ export default function Title() {
             )}
 
             {present(video.description) && <p className="title-description">{video.description}</p>}
+            {video.protvOriginal && <p className="ptv-original-mark">PROtv Original</p>}
             {video.comingSoon && (
               <p className="title-premiere"><strong>Coming Soon to PROtv</strong>
                 {!video.releaseAt && ' · Premiere date to be announced'}</p>

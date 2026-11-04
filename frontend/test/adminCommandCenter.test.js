@@ -502,8 +502,9 @@ test('populated review and catalog preserve fields while separating routine and 
   assert.match(record.querySelector('h3').textContent, /Local review fixture/);
   assert.ok(record.querySelector('.admin-button-primary'));
   assert.ok(record.querySelector('.catalog-delete-button'));
-  // Twelve metadata fields plus durable poster and signed trailer uploads.
-  assert.equal(record.querySelectorAll('input, select, textarea').length, 14);
+  // Twelve metadata fields, the PROtv Original designation, and durable poster and signed trailer uploads.
+  assert.equal(record.querySelectorAll('input, select, textarea').length, 15);
+  assert.ok(record.querySelector('.admin-original-toggle input[type="checkbox"]'));
   const uploads = [...record.querySelectorAll('input[type="file"]')];
   assert.equal(uploads.length, 2);
   assert.equal(uploads[0].getAttribute('accept'), 'image/png,image/jpeg');

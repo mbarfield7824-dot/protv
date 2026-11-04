@@ -1,5 +1,6 @@
 const express = require('express');
 const { catalogCategories } = require('../catalog/categories');
+const { ORIGINAL_TYPES, originalProjectIds, isProtvOriginal } = require('../catalog/originals');
 const path = require('path');
 const {
   db,
@@ -165,8 +166,10 @@ router.get('/', async (req, res) => {
       'CDN-Cache-Control': 'no-store',
       'Vercel-CDN-Cache-Control': 'no-store',
     });
+    const originals = originalProjectIds(videos);
     res.json(videos.filter((video) => isViewerEligible(video, videos))
-      .map((video) => video.contentType === PODCAST_EPISODE ? publicTitle(video) : publicVideo(video)));
+      .map((video) => video.contentType === PODCAST_EPISODE ? publicTitle(video)
+        : { ...publicVideo(video), ...(isProtvOriginal(video, originals) ? { protvOriginal: true } : {}) }));
   } catch (error) {
     res.set('Cache-Control', 'no-store');
     res.status(500).json({ error: error.message });
@@ -470,6 +473,18 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
     if (has('subtitles')) updates.subtitles = typeof req.body.subtitles === 'string' ? req.body.subtitles.trim() : '';
     if (has('trailerUrl')) updates.trailerUrl = optionalHttpUrl(req.body.trailerUrl);
     if (has('genres') && Array.isArray(req.body.genres)) updates.genres = req.body.genres;
+    if (has('protvOriginal')) {
+      // A branding designation only: approval, rights, schedule and platform eligibility are untouched.
+      if (typeof req.body.protvOriginal !== 'boolean') return res.status(400).json({ error: 'PROtv Original must be true or false.' });
+      if (req.body.protvOriginal && !ORIGINAL_TYPES.has(contentType)) {
+        return res.status(400).json({ error: 'Only movies and shows can be designated PROtv Originals.' });
+      }
+      if (req.body.protvOriginal !== (existing.protvOriginal === true)) {
+        updates.protvOriginal = req.body.protvOriginal;
+        updates.protvOriginalUpdatedAt = new Date().toISOString();
+        updates.protvOriginalUpdatedBy = req.user?.uid || null;
+      }
+    }
 
     if (has('contentType')) updates.contentType = contentType;
     if (contentType === 'MUSIC') {

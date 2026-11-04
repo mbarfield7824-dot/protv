@@ -96,6 +96,7 @@ export default function SeriesDetail() {
           {series.artwork && <img className="series-detail-hero__art" src={series.artwork} alt="" />}
           <div className="series-detail-hero__shade" />
           <div className="series-detail-hero__copy">
+            {series.protvOriginal && <p className="ptv-original-mark">PROtv Original</p>}
             <p className="series-kicker">{series.comingSoon ? 'Coming Soon to PROtv' : 'PROtv Series'}</p>
             <h1>{series.title}</h1>
             {series.comingSoon && (
