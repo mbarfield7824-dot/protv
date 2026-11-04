@@ -18,6 +18,7 @@ const { createAdminLiveRouter } = require('./live/adminRouter');
 const { createReportRouters } = require('./reports/router');
 const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, posterNotFound } = require('./integrations/creatorPosterStore');
 const { createTitlePosterRouter } = require('./integrations/titlePosterUpload');
+const { createTitleTrailerRouter } = require('./integrations/titleTrailerRouter');
 const { createPlaybackRouter } = require('./playback/router');
 const { createShortLinkRouters } = require('./shortLinks/router');
 const { createSocialArtworkRouter } = require('./catalog/socialArtwork');
@@ -37,6 +38,7 @@ app.use(express.json({
 app.use(`${apiPrefix}/posters`, createCreatorPosterRouter());
 app.use(`${apiPrefix}/admin/creator-posters`, createCreatorPosterStorageCheckRouter());
 app.use(`${apiPrefix}/admin/title-posters`, createTitlePosterRouter());
+app.use(`${apiPrefix}/admin/title-trailers`, createTitleTrailerRouter());
 app.use(
   `${apiPrefix}/posters`,
   express.static(path.resolve(process.env.PD_POSTER_DIRECTORY || path.join(__dirname, '../.data/posters')), {

@@ -3,6 +3,7 @@ import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
 import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { isPodcast } from '../admin/podcastAdmin';
+import TrailerPlayer from './TrailerPlayer';
 
 function catalogCategory(video) {
   return video.category || video.genre || video.categories?.[0] || 'General';
@@ -41,6 +42,8 @@ export default function AdminCatalogEditor() {
   const [savedId, setSavedId] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [posterUpload, setPosterUpload] = useState({ id: null, message: '', failed: false });
+  const [trailerUpload, setTrailerUpload] = useState({ id: null, message: '', failed: false });
+  const [trailerPreviewId, setTrailerPreviewId] = useState(null);
 
   const loadVideos = async () => {
     setLoading(true);
@@ -53,6 +56,47 @@ export default function AdminCatalogEditor() {
       setError(requestError.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const uploadTrailer = async (video, file) => {
+    if (!file) return;
+    setTrailerUpload({ id: video.id, message: 'Preparing secure trailer upload...', failed: false });
+    try {
+      const { uploadUrl } = await api.createTitleTrailerUpload(video.id);
+      setTrailerUpload({ id: video.id, message: 'Uploading trailer (0%)...', failed: false });
+      await api.uploadFileToMux(uploadUrl, file, (progress) => {
+        setTrailerUpload({ id: video.id, message: `Uploading trailer (${progress}%)...`, failed: false });
+      });
+
+      const deadline = Date.now() + 15 * 60 * 1000;
+      let result;
+      do {
+        await new Promise((resolve) => window.setTimeout(resolve, 4000));
+        result = await api.getTitleTrailerStatus(video.id);
+        if (result.status === 'errored') throw new Error(result.error || 'Mux could not process the trailer.');
+      } while (result.status === 'processing' && Date.now() < deadline);
+      if (result.status !== 'ready' || !result.available) {
+        throw new Error('Trailer processing is taking longer than expected. Refresh the catalog to check again.');
+      }
+      setVideos((items) => items.map((item) => item.id === video.id
+        ? { ...item, trailerStatus: 'ready', trailerAvailable: true, trailerUrl: '' } : item));
+      setTrailerUpload({ id: video.id, message: 'Trailer uploaded and ready for preview.', failed: false });
+    } catch (uploadError) {
+      setTrailerUpload({ id: video.id, message: uploadError.message, failed: true });
+    }
+  };
+
+  const removeTrailer = async (video) => {
+    if (!window.confirm(`Remove the trailer for "${video.title}"?`)) return;
+    setTrailerUpload({ id: video.id, message: 'Removing trailer...', failed: false });
+    try {
+      await api.deleteTitleTrailer(video.id);
+      setVideos((items) => items.map((item) => item.id === video.id
+        ? { ...item, trailerStatus: null, trailerAvailable: false, trailerUrl: '' } : item));
+      setTrailerUpload({ id: video.id, message: 'Trailer removed.', failed: false });
+    } catch (removeError) {
+      setTrailerUpload({ id: video.id, message: removeError.message, failed: true });
     }
   };
 
@@ -73,6 +117,35 @@ export default function AdminCatalogEditor() {
       active = false;
     };
   }, []);
+
+  const pendingTrailerIds = videos
+    .filter((video) => video.trailerUploadStatus === 'processing' && video.id !== trailerUpload.id)
+    .map((video) => video.id).join(',');
+
+  useEffect(() => {
+    if (!pendingTrailerIds) return undefined;
+    const ids = pendingTrailerIds.split(',');
+    const poll = async () => {
+      const results = await Promise.allSettled(ids.map((id) => api.getTitleTrailerStatus(id)));
+      const statuses = new Map(results.filter((result) => result.status === 'fulfilled')
+        .map((result) => [result.value.videoId, result.value]));
+      if (statuses.size) {
+        setVideos((items) => items.map((item) => {
+          const result = statuses.get(item.id);
+          if (!result || (item.trailerStatus === result.status && item.trailerError === result.error)) return item;
+          return {
+            ...item,
+            trailerUploadStatus: ['processing', 'errored'].includes(result.status) ? result.status : null,
+            ...(result.available ? { trailerStatus: 'ready' } : {}),
+            trailerError: result.error,
+            trailerAvailable: result.available,
+          };
+        }));
+      }
+    };
+    const timer = window.setInterval(() => { void poll(); }, 4000);
+    return () => window.clearInterval(timer);
+  }, [pendingTrailerIds]);
 
   const updateDraft = (id, field, value) => {
     const currentVideo = videos.find((video) => video.id === id);
@@ -261,6 +334,9 @@ export default function AdminCatalogEditor() {
                 {CATEGORY_SUBGENRES[video.category].map((subcategory) => (
                   <option key={subcategory}>{subcategory}</option>
                 ))}
+                {trailerPreviewId && (
+                  <TrailerPlayer videoId={trailerPreviewId} admin onClose={() => setTrailerPreviewId(null)} />
+                )}
               </select>
             </label>
           )}
@@ -316,9 +392,35 @@ export default function AdminCatalogEditor() {
             <input value={video.subtitles || ''} onChange={(event) => updateDraft(video.id, 'subtitles', event.target.value)} placeholder="e.g. English, Spanish" />
           </label>
           <label>
-            Trailer Link
+            Existing Trailer Link
             <input type="url" value={video.trailerUrl || ''} onChange={(event) => updateDraft(video.id, 'trailerUrl', event.target.value)} placeholder="https://youtube.com/…" />
           </label>
+          <div className="admin-field-wide admin-poster-upload">
+            <label>
+              Upload secure trailer
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                disabled={trailerUpload.id === video.id && /^(Preparing|Uploading|Removing)/.test(trailerUpload.message)}
+                onChange={(event) => { void uploadTrailer(video, event.target.files?.[0]); event.target.value = ''; }}
+              />
+            </label>
+            <small>Trailers are uploaded directly to Mux with signed playback. Public playback is available only after title approval.</small>
+            {video.trailerStatus === 'ready' && (
+              <div className="admin-actions">
+                <button className="admin-secondary" type="button" onClick={() => setTrailerPreviewId(video.id)}>Preview trailer</button>
+                <button className="admin-secondary" type="button" onClick={() => void removeTrailer(video)}>Remove trailer</button>
+              </div>
+            )}
+            {video.trailerError && (
+              <span className="admin-error" role="alert">{video.trailerError}</span>
+            )}
+            {trailerUpload.id === video.id && trailerUpload.message && (
+              <span className={trailerUpload.failed ? 'admin-error' : 'admin-subtitle'} role={trailerUpload.failed ? 'alert' : 'status'}>
+                {trailerUpload.message}
+              </span>
+            )}
+          </div>
           {typeof video.rating === 'number' && (
             <p className="catalog-imdb-rating">
               IMDb: ★ {video.rating.toFixed(1)}

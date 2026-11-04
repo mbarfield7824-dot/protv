@@ -146,6 +146,27 @@ test('non-Podcast live player retains existing public-video metadata and makes n
   for (const [key, value] of Object.entries(movie)) assert.equal(result[key], value);
 });
 
+test('scheduled signed movies use the gated playback endpoint and short-lived token', async () => {
+  const movie = {
+    id: 'scheduled-movie', contentType: 'MOVIE', muxPlaybackId: 'signed_mux_id',
+    muxPlaybackPolicy: 'signed', title: 'Premiere',
+  };
+  const calls = [];
+  const result = await fetchPlayerTitle('https://example.org/api', movie.id, {
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return url.endsWith('/playback')
+        ? response({ id: movie.id, streamType: 'on-demand', muxPlaybackId: movie.muxPlaybackId, playbackToken: 'short-lived-token' })
+        : response(movie);
+    },
+  });
+  assert.deepEqual(calls, [
+    'https://example.org/api/videos/scheduled-movie',
+    'https://example.org/api/v1/catalog/titles/scheduled-movie/playback',
+  ]);
+  assert.equal(result.playbackToken, 'short-lived-token');
+});
+
 test('cancelled player request rejects promptly even if fetch ignores abort', { timeout: 1000 }, async () => {
   const controller = new AbortController();
   const pending = fetchPlayerTitle('https://example.org', episode.id, {

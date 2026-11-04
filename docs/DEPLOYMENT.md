@@ -32,3 +32,18 @@ the catalog. Unpublishing deletes the ID. Apps need no update and the catalog is
 episode when it next loads the catalog.
 
 Fire TV shows a scheduled episode only if an Administrator ticked its clearance when scheduling.
+
+## Movie and episode premieres
+
+The Admin file/URL upload forms accept an Eastern-Time premiere. Scheduled uploads use signed-only Mux playback,
+remain drafts, and require a rights holder and verification notes. An Administrator must approve the record; the
+public catalog and playback-token endpoint then enforce the stored release instant on every request. Existing
+published titles are not rescheduled or changed by this flow. A separate trailer asset stays signed and can be
+previewed by Admin; public trailer tokens require title approval and do not expose the full-production token early.
+
+## Admin trailer uploads
+
+Trailers upload directly to Mux as signed-only assets. The Admin preview uses a short-lived playback token;
+the public catalog issues one only for an approved movie or episode with a ready trailer. Configure
+`MUX_SIGNING_KEY_ID` and `MUX_SIGNING_PRIVATE_KEY` in the backend/Vercel environment before enabling uploads.
+Replacing a trailer keeps the current one available until the new upload is ready; removal deletes the Mux asset.

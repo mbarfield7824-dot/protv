@@ -5,5 +5,8 @@ test-media
 backend/.data
 backend/.env
 backend/serviceAccountKey.json
+audit-reports/
+mobile/
+tv/
 *.env
 *.pem

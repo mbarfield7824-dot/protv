@@ -49,6 +49,8 @@ export default function Admin() {
     episodeNumber: 1,
     rightsHolder: '',
     rightsVerificationNotes: '',
+    releaseAtLocal: '',
+    releaseTimeZone: 'America/New_York',
   });
   const [file, setFile] = useState(null);
   const [bulkFiles, setBulkFiles] = useState([]);
@@ -57,6 +59,7 @@ export default function Admin() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('idle'); // idle | uploading | processing | ready | errored
   const [videoId, setVideoId] = useState(null);
+  const [scheduledRelease, setScheduledRelease] = useState(null);
   const [error, setError] = useState('');
   const [manualUploadDraft, setManualUploadDraft] = useState(null);
   const [contentSubmitting, setContentSubmitting] = useState(false);
@@ -209,8 +212,9 @@ export default function Admin() {
     );
   };
 
-  const startPolling = (id) => {
+  const startPolling = (id, release = null) => {
     setVideoId(id);
+    setScheduledRelease(release);
     setStatus('processing');
     pollRef.current = setInterval(async () => {
       try {
@@ -240,6 +244,10 @@ export default function Admin() {
       setError('Music format, rights holder, and rights verification notes are required.');
       return;
     }
+    if (form.releaseAtLocal && (!form.rightsHolder.trim() || !form.rightsVerificationNotes.trim())) {
+      setError('Scheduled premieres require a rights holder and documented rights notes.');
+      return;
+    }
     if (!file) {
       setError('Please choose a video file.');
       return;
@@ -249,11 +257,11 @@ export default function Admin() {
       const metadata = form.contentType === 'EPISODE'
         ? { ...form, seriesTitle: form.seriesTitle.trim() }
         : form;
-      const { videoId: id, uploadUrl, error: apiError } = await api.getUploadUrl(metadata);
+      const { videoId: id, uploadUrl, releaseAt, releaseStatus, error: apiError } = await api.getUploadUrl(metadata);
       if (apiError) throw new Error(apiError);
 
       await api.uploadFileToMux(uploadUrl, file, setProgress);
-      startPolling(id);
+      startPolling(id, releaseStatus ? { releaseStatus, releaseAt } : null);
     } catch (err) {
       setError(err.message || 'Upload failed');
       setStatus('idle');
@@ -272,6 +280,10 @@ export default function Admin() {
       setError('Music format, rights holder, and rights verification notes are required.');
       return;
     }
+    if (form.releaseAtLocal && (!form.rightsHolder.trim() || !form.rightsVerificationNotes.trim())) {
+      setError('Scheduled premieres require a rights holder and documented rights notes.');
+      return;
+    }
     if (!form.sourceUrl.trim()) {
       setError('Please paste a video file URL.');
       return;
@@ -281,9 +293,9 @@ export default function Admin() {
       const metadata = form.contentType === 'EPISODE'
         ? { ...form, seriesTitle: form.seriesTitle.trim() }
         : form;
-      const { videoId: id, error: apiError } = await api.addVideoFromUrl(metadata);
+      const { videoId: id, releaseAt, releaseStatus, error: apiError } = await api.addVideoFromUrl(metadata);
       if (apiError) throw new Error(apiError);
-      startPolling(id);
+      startPolling(id, releaseStatus ? { releaseStatus, releaseAt } : null);
     } catch (err) {
       setError(err.message || 'Ingestion failed');
       setStatus('idle');
@@ -455,6 +467,8 @@ export default function Admin() {
       episodeNumber: 1,
       rightsHolder: '',
       rightsVerificationNotes: '',
+      releaseAtLocal: '',
+      releaseTimeZone: 'America/New_York',
     });
     setFile(null);
     setBulkFiles([]);
@@ -463,6 +477,7 @@ export default function Admin() {
     setProgress(0);
     setStatus('idle');
     setVideoId(null);
+    setScheduledRelease(null);
     setError('');
   };
 
@@ -650,6 +665,31 @@ export default function Admin() {
               Trailer Link <span className="optional">(optional)</span>
               <input type="url" value={form.trailerUrl} onChange={updateField('trailerUrl')} placeholder="https://youtube.com/…" />
             </label>
+            <fieldset className="admin-release-schedule">
+              <legend>Optional premiere scheduling</legend>
+              <label>
+                Premiere date and time (Eastern Time)
+                <input
+                  type="datetime-local"
+                  value={form.releaseAtLocal}
+                  disabled={form.contentType === 'MUSIC'}
+                  onChange={updateField('releaseAtLocal')}
+                />
+              </label>
+              {form.releaseAtLocal && (
+                <>
+                  <p className="admin-file-help">Scheduled titles remain private drafts until an Administrator reviews and approves the documented rights.</p>
+                  <label>
+                    Rights holder
+                    <input value={form.rightsHolder} onChange={updateField('rightsHolder')} required />
+                  </label>
+                  <label>
+                    Rights verification notes
+                    <textarea value={form.rightsVerificationNotes} onChange={updateField('rightsVerificationNotes')} rows={3} required />
+                  </label>
+                </>
+              )}
+            </fieldset>
             <label>
               Format
               <select value={form.contentType} onChange={updateField('contentType')}>
@@ -936,7 +976,9 @@ export default function Admin() {
 
         {status === 'ready' && ['file', 'url', 'bulk'].includes(mode) && (
           <div className="admin-status admin-status-ready">
-            <p>✅ Ready! Your video is now live in the catalog.</p>
+            {scheduledRelease ? (
+              <p>✅ Media is ready and remains private until an Administrator approves it and its scheduled premiere time arrives.</p>
+            ) : <p>✅ Ready! Your video is now live in the catalog.</p>}
             <div className="admin-actions">
               <a className="admin-submit" href={`/player/${videoId}`}>
                 Watch it now

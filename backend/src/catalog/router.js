@@ -6,12 +6,14 @@ const { eligibleForPlatform, platformFromRequest } = require('./platformEligibil
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
 const { seriesStructuredData, titleStructuredData } = require('./structuredData');
+const { signPlayback } = require('../mux');
 
 function createCatalogRouter({
   loadApproved = db
     ? getApprovedVideos
     : async () => (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved'),
   loadHtmlTemplate = loadTitleTemplate,
+  signPlaybackToken = signPlayback,
 } = {}) {
   const router = express.Router();
   // Without a request (the sitemap) the full public catalog is loaded.
@@ -94,6 +96,25 @@ function createCatalogRouter({
 
   const loadTitle = async (req, id) => playableCatalog(await load(req)).find((item) => item.id === id);
 
+  router.get('/titles/:id/trailer/playback', async (req, res) => {
+    try {
+      const title = (await load(req)).find((item) => item.id === req.params.id);
+      if (!title || title.approvalStatus !== 'approved'
+        || !['MOVIE', 'EPISODE'].includes(title.contentType)
+        || title.trailerStatus !== 'ready' || !title.trailerPlaybackId) {
+        return res.status(404).json({ error: 'Trailer not found.' });
+      }
+      return res.json({
+        id: title.id,
+        muxPlaybackId: title.trailerPlaybackId,
+        playbackToken: await signPlaybackToken(title.trailerPlaybackId, title.trailerDuration),
+      });
+    } catch (error) {
+      console.error('Failed to load viewer trailer:', error);
+      return res.status(500).json({ error: 'The trailer is temporarily unavailable.' });
+    }
+  });
+
   const renderPage = (kind) => async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     try {
@@ -142,6 +163,9 @@ function createCatalogRouter({
         id: title.id,
         streamType: 'on-demand',
         muxPlaybackId: title.muxPlaybackId,
+        ...(title.muxPlaybackPolicy === 'signed' ? {
+          playbackToken: await signPlaybackToken(title.muxPlaybackId, title.duration),
+        } : {}),
       });
     } catch (error) {
       console.error('Failed to load viewer playback:', error);

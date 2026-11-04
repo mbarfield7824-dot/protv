@@ -63,7 +63,18 @@ export async function fetchPlayerTitle(apiBaseUrl, id, {
     };
     const legacy = await read(`${base}/videos/${encodeURIComponent(id)}`);
     if (legacy === null) return null;
-    if (legacy.contentType !== 'PODCAST_EPISODE') return normalizePlayerTitle(legacy, id);
+    if (legacy.contentType !== 'PODCAST_EPISODE') {
+      const normalized = normalizePlayerTitle(legacy, id);
+      if (normalized.muxPlaybackPolicy !== 'signed') return normalized;
+      const playback = await read(`${url}/playback`);
+      if (playback === null) return null;
+      if (playback.id !== id || playback.streamType !== 'on-demand'
+        || playback.muxPlaybackId !== normalized.muxPlaybackId
+        || typeof playback.playbackToken !== 'string' || !playback.playbackToken) {
+        throw new Error('The public signed playback response is invalid.');
+      }
+      return { ...normalized, playbackToken: playback.playbackToken };
+    }
     const title = await read(url);
     if (title === null) return null;
     if (title.contentType !== 'PODCAST_EPISODE' || title.podcastShowId !== legacy.podcastShowId) {

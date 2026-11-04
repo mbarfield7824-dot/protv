@@ -2,6 +2,7 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
+import TrailerPlayer from '../components/TrailerPlayer';
 import { api } from '../api';
 import { podcastEpisodeLabel, podcastParentUrl } from '../data/playerCatalog';
 import { createPlaybackTracker, getOrCreatePlaybackGuestId } from '../data/playbackTracking';
@@ -27,6 +28,7 @@ export default function Player() {
   const [loading, setLoading] = useState(true);
   const [loadedVideoId, setLoadedVideoId] = useState(null);
   const [error, setError] = useState('');
+  const [trailerOpen, setTrailerOpen] = useState(false);
   const { user, isFavorite, toggleFavorite, progress, updateProgress } = useAuth();
   const playerRef = useRef(null);
   const playbackTrackerRef = useRef(null);
@@ -46,6 +48,7 @@ export default function Player() {
     adActiveRef.current = active;
     playbackTrackerRef.current?.setAdsActive(active);
   }, []);
+  const closeTrailer = useCallback(() => setTrailerOpen(false), []);
   const goBack = () => {
     if (location.key !== 'default') {
       navigate(-1);
@@ -395,11 +398,15 @@ export default function Player() {
               <button className="action-btn primary" onClick={() => void toggleFavorite(video.id)}>
                 {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
               </button>
-              {video.trailerUrl && (
+              {video.trailerAvailable ? (
+                <button className="action-btn" type="button" onClick={() => setTrailerOpen(true)}>
+                  Watch Trailer
+                </button>
+              ) : video.trailerUrl ? (
                 <a className="action-btn" href={video.trailerUrl} target="_blank" rel="noreferrer">
                   Watch Trailer
                 </a>
-              )}
+              ) : null}
               <button className="action-btn">Share</button>
               <Link
                 className="action-btn report-content-btn"
@@ -421,7 +428,7 @@ export default function Player() {
           </div>
         )}
       </div>
-
+      {trailerOpen && <TrailerPlayer videoId={video.id} onClose={closeTrailer} />}
     </div>
   );
 }

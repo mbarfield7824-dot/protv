@@ -14,11 +14,15 @@ const mux = new Mux({
  * straight to this URL (never touching our server), then we poll/webhook for
  * the resulting asset + playback ID.
  */
-async function createDirectUpload(corsOrigin) {
+async function createDirectUpload(corsOrigin, { playbackPolicy = 'public' } = {}) {
+  if (!['public', 'signed'].includes(playbackPolicy)) {
+    throw new Error('Mux playback policy must be public or signed.');
+  }
+  if (playbackPolicy === 'signed') requirePlaybackSigning();
   const upload = await mux.video.uploads.create({
     cors_origin: corsOrigin || '*',
     new_asset_settings: {
-      playback_policies: ['public'],
+      playback_policies: [playbackPolicy],
       video_quality: 'basic',
     },
   });
@@ -34,10 +38,14 @@ async function getUpload(uploadId) {
  * Creates a Mux asset directly from a publicly reachable video URL
  * (e.g. an existing S3/GCS/CDN link) — no file upload needed.
  */
-async function createAssetFromUrl(inputUrl) {
+async function createAssetFromUrl(inputUrl, { playbackPolicy = 'public' } = {}) {
+  if (!['public', 'signed'].includes(playbackPolicy)) {
+    throw new Error('Mux playback policy must be public or signed.');
+  }
+  if (playbackPolicy === 'signed') requirePlaybackSigning();
   const asset = await mux.video.assets.create({
     inputs: [{ url: inputUrl }],
-    playback_policies: ['public'],
+    playback_policies: [playbackPolicy],
     video_quality: 'basic',
   });
   return asset;
@@ -105,10 +113,25 @@ async function waitForAssetReady({ uploadId, assetId, timeoutMs = 15 * 60 * 1000
 }
 
 /** Extracts the public playback ID from a Mux asset object, if ready. */
-function getPlaybackId(asset) {
+function getPlaybackId(asset, policy = 'public') {
   const playbackIds = asset?.playback_ids || [];
-  const publicId = playbackIds.find((p) => p.policy === 'public');
-  return publicId?.id || null;
+  return playbackIds.find((playback) => playback.policy === policy)?.id || null;
+}
+
+function requirePlaybackSigning() {
+  if (!process.env.MUX_SIGNING_KEY_ID || !process.env.MUX_SIGNING_PRIVATE_KEY) {
+    throw new Error('Signed playback requires MUX_SIGNING_KEY_ID and MUX_SIGNING_PRIVATE_KEY.');
+  }
+}
+
+async function signPlayback(playbackId, duration = 0) {
+  requirePlaybackSigning();
+  return mux.jwt.signPlaybackId(playbackId, {
+    keyId: process.env.MUX_SIGNING_KEY_ID,
+    keySecret: process.env.MUX_SIGNING_PRIVATE_KEY,
+    type: 'video',
+    expiration: `${Math.max(3600, Math.ceil(Number(duration) || 0) + 900)}s`,
+  });
 }
 
 /** Verifies an incoming Mux webhook request signature. */
@@ -130,6 +153,8 @@ module.exports = {
   deletePlaybackId,
   getAsset,
   getPlaybackId,
+  requirePlaybackSigning,
+  signPlayback,
   uploadLocalFile,
   waitForAssetReady,
   verifyWebhook,

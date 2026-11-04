@@ -142,6 +142,13 @@ export const api = {
     return fetchPlayerTitle(API_URL, id, options);
   },
 
+  async getTitleTrailerPlayback(id) {
+    const res = await fetch(`${API_URL}/v1/catalog/titles/${encodeURIComponent(id)}/trailer/playback`, { cache: 'no-store' });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Trailer is temporarily unavailable.');
+    return response;
+  },
+
   async submitSafetyReport(payload) {
     return submitSafetyReport(API_URL, payload);
   },
@@ -297,6 +304,47 @@ export const api = {
   podcastFromUrl: (id, sourceUrl) => podcastRequest(`episodes/${encodeURIComponent(id)}/from-url`, { method: 'POST', body: { sourceUrl } }),
 
   uploadTitlePoster: (videoId, file) => uploadTitlePoster(API_URL, authenticatedHeaders, videoId, file),
+
+  async createTitleTrailerUpload(videoId) {
+    const res = await fetch(`${API_URL}/admin/title-trailers/${encodeURIComponent(videoId)}/upload-url`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to start the trailer upload.');
+    return response;
+  },
+
+  async getTitleTrailerStatus(videoId) {
+    const res = await fetch(`${API_URL}/admin/title-trailers/${encodeURIComponent(videoId)}/status`, {
+      headers: await authenticatedHeaders(),
+      cache: 'no-store',
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to check trailer status.');
+    return response;
+  },
+
+  async getAdminTitleTrailerPreview(videoId) {
+    const res = await fetch(`${API_URL}/admin/title-trailers/${encodeURIComponent(videoId)}/preview`, {
+      headers: await authenticatedHeaders(),
+      cache: 'no-store',
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Unable to preview the trailer.');
+    return response;
+  },
+
+  async deleteTitleTrailer(videoId) {
+    const res = await fetch(`${API_URL}/admin/title-trailers/${encodeURIComponent(videoId)}`, {
+      method: 'DELETE',
+      headers: await authenticatedHeaders(),
+    });
+    if (!res.ok) {
+      const response = await res.json();
+      throw new Error(response.error || 'Unable to remove the trailer.');
+    }
+  },
 
   async updateVideoMetadata(videoId, metadata) {
     const res = await fetch(`${API_URL}/videos/${encodeURIComponent(videoId)}`, {

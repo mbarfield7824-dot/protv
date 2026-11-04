@@ -46,6 +46,9 @@ function publicTitle(video) {
     posterUrl: video.posterUrl || '',
     heroImageUrl: video.heroImageUrl || '',
     muxPlaybackId: video.muxPlaybackId.trim(),
+    ...(video.muxPlaybackPolicy === 'signed' ? { muxPlaybackPolicy: 'signed' } : {}),
+    ...(video.trailerStatus === 'ready' && video.trailerPlaybackId
+      ? { trailerAvailable: true } : {}),
     seriesTitle: typeof video.seriesTitle === 'string' ? video.seriesTitle : '',
     seasonNumber: video.seasonNumber ?? null,
     episodeNumber: video.episodeNumber ?? null,

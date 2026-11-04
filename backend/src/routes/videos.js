@@ -36,6 +36,7 @@ const {
   validateCreatorActionRequest,
 } = require('../integrations/creatorPublishingService');
 const { isViewerEligible, publicTitle } = require('../catalog/readModel');
+const { scheduledRelease } = require('../catalog/releases');
 const { documentaryGenres, validateMusicFormat } = require('../catalog/music');
 const { PODCAST_SHOW, PODCAST_EPISODE } = require('../catalog/podcasts');
 const router = express.Router();
@@ -136,6 +137,16 @@ function publicVideo(video) {
   delete sanitized.creatorPromotionalBinding;
   delete sanitized.rightsHolder;
   delete sanitized.rightsVerificationNotes;
+  delete sanitized.trailerAssetId;
+  delete sanitized.trailerUploadId;
+  delete sanitized.trailerPlaybackId;
+  delete sanitized.trailerDuration;
+  delete sanitized.trailerError;
+  delete sanitized.trailerStatus;
+  if (video.approvalStatus === 'approved'
+    && video.trailerStatus === 'ready' && video.trailerPlaybackId) {
+    sanitized.trailerAvailable = true;
+  }
   return sanitized;
 }
 
@@ -242,6 +253,13 @@ router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
     const currentVideo = await getVideoById(req.params.id);
     if ([PODCAST_SHOW, PODCAST_EPISODE].includes(currentVideo.contentType)) {
       return res.status(400).json({ error: 'Podcast approval is not enabled yet.' });
+    }
+    if (currentVideo.releaseStatus === 'scheduled'
+      && (typeof currentVideo.rightsHolder !== 'string' || !currentVideo.rightsHolder.trim()
+        || typeof currentVideo.rightsVerificationNotes !== 'string' || !currentVideo.rightsVerificationNotes.trim())) {
+      return res.status(409).json({
+        error: 'A scheduled release needs a documented rights holder and verification notes before approval.',
+      });
     }
     validateMusicMetadata({
       contentType: currentVideo.contentType,
@@ -687,6 +705,8 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       musicFormat,
       rightsHolder,
       rightsVerificationNotes,
+      releaseAtLocal,
+      releaseTimeZone,
     } = req.body;
 
     if (!title || !category) {
@@ -703,8 +723,13 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
     });
     const episodeError = validateEpisodeMetadata({ ...req.body, contentType: normalizedContentType });
     if (episodeError) return res.status(400).json({ error: episodeError });
+    const release = scheduledRelease({
+      ...req.body, contentType: normalizedContentType, releaseAtLocal, releaseTimeZone,
+    });
 
-    const upload = await createDirectUpload(process.env.FRONTEND_URL);
+    const upload = await createDirectUpload(process.env.FRONTEND_URL, {
+      playbackPolicy: release ? 'signed' : 'public',
+    });
     const isEpisode = normalizedContentType === 'EPISODE';
 
     const videoData = withDocumentaryClassification({
@@ -725,10 +750,16 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       duration: 0,
       views: 0,
       createdBy: req.user.uid,
-      approvalStatus: normalizedContentType === 'MUSIC' ? 'draft' : 'approved',
+      approvalStatus: normalizedContentType === 'MUSIC' || release ? 'draft' : 'approved',
       status: 'processing',
       muxUploadId: upload.id,
       contentType: normalizedContentType,
+      ...(release ? {
+        ...release,
+        muxPlaybackPolicy: 'signed',
+        rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+      } : {}),
       ...(normalizedContentType === 'MUSIC' ? {
         musicFormat,
         rightsHolder: rightsHolder.trim(),
@@ -745,6 +776,7 @@ router.post('/upload-url', verifyAdmin, async (req, res) => {
       videoId,
       uploadUrl: upload.url,
       uploadId: upload.id,
+      ...(release ? { releaseStatus: release.releaseStatus, releaseAt: release.releaseAt } : {}),
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -778,6 +810,8 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       musicFormat,
       rightsHolder,
       rightsVerificationNotes,
+      releaseAtLocal,
+      releaseTimeZone,
     } = req.body;
 
     if (!title || !category || !sourceUrl) {
@@ -794,8 +828,13 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
     });
     const episodeError = validateEpisodeMetadata({ ...req.body, contentType: normalizedContentType });
     if (episodeError) return res.status(400).json({ error: episodeError });
+    const release = scheduledRelease({
+      ...req.body, contentType: normalizedContentType, releaseAtLocal, releaseTimeZone,
+    });
 
-    const asset = await createAssetFromUrl(sourceUrl);
+    const asset = await createAssetFromUrl(sourceUrl, {
+      playbackPolicy: release ? 'signed' : 'public',
+    });
     const isEpisode = normalizedContentType === 'EPISODE';
 
     const videoData = withDocumentaryClassification({
@@ -816,10 +855,16 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
       duration: duration || 0,
       views: 0,
       createdBy: req.user.uid,
-      approvalStatus: normalizedContentType === 'MUSIC' ? 'draft' : 'approved',
+      approvalStatus: normalizedContentType === 'MUSIC' || release ? 'draft' : 'approved',
       status: 'processing',
       muxAssetId: asset.id,
       contentType: normalizedContentType,
+      ...(release ? {
+        ...release,
+        muxPlaybackPolicy: 'signed',
+        rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+      } : {}),
       ...(normalizedContentType === 'MUSIC' ? {
         musicFormat,
         rightsHolder: rightsHolder.trim(),
@@ -835,6 +880,7 @@ router.post('/from-url', verifyAdmin, async (req, res) => {
     res.status(201).json({
       videoId,
       assetId: asset.id,
+      ...(release ? { releaseStatus: release.releaseStatus, releaseAt: release.releaseAt } : {}),
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -870,9 +916,12 @@ router.get('/:id/status', verifyAdmin, async (req, res) => {
     }
 
     if (asset && asset.status === 'ready') {
-      const playbackId = getPlaybackId(asset);
+      const playbackId = getPlaybackId(asset, video.muxPlaybackPolicy || 'public');
       if (video.contentType === PODCAST_EPISODE && !playbackId) {
-        return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
+        return res.status(409).json({ error: 'Mux asset has no playback ID matching its catalog policy.' });
+      }
+      if (!playbackId) {
+        return res.status(409).json({ error: 'Mux asset has no playback ID matching its catalog policy.' });
       }
       const readyUpdates = {
         status: 'ready',
@@ -944,11 +993,10 @@ router.post('/webhook', async (req, res) => {
     if (event.type === 'video.asset.ready') {
       const asset = event.data;
       const uploadId = asset.upload_id;
-      const playbackId = getPlaybackId(asset);
-
       const video = uploadId
         ? await getVideoByUploadId(uploadId)
         : await getVideoByAssetId(asset.id);
+      const playbackId = video ? getPlaybackId(asset, video.muxPlaybackPolicy || 'public') : null;
 
       if (video && video.status === 'processing'
         && (!video.muxAssetId || video.muxAssetId === asset.id)) {
@@ -963,7 +1011,7 @@ router.post('/webhook', async (req, res) => {
           }
         }
         if (!playbackId) {
-          return res.status(409).json({ error: 'Mux asset has no public playback ID.' });
+          return res.status(409).json({ error: 'Mux asset has no playback ID matching its catalog policy.' });
         }
         const readyUpdates = {
           status: 'ready',
