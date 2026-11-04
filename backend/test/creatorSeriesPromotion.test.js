@@ -169,25 +169,64 @@ test('only confirmed premiere facts are shown, and only while upcoming', async (
   assert.equal(detail.premiereAt, undefined);
 });
 
-test('adopts an existing show record with the same title instead of duplicating it, keeping its own trailer', async () => {
+const snapshot = (records) => JSON.stringify([...records.entries()]);
+
+test('an existing show record with the same title is never claimed by title alone', async () => {
   const manual = {
-    id: 'manual-show', contentType: 'SERIES', title: 'synthetic  show', seriesTitle: 'synthetic  show', status: 'ready', approvalStatus: 'draft',
-    trailerStatus: 'ready', trailerPlaybackId: 'admin-trailer', trailerAssetId: 'admin-asset',
+    id: 'manual-show', contentType: 'SERIES', title: 'synthetic  show', seriesTitle: 'synthetic  show', status: 'ready', approvalStatus: 'approved',
+    rightsHolder: 'Manual Holder', trailerStatus: 'ready', trailerPlaybackId: 'admin-trailer', trailerAssetId: 'admin-asset',
   };
   const { records, mux, service } = harness([manual]);
   assert.equal(seriesKey(manual.title), seriesKey('Synthetic Show'));
-  const result = await service.execute(payload());
-  assert.equal(result.externalId, 'manual-show');
+  const before = snapshot(records);
+  await assert.rejects(service.execute(payload()), /without a link to this creator series/);
+  assert.equal(snapshot(records), before, 'the existing record and its ownership are unchanged');
+  assert.equal(mux.created.length, 0);
+});
+
+test('a manual or legacy episode using the title also blocks the request', async () => {
+  const legacy = { id: 'legacy-ep', contentType: 'EPISODE', title: 'Old', seriesTitle: 'SYNTHETIC SHOW', seasonNumber: 1, episodeNumber: 1, approvalStatus: 'approved' };
+  const { records, mux, service } = harness([legacy]);
+  await assert.rejects(service.execute(payload()), /without a link/);
   assert.equal(records.size, 1);
-  assert.equal(mux.created.length, 0, 'the trailer already on the show record is reused');
-  assert.equal(records.get('manual-show').creatorProjectId, PROJECT);
-  assert.equal(records.get('manual-show').trailerPlaybackId, 'admin-trailer');
+  assert.equal(mux.created.length, 0);
+});
+
+test('a record squatting on the reserved ID without the project link is not overwritten', async () => {
+  const squatter = { id: `creator_series_${PROJECT}`, contentType: 'SERIES', title: 'Unrelated', seriesTitle: 'Unrelated', approvalStatus: 'draft' };
+  const { records, service } = harness([squatter]);
+  const before = snapshot(records);
+  await assert.rejects(service.execute(payload()), /belongs to something else/);
+  assert.equal(snapshot(records), before);
+});
+
+test('two show records claiming the same creator series are ambiguous and refused', async () => {
+  const a = { id: `creator_series_${PROJECT}`, contentType: 'SERIES', title: 'Synthetic Show', seriesTitle: 'Synthetic Show', creatorProjectId: PROJECT };
+  const b = { id: 'copy-show', contentType: 'SERIES', title: 'Copy', seriesTitle: 'Copy', creatorProjectId: PROJECT };
+  const { records, service } = harness([a, b]);
+  const before = snapshot(records);
+  await assert.rejects(service.execute(payload()), /More than one/);
+  assert.equal(snapshot(records), before);
+});
+
+test('the transaction refuses a record that lost its project link between read and write', async () => {
+  const { records, service } = harness();
+  await service.execute(payload());
+  const id = `creator_series_${PROJECT}`;
+  const original = service.dependencies.getAllVideos;
+  service.dependencies.getAllVideos = async () => {
+    const all = await original();
+    records.set(id, { ...records.get(id), creatorProjectId: 'someone-else' });
+    return all;
+  };
+  await assert.rejects(service.execute(payload()), /not linked to this creator series/);
+  assert.equal(records.get(id).creatorProjectId, 'someone-else');
 });
 
 test('refuses a title that belongs to a different creator series', async () => {
   const other = { ...heldEpisode, id: 'creator_episode_other', creatorProjectId: '99999999-9999-4999-8999-999999999999', seriesId: '99999999-9999-4999-8999-999999999999' };
   const { records, service } = harness([other]);
-  await assert.rejects(service.execute(payload()), /different series/);
+  await assert.rejects(service.execute(payload()), /without a link/);
   assert.equal(records.size, 1);
 });
 

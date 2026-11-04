@@ -69,8 +69,10 @@ remain independent and are never silently reused as show trailers. Duplicate sho
 A series trailer already uploaded in the Creator Portal is reused, not uploaded again. An Administrator opens the
 series in the Creator Portal (Release details → **PROtv Coming Soon**), records where the signed agreement grants
 promotional use, and approves. The portal then sends the signed `series_promotion` action to
-`/videos/integrations/creator-actions`; PROtv creates or adopts exactly one `SERIES` record (`creator_series_<projectId>`
-unless a show record with the same title already exists), copies the poster through the existing hardened poster
+`/videos/integrations/creator-actions`; PROtv creates or updates exactly one `SERIES` record, `creator_series_<projectId>`,
+identified only by its stored `creatorProjectId` link. A title match never claims a record: if any other show or episode
+already uses the title, or the reserved ID holds an unlinked record, the request is refused and nothing is written until an
+Administrator resolves it. PROtv then copies the poster through the existing hardened poster
 transfer, and has Mux fetch the trailer once from a short-lived signed portal link as a signed-playback asset. Later
 syncs reuse that asset. The page is public at once as **Coming Soon**; Watch Trailer appears when Mux finishes.
 
