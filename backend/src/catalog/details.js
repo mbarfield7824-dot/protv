@@ -15,10 +15,32 @@ function comingSoonFilm(record) {
   return record?.contentType === 'MOVIE' && typeof record.comingSoonProjectId === 'string' && Boolean(record.comingSoonProjectId);
 }
 
+// Once the film itself is released (its creator_<projectId> title is playable), its Coming Soon listing leaves
+// discovery. The listing record and its trailer are kept; nothing is deleted.
+function releasedFilm(record, records) {
+  return records.some(other => other.id !== record.id && other.contentType === 'MOVIE'
+    && other.creatorProjectId === record.comingSoonProjectId && isViewerEligible(other, records));
+}
+
+// A title's categories, primary genre first, without duplicates. Older records only have category/genre.
+function categoriesOf(record) {
+  const seen = new Set();
+  return [record?.category || record?.genre, ...(Array.isArray(record?.categories) ? record.categories : [])]
+    .filter(value => typeof value === 'string' && value.trim())
+    .map(value => value.trim())
+    .filter(value => !seen.has(value.toLowerCase()) && seen.add(value.toLowerCase()));
+}
+
+// A show record's own title is its series title when seriesTitle was left empty.
+function showTitle(record) {
+  const value = record.contentType === 'SERIES' ? record.seriesTitle || record.title : record.seriesTitle;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function detailEligible(record, records) {
   if (!metadataAllowed(record)) return false;
   if (record.contentType === 'SERIES') return record.status === 'ready' && releaseAllowed(record);
-  if (comingSoonFilm(record)) return record.status === 'ready' && releaseAllowed(record);
+  if (comingSoonFilm(record)) return record.status === 'ready' && releaseAllowed(record) && !releasedFilm(record, records);
   const context = records.filter(parent => metadataAllowed(parent) && releaseAllowed(parent));
   return isViewerEligible(record, context)
     || (['MOVIE', 'EPISODE'].includes(record.contentType)
@@ -37,6 +59,7 @@ function titleDetails(record, records) {
     ...Object.fromEntries(['cast', 'creator', 'director', 'language', 'subtitles']
       .filter(field => typeof record[field] === 'string').map(field => [field, record[field]])),
     ...(typeof record.rating === 'number' ? { rating: record.rating } : {}),
+    categories: categoriesOf(record),
     watchAvailable: record.contentType !== 'SERIES' && !comingSoonFilm(record) && isViewerEligible(record, records),
     ...(record.releaseStatus === 'scheduled' ? { releaseAt: record.releaseAt } : {}),
     ...(comingSoonFilm(record) ? {
@@ -66,13 +89,12 @@ function seriesDetails(records) {
   const groups = new Map();
   for (const record of records) {
     if (!detailEligible(record, records)) continue;
-    if (!['EPISODE', 'SERIES'].includes(record.contentType)
-      || typeof record.seriesTitle !== 'string' || !record.seriesTitle.trim()) continue;
+    if (!['EPISODE', 'SERIES'].includes(record.contentType) || !showTitle(record)) continue;
     if (record.contentType === 'EPISODE'
       && (!Number.isInteger(record.seasonNumber) || record.seasonNumber < 1
         || !Number.isInteger(record.episodeNumber) || record.episodeNumber < 1)) continue;
-    const key = seriesKey(record.seriesTitle);
-    if (!groups.has(key)) groups.set(key, { key, title: record.seriesTitle.trim(), episodes: [], show: null });
+    const key = seriesKey(showTitle(record));
+    if (!groups.has(key)) groups.set(key, { key, title: showTitle(record), episodes: [], show: null });
     const group = groups.get(key);
     if (record.contentType === 'SERIES') {
       if (!group.show || record.id.localeCompare(group.show.id) < 0) group.show = record;
@@ -88,6 +110,7 @@ function seriesDetails(records) {
       ...(show ? showSchedule(show, episodes) : {}),
       description: show?.description || '',
       category: show?.category || episodes[0]?.category || '',
+      categories: show ? categoriesOf(show) : episodes[0]?.categories || [],
       artwork: artwork?.thumbnailUrl || artwork?.posterUrl || '',
       ...(show?.trailerStatus === 'ready' && show.trailerPlaybackId
         ? { trailerAvailable: true, trailerTitleId: show.id } : {}),
@@ -95,4 +118,24 @@ function seriesDetails(records) {
   }).sort((a, b) => a.title.localeCompare(b.title));
 }
 
-module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails };
+// Public Coming Soon discovery: published shows with no released episode yet, and Coming Soon films whose real
+// title is not released. Promotional metadata only; nothing here is playable. Soonest confirmed premiere first.
+function comingSoonCatalog(records) {
+  const shows = seriesDetails(records).filter(series => series.comingSoon).map(series => ({
+    id: `series-${series.key}`, kind: 'series', href: `/series/${encodeURIComponent(series.key)}`,
+    title: series.title, description: series.description, artwork: series.artwork, categories: series.categories,
+    ...(series.premiereAt ? { premiereAt: series.premiereAt } : {}),
+    ...(series.airingSchedule ? { airingSchedule: series.airingSchedule } : {}),
+    trailerAvailable: Boolean(series.trailerAvailable),
+  }));
+  const films = records.filter(comingSoonFilm).map(record => titleDetails(record, records)).filter(Boolean).map(detail => ({
+    id: detail.id, kind: 'title', href: `/title/${encodeURIComponent(detail.id)}`,
+    title: detail.title, description: detail.description, artwork: detail.posterUrl || detail.thumbnailUrl, categories: detail.categories,
+    ...(detail.releaseAt ? { premiereAt: detail.releaseAt } : {}),
+    trailerAvailable: Boolean(detail.trailerAvailable),
+  }));
+  const time = item => (item.premiereAt ? Date.parse(item.premiereAt) : Infinity);
+  return [...shows, ...films].sort((a, b) => time(a) - time(b) || a.title.localeCompare(b.title));
+}
+
+module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails, comingSoonCatalog, categoriesOf };

@@ -7,7 +7,7 @@ const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
 const { seriesStructuredData, titleStructuredData } = require('./structuredData');
 const { signPlayback } = require('../mux');
-const { metadataAllowed, titleDetails, seriesDetails } = require('./details');
+const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog } = require('./details');
 
 function createCatalogRouter({
   loadApproved = db
@@ -48,6 +48,15 @@ function createCatalogRouter({
     } catch (error) {
       console.error('Failed to load series details:', error);
       return res.status(503).json({ error: 'Series details are temporarily unavailable.' });
+    }
+  });
+
+  router.get('/coming-soon', async (req, res) => {
+    try {
+      return res.json({ items: comingSoonCatalog(await load(req)) });
+    } catch (error) {
+      console.error('Failed to load Coming Soon titles:', error);
+      return res.status(503).json({ error: 'Coming Soon titles are temporarily unavailable.' });
     }
   });
 

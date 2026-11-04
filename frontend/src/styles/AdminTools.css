@@ -606,3 +606,60 @@
   border-radius: 6px;
   background: rgba(255, 255, 255, .04);
 }
+
+/* Primary genre plus "Also show in" category chips in the catalog editor. */
+.admin-category-chooser {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-category-chooser fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-category-chooser legend {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.admin-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-category-chip {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: .85rem;
+  cursor: pointer;
+}
+
+.admin-category-chip:hover {
+  border-color: rgba(96, 165, 250, .7);
+}
+
+.admin-category-chip.is-on {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.admin-category-chip:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.admin-category-chooser small {
+  display: block;
+  margin-top: 8px;
+  opacity: .75;
+}

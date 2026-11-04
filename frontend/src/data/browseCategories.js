@@ -21,7 +21,7 @@ export const EXTRA_BROWSE_CATEGORIES = [
 ];
 
 export function matchesCategory(video, category) {
-  const values = [video.category, video.subgenre, ...(video.genres || [])]
+  const values = [video.category, video.subgenre, ...(video.genres || []), ...(video.categories || [])]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
   return category.matches.some((match) => values.includes(match.toLowerCase()));

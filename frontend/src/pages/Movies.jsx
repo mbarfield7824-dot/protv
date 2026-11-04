@@ -22,7 +22,7 @@ function normalizeMovie(raw) {
     year: raw.year || null,
     duration: raw.duration ? Math.round(raw.duration / 60) : 0,
     contentType: raw.contentType,
-    genres: raw.genres || [category].filter(Boolean),
+    genres: [...new Set([...(raw.genres || [category]), ...(Array.isArray(raw.categories) ? raw.categories : [])].filter(Boolean))],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     watchAvailable: raw.watchAvailable,

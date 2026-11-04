@@ -13,6 +13,7 @@ import CreatorBanner from '../components/CreatorBanner';
 import ProTVFooter from '../components/ProTVFooter';
 import MoviePreview from '../components/MoviePreview';
 import EmptyState from '../components/EmptyState';
+import ComingSoonCard from '../components/ComingSoonCard';
 import { api } from '../api';
 import { mockVideoData, FALLBACK_POSTER, FALLBACK_HERO } from '../data/mockData';
 import { BROWSE_CATEGORIES, EXTRA_BROWSE_CATEGORIES, matchesCategory } from '../data/browseCategories';
@@ -59,6 +60,7 @@ function normalizeApiVideo(raw) {
     durationSeconds: raw.duration || 0,
     contentType: raw.contentType || 'MOVIE',
     genres: [...new Set([...(raw.genres || []), category, subgenre].filter(Boolean))],
+    categories: Array.isArray(raw.categories) ? raw.categories.filter((item) => typeof item === 'string') : [],
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
     seasonNumber: raw.seasonNumber,
@@ -119,6 +121,7 @@ function HomeSkeleton() {
 
 export default function Home() {
   const [apiVideos, setApiVideos] = useState([]);
+  const [comingSoon, setComingSoon] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
@@ -127,6 +130,10 @@ export default function Home() {
   // Fetch the live catalog. Fails silently (the development fallback
   // catalog still renders) if the backend is offline.
   async function fetchApiVideos() {
+    // Published Coming Soon listings load alongside the catalog; a failure only hides the row.
+    const comingSoonRequest = api.getComingSoon()
+      .then((items) => setComingSoon(Array.isArray(items) ? items : []))
+      .catch(() => setComingSoon([]));
     try {
       const data = await api.getVideos();
       if (Array.isArray(data) && data.length > 0) {
@@ -145,6 +152,7 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to load live videos:', error);
     } finally {
+      await comingSoonRequest;
       setLoading(false);
     }
   }
@@ -253,6 +261,15 @@ export default function Home() {
     };
   });
 
+  // Coming Soon leads the Browse tiles. It shows its first title's artwork, or the empty tile style when none are published.
+  const comingSoonTile = {
+    category: { id: 'coming-soon', name: 'Coming Soon' },
+    count: comingSoon.length,
+    comingSoon: comingSoon.length === 0,
+    artwork: comingSoon.find((item) => item.artwork)?.artwork || '',
+    fallback: FALLBACK_POSTER,
+  };
+
   // ---- New on PROtv / Spotlight -----------------------------------------
   const newOnProtv = isLive
     ? [...movieCatalog].sort((left, right) => catalogTimestamp(right) - catalogTimestamp(left)).slice(0, 12)
@@ -274,6 +291,7 @@ export default function Home() {
     .filter((rail) => rail.items.length > 0);
   const renderedIds = new Set([
     'continue-watching', 'categories', 'new-on-protv', 'submit',
+    ...(comingSoon.length ? ['coming-soon'] : []),
     ...editorialRails.map((rail) => rail.id),
     ...(originals.length ? ['originals'] : []),
   ]);
@@ -290,6 +308,8 @@ export default function Home() {
         : { id: 'my-list', empty: { title: 'Your list is waiting.', body: 'Browse PROtv and add movies, documentaries and shows you want to watch later.' } };
     } else if (selection === 'movies') {
       destination = { id: 'movies', title: 'Movies', items: movieCatalog };
+    } else if (selection === 'coming-soon') {
+      destination = { id: 'coming-soon', empty: { title: 'Nothing is announced just yet.', body: 'New series and films appear here with their trailers before they premiere on PROtv.' } };
     } else if (selection === 'originals') {
       destination = { id: 'originals', empty: { title: 'PROtv Originals are coming soon.', body: 'Distinctive stories made for PROtv will premiere here.' } };
     } else if (category) {
@@ -326,7 +346,7 @@ export default function Home() {
         <CinematicHero brand={brandSlide} titles={heroTitles} featuredPodcast />
 
         <div className="ptv-stack ptv-stack--lead">
-        <CategoryShowcase tiles={categoryTiles} activeId={selection} />
+        <CategoryShowcase tiles={[comingSoonTile, ...categoryTiles]} activeId={selection} />
         <ContinueWatchingRail items={continueWatchingItems} />
         <FeaturedPodcastSpotlight />
 
@@ -353,6 +373,11 @@ export default function Home() {
           )}
 
           {newOnProtv.length > 0 && renderRail({ id: 'new-on-protv', title: 'New on PROtv', items: newOnProtv, viewAll: { to: '/#movies' } })}
+          {comingSoon.length > 0 && (
+            <StreamingRail id="coming-soon" title="Coming Soon">
+              {comingSoon.map((item) => <ComingSoonCard key={item.id} item={item} />)}
+            </StreamingRail>
+          )}
         </div>
 
         <SpotlightFeature video={spotlight} />

@@ -1,4 +1,5 @@
 const express = require('express');
+const { catalogCategories } = require('../catalog/categories');
 const path = require('path');
 const {
   db,
@@ -437,18 +438,16 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       if (currentType === 'SERIES') updates.seriesTitle = updates.title;
     }
     if (has('description')) updates.description = typeof req.body.description === 'string' ? req.body.description : '';
-    if (has('category')) {
-      const normalizedCategory = typeof req.body.category === 'string' && req.body.category.trim()
-        ? req.body.category.trim()
-        : 'General';
-      updates.category = normalizedCategory;
-      updates.genre = normalizedCategory;
-      updates.categories = contentType === 'MUSIC'
-        ? [...new Set([
-          ...(Array.isArray(existing.categories) ? existing.categories : []),
-          normalizedCategory,
-        ])]
-        : [normalizedCategory];
+    if (has('category') || has('categories')) {
+      // categories[0] is the primary genre, mirrored to category/genre for older readers (TV apps group by it).
+      const assigned = catalogCategories({
+        primary: has('category') ? req.body.category : undefined,
+        categories: has('categories') ? req.body.categories : undefined,
+        existing,
+      });
+      updates.category = assigned[0];
+      updates.genre = assigned[0];
+      updates.categories = assigned;
     }
     if (has('subgenre')) updates.subgenre = typeof req.body.subgenre === 'string' ? req.body.subgenre.trim() : '';
     if (has('thumbnailUrl')) {
@@ -495,7 +494,8 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
       updates.approvalNotes = '';
     }
 
-    if (typeChanged || (has('contentType') && !isEpisode)) {
+    // A show record keeps its seriesTitle (set from its title above); only productions drop episode fields.
+    if (typeChanged || (has('contentType') && !isEpisode && contentType !== 'SERIES')) {
       if (isEpisode) {
         updates.seriesTitle = typeof req.body.seriesTitle === 'string' ? req.body.seriesTitle.trim() : '';
         updates.seasonNumber = Number(req.body.seasonNumber);

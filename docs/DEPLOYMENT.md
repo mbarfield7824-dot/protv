@@ -84,5 +84,18 @@ public at once; Watch Trailer appears when Mux finishes. Without a premiere date
 announced". No Roku or Fire TV flag is set. Unpublishing sets `approvalStatus: draft` and keeps the Mux asset.
 Requires `CREATOR_AGENT_ORIGIN`, `PROTV_PUBLISHING_SECRET` and the Mux signing keys.
 
+Published listings are discoverable on the homepage: a **Coming Soon** row after New on PROtv (hidden when empty)
+and a **Coming Soon** tile first in Browse by Category (an empty state when none). Both read
+`GET /api/v1/catalog/coming-soon`: published shows with no released episode and Coming Soon films whose real
+`creator_<projectId>` title is not yet playable. A show leaves Coming Soon when its first episode is released; a film
+when its real title is released. The listing record and trailer are kept. TV platforms receive none.
+
+### Categories
+
+In Admin → Catalog & Metadata each title has a **Primary genre** (stored as `category`/`genre`, which the TV apps
+group by) and **Also show in** chips for more categories (stored in `categories`, primary first, no duplicates,
+at most 8). A title appears in every matching category row. New on PROtv stays automatic, by approval recency.
+An edit that sends only `category` keeps the other categories. Saving a show record keeps its `seriesTitle`.
+
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

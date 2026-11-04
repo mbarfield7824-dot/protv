@@ -150,6 +150,12 @@ export const api = {
     return (await res.json()).items;
   },
 
+  async getComingSoon() {
+    const res = await fetch(`${API_URL}/v1/catalog/coming-soon`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Coming Soon titles are temporarily unavailable.');
+    return (await res.json()).items;
+  },
+
   async createSeriesTrailerRecord(body) {
     const res = await fetch(`${API_URL}/admin/title-trailers/series-record`, {
       method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(body),

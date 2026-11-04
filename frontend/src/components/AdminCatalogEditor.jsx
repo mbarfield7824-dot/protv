@@ -9,11 +9,55 @@ function catalogCategory(video) {
   return video.category || video.genre || video.categories?.[0] || 'General';
 }
 
+// Primary genre first, then the title's other categories, without duplicates (case-insensitive).
+function catalogCategories(video) {
+  const seen = new Set();
+  return [catalogCategory(video), ...(Array.isArray(video.categories) ? video.categories : [])]
+    .filter((value) => typeof value === 'string' && value.trim())
+    .map((value) => value.trim())
+    .filter((value) => !seen.has(value.toLowerCase()) && seen.add(value.toLowerCase()));
+}
+
 function normalizeCatalogVideo(video) {
   return {
     ...video,
     category: catalogCategory(video),
+    categories: catalogCategories(video),
   };
+}
+
+function CategoryChooser({ video, onPrimary, onToggle }) {
+  const assigned = catalogCategories(video);
+  const primary = assigned[0];
+  const options = [...new Set([...UPLOAD_CATEGORY_OPTIONS, ...assigned])];
+  const isOn = (category) => assigned.some((item) => item.toLowerCase() === category.toLowerCase());
+  return (
+    <div className="admin-field-wide admin-category-chooser">
+      <label>
+        Primary genre
+        <select value={primary} onChange={(event) => onPrimary(event.target.value)}>
+          {options.map((category) => <option key={category}>{category}</option>)}
+        </select>
+      </label>
+      <fieldset>
+        <legend>Also show in</legend>
+        <div className="admin-category-chips">
+          {options.filter((category) => category !== primary).map((category) => (
+            <button
+              key={category}
+              type="button"
+              className={`admin-category-chip ${isOn(category) ? 'is-on' : ''}`}
+              aria-pressed={isOn(category)}
+              onClick={() => onToggle(category)}
+            >
+              {isOn(category) ? '✓ ' : '+ '}{category}
+            </button>
+          ))}
+        </div>
+        <small>New on PROtv is automatic for recently released titles, so it is not chosen here.</small>
+      </fieldset>
+    </div>
+  );
 }
 
 function validateCatalogVideo(video) {
@@ -164,6 +208,11 @@ export default function AdminCatalogEditor() {
     return () => window.clearInterval(timer);
   }, [pendingTrailerIds]);
 
+  const updateDraftFields = (id, fields) => {
+    setVideos((items) => items.map((item) => (item.id === id ? { ...item, ...fields } : item)));
+    setSavedId(null);
+  };
+
   const updateDraft = (id, field, value) => {
     const currentVideo = videos.find((video) => video.id === id);
     const updatedVideo = {
@@ -215,6 +264,7 @@ export default function AdminCatalogEditor() {
         title: video.title.trim(),
         description: video.description || '',
         category: catalogCategory(video),
+        categories: catalogCategories(video),
         subgenre: video.subgenre || '',
         thumbnailUrl: video.thumbnailUrl || '',
         year: video.year || '',
@@ -339,21 +389,21 @@ export default function AdminCatalogEditor() {
             Description
             <textarea rows={2} value={video.description || ''} onChange={(event) => updateDraft(video.id, 'description', event.target.value)} />
           </label>
-          <label>
-            Category
-            <select
-              value={catalogCategory(video)}
-              onChange={(event) => {
-                updateDraft(video.id, 'category', event.target.value);
-                updateDraft(video.id, 'subgenre', '');
-              }}
-            >
-              {UPLOAD_CATEGORY_OPTIONS.map((category) => <option key={category}>{category}</option>)}
-              {!UPLOAD_CATEGORY_OPTIONS.includes(catalogCategory(video)) && (
-                <option>{catalogCategory(video)}</option>
-              )}
-            </select>
-          </label>
+          <CategoryChooser
+            video={video}
+            onPrimary={(category) => {
+              // The new primary replaces the old one; other categories stay assigned.
+              const others = catalogCategories(video).slice(1).filter((item) => item.toLowerCase() !== category.toLowerCase());
+              updateDraftFields(video.id, { category, subgenre: '', categories: [category, ...others] });
+            }}
+            onToggle={(category) => {
+              const current = catalogCategories(video);
+              const on = current.some((item) => item.toLowerCase() === category.toLowerCase());
+              updateDraftFields(video.id, {
+                categories: on ? current.filter((item) => item.toLowerCase() !== category.toLowerCase()) : [...current, category],
+              });
+            }}
+          />
           {CATEGORY_SUBGENRES[video.category]?.length > 0 && (
             <label>
               Subcategory

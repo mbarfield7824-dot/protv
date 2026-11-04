@@ -1011,6 +1011,25 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+.ptv-card__badge {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--ptv-blue);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.ptv-card--coming .ptv-card__poster { display: block; }
+
 .ptv-card__poster img {
   display: block;
   width: 100%;

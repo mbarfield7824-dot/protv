@@ -12,6 +12,7 @@ export const UPLOAD_CATEGORY_OPTIONS = [
   'Sports',
   'Podcast',
   'Black Cinema',
+  'Independent',
   'Anime',
   'Music',
   'Cartoons',
