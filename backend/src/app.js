@@ -20,6 +20,7 @@ const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, poster
 const { createTitlePosterRouter } = require('./integrations/titlePosterUpload');
 const { createPlaybackRouter } = require('./playback/router');
 const { createShortLinkRouters } = require('./shortLinks/router');
+const { createSocialArtworkRouter } = require('./catalog/socialArtwork');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -55,6 +56,7 @@ app.use(`${apiPrefix}/mux`, (req, res, next) => {
   return next();
 });
 app.use(`${apiPrefix}/v1/catalog`, createCatalogRouter());
+app.use(`${apiPrefix}/social`, createSocialArtworkRouter());
 app.use(`${apiPrefix}/admin/podcasts`, createAdminPodcastRouter());
 const shortLinks = createShortLinkRouters();
 app.use(`${apiPrefix}/short-links`, shortLinks.publicRouter);

@@ -36,7 +36,7 @@ test('slug and destination validation protect every active route and reject open
     '/title/a?next=https://evil', '/title/a#x', '/title/../admin', '/title/%61', '/MMWF', '/creators/secret']) {
     assert.throws(() => linkInput({ ...FLAGSHIP, destination }));
   }
-  for (const destination of ['/title/public-film', '/series/c2VyaWVz', '/podcasts/public-show', FLAGSHIP.destination]) {
+  for (const destination of ['/title/public-film', '/player/public-film', '/series/c2VyaWVz', '/podcasts/public-show', FLAGSHIP.destination]) {
     assert.equal(linkInput({ ...FLAGSHIP, destination }).destination, destination);
   }
 });
@@ -90,18 +90,19 @@ test('destinations use only public content and fresh approved metadata; MMWF wor
   const mmwf = await destinationMetadata(FLAGSHIP, async () => []);
   assert.equal(mmwf.title, 'Me and My White Friend');
   assert.match(mmwf.description, /Reggie Reg and Marv/);
-  assert.equal(mmwf.image, '/api/short-links/artwork/mmwf');
+  assert.equal(mmwf.image, '/api/social/artwork/featured');
   const link = { slug: 'ActualFilm', destination: '/title/public-film', kind: 'film', active: true };
   const metadata = await destinationMetadata(link, async () => [film]);
   assert.equal(metadata.title, film.title);
-  assert.equal(metadata.image, film.posterUrl);
+  assert.match(metadata.image, /^https:\/\/watchprotv.com\/api\/social\/artwork\/title\/public-film\?v=/);
   assert.equal(metadata.rightsHolder, undefined);
   await assert.rejects(destinationMetadata(link, async () => [{ ...film, approvalStatus: 'draft' }]), /not currently approved/);
   await assert.rejects(destinationMetadata({ ...link, kind: 'music' }, async () => [film]), /belongs to film/);
   const musicLink = { ...link, kind: 'music' };
   assert.equal((await destinationMetadata(musicLink, async () => [{ ...film, category: 'Music' }])).title, film.title);
   assert.equal((await destinationMetadata(musicLink, async () => [{ ...film, contentType: 'MUSIC', musicFormat: 'music_video' }])).title, film.title);
-  await assert.rejects(destinationMetadata(link, async () => [{ ...film, posterUrl: 'javascript:alert(1)' }]), /HTTPS/);
+  assert.match((await destinationMetadata(link, async () => [{ ...film, posterUrl: 'javascript:alert(1)' }])).image,
+    /^https:\/\/watchprotv.com\/api\/social\/artwork\/title\//);
   const show = { id: 'show', contentType: 'PODCAST_SHOW', title: 'Me and My White Friend', host: 'Reg and Marv', description: 'Reg and Marv talk.', approvalStatus: 'approved' };
   assert.equal(publicPodcastShow(show).host, 'Reggie Reg and Marv');
   assert.equal(publicPodcastShow(show).description, 'Reggie Reg and Marv talk.');
@@ -142,8 +143,8 @@ test('Admin authorization, activation, crawler HTML, direct loads, errors and ex
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.match(response.headers.get('content-security-policy'), /nonce-/);
     const html = await response.text();
-    assert.match(html, /og:title" content="Me and My White Friend"/);
-    assert.match(html, /og:image" content="https:\/\/watchprotv.com\/api\/short-links\/artwork\/mmwf"/);
+    assert.match(html, /og:title" content="Me and My White Friend \| PROtv"/);
+    assert.match(html, /og:image" content="https:\/\/watchprotv.com\/api\/social\/artwork\/featured"/);
     assert.match(html, /location.replace\("\/podcast\/me-and-my-white-friend"\)/);
     assert.match(html, /<noscript>/);
     assert.doesNotMatch(html, /rightsHolder|createdBy/);

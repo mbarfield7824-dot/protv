@@ -65,7 +65,7 @@ export default function AdminShortLinks() {
           {['creator', 'film', 'series', 'podcast', 'music', 'featured'].map(kind => <option key={kind} value={kind}>{kind}</option>)}
         </select></label>
         <label>Internal destination<input required value={draft.destination} onChange={field('destination')} placeholder="/podcast/me-and-my-white-friend" /></label>
-        <p>Use a public /title/ID, /series/KEY, /podcasts/ID or featured Podcast path. Creator links can point to approved public work or /creators, not private Portal profiles.</p>
+        <p>Use a public /title/ID, /player/ID, /series/KEY, /podcasts/ID or featured Podcast path. Creator links can point to approved public work or /creators, not private Portal profiles.</p>
         <label className="short-link-active"><input type="checkbox" checked={draft.active} onChange={field('active')} /> Active</label>
         <button type="submit">{pending ? 'Saving...' : 'Save Short Link'}</button>
       </fieldset>

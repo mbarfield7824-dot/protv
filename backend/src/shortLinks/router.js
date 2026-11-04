@@ -7,7 +7,7 @@ const { ShortLinkStore } = require('./store');
 const { linkInput, slugKey, RESERVED, LinkInputError, LinkConflictError } = require('./validation');
 const { destinationMetadata } = require('./metadata');
 const { shareHtml, socialMetadata, unavailableHtml } = require('./html');
-const sharp = require('sharp');
+const { renderFallback } = require('../catalog/socialArtwork');
 const featured = require('../../../shared/featuredPodcast.json');
 
 const FLAGSHIP = { slug: 'MMWF', kind: 'podcast', destination: featured.path, active: true };
@@ -20,7 +20,10 @@ function createShortLinkRouters({
 } = {}) {
   const publicRouter = express.Router();
   const adminRouter = express.Router();
-  publicRouter.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  publicRouter.use((_req, res, next) => {
+    res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
+    next();
+  });
   adminRouter.use(authorize);
   adminRouter.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   const fail = (res, error) => {
@@ -37,9 +40,7 @@ function createShortLinkRouters({
   };
   publicRouter.get('/artwork/brand', async (_req, res) => {
     try {
-      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#05070b"/><rect x="70" y="420" width="140" height="8" fill="#2587ff"/><text x="70" y="260" fill="white" font-family="Arial,sans-serif" font-size="110" font-weight="bold">PROtv</text><text x="70" y="360" fill="#5ca9ff" font-family="Arial,sans-serif" font-size="54">Where the Fire Lives!</text></svg>';
-      const png = await sharp(Buffer.from(svg)).png().toBuffer();
-      return res.set('Cache-Control', 'public, max-age=86400').type('png').send(png);
+      return res.type('png').send(await renderFallback('png'));
     } catch (error) { return fail(res, error); }
   });
   adminRouter.get('/', async (req, res) => {

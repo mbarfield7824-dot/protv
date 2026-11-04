@@ -40,6 +40,18 @@
       "destination": "/api/index?path=v1/catalog/titles/:id/html"
     },
     {
+      "source": "/player/:id",
+      "destination": "/api/index?path=v1/catalog/titles/:id/player-html"
+    },
+    {
+      "source": "/series/:id",
+      "destination": "/api/index?path=v1/catalog/series/:id/html"
+    },
+    {
+      "source": "/podcasts/:id",
+      "destination": "/api/index?path=v1/catalog/podcasts/:id/html"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/index?path=v1/catalog/sitemap.xml"
     },

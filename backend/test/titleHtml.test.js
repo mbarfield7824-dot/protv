@@ -19,15 +19,15 @@ test('title HTML provides exact metadata while preserving the React shell', () =
     '<title>Real Title | PROtv</title>',
     '<meta name="description" content="Real description.">',
     '<link rel="canonical" href="https://watchprotv.com/title/public">',
-    '<meta property="og:title" content="Real Title">',
+    '<meta property="og:title" content="Real Title | PROtv">',
     '<meta property="og:description" content="Real description.">',
     '<meta property="og:url" content="https://watchprotv.com/title/public">',
-    '<meta property="og:type" content="video.other">',
+    '<meta property="og:type" content="video.movie">',
     '<meta name="twitter:card" content="summary_large_image">',
-    '<meta name="twitter:title" content="Real Title">',
+    '<meta name="twitter:title" content="Real Title | PROtv">',
     '<meta name="twitter:description" content="Real description.">',
-    '<meta property="og:image" content="https://images.example/poster.jpg?a=1&amp;b=2">',
-    '<meta name="twitter:image" content="https://images.example/poster.jpg?a=1&amp;b=2">',
+    '<meta property="og:image" content="https://watchprotv.com/api/social/artwork/title/public?v=',
+    '<meta name="twitter:image" content="https://watchprotv.com/api/social/artwork/title/public?v=',
     '<script src="/assets/app.js"></script>', '<div id="root"><main',
     '<h1>Real Title</h1>', '<p class="title-description">Real description.</p>',
   ]) assert.ok(html.includes(tag), tag);
@@ -60,19 +60,20 @@ test('catalog strings and URLs are escaped without replacement-string interpolat
   assert.equal(html.includes('<img'), false);
 });
 
-test('missing fields use only minimal fallbacks and unsafe or absent artwork is omitted', () => {
+test('missing fields use content-aware fallbacks and unsafe or absent artwork uses the safe image endpoint', () => {
   for (const thumbnailUrl of ['', 'javascript:alert(1)', 'data:image/png;base64,test',
     '/poster.jpg', 'https://user:password@example.com/poster.jpg', 'not a URL']) {
     const html = titleHtml(template, { ...record, description: null, thumbnailUrl });
-    assert.ok(html.includes('name="description" content="Real Title"'));
-    assert.equal(html.includes('og:image'), false);
-    assert.equal(html.includes('twitter:image'), false);
+    assert.ok(html.includes('name="description" content="Watch Real Title on PROtv."'));
+    assert.ok(html.includes('og:image" content="https://watchprotv.com/api/social/artwork/title/public?v='));
+    assert.ok(html.includes('twitter:image" content="https://watchprotv.com/api/social/artwork/title/public?v='));
+    assert.equal(html.includes('content="javascript:'), false);
   }
   const html = titleHtml(template, { ...record, title: null, description: null, thumbnailUrl: '' });
-  assert.ok(html.includes('<title>PROtv</title>'));
-  assert.ok(html.includes('name="description" content=""'));
+  assert.ok(html.includes('<title>PROtv | PROtv</title>'));
+  assert.ok(html.includes('name="description" content="Discover approved films, series, podcasts and music on PROtv."'));
   assert.ok(titleHtml(template, { ...record, heroImageUrl: 'https://images.example/hero.jpg' })
-    .includes('og:image" content="https://images.example/hero.jpg"'));
+    .includes('og:image" content="https://watchprotv.com/api/social/artwork/title/public?v='));
   assert.throws(() => titleHtml('<title>Home</title>', record), /template is invalid/);
 });
 

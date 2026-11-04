@@ -1,29 +1,6 @@
 const crypto = require('node:crypto');
-const { escapeHtml } = require('../catalog/titleHtml');
+const { escapeHtml, socialMetadata } = require('../catalog/socialMetadata');
 const brand = require('../../../shared/brand.json');
-
-function socialMetadata(template, metadata, canonical) {
-  if (!/<title>[^]*?<\/title>/.test(template) || !template.includes('</head>')) {
-    throw new Error('The built social HTML template is invalid.');
-  }
-  const image = new URL(metadata.image, 'https://watchprotv.com').href;
-  const tags = [
-    `<title>${escapeHtml(metadata.title)} | ${escapeHtml(brand.plainTitle)}</title>`,
-    `<meta name="description" content="${escapeHtml(metadata.description)}">`,
-    '<meta property="og:site_name" content="PROtv">',
-    '<meta property="og:type" content="website">',
-    ...[['og:title', metadata.title], ['og:description', metadata.description], ['og:image', image], ['og:url', canonical]]
-      .map(([key, value]) => `<meta property="${key}" content="${escapeHtml(value)}">`),
-    '<meta name="twitter:card" content="summary_large_image">',
-    ...[['twitter:title', metadata.title], ['twitter:description', metadata.description], ['twitter:image', image]]
-      .map(([key, value]) => `<meta name="${key}" content="${escapeHtml(value)}">`),
-    `<link rel="canonical" href="${escapeHtml(canonical)}">`,
-  ].join('\n');
-  return template
-    .replace(/<meta\s+(?:property="og:[^"]*"|name="twitter:[^"]*"|name="description")[^>]*>\s*/g, '')
-    .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
-    .replace(/<title>[^]*?<\/title>/, () => tags);
-}
 
 function shareHtml(record, metadata) {
   const nonce = crypto.randomBytes(18).toString('base64');

@@ -4,6 +4,7 @@ const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./re
 const { catalogSitemap } = require('./sitemap');
 const { eligibleForPlatform, platformFromRequest } = require('./platformEligibility');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
+const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
 
 function createCatalogRouter({
   loadApproved = db
@@ -92,21 +93,30 @@ function createCatalogRouter({
 
   const loadTitle = async (req, id) => playableCatalog(await load(req)).find((item) => item.id === id);
 
-  router.get('/titles/:id/html', async (req, res) => {
-    res.set('Cache-Control', 'no-store');
+  const renderPage = (kind) => async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     try {
-      const title = await loadTitle(req, req.params.id);
-      if (!title) {
+      const content = previewContent(await load(req), kind, req.params.id);
+      if (!content) {
         return res.status(404).set('X-Robots-Tag', 'noindex')
           .type('text/plain').send('Title not found.');
       }
-      return res.type('html').send(titleHtml(await loadHtmlTemplate(), title));
+      const template = await loadHtmlTemplate();
+      const route = kind === 'podcast' ? 'podcasts' : kind === 'series' ? 'series' : 'title';
+      const html = kind === 'title' && !req.path.endsWith('/player-html') ? titleHtml(template, content)
+        : socialMetadata(template, contentMetadata(content, kind, req.params.id),
+          `${ORIGIN}/${route}/${encodeURIComponent(req.params.id)}`);
+      return res.type('html').send(html);
     } catch (error) {
       console.error('Failed to render public title metadata:', error);
       return res.status(503).set('X-Robots-Tag', 'noindex')
         .type('text/plain').send('The title page is temporarily unavailable.');
     }
-  });
+  };
+  router.get('/titles/:id/html', renderPage('title'));
+  router.get('/titles/:id/player-html', renderPage('title'));
+  router.get('/series/:id/html', renderPage('series'));
+  router.get('/podcasts/:id/html', renderPage('podcast'));
 
   router.get('/titles/:id', async (req, res) => {
     try {

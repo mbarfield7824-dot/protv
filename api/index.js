@@ -6,6 +6,7 @@ module.exports = (req, res) => {
     if (path === 'v1/catalog' || path.startsWith('v1/catalog/')
       || path === 'admin/reports' || path.startsWith('admin/reports/')
       || path === 'short-links' || path.startsWith('short-links/')
+      || path === 'social' || path.startsWith('social/')
       || path === 'admin/short-links' || path.startsWith('admin/short-links/')) {
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(req.query)) {

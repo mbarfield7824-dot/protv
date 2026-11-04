@@ -20,7 +20,7 @@ function linkInput(body) {
   if (!['creator', 'film', 'series', 'podcast', 'music', 'featured'].includes(body.kind)) throw new LinkInputError('Select a supported content kind.');
   if (typeof body.active !== 'boolean') throw new LinkInputError('Active must be true or false.');
   if (typeof body.destination !== 'string'
-    || !/^\/(?:title\/[A-Za-z0-9_-]+|series\/[A-Za-z0-9_-]+|podcasts\/[A-Za-z0-9_-]+|podcast\/me-and-my-white-friend|creators)$/.test(body.destination)) {
+    || !/^\/(?:(?:title|player)\/[A-Za-z0-9_-]+|series\/[A-Za-z0-9_-]+|podcasts\/[A-Za-z0-9_-]+|podcast\/me-and-my-white-friend|creators)$/.test(body.destination)) {
     throw new LinkInputError('Choose a public PROtv title, series, Podcast Show, featured Podcast, or /creators destination. External URLs, queries and fragments are not allowed.');
   }
   return { slug: body.slug, destination: body.destination, kind: body.kind, active: body.active };
