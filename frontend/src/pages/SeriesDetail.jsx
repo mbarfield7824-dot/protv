@@ -4,7 +4,7 @@ import ProTVFooter from '../components/ProTVFooter';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
-import { getSeriesCatalog } from '../utils/seriesCatalog';
+import TrailerPlayer from '../components/TrailerPlayer';
 import '../styles/Series.css';
 
 function episodeRuntime(episode) {
@@ -17,16 +17,14 @@ export default function SeriesDetail() {
   const [seriesCatalog, setSeriesCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [season, setSeason] = useState(null);
+  const [trailerOpen, setTrailerOpen] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
-    api.getVideos()
-      .then((videos) => {
-        const availableEpisodes = videos.filter((video) => (
-          video.status === 'ready' && video.muxPlaybackId
-        ));
-        if (active) setSeriesCatalog(getSeriesCatalog(availableEpisodes));
-      })
+    api.getSeriesDetails()
+      .then((items) => { if (active) setSeriesCatalog(items); })
+      .catch((error) => { if (active) setError(error.message); })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -41,6 +39,22 @@ export default function SeriesDetail() {
   );
   const activeSeason = series?.seasons.includes(season) ? season : series?.seasons[0];
   const episodes = series?.episodes.filter((episode) => episode.seasonNumber === activeSeason) || [];
+
+  useEffect(() => {
+    if (!series?.episodes.some(episode => episode.releaseAt && !episode.watchAvailable)) return undefined;
+    let active = true;
+    const timer = window.setInterval(async () => {
+      if (!series.episodes.some(episode => episode.releaseAt && !episode.watchAvailable
+        && Date.parse(episode.releaseAt) <= Date.now())) return;
+      try {
+        const items = await api.getSeriesDetails();
+        if (active) { setSeriesCatalog(items); setError(''); }
+      } catch (error) {
+        if (active) setError(error.message);
+      }
+    }, 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [series]);
 
   if (loading) {
     return (
@@ -61,7 +75,7 @@ export default function SeriesDetail() {
         <main className="series-page series-page--state">
           <section className="series-empty">
             <p className="series-kicker">PROtv Series</p>
-            <h1>Series not found</h1>
+            <h1>{error || 'Series not found'}</h1>
             <p>This series may no longer be available.</p>
             <Link className="series-button" to="/series">Back to Series</Link>
           </section>
@@ -75,6 +89,7 @@ export default function SeriesDetail() {
     <ProTVShell>
       <ProTVHeader />
       <main className="series-detail">
+        {error && <p role="alert">{error}</p>}
         <Link className="series-back" to="/series"><span aria-hidden="true">←</span> All Series</Link>
         <section className={`series-detail-hero ${series.artwork ? '' : 'series-detail-hero--no-art'}`}>
           {series.artwork && <img className="series-detail-hero__art" src={series.artwork} alt="" />}
@@ -82,6 +97,10 @@ export default function SeriesDetail() {
           <div className="series-detail-hero__copy">
             <p className="series-kicker">PROtv Series</p>
             <h1>{series.title}</h1>
+            {series.description && <p>{series.description}</p>}
+            {series.trailerAvailable && (
+              <button type="button" className="series-button" onClick={() => setTrailerOpen(true)}>Watch Trailer</button>
+            )}
             <p className="series-detail-hero__meta">
               {series.seasonCount} {series.seasonCount === 1 ? 'season' : 'seasons'}
               <span aria-hidden="true">·</span>
@@ -134,7 +153,13 @@ export default function SeriesDetail() {
                   </div>
                   <div className="series-episode__actions">
                     <Link className="series-button series-button--quiet" to={`/title/${episode.id}`}>Details</Link>
-                    <Link className="series-button" to={`/player/${episode.id}`}>▶ Play</Link>
+                    {episode.watchAvailable ? (
+                      <Link className="series-button" to={`/player/${episode.id}`}>▶ Play</Link>
+                    ) : episode.releaseAt && (
+                      <time dateTime={episode.releaseAt}>Premiere: {new Date(episode.releaseAt).toLocaleString('en-US', {
+                        timeZone: 'America/New_York', dateStyle: 'long', timeStyle: 'short',
+                      })} ET</time>
+                    )}
                   </div>
                 </li>
               );
@@ -143,6 +168,7 @@ export default function SeriesDetail() {
         </section>
       </main>
       <ProTVFooter />
+      {trailerOpen && <TrailerPlayer videoId={series.trailerTitleId} onClose={() => setTrailerOpen(false)} />}
     </ProTVShell>
   );
 }

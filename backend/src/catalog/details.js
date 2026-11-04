@@ -1,0 +1,71 @@
+const { isViewerEligible, publicTitle, seriesKey } = require('./readModel');
+const { releaseAllowed } = require('./releases');
+
+function metadataAllowed(record, now = Date.now()) {
+  return record?.approvalStatus === 'approved'
+    && !record.private && !record.restricted && !record.rightsHold
+    && (!record.releaseStatus || ['published', 'scheduled'].includes(record.releaseStatus))
+    && (!record.visibility || record.visibility === 'public')
+    && (!record.rightsStartAt || Date.parse(record.rightsStartAt) <= now)
+    && (!record.rightsEndAt || Date.parse(record.rightsEndAt) > now);
+}
+
+function detailEligible(record, records) {
+  if (!metadataAllowed(record)) return false;
+  if (record.contentType === 'SERIES') return record.status === 'ready' && releaseAllowed(record);
+  const context = records.filter(parent => metadataAllowed(parent) && releaseAllowed(parent));
+  return isViewerEligible(record, context)
+    || (['MOVIE', 'EPISODE'].includes(record.contentType)
+      && record.releaseStatus === 'scheduled'
+      && Number.isFinite(Date.parse(record.releaseAt))
+      && Date.parse(record.releaseAt) > Date.now());
+}
+
+function titleDetails(record, records) {
+  if (!detailEligible(record, records)) return null;
+  const detail = publicTitle({ ...record, muxPlaybackId: '' });
+  delete detail.muxPlaybackId;
+  delete detail.muxPlaybackPolicy;
+  return {
+    ...detail,
+    ...Object.fromEntries(['cast', 'creator', 'director', 'language', 'subtitles']
+      .filter(field => typeof record[field] === 'string').map(field => [field, record[field]])),
+    ...(typeof record.rating === 'number' ? { rating: record.rating } : {}),
+    watchAvailable: record.contentType !== 'SERIES' && isViewerEligible(record, records),
+    ...(record.releaseStatus === 'scheduled' ? { releaseAt: record.releaseAt } : {}),
+  };
+}
+
+function seriesDetails(records) {
+  const groups = new Map();
+  for (const record of records) {
+    if (!detailEligible(record, records)) continue;
+    if (!['EPISODE', 'SERIES'].includes(record.contentType)
+      || typeof record.seriesTitle !== 'string' || !record.seriesTitle.trim()) continue;
+    if (record.contentType === 'EPISODE'
+      && (!Number.isInteger(record.seasonNumber) || record.seasonNumber < 1
+        || !Number.isInteger(record.episodeNumber) || record.episodeNumber < 1)) continue;
+    const key = seriesKey(record.seriesTitle);
+    if (!groups.has(key)) groups.set(key, { key, title: record.seriesTitle.trim(), episodes: [], show: null });
+    const group = groups.get(key);
+    if (record.contentType === 'SERIES') {
+      if (!group.show || record.id.localeCompare(group.show.id) < 0) group.show = record;
+    } else group.episodes.push(titleDetails(record, records));
+  }
+  return [...groups.values()].map(({ show, ...group }) => {
+    const episodes = group.episodes.sort((a, b) => a.seasonNumber - b.seasonNumber
+      || a.episodeNumber - b.episodeNumber || a.id.localeCompare(b.id));
+    const seasons = [...new Set(episodes.map(episode => episode.seasonNumber))];
+    const artwork = show || episodes.find(episode => episode.thumbnailUrl || episode.posterUrl);
+    return {
+      ...group, episodes, seasons, seasonCount: seasons.length, episodeCount: episodes.length,
+      description: show?.description || '',
+      category: show?.category || episodes[0]?.category || '',
+      artwork: artwork?.thumbnailUrl || artwork?.posterUrl || '',
+      ...(show?.trailerStatus === 'ready' && show.trailerPlaybackId
+        ? { trailerAvailable: true, trailerTitleId: show.id } : {}),
+    };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+}
+
+module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails };

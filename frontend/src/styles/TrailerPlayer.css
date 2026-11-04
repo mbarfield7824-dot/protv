@@ -2,11 +2,22 @@
   position: fixed;
   z-index: 1200;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  box-sizing: border-box;
+  color: #fff;
   display: grid;
   place-items: center;
   padding: 24px;
   background: rgba(0, 0, 0, .88);
 }
+
+.trailer-player-overlay:not([open]) { display: none; }
+.trailer-player-overlay::backdrop { background: rgba(0, 0, 0, .88); }
 
 .trailer-player-dialog {
   position: relative;
@@ -15,6 +26,9 @@
   border: 1px solid rgba(65, 105, 225, .55);
   border-radius: 12px;
   background: #050611;
+  box-sizing: border-box;
+  max-height: 100%;
+  overflow: auto;
   box-shadow: 0 24px 80px rgba(0, 0, 0, .7);
 }
 

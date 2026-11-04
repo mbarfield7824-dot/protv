@@ -44,7 +44,7 @@ export default function SpotlightFeature({ video }) {
           <button type="button" className="ptv-btn ptv-btn--ghost ptv-btn--lg" onClick={() => void toggleFavorite(video.id)}>
             <span aria-hidden="true">{saved ? '✓' : '＋'}</span> {saved ? 'In My List' : 'My List'}
           </button>
-          <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/player/${video.id}`)}>
+          <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/title/${video.id}`)}>
             <span aria-hidden="true">ⓘ</span> More Info
           </button>
         </div>

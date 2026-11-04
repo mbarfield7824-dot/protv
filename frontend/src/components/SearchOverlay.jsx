@@ -104,7 +104,7 @@ export default function SearchOverlay({ onClose }) {
 
   const handleSelect = (video) => {
     onClose();
-    navigate(isPodcastSearchResult(video) ? podcastResultUrl(video) : `/player/${video.id}`);
+    navigate(isPodcastSearchResult(video) ? podcastResultUrl(video) : `/title/${video.id}`);
   };
 
   return (

@@ -4,7 +4,6 @@ import ProTVFooter from '../components/ProTVFooter';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
-import { getSeriesCatalog } from '../utils/seriesCatalog';
 import '../styles/Series.css';
 
 function SeriesPresentation({ series }) {
@@ -37,16 +36,13 @@ function SeriesPresentation({ series }) {
 export default function Series() {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
-    api.getVideos()
-      .then((videos) => {
-        const availableEpisodes = videos.filter((video) => (
-          video.status === 'ready' && video.muxPlaybackId
-        ));
-        if (active) setSeries(getSeriesCatalog(availableEpisodes));
-      })
+    api.getSeriesDetails()
+      .then((items) => { if (active) setSeries(items); })
+      .catch((error) => { if (active) setError(error.message); })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -65,7 +61,7 @@ export default function Series() {
           <p>Discover episodic stories streaming on PROtv.</p>
         </header>
 
-        {loading ? (
+        {error ? <p role="alert">{error}</p> : loading ? (
           <p className="series-state" role="status">Discovering series...</p>
         ) : series.length > 0 ? (
           <section className="series-catalog" aria-label="Available series">

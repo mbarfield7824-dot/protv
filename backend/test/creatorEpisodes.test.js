@@ -302,13 +302,14 @@ test('Fire TV only sees an episode an Administrator cleared; other clients are u
   assert.equal(eligibleForPlatform([{ ...uncleared, rokuCleared: true }], 'roku').length, 1);
 });
 
-test('no public catalog route reveals an unreleased episode, including by direct ID', async () => {
+test('playback catalogs hide unreleased episodes while approved premieres expose only safe details', async () => {
   const held = episode(1, { status: 'held', approvalStatus: 'approved', releaseStatus: 'held', muxPlaybackId: null, title: 'Secret' });
   const heldWithAddress = episode(2, { releaseStatus: 'held', title: 'Secret' });
   const future = episode(3, { releaseStatus: 'scheduled', releaseAt: new Date(Date.now() + 3_600_000).toISOString(), title: 'Secret' });
   const live = episode(4);
   const app = express();
-  app.use('/c', createCatalogRouter({ loadApproved: async () => [held, heldWithAddress, future, live], loadHtmlTemplate: async () => '<html><head></head><body></body></html>' }));
+  app.use('/c', createCatalogRouter({ loadApproved: async () => [held, heldWithAddress, future, live],
+    loadHtmlTemplate: async () => '<html><head><title>PROtv</title></head><body><div id="root"></div></body></html>' }));
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://127.0.0.1:${server.address().port}/c`;
@@ -319,9 +320,12 @@ test('no public catalog route reveals an unreleased episode, including by direct
     }
     assert.equal((await (await fetch(`${base}?q=secret`)).json()).items.length, 0);
     for (const video of [held, heldWithAddress, future]) {
-      for (const suffix of ['', '/playback', '/html']) {
+      for (const suffix of ['', '/playback', ...(video === future ? [] : ['/html'])]) {
         assert.equal((await fetch(`${base}/titles/${video.id}${suffix}`)).status, 404, video.id + suffix);
       }
+      const futureHtml = await fetch(`${base}/titles/${future.id}/html`);
+      assert.equal(futureHtml.status, 200);
+      assert.doesNotMatch(await futureHtml.text(), /pb3|stream\.mux|playbackToken/);
     }
     assert.equal((await (await fetch(`${base}/titles/${live.id}/playback`)).json()).muxPlaybackId, 'pb4');
   } finally {

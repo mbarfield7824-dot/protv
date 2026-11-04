@@ -1,12 +1,14 @@
 const express = require('express');
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{1,200}$/;
-const TRAILER_TYPES = new Set(['MOVIE', 'EPISODE']);
+const TRAILER_TYPES = new Set(['MOVIE', 'EPISODE', 'SERIES']);
 
 function createTitleTrailerRouter({
   verifyAdmin = require('../middleware/auth').verifyAdmin,
   getVideoById = (id) => require('../firebase').getVideoById(id),
   updateVideo = (id, updates) => require('../firebase').updateVideo(id, updates),
+  addVideo = (record) => require('../firebase').addVideo(record),
+  getAllVideos = () => require('../firebase').getAllVideosAdmin(),
   createDirectUpload = (...args) => require('../mux').createDirectUpload(...args),
   getUpload = (id) => require('../mux').getUpload(id),
   getAsset = (id) => require('../mux').getAsset(id),
@@ -22,6 +24,33 @@ function createTitleTrailerRouter({
   router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
+  });
+
+  router.post('/series-record', async (req, res) => {
+    const { seriesTitle, description, rightsHolder, rightsVerificationNotes } = req.body;
+    if ([seriesTitle, description, rightsHolder, rightsVerificationNotes]
+      .some(value => typeof value !== 'string' || !value.trim() || value.length > 10_000)
+      || seriesTitle.length > 200) {
+      return fail(res, 400, 'Show title, synopsis, rights holder, and trailer rights evidence are required.');
+    }
+    try {
+      const { seriesKey } = require('../catalog/readModel');
+      const records = await getAllVideos();
+      if (records.some(record => record.contentType === 'SERIES'
+        && seriesKey(record.seriesTitle || record.title) === seriesKey(seriesTitle))) {
+        return fail(res, 409, 'A show record already exists. Manage its trailer in the catalog.');
+      }
+      const id = await addVideo({
+        contentType: 'SERIES', title: seriesTitle.trim(), seriesTitle: seriesTitle.trim(),
+        description: description.trim(), rightsHolder: rightsHolder.trim(),
+        rightsVerificationNotes: rightsVerificationNotes.trim(),
+        approvalStatus: 'draft', status: 'ready',
+      });
+      return res.status(201).json(await getVideoById(id));
+    } catch (error) {
+      logError('Show trailer record could not be created.', error);
+      return fail(res, 503, 'Show trailer record could not be created.');
+    }
   });
 
   async function reconcile(videoId) {
@@ -82,7 +111,7 @@ function createTitleTrailerRouter({
     try {
       const video = await getVideoById(videoId);
       if (!TRAILER_TYPES.has(video.contentType)) {
-        return fail(res, 400, 'Trailers are supported for movies and TV episodes only.');
+        return fail(res, 400, 'Trailers are supported for movies, TV episodes, and shows only.');
       }
       if (video.trailerUploadId) return fail(res, 409, 'A trailer upload is already processing for this title.');
       upload = await createDirectUpload(process.env.FRONTEND_URL, { playbackPolicy: 'signed' });

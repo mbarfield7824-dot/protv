@@ -71,12 +71,11 @@ test('all direct content routes provide exact initial metadata to every crawler 
   assert.equal((await (await fetch(`${base}/catalog/titles/film/playback`)).json()).muxPlaybackId, film.muxPlaybackId);
 });
 
-test('inactive, held, private, signed, scheduled and orphaned content fails closed in HTML, images and short links', async context => {
+test('inactive, held, private and orphaned content fails closed in HTML, images and short links', async context => {
   const overrides = [
     { approvalStatus: 'draft' }, { approvalStatus: 'pending' }, { approvalStatus: 'rejected' },
     { status: 'processing' }, { muxPlaybackId: '' }, { releaseStatus: 'unpublished' }, { releaseStatus: 'held' },
-    { releaseStatus: 'scheduled', releaseAt: '2099-01-01T00:00:00Z' },
-    { muxPlaybackPolicy: 'signed' }, { visibility: 'private' }, { private: true }, { restricted: true }, { rightsHold: true },
+    { visibility: 'private' }, { private: true }, { restricted: true }, { rightsHold: true },
     { rightsStartAt: '2099-01-01T00:00:00Z' }, { rightsEndAt: '2000-01-01T00:00:00Z' },
     { contentType: 'PODCAST_EPISODE', podcastShowId: 'missing', episodeNumber: 1 },
   ];

@@ -11,6 +11,7 @@ const {
 const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
 
 function isViewerEligible(video, videos = []) {
+  if (video?.contentType === 'SERIES') return false;
   if (video?.contentType === PODCAST_SHOW) return false;
   if (video?.contentType === PODCAST_EPISODE) {
     const show = videos.find((candidate) => candidate.id === video.podcastShowId);

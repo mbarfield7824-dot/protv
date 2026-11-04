@@ -33,7 +33,7 @@ export default function Spotlight({ video }) {
           <button type="button" onClick={() => void toggleFavorite(video.id)}>
             {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
           </button>
-          <button type="button" onClick={() => navigate(`/player/${video.id}`)}>More Info</button>
+          <button type="button" onClick={() => navigate(`/title/${video.id}`)}>More Info</button>
         </div>
       </div>
     </section>

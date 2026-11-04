@@ -8,6 +8,7 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
   const { isFavorite, toggleFavorite } = useAuth();
   const saved = isFavorite(video.id);
   const watch = () => navigate(`/player/${video.id}`);
+  const details = () => navigate(`/title/${video.id}`);
   const meta = [video.genreLabel || video.category, video.year].filter(Boolean).join(' • ');
 
   const stop = (handler) => (event) => {
@@ -22,13 +23,13 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
         className="ptv-card__poster"
         role="button"
         tabIndex={0}
-        aria-label={`Watch ${video.title}`}
-        onClick={watch}
+        aria-label={`Details for ${video.title}`}
+        onClick={details}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            watch();
+            details();
           }
         }}
       >
@@ -43,9 +44,9 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
           }}
         />
         <div className="ptv-card__actions">
-          <button type="button" className="ptv-card__action ptv-card__action--play" aria-label={`Watch ${video.title}`} onClick={stop(watch)}>
+          {video.watchAvailable !== false && <button type="button" className="ptv-card__action ptv-card__action--play" aria-label={`Watch ${video.title}`} onClick={stop(watch)}>
             <span aria-hidden="true">▶</span>
-          </button>
+          </button>}
           <button
             type="button"
             className={`ptv-card__action ${saved ? 'is-on' : ''}`}
@@ -62,7 +63,7 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
           )}
         </div>
       </div>
-      <h3 className="ptv-card__title">{video.title}</h3>
+      <h3 className="ptv-card__title"><a href={`/title/${video.id}`}>{video.title}</a></h3>
       {meta && <p className="ptv-card__meta">{meta}</p>}
       {showRemove && saved && (
         <button type="button" className="ptv-card__remove" onClick={() => void toggleFavorite(video.id)}>

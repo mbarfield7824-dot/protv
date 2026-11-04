@@ -44,6 +44,23 @@ export default function AdminCatalogEditor() {
   const [posterUpload, setPosterUpload] = useState({ id: null, message: '', failed: false });
   const [trailerUpload, setTrailerUpload] = useState({ id: null, message: '', failed: false });
   const [trailerPreviewId, setTrailerPreviewId] = useState(null);
+  const [creatingShow, setCreatingShow] = useState(false);
+
+  const createShow = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setCreatingShow(true);
+    setError('');
+    try {
+      const record = await api.createSeriesTrailerRecord(Object.fromEntries(new FormData(form)));
+      setVideos(items => [...items, normalizeCatalogVideo(record)]);
+      form.reset();
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setCreatingShow(false);
+    }
+  };
 
   const loadVideos = async () => {
     setLoading(true);
@@ -297,6 +314,17 @@ export default function AdminCatalogEditor() {
       </div>
       {error && <p className="admin-error">{error}</p>}
       {ratingStatus && <p className="admin-subtitle">{ratingStatus}</p>}
+      <details>
+        <summary>Add a show-level trailer record</summary>
+        <p>Creates a separate draft, preserving all existing episodes. Upload its trailer and poster below, then approve it in Review Content after reviewing trailer rights.</p>
+        <form onSubmit={createShow}>
+          <label>Show title<input name="seriesTitle" required maxLength={200} /></label>
+          <label>Show synopsis<textarea name="description" required /></label>
+          <label>Trailer rights holder<input name="rightsHolder" required /></label>
+          <label>Trailer rights evidence<textarea name="rightsVerificationNotes" required /></label>
+          <button type="submit" className="admin-secondary" disabled={creatingShow}>Create show draft</button>
+        </form>
+      </details>
       {videos.map((video) => (
         <article className="catalog-editor-item" key={video.id}>
           <header className="catalog-record-heading">
@@ -334,9 +362,6 @@ export default function AdminCatalogEditor() {
                 {CATEGORY_SUBGENRES[video.category].map((subcategory) => (
                   <option key={subcategory}>{subcategory}</option>
                 ))}
-                {trailerPreviewId && (
-                  <TrailerPlayer videoId={trailerPreviewId} admin onClose={() => setTrailerPreviewId(null)} />
-                )}
               </select>
             </label>
           )}
@@ -429,10 +454,11 @@ export default function AdminCatalogEditor() {
           )}
           <label>
             Format
-            <select value={video.contentType || 'MOVIE'} onChange={(event) => updateDraft(video.id, 'contentType', event.target.value)}>
+            <select disabled={video.contentType === 'SERIES'} value={video.contentType || 'MOVIE'} onChange={(event) => updateDraft(video.id, 'contentType', event.target.value)}>
               <option value="MOVIE">Movie</option>
               <option value="EPISODE">TV Episode</option>
               <option value="MUSIC">Music</option>
+              {video.contentType === 'SERIES' && <option value="SERIES">TV Show trailer</option>}
             </select>
           </label>
           {video.contentType === 'MUSIC' && (
@@ -538,6 +564,9 @@ export default function AdminCatalogEditor() {
           </div>
         </article>
       ))}
+      {trailerPreviewId && (
+        <TrailerPlayer videoId={trailerPreviewId} admin onClose={() => setTrailerPreviewId(null)} />
+      )}
     </section>
   );
 }

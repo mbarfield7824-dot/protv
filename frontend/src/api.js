@@ -130,12 +130,33 @@ export const api = {
   },
 
   async getVideo(id) {
-    const res = await fetch(`${API_URL}/videos/${encodeURIComponent(id)}`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/v1/catalog/titles/${encodeURIComponent(id)}/details`, { cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Title details are temporarily unavailable.');
     const title = await res.json();
     if (title?.id !== id) throw new Error('The title response does not match the requested title.');
     return title;
+  },
+
+  async getMovieDetails() {
+    const res = await fetch(`${API_URL}/v1/catalog/details`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Movie details are temporarily unavailable.');
+    return (await res.json()).items;
+  },
+
+  async getSeriesDetails() {
+    const res = await fetch(`${API_URL}/v1/catalog/series-details`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Series details are temporarily unavailable.');
+    return (await res.json()).items;
+  },
+
+  async createSeriesTrailerRecord(body) {
+    const res = await fetch(`${API_URL}/admin/title-trailers/series-record`, {
+      method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(body),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Unable to create show trailer record.');
+    return result;
   },
 
   async getPlayerTitle(id, options) {

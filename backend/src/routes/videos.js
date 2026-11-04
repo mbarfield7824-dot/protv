@@ -254,7 +254,7 @@ router.patch('/admin/:id/approve', verifyAdmin, async (req, res) => {
     if ([PODCAST_SHOW, PODCAST_EPISODE].includes(currentVideo.contentType)) {
       return res.status(400).json({ error: 'Podcast approval is not enabled yet.' });
     }
-    if (currentVideo.releaseStatus === 'scheduled'
+    if ((currentVideo.releaseStatus === 'scheduled' || currentVideo.contentType === 'SERIES')
       && (typeof currentVideo.rightsHolder !== 'string' || !currentVideo.rightsHolder.trim()
         || typeof currentVideo.rightsVerificationNotes !== 'string' || !currentVideo.rightsVerificationNotes.trim())) {
       return res.status(409).json({
@@ -386,8 +386,11 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
     const has = (key) => Object.hasOwn(req.body, key);
     const currentType = existing.contentType || 'MOVIE';
     const contentType = has('contentType')
-      ? normalizeContentType(req.body.contentType)
+      ? currentType === 'SERIES' && req.body.contentType === 'SERIES' ? 'SERIES' : normalizeContentType(req.body.contentType)
       : currentType;
+    if ((currentType === 'SERIES' || contentType === 'SERIES') && currentType !== contentType) {
+      return res.status(400).json({ error: 'Show trailer records cannot be converted to or from productions.' });
+    }
     const typeChanged = has('contentType') && contentType !== currentType;
     const isEpisode = contentType === 'EPISODE';
     const isMusic = contentType === 'MUSIC';
@@ -431,6 +434,7 @@ router.patch('/:id', verifyAdmin, async (req, res) => {
         return res.status(400).json({ error: 'A title is required.' });
       }
       updates.title = req.body.title.trim();
+      if (currentType === 'SERIES') updates.seriesTitle = updates.title;
     }
     if (has('description')) updates.description = typeof req.body.description === 'string' ? req.body.description : '';
     if (has('category')) {

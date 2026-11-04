@@ -25,6 +25,7 @@ function normalizeMovie(raw) {
     genres: raw.genres || [category].filter(Boolean),
     ageRating: raw.maturityRating || raw.ageRating || '',
     muxPlaybackId: raw.muxPlaybackId,
+    watchAvailable: raw.watchAvailable,
   };
 }
 
@@ -38,12 +39,10 @@ export default function Movies() {
     setLoading(true);
     setError(false);
     try {
-      const videos = await api.getVideos();
+      const videos = await api.getMovieDetails();
       const readyMovies = Array.isArray(videos)
         ? videos.filter((video) => (
-          video.status === 'ready'
-          && Boolean(video.muxPlaybackId)
-          && String(video.contentType || '').toUpperCase() === 'MOVIE'
+          String(video.contentType || '').toUpperCase() === 'MOVIE'
         ))
         : [];
       setMovies(readyMovies.map(normalizeMovie));

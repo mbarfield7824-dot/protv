@@ -27,7 +27,8 @@ function titleStructuredData(content, canonical, artworkUrl) {
     '@id': videoId,
     name,
     url: canonical,
-    contentUrl: `https://stream.mux.com/${encodeURIComponent(content.muxPlaybackId)}.m3u8`,
+    ...(content.muxPlaybackId && content.muxPlaybackPolicy !== 'signed'
+      ? { contentUrl: `https://stream.mux.com/${encodeURIComponent(content.muxPlaybackId)}.m3u8` } : {}),
   };
   if (typeof content.description === 'string' && content.description.trim()) media.description = content.description.trim();
   if (artworkUrl) media.thumbnailUrl = artworkUrl;

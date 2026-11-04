@@ -26,13 +26,14 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
 
   const handleClick = (event) => {
     if (event.target.closest('.card-remove-list')) return;
-    navigate(`/player/${video.id}`);
+    navigate(`/title/${video.id}`);
   };
 
   const handleKeyDown = (event) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      navigate(`/player/${video.id}`);
+      navigate(`/title/${video.id}`);
     }
   };
 
@@ -45,7 +46,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-label={`Watch ${video.title}`}
+      aria-label={`Details for ${video.title}`}
     >
       {/* Card Image */}
       <div className="card-image">
@@ -93,16 +94,19 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
         </div>
 
         {/* Play Button */}
-        <button className="card-play">
+        {video.watchAvailable !== false && <button className="card-play" aria-label={`Play ${video.title}`} onClick={(event) => {
+          event.stopPropagation();
+          navigate(`/player/${video.id}`);
+        }}>
           <span>▶</span>
-        </button>
+        </button>}
         {onInfo && (
           <button
             className="card-info-btn"
             title="More info"
             onClick={(e) => {
               e.stopPropagation();
-              onInfo(video);
+              navigate(`/title/${video.id}`);
             }}
           >
             <span>ⓘ</span>
@@ -137,7 +141,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
           </div>
 
           <div className="preview-actions">
-            <button
+            {video.watchAvailable !== false && <button
               className="preview-play"
               onClick={(e) => {
                 e.stopPropagation();
@@ -145,7 +149,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
               }}
             >
               <span>▶</span> Play
-            </button>
+            </button>}
             <button
               className="preview-list"
               aria-label={isFavorite(video.id) ? 'Remove from My List' : 'Add to My List'}
@@ -162,7 +166,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
                 className="preview-info"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onInfo(video);
+                  navigate(`/title/${video.id}`);
                 }}
               >
                 ⓘ

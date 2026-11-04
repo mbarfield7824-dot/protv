@@ -15,6 +15,7 @@ import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import { safetyReportUrl } from '../data/safetyReports';
 import { readInitialTitle } from '../data/initialTitle';
+import TrailerPlayer from '../components/TrailerPlayer';
 import '../styles/Title.css';
 
 const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
@@ -31,6 +32,8 @@ export default function Title() {
     return { video: initial, loading: !initial, loadedId: initial ? id : null };
   });
   const [failedArtworkId, setFailedArtworkId] = useState(null);
+  const [trailerOpen, setTrailerOpen] = useState(false);
+  const [releaseError, setReleaseError] = useState('');
   const { isFavorite, toggleFavorite } = useAuth();
 
   useEffect(() => {
@@ -56,6 +59,25 @@ export default function Title() {
     void Promise.resolve().then(loadTitle);
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (!video?.releaseAt || video.watchAvailable !== false) return undefined;
+    let active = true;
+    const refresh = async () => {
+      if (Date.parse(video.releaseAt) > Date.now()) return;
+      try {
+        const result = await api.getVideo(id);
+        if (active) {
+          setTitleState({ video: result, loading: false, loadedId: id });
+          setReleaseError('');
+        }
+      } catch (error) {
+        if (active) setReleaseError(error.message);
+      }
+    };
+    const timer = window.setInterval(() => { void refresh(); }, 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [id, video]);
 
   if (loading || loadedId !== id) {
     return (
@@ -160,8 +182,17 @@ export default function Title() {
             )}
 
             {present(video.description) && <p className="title-description">{video.description}</p>}
+            {video.releaseAt && (
+              <p className="title-premiere">Premiere: <time dateTime={video.releaseAt}>
+                {new Date(video.releaseAt).toLocaleString('en-US', {
+                  timeZone: 'America/New_York', dateStyle: 'long', timeStyle: 'short',
+                })} ET
+              </time></p>
+            )}
+            {releaseError && <p role="alert">{releaseError}</p>}
 
             <div className="title-actions">
+              {video.watchAvailable !== false && (
               <button
                 type="button"
                 className="title-action title-action--primary"
@@ -169,6 +200,11 @@ export default function Title() {
               >
                 <span aria-hidden="true">▶</span> Watch Now
               </button>
+              )}
+              {video.trailerAvailable && (
+                <button type="button" className="title-action title-action--secondary"
+                  onClick={() => setTrailerOpen(true)}>Watch Trailer</button>
+              )}
               <button
                 type="button"
                 className="title-action title-action--secondary"
@@ -202,6 +238,7 @@ export default function Title() {
         )}
       </main>
       <ProTVFooter />
+      {trailerOpen && <TrailerPlayer videoId={video.id} onClose={() => setTrailerOpen(false)} />}
     </ProTVShell>
   );
 }

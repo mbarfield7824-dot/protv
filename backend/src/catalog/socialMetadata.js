@@ -1,8 +1,9 @@
 const crypto = require('node:crypto');
-const { isViewerEligible, publicTitle, podcastCatalog, seriesCatalog } = require('./readModel');
+const { isViewerEligible, publicTitle, podcastCatalog } = require('./readModel');
 const { isFeaturedPodcast } = require('./podcasts');
 const { releaseAllowed } = require('./releases');
 const { structuredDataScript } = require('./structuredData');
+const { metadataAllowed, detailEligible, titleDetails, seriesDetails } = require('./details');
 
 const ORIGIN = 'https://watchprotv.com';
 const FEATURED_ARTWORK = '/api/short-links/artwork/mmwf';
@@ -15,12 +16,7 @@ function escapeHtml(value) {
 
 function previewEligible(record) {
   const now = Date.now();
-  return releaseAllowed(record)
-    && record.muxPlaybackPolicy !== 'signed'
-    && !record.private && !record.restricted && !record.rightsHold
-    && (!record.visibility || record.visibility === 'public')
-    && (!record.rightsStartAt || Date.parse(record.rightsStartAt) <= now)
-    && (!record.rightsEndAt || Date.parse(record.rightsEndAt) > now);
+  return releaseAllowed(record) && record.muxPlaybackPolicy !== 'signed' && metadataAllowed(record, now);
 }
 
 function publicArtworkUrl(value) {
@@ -49,9 +45,11 @@ function artworkCandidates(content) {
 function previewContent(videos, kind, id) {
   const eligible = videos.filter(previewEligible);
   if (kind === 'title') {
-    const record = eligible.find(item => item.id === id && isViewerEligible(item, eligible));
+    const record = videos.find(item => item.id === id && detailEligible(item, videos));
     if (!record) return null;
-    const title = publicTitle(record);
+    const title = record.muxPlaybackPolicy !== 'signed' && releaseAllowed(record)
+      ? { ...publicTitle(record), watchAvailable: isViewerEligible(record, videos) }
+      : titleDetails(record, videos);
     for (const field of ['thumbnailUrl', 'posterUrl', 'heroImageUrl']) {
       title[field] = publicArtworkUrl(title[field]) || '';
     }
@@ -60,7 +58,7 @@ function previewContent(videos, kind, id) {
     return { ...title, parentArtwork: parent
       ? [isFeaturedPodcast(parent) ? FEATURED_ARTWORK : parent.artworkUrl] : [] };
   }
-  if (kind === 'series') return seriesCatalog(eligible).find(item => item.key === id) || null;
+  if (kind === 'series') return seriesDetails(videos).find(item => item.key === id) || null;
   if (kind === 'podcast') {
     const show = podcastCatalog(eligible).find(item => item.id === id);
     return show ? { ...show, ...(isFeaturedPodcast(show) ? { artworkUrl: FEATURED_ARTWORK } : {}) } : null;

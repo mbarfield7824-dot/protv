@@ -7,6 +7,7 @@ const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
 const { seriesStructuredData, titleStructuredData } = require('./structuredData');
 const { signPlayback } = require('../mux');
+const { metadataAllowed, titleDetails, seriesDetails } = require('./details');
 
 function createCatalogRouter({
   loadApproved = db
@@ -24,9 +25,43 @@ function createCatalogRouter({
 
   // Responses differ by platform, so caches must key on the headers that pick it.
   router.use((req, res, next) => {
+    res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     res.vary('User-Agent');
     res.vary('X-PROtv-Platform');
     next();
+  });
+
+  router.get('/details', async (req, res) => {
+    try {
+      const records = await load(req);
+      return res.json({ items: records.filter(record => record.contentType === 'MOVIE')
+        .map(record => titleDetails(record, records)).filter(Boolean) });
+    } catch (error) {
+      console.error('Failed to load title details catalog:', error);
+      return res.status(503).json({ error: 'Title details are temporarily unavailable.' });
+    }
+  });
+
+  router.get('/series-details', async (req, res) => {
+    try {
+      return res.json({ items: seriesDetails(await load(req)) });
+    } catch (error) {
+      console.error('Failed to load series details:', error);
+      return res.status(503).json({ error: 'Series details are temporarily unavailable.' });
+    }
+  });
+
+  router.get('/titles/:id/details', async (req, res) => {
+    try {
+      const records = await load(req);
+      const record = records.find(item => item.id === req.params.id);
+      const detail = record && titleDetails(record, records);
+      if (!detail) return res.status(404).json({ error: 'Title not found.' });
+      return res.json(detail);
+    } catch (error) {
+      console.error('Failed to load public title details:', error);
+      return res.status(503).json({ error: 'Title details are temporarily unavailable.' });
+    }
   });
 
   router.get('/sitemap.xml', async (req, res) => {
@@ -99,8 +134,8 @@ function createCatalogRouter({
   router.get('/titles/:id/trailer/playback', async (req, res) => {
     try {
       const title = (await load(req)).find((item) => item.id === req.params.id);
-      if (!title || title.approvalStatus !== 'approved'
-        || !['MOVIE', 'EPISODE'].includes(title.contentType)
+      if (!metadataAllowed(title)
+        || !['MOVIE', 'EPISODE', 'SERIES'].includes(title.contentType)
         || title.trailerStatus !== 'ready' || !title.trailerPlaybackId) {
         return res.status(404).json({ error: 'Trailer not found.' });
       }
