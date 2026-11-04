@@ -36,6 +36,21 @@ function titleDetails(record, records) {
   };
 }
 
+const WEEKDAYS = new Set(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+
+// Premiere facts come only from the show record, which carries what an Administrator confirmed in the Creator
+// Portal. Nothing here guesses a date from the planned weekday.
+function showSchedule(show, episodes, now = Date.now()) {
+  const premiere = Date.parse(show.premiereAt);
+  const airing = WEEKDAYS.has(show.airingWeekday) && /^([01]\d|2[0-3]):[0-5]\d$/.test(String(show.airingTime))
+    && show.airingTimeZone === 'America/New_York';
+  return {
+    comingSoon: !episodes.some(episode => episode.watchAvailable),
+    ...(Number.isFinite(premiere) && premiere > now ? { premiereAt: new Date(premiere).toISOString() } : {}),
+    ...(airing ? { airingSchedule: { weekday: show.airingWeekday, time: show.airingTime, timeZone: show.airingTimeZone } } : {}),
+  };
+}
+
 function seriesDetails(records) {
   const groups = new Map();
   for (const record of records) {
@@ -59,6 +74,7 @@ function seriesDetails(records) {
     const artwork = show || episodes.find(episode => episode.thumbnailUrl || episode.posterUrl);
     return {
       ...group, episodes, seasons, seasonCount: seasons.length, episodeCount: episodes.length,
+      ...(show ? showSchedule(show, episodes) : {}),
       description: show?.description || '',
       category: show?.category || episodes[0]?.category || '',
       artwork: artwork?.thumbnailUrl || artwork?.posterUrl || '',

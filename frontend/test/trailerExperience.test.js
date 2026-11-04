@@ -139,6 +139,31 @@ test('titles without trailers hide controls and show trailers do not replace epi
   assert.equal(button('Watch Trailer'), undefined);
 });
 
+test('a show with no released episodes is a Coming Soon page with its trailer and only confirmed dates', async () => {
+  const comingSoon = {
+    key: 'fixture-upcoming', title: 'Fixture upcoming', description: 'Upcoming synopsis', comingSoon: true,
+    trailerAvailable: true, trailerTitleId: 'upcoming-show', seasons: [], seasonCount: 0, episodeCount: 0, episodes: [],
+  };
+  api.getSeriesDetails = async () => [comingSoon];
+  await mount(SeriesDetail, '/series/fixture-upcoming');
+  const text = document.querySelector('main').textContent;
+  assert.match(text, /Coming Soon to PROtv/);
+  assert.match(text, /Premiere date to be announced/);
+  assert.doesNotMatch(text, /0 seasons|0 episodes|New episodes/);
+  assert.equal(document.querySelector('.series-episode__actions'), null);
+  assert.ok(button('Watch Trailer'));
+  await act(async () => button('Watch Trailer').click());
+  assert.ok(document.querySelector('.trailer-player-dialog'));
+  await act(async () => document.querySelector('.trailer-player-close').click());
+
+  api.getSeriesDetails = async () => [{ ...comingSoon, premiereAt: '2099-11-11T01:00:00.000Z',
+    airingSchedule: { weekday: 'Tuesday', time: '20:00', timeZone: 'America/New_York' } }];
+  await mount(SeriesDetail, '/series/fixture-upcoming');
+  const scheduled = document.querySelector('.series-detail-hero__premiere').textContent;
+  assert.match(scheduled, /Premieres Tuesday, November 10, 2099 at 8:00 PM ET/);
+  assert.match(scheduled, /New episodes Tuesdays at 8 PM ET/);
+});
+
 test('both card types open details by default and keep an explicit full-production Play action', async () => {
   for (const Card of [StreamingCard, MovieCard]) {
     await mount(Card, '/cards', { video: movie });

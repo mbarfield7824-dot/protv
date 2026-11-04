@@ -199,6 +199,24 @@ async function updateCreatorPosterTransfer(id, expected, updates) {
   });
 }
 
+// Read-modify-write of one show record in a transaction. mutate(current | null) returns { write, result };
+// write is the full document to store, or null to leave it unchanged.
+async function transactCreatorSeries(id, mutate) {
+  if (!db) throw new Error('Creator series promotion requires Firestore; use mocked integrations for local tests.');
+  const document = db.collection('videos').doc(id);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(document);
+    const { write, result } = mutate(snapshot.exists ? { ...snapshot.data(), id } : null);
+    if (write) {
+      const { id: _id, ...data } = write;
+      transaction.set(document, snapshot.exists ? data : {
+        ...data, createdAt: admin.firestore.FieldValue.serverTimestamp(), submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    return result;
+  });
+}
+
 // Helper function to get all videos
 async function getAllVideos() {
   if (!db) {
@@ -463,6 +481,7 @@ module.exports = {
   getCreatorEpisode,
   claimCreatorEpisode,
   updateCreatorEpisode,
+  transactCreatorSeries,
   getCreatorPosterBucket,
   updateCreatorPosterTransfer,
   db,

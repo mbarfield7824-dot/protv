@@ -144,6 +144,12 @@
 }
 
 .series-feature__meta,
+.series-detail-hero__premiere {
+  margin: 10px 0 0 !important;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
 .series-detail-hero__meta {
   display: flex;
   flex-wrap: wrap;

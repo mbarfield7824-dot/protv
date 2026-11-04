@@ -68,6 +68,10 @@ async function deletePlaybackId(assetId, playbackId) {
   return mux.video.assets.deletePlaybackId(assetId, playbackId);
 }
 
+async function deleteAsset(assetId) {
+  return mux.video.assets.delete(assetId);
+}
+
 async function getAsset(assetId) {
   return mux.video.assets.retrieve(assetId);
 }
@@ -151,6 +155,7 @@ module.exports = {
   createPrivateAssetFromUrl,
   addPublicPlaybackId,
   deletePlaybackId,
+  deleteAsset,
   getAsset,
   getPlaybackId,
   requirePlaybackSigning,

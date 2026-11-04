@@ -9,6 +9,8 @@ const {
   updateCreatorEpisode,
   getTitleViewMetrics,
   getCatalogViewMetrics,
+  getAllVideosAdmin,
+  transactCreatorSeries,
 } = require('../firebase');
 const {
   createAssetFromUrl,
@@ -17,6 +19,7 @@ const {
   deletePlaybackId,
   getAsset,
   getPlaybackId,
+  deleteAsset,
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { logAdminEvent } = require('../adminBot/adminAudit');
@@ -25,8 +28,9 @@ const {
 } = require('./creatorPromotional');
 const { checkPremiereReadiness } = require('./premiereReadiness');
 const { EPISODE_ACTIONS, CreatorEpisodeService, validateEpisodeRequest } = require('./creatorEpisodes');
+const { SERIES_PROMOTION_ACTIONS, CreatorSeriesPromotionService, validateSeriesPromotionRequest } = require('./creatorSeriesPromotion');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', 'view_metrics', 'catalog_view_metrics', ...EPISODE_ACTIONS]);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', 'view_metrics', 'catalog_view_metrics', ...EPISODE_ACTIONS, ...SERIES_PROMOTION_ACTIONS]);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 const MAX_VIEW_METRIC_TITLES = 500;
 
@@ -83,6 +87,7 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     return payload;
   }
   if (EPISODE_ACTIONS.has(payload.action)) return validateEpisodeRequest(payload, now);
+  if (SERIES_PROMOTION_ACTIONS.has(payload.action)) return validateSeriesPromotionRequest(payload);
   const project = payload.project;
   if (!project || typeof project !== 'object' || Array.isArray(project)) {
     throw new Error('Project details are required.');
@@ -211,6 +216,9 @@ class CreatorPublishingService {
       deletePlaybackId,
       getAsset,
       getPlaybackId,
+      deleteAsset,
+      getAllVideos: getAllVideosAdmin,
+      transactSeries: transactCreatorSeries,
       logAdminEvent,
     },
   } = {}) {
@@ -218,6 +226,7 @@ class CreatorPublishingService {
     this.publishingSecret = publishingSecret;
     this.dependencies = dependencies;
     this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, dependencies });
+    this.seriesPromotion = new CreatorSeriesPromotionService({ creatorAgentOrigin, publishingSecret, dependencies });
   }
 
   async execute(payload) {
@@ -230,6 +239,7 @@ class CreatorPublishingService {
       return { reportingStartedAt: validReportingStart(), titles: await this.dependencies.getCatalogViewMetrics() };
     }
     if (EPISODE_ACTIONS.has(action)) return this.episodes.execute(payload);
+    if (SERIES_PROMOTION_ACTIONS.has(action)) return this.seriesPromotion.execute(payload);
     if (action === 'licensing' || action === 'contracting') {
       const externalId = `creator_${action}_${project.id}`;
       await this.audit(action, project.id, externalId, 'Accepted approved Creator Agent milestone.');

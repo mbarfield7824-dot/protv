@@ -5,6 +5,7 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
 import TrailerPlayer from '../components/TrailerPlayer';
+import { airingText, premiereText } from '../utils/premiere';
 import '../styles/Series.css';
 
 function episodeRuntime(episode) {
@@ -95,22 +96,35 @@ export default function SeriesDetail() {
           {series.artwork && <img className="series-detail-hero__art" src={series.artwork} alt="" />}
           <div className="series-detail-hero__shade" />
           <div className="series-detail-hero__copy">
-            <p className="series-kicker">PROtv Series</p>
+            <p className="series-kicker">{series.comingSoon ? 'Coming Soon to PROtv' : 'PROtv Series'}</p>
             <h1>{series.title}</h1>
+            {series.comingSoon && (
+              <p className="series-detail-hero__premiere">
+                {series.premiereAt
+                  ? <time dateTime={series.premiereAt}>{premiereText(series.premiereAt)}</time>
+                  : 'Premiere date to be announced'}
+                {series.airingSchedule && <><span aria-hidden="true"> · </span>{airingText(series.airingSchedule)}</>}
+              </p>
+            )}
             {series.description && <p>{series.description}</p>}
             {series.trailerAvailable && (
               <button type="button" className="series-button" onClick={() => setTrailerOpen(true)}>Watch Trailer</button>
             )}
-            <p className="series-detail-hero__meta">
+            {series.episodeCount > 0 && <p className="series-detail-hero__meta">
               {series.seasonCount} {series.seasonCount === 1 ? 'season' : 'seasons'}
               <span aria-hidden="true">·</span>
               {series.episodeCount} {series.episodeCount === 1 ? 'episode' : 'episodes'}
               {series.category && <><span aria-hidden="true">·</span>{series.category}</>}
-            </p>
+            </p>}
           </div>
         </section>
 
-        <section className="series-episodes" aria-label="Episodes">
+        {series.episodeCount === 0 ? (
+          <section className="series-episodes series-episodes--upcoming" aria-label="Episodes">
+            <p className="series-kicker">Episodes</p>
+            <p>Episodes will appear here as they premiere.</p>
+          </section>
+        ) : <section className="series-episodes" aria-label="Episodes">
           <div className="series-episodes__heading">
             <div>
               <p className="series-kicker">Watch the episodes</p>
@@ -165,7 +179,7 @@ export default function SeriesDetail() {
               );
             })}
           </ol>
-        </section>
+        </section>}
       </main>
       <ProTVFooter />
       {trailerOpen && <TrailerPlayer videoId={series.trailerTitleId} onClose={() => setTrailerOpen(false)} />}

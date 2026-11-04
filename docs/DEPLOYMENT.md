@@ -64,5 +64,22 @@ and does not grant device rights. Upload its trailer and poster with the existin
 the draft in Review Content. Its trailer and synopsis appear on the matching series detail page. Episode trailers
 remain independent and are never silently reused as show trailers. Duplicate show records are rejected.
 
+### Creator Portal trailers and Coming Soon pages
+
+A series trailer already uploaded in the Creator Portal is reused, not uploaded again. An Administrator opens the
+series in the Creator Portal (Release details → **PROtv Coming Soon**), records where the signed agreement grants
+promotional use, and approves. The portal then sends the signed `series_promotion` action to
+`/videos/integrations/creator-actions`; PROtv creates or adopts exactly one `SERIES` record (`creator_series_<projectId>`
+unless a show record with the same title already exists), copies the poster through the existing hardened poster
+transfer, and has Mux fetch the trailer once from a short-lived signed portal link as a signed-playback asset. Later
+syncs reuse that asset. The page is public at once as **Coming Soon**; Watch Trailer appears when Mux finishes.
+
+Premiere date and weekly slot come only from premieres an Administrator confirmed in the portal's weekly schedule;
+without one the page says "Premiere date to be announced". Schedule changes refresh the page automatically.
+Episodes are not touched: they stay held with no playback ID until their own release. The record carries no Roku
+or Fire TV flag. Replacing the trailer in the portal stops it showing until it is approved again; **Withdraw from
+PROtv** hides the page (`approvalStatus: draft`) and keeps the Mux asset for re-approval. Requires
+`CREATOR_AGENT_ORIGIN`, `PROTV_PUBLISHING_SECRET` and the Mux signing keys, all already used by episodes and trailers.
+
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

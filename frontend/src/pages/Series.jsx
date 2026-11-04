@@ -14,20 +14,20 @@ function SeriesPresentation({ series }) {
           ? <img src={series.artwork} alt="" />
           : <span aria-hidden="true">{series.title}</span>}
         <div className="series-feature__shade" />
-        <p className="series-feature__eyebrow">PROtv Series</p>
+        <p className="series-feature__eyebrow">{series.comingSoon ? 'Coming Soon' : 'PROtv Series'}</p>
       </div>
       <div className="series-feature__details">
         <div>
-          <p className="series-kicker">A series to discover</p>
+          <p className="series-kicker">{series.comingSoon ? 'Coming soon to PROtv' : 'A series to discover'}</p>
           <h2>{series.title}</h2>
-          <p className="series-feature__meta">
+          {series.episodeCount > 0 && <p className="series-feature__meta">
             {series.seasonCount} {series.seasonCount === 1 ? 'season' : 'seasons'}
             <span aria-hidden="true">·</span>
             {series.episodeCount} {series.episodeCount === 1 ? 'episode' : 'episodes'}
             {series.category && <><span aria-hidden="true">·</span>{series.category}</>}
-          </p>
+          </p>}
         </div>
-        <span className="series-feature__enter">Explore series <span aria-hidden="true">→</span></span>
+        <span className="series-feature__enter">{series.comingSoon ? 'See what’s coming' : 'Explore series'} <span aria-hidden="true">→</span></span>
       </div>
     </Link>
   );
