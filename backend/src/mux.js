@@ -138,6 +138,31 @@ async function signPlayback(playbackId, duration = 0) {
   });
 }
 
+
+// Creator intake: a direct upload whose asset has NO playback ID, so nothing can be played until release adds one.
+// The passthrough binds the asset to the Creator Portal project, slot and upload session that requested it.
+async function createIntakeUpload(corsOrigin, { passthrough, timeoutSeconds = 24 * 60 * 60, test = false }) {
+  if (!corsOrigin || !/^https?:\/\/[^/]+$/.test(corsOrigin)) throw new Error('A Creator Portal origin is required for intake uploads.');
+  if (typeof passthrough !== 'string' || !passthrough.startsWith('intake:') || passthrough.length > 255) {
+    throw new Error('A valid intake passthrough is required.');
+  }
+  return mux.video.uploads.create({
+    cors_origin: corsOrigin,
+    timeout: Math.max(3600, Math.min(7 * 24 * 60 * 60, Math.floor(timeoutSeconds))),
+    ...(test ? { test: true } : {}),
+    new_asset_settings: { video_quality: 'basic', passthrough },
+  });
+}
+
+async function cancelUpload(uploadId) {
+  return mux.video.uploads.cancel(uploadId);
+}
+
+async function addSignedPlaybackId(assetId) {
+  requirePlaybackSigning();
+  return mux.video.assets.createPlaybackId(assetId, { policy: 'signed' });
+}
+
 /** Verifies an incoming Mux webhook request signature. */
 async function verifyWebhook(rawBody, headers) {
   if (!process.env.MUX_WEBHOOK_SECRET) {
@@ -150,6 +175,9 @@ module.exports = {
   mux,
   mux,
   createDirectUpload,
+  createIntakeUpload,
+  cancelUpload,
+  addSignedPlaybackId,
   getUpload,
   createAssetFromUrl,
   createPrivateAssetFromUrl,

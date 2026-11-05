@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { verifyIntakeAsset } = require('./creatorIntake');
 
 // Episodes are ingested with no Mux playback ID at all. A public ID is created only at release, so before
 // that there is nothing a viewer, a device or a leaked response could play. Unpublishing deletes the ID.
@@ -132,17 +133,28 @@ class CreatorEpisodeService {
 
   async prepare(payload, data) {
     if (!this.origin) throw new Error('Creator Agent media origin is not configured.');
-    const url = new URL(payload.episode.media.sourceUrl);
-    const expectedPath = `/api/integrations/protv/series-media/${data.creatorProjectId}/${data.creatorSubmissionId}/${data.creatorEpisodeId}/${data.creatorMediaId}`;
-    if (url.protocol !== 'https:' || url.origin !== new URL(this.origin).origin
-      || url.pathname !== expectedPath || url.username || url.password) {
-      throw new Error('Episode media source does not match the protected Creator Agent revision.');
+    const media = payload.episode.media;
+    const intake = media.storage === 'mux';
+    let url = null;
+    if (intake) {
+      // Uploaded straight to Mux at intake (private, no playback ID): verify it is this exact episode's asset.
+      await verifyIntakeAsset(this.dependencies, {
+        assetId: media.muxAssetId, projectId: data.creatorProjectId, slot: `episode:${data.creatorEpisodeId}`, sessionId: media.intakeSessionId,
+      });
+    } else {
+      url = new URL(media.sourceUrl);
+      const expectedPath = `/api/integrations/protv/series-media/${data.creatorProjectId}/${data.creatorSubmissionId}/${data.creatorEpisodeId}/${data.creatorMediaId}`;
+      if (url.protocol !== 'https:' || url.origin !== new URL(this.origin).origin
+        || url.pathname !== expectedPath || url.username || url.password) {
+        throw new Error('Episode media source does not match the protected Creator Agent revision.');
+      }
     }
     const claim = await this.dependencies.claimCreatorEpisode(data.creatorEpisodeId, data, Date.now(), crypto.randomUUID());
     if (!claim.claimed) return publicationResult(await this.refresh(claim.video));
     const video = claim.video;
     try {
-      const asset = await this.dependencies.createPrivateAssetFromUrl(url.toString(), { passthrough: `${video.id}:${video.ingestionAttempt}` });
+      const asset = intake ? { id: media.muxAssetId }
+        : await this.dependencies.createPrivateAssetFromUrl(url.toString(), { passthrough: `${video.id}:${video.ingestionAttempt}` });
       if (!asset?.id) throw new Error('Mux returned no episode asset ID.');
       const updates = { status: 'preparing', muxAssetId: asset.id, ingestionLeaseUntil: 0 };
       if (!await this.dependencies.updateCreatorEpisode(video.id, video, updates)) {

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const {
   createCreatorVideo,
   getVideoByCreatorProjectId,
+  getVideoByAssetId,
   updateVideo,
   updateCreatorPosterTransfer,
   getCreatorEpisode,
@@ -20,6 +21,11 @@ const {
   getAsset,
   getPlaybackId,
   deleteAsset,
+  getUpload,
+  createIntakeUpload,
+  cancelUpload,
+  addSignedPlaybackId,
+  signPlayback,
 } = require('../mux');
 const { verifySignedBody } = require('../ads/adRevenueService');
 const { logAdminEvent } = require('../adminBot/adminAudit');
@@ -29,8 +35,9 @@ const {
 const { checkPremiereReadiness } = require('./premiereReadiness');
 const { EPISODE_ACTIONS, CreatorEpisodeService, validateEpisodeRequest } = require('./creatorEpisodes');
 const { SERIES_PROMOTION_ACTIONS, CreatorSeriesPromotionService, validateSeriesPromotionRequest } = require('./creatorSeriesPromotion');
+const { INTAKE_ACTIONS, CreatorIntakeService, validateIntakeRequest, verifyIntakeAsset } = require('./creatorIntake');
 
-const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', 'view_metrics', 'catalog_view_metrics', ...EPISODE_ACTIONS, ...SERIES_PROMOTION_ACTIONS]);
+const ACTIONS = new Set(['licensing', 'contracting', 'publishing', 'music_publishing', 'publishing_status', 'distribution', 'premiere_readiness', 'view_metrics', 'catalog_view_metrics', ...EPISODE_ACTIONS, ...SERIES_PROMOTION_ACTIONS, ...INTAKE_ACTIONS]);
 const REQUEST_WINDOW_MS = 5 * 60 * 1000;
 const MAX_VIEW_METRIC_TITLES = 500;
 
@@ -86,6 +93,7 @@ function validateCreatorActionRequest(rawBody, signature, secret, now = Date.now
     validateViewMetricTitleIds(payload.titleIds);
     return payload;
   }
+  if (INTAKE_ACTIONS.has(payload.action)) return validateIntakeRequest(payload);
   if (EPISODE_ACTIONS.has(payload.action)) return validateEpisodeRequest(payload, now);
   if (SERIES_PROMOTION_ACTIONS.has(payload.action)) return validateSeriesPromotionRequest(payload);
   const project = payload.project;
@@ -217,6 +225,12 @@ class CreatorPublishingService {
       getAsset,
       getPlaybackId,
       deleteAsset,
+      getUpload,
+      createIntakeUpload,
+      cancelUpload,
+      addSignedPlaybackId,
+      signPlayback,
+      getVideoByAssetId,
       getAllVideos: getAllVideosAdmin,
       transactSeries: transactCreatorSeries,
       logAdminEvent,
@@ -227,6 +241,7 @@ class CreatorPublishingService {
     this.dependencies = dependencies;
     this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, dependencies });
     this.seriesPromotion = new CreatorSeriesPromotionService({ creatorAgentOrigin, publishingSecret, dependencies });
+    this.intake = new CreatorIntakeService({ creatorAgentOrigin, dependencies });
   }
 
   async execute(payload) {
@@ -238,6 +253,7 @@ class CreatorPublishingService {
     if (action === 'catalog_view_metrics') {
       return { reportingStartedAt: validReportingStart(), titles: await this.dependencies.getCatalogViewMetrics() };
     }
+    if (INTAKE_ACTIONS.has(action)) return this.intake.execute(payload);
     if (EPISODE_ACTIONS.has(action)) return this.episodes.execute(payload);
     if (SERIES_PROMOTION_ACTIONS.has(action)) return this.seriesPromotion.execute(payload);
     if (action === 'licensing' || action === 'contracting') {
@@ -361,7 +377,7 @@ class CreatorPublishingService {
   }
 
   async resumePoster(project, promotional, existing) {
-    parseSourceUrl(project.media?.sourceUrl, this.creatorAgentOrigin);
+    if (project.media?.storage !== 'mux') parseSourceUrl(project.media?.sourceUrl, this.creatorAgentOrigin);
     posterSource(project.id, promotional.poster, this.creatorAgentOrigin, this.publishingSecret);
     const state = {
       status: 'poster_transferring', posterTransferToken: crypto.randomUUID(),
@@ -399,8 +415,17 @@ class CreatorPublishingService {
 
   async startMovieIngestion(project, catalogId) {
     try {
-      const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
-      const asset = await this.dependencies.createAssetFromUrl(sourceUrl);
+      let asset;
+      if (project.media.storage === 'mux') {
+        // Uploaded straight to Mux at intake: reuse that asset rather than encoding and storing a second copy.
+        asset = await verifyIntakeAsset(this.dependencies, {
+          assetId: project.media.muxAssetId, projectId: project.id, slot: 'movie', sessionId: project.media.intakeSessionId,
+        });
+        if (!this.dependencies.getPlaybackId(asset)) await this.dependencies.addPublicPlaybackId(asset.id);
+      } else {
+        const sourceUrl = parseSourceUrl(project.media.sourceUrl, this.creatorAgentOrigin);
+        asset = await this.dependencies.createAssetFromUrl(sourceUrl);
+      }
       await this.dependencies.updateVideo(catalogId, {
         approvalStatus: 'approved',
         approvalNotes: 'Published after Creator Agent ownership, contract, and Administrator approval checks.',
