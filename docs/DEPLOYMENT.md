@@ -109,7 +109,12 @@ eligibility and playback rules as everywhere else.
 
 ### Sponsored placement (Adsterra Native Banner)
 
-One homepage Sponsored section after New on PROtv, Coming Soon and PROtv Originals, before Spotlight. It is controlled
+One homepage Sponsored section after New on PROtv, Coming Soon and PROtv Originals, before Spotlight, and one at the end
+of each movie / Coming Soon title page, series page, Podcast show page and the Movies, Documentaries, Series, Music,
+Podcasts and Cartoons browse pages (removed while a trailer plays; never on players, episode pages, account, sign-in or
+Admin). The script skips a second set-up on the same page, so `frontend/src/ads/sponsoredSession.js` requests the unit
+once per page load and moves the rendered unit between sections during in-app navigation; an empty, blocked or failed
+request is not retried until reload, and the switch is read once per page load. It is controlled
 by Admin → Monetization → **Sponsored Placements**, stored in Firestore `siteSettings/advertising`
 (`nativeBannerEnabled`, default off, audited) and read by `GET /api/ads/placements` (fails closed). The approved script
 and container are fixed in `frontend/src/ads/sponsored.js`; the switch cannot change them. Each viewer must choose
