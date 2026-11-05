@@ -9,6 +9,7 @@ import { podcastEpisodeLabel, podcastEpisodePlayerUrl } from '../data/playerCata
 import { useFeaturedPodcast } from '../hooks/useFeaturedPodcast';
 import { useAuth } from '../hooks/useAuth';
 import banner from '../assets/me-and-my-white-friend-banner.png';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import '../styles/FeaturedPodcast.css';
 
 export default function FeaturedPodcast() {
@@ -121,6 +122,8 @@ export default function FeaturedPodcast() {
             {FEATURED_PODCAST.description.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
           </div>
         </section>
+        {/* Below the episodes and the show information. */}
+        <SponsoredNativeBanner />
         <div className="mmwf-closing"><span /> REAL CONVERSATIONS. UNFORGETTABLE FRIENDSHIP. <span /></div>
       </main>
       <ProTVFooter />

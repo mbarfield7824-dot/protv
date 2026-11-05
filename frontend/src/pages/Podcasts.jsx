@@ -8,6 +8,7 @@ import FeaturedPodcastSpotlight from '../components/FeaturedPodcastSpotlight';
 import { isFeaturedPodcast } from '../data/featuredPodcast';
 import '../styles/Movies.css';
 import '../styles/Podcasts.css';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 
 export default function Podcasts() {
   const [shows, setShows] = useState([]);
@@ -72,6 +73,8 @@ export default function Podcasts() {
             ))}
           </div>
         ) : null}
+        {/* Below the browse grid, once it has loaded. */}
+        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
     </ProTVShell>

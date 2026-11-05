@@ -5,6 +5,7 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
 import TrailerPlayer from '../components/TrailerPlayer';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import { airingText, premiereText } from '../utils/premiere';
 import '../styles/Series.css';
 
@@ -181,6 +182,8 @@ export default function SeriesDetail() {
             })}
           </ol>
         </section>}
+        {/* Below the series information, actions and episode list; removed while the trailer plays. */}
+        {!trailerOpen && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
       {trailerOpen && <TrailerPlayer videoId={series.trailerTitleId} onClose={() => setTrailerOpen(false)} />}

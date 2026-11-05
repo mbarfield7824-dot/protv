@@ -7,6 +7,7 @@ import MoviePreview from '../components/MoviePreview';
 import { api } from '../api';
 import { BROWSE_CATEGORIES, matchesCategory } from '../data/browseCategories';
 import '../styles/Movies.css';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 
 const DOCUMENTARY_CATEGORY = BROWSE_CATEGORIES.find((category) => category.id === 'documentary');
 
@@ -105,6 +106,8 @@ export default function Documentaries() {
             <p>New titles will appear here as they become available to watch.</p>
           </section>
         )}
+        {/* Below the browse grid, once it has loaded. */}
+        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
       {previewVideo && (

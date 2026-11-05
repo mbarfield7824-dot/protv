@@ -7,6 +7,7 @@ import { FEATURED_PODCAST, isFeaturedPodcast } from '../data/featuredPodcast';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import '../styles/Movies.css';
 import '../styles/Podcasts.css';
 
@@ -109,6 +110,8 @@ export default function PodcastShow() {
                 </ol>
               ) : <p>No Episodes are available yet.</p>}
             </section>
+            {/* Below the show information and episode list. */}
+            <SponsoredNativeBanner />
           </>
         )}
       </main>

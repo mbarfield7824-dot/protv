@@ -5,6 +5,7 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
 import '../styles/Series.css';
+import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 
 function SeriesPresentation({ series }) {
   return (
@@ -75,6 +76,8 @@ export default function Series() {
             <p>New episodic stories will appear here as they become available.</p>
           </section>
         )}
+        {/* Below the browse grid, once it has loaded. */}
+        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
     </ProTVShell>
