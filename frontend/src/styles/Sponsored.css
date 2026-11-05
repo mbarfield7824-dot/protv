@@ -1,0 +1,92 @@
+/* Homepage Sponsored section: PROtv black, royal blue and electric blue. */
+.ptv-sponsored {
+  margin: 8px clamp(16px, 4vw, 56px);
+  padding: 14px clamp(14px, 2vw, 22px) 16px;
+  border: 1px solid rgba(77, 155, 255, 0.28);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(23, 79, 166, 0.14), rgba(5, 6, 15, 0) 70%),
+    #05060f;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ptv-sponsored__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ptv-sponsored__label {
+  padding: 3px 9px;
+  border: 1px solid var(--protv-electric-blue, #4d9bff);
+  border-radius: 4px;
+  color: var(--protv-electric-blue, #4d9bff);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ptv-sponsored__off {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: rgba(241, 239, 255, 0.7);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ptv-sponsored__off:hover,
+.ptv-sponsored__off:focus-visible {
+  color: #fff;
+}
+
+/* No large placeholder: if no ad is returned, only this one line disappears, keeping the page from jumping. */
+.ptv-sponsored__status {
+  margin: 0;
+  color: rgba(241, 239, 255, 0.55);
+  font-size: 0.82rem;
+}
+
+.ptv-sponsored__unit,
+.ptv-sponsored__unit * {
+  max-width: 100%;
+}
+
+.ptv-sponsored__unit {
+  overflow: hidden;
+  color: #f1efff;
+}
+
+.ptv-sponsored__consent p {
+  max-width: 760px;
+  margin: 0 0 14px;
+  color: rgba(241, 239, 255, 0.82);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.ptv-sponsored__consent a {
+  color: var(--protv-electric-blue, #4d9bff);
+}
+
+.ptv-sponsored__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .ptv-sponsored__head {
+    flex-wrap: wrap;
+  }
+
+  .ptv-sponsored__actions .ptv-btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

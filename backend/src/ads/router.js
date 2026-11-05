@@ -10,6 +10,7 @@ const {
   verifyAdSessionToken,
   verifySignedBody,
 } = require('./adRevenueService');
+const { FirestorePlacementSettings } = require('./placementSettings');
 
 function validateProviderEvent(body) {
   const event = {
@@ -108,7 +109,47 @@ function createAdsRouter(dependencies = {}) {
     }
   });
 
-  router.get('/admin/titles/:videoId', verifyAdmin, async (request, response) => {
+  const placements = dependencies.placements || new FirestorePlacementSettings(db);
+  const requireAdmin = dependencies.verifyAdmin || verifyAdmin;
+  const audit = dependencies.audit || ((event) => require('../adminBot/adminAudit').logAdminEvent(event));
+
+  // Public, website-only: whether the Sponsored placement is switched on. Fails closed: any error means off.
+  router.get('/placements', async (_request, response) => {
+    response.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
+    try {
+      const settings = await placements.read();
+      response.json({ nativeBanner: { enabled: settings.nativeBannerEnabled === true } });
+    } catch (error) {
+      console.error('Advertising settings unavailable; Sponsored placement stays off.', error.message);
+      response.json({ nativeBanner: { enabled: false } });
+    }
+  });
+
+  router.get('/admin/placements', requireAdmin, async (_request, response) => {
+    response.set('Cache-Control', 'no-store');
+    try { response.json(await placements.read()); }
+    catch { response.status(503).json({ error: 'Advertising settings are temporarily unavailable.' }); }
+  });
+
+  router.put('/admin/placements', requireAdmin, async (request, response) => {
+    response.set('Cache-Control', 'no-store');
+    if (typeof request.body?.nativeBannerEnabled !== 'boolean') {
+      return response.status(400).json({ error: 'nativeBannerEnabled must be true or false.' });
+    }
+    try {
+      const saved = await placements.setNativeBanner(request.body.nativeBannerEnabled, request.user?.uid);
+      await audit({
+        type: 'advertising.native_banner', actorId: request.user?.uid || 'admin',
+        message: `Sponsored native banner ${saved.nativeBannerEnabled ? 'enabled' : 'disabled'}.`,
+        details: { nativeBannerEnabled: saved.nativeBannerEnabled },
+      });
+      return response.json(saved);
+    } catch {
+      return response.status(503).json({ error: 'Advertising settings could not be saved.' });
+    }
+  });
+
+  router.get('/admin/titles/:videoId', requireAdmin, async (request, response) => {
     try {
       response.json(await store.getTitleMetrics(request.params.videoId) || {
         videoId: request.params.videoId,

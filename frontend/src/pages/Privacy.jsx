@@ -11,7 +11,7 @@ export default function Privacy() {
         <section className="info-hero">
           <p className="info-eyebrow">Privacy</p>
           <h1>Your information, explained simply.</h1>
-          <p className="info-lead">Effective September 16, 2026. Updated October 25, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
+          <p className="info-lead">Effective September 16, 2026. Updated November 4, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
         </section>
         <section className="info-copy">
           <h2>Information we use</h2>
@@ -24,6 +24,23 @@ export default function Privacy() {
           <p>PROtv's TV apps use the same PROtv account as the website. When you link a TV with an activation code at watchprotv.com/activate, we keep a record of that link. A signed-in TV app stores your sign-in and recent watch progress on the TV itself. Watch progress saved while browsing as a guest stays on that TV and is not sent to PROtv. Uninstalling the app removes what it stored on that TV.</p>
           <h2>Service providers</h2>
           <p>PROtv relies on trusted services to provide authentication, data storage, hosting, analytics, and video streaming. These providers process only the information needed to deliver their services.</p>
+          <h2 id="advertising">Advertising</h2>
+          <p>
+            The PROtv website may show a clearly labeled Sponsored section on its homepage, provided by Adsterra, a
+            third-party advertising network. Nothing from Adsterra loads unless you choose &quot;Allow sponsored
+            content&quot; in that section. If you allow it, Adsterra may set its own cookies and use similar technologies,
+            and may receive information such as your browser and device type, screen size, time zone, IP address and the
+            page you are viewing, to select, show and measure ads and to prevent fraud. Adsterra handles that information
+            under its own privacy policy. Sponsored content is never placed inside video players, trailers, sign-in or
+            account pages, or PROtv&apos;s TV apps.
+          </p>
+          <p>
+            You can withdraw your choice at any time with &quot;Turn off sponsored content&quot; on the homepage. Browsers that
+            send a Global Privacy Control signal are treated as having declined and are not asked. Your choice is stored
+            in your browser, so clearing site data asks again. The website also loads Google&apos;s AdSense script, which
+            Google may use to set its own cookies; you can manage Google ad settings at{' '}
+            <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">adssettings.google.com</a>.
+          </p>
           <h2>Deleting your account</h2>
           <p>
             You can <Link to="/delete-account">request deletion of your PROtv account</Link> on our website without

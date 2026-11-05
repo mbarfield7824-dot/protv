@@ -107,5 +107,16 @@ show stays an Original as episodes are released. `GET /api/v1/catalog/originals`
 row (after Coming Soon) and the permanent **PROtv Originals** Browse tile; each title appears once, with the same public
 eligibility and playback rules as everywhere else.
 
+### Sponsored placement (Adsterra Native Banner)
+
+One homepage Sponsored section after New on PROtv, Coming Soon and PROtv Originals, before Spotlight. It is controlled
+by Admin → Monetization → **Sponsored Placements**, stored in Firestore `siteSettings/advertising`
+(`nativeBannerEnabled`, default off, audited) and read by `GET /api/ads/placements` (fails closed). The approved script
+and container are fixed in `frontend/src/ads/sponsored.js`; the switch cannot change them. Each viewer must choose
+"Allow sponsored content" before anything from Adsterra loads; Global Privacy Control means no prompt and no ad; the
+choice is stored in `localStorage`. The script is added only inside that section (never in `index.html`), removed on
+leaving the page, and an error or empty response removes the section. Placement outcomes are sent to Vercel Analytics
+as `sponsored_native_banner` events; impressions and earnings come only from Adsterra.
+
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

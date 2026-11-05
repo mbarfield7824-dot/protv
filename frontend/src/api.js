@@ -162,6 +162,28 @@ export const api = {
     return (await res.json()).items;
   },
 
+  async getAdPlacements() {
+    const res = await fetch(`${API_URL}/ads/placements`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Advertising settings are temporarily unavailable.');
+    return res.json();
+  },
+
+  async getAdminAdPlacements() {
+    const res = await fetch(`${API_URL}/ads/admin/placements`, { headers: await authenticatedHeaders(), cache: 'no-store' });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Advertising settings are temporarily unavailable.');
+    return response;
+  },
+
+  async setNativeBannerEnabled(nativeBannerEnabled) {
+    const res = await fetch(`${API_URL}/ads/admin/placements`, {
+      method: 'PUT', headers: await authenticatedHeaders(), body: JSON.stringify({ nativeBannerEnabled }),
+    });
+    const response = await res.json();
+    if (!res.ok) throw new Error(response.error || 'Advertising settings could not be saved.');
+    return response;
+  },
+
   async createSeriesTrailerRecord(body) {
     const res = await fetch(`${API_URL}/admin/title-trailers/series-record`, {
       method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(body),

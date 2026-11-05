@@ -704,3 +704,36 @@
 .admin-original-toggle small {
   opacity: .75;
 }
+
+/* Sponsored placement switch. */
+.admin-advertising__card {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+  padding: var(--admin-panel-pad);
+  border: 1px solid rgba(77, 155, 255, .28);
+  border-radius: 12px;
+}
+
+.admin-advertising__card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-advertising__card h3,
+.admin-advertising__card p {
+  margin: 0;
+}
+
+.admin-advertising__card .admin-status-pill.is-on {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.admin-advertising__meta {
+  opacity: .7;
+  font-size: .85rem;
+}

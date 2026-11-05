@@ -22,6 +22,9 @@ export const ADMIN_GROUPS = [
   { title: 'Account Privacy', items: [
     { mode: 'account-deletion-requests', label: 'Account Deletion Requests', description: 'Track deletion requests and verify the manual deletion runbook.' },
   ] },
+  { title: 'Monetization', items: [
+    { mode: 'advertising', label: 'Sponsored Placements', description: 'Turn the homepage Sponsored (Adsterra Native Banner) placement on or off.' },
+  ] },
   { title: 'Tools', items: [
     { mode: 'short-links', label: 'Short Links', description: 'Manage memorable creator and content links, activation and sharing.' },
     { mode: 'assistant', label: 'Administrator Assistant', description: 'Ask operational questions and confirm proposed catalog changes.' },
