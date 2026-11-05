@@ -9,6 +9,11 @@ const { destinationMetadata } = require('./metadata');
 const { shareHtml, socialMetadata, unavailableHtml } = require('./html');
 const { renderFallback } = require('../catalog/socialArtwork');
 const featured = require('../../../shared/featuredPodcast.json');
+const { podcastCatalog } = require('../catalog/readModel');
+const { isFeaturedPodcast } = require('../catalog/podcasts');
+const { previewEligible } = require('../catalog/socialMetadata');
+const { podcastStructuredData } = require('../catalog/structuredData');
+const { collectionBody, withBody } = require('../catalog/seoBody');
 
 const FLAGSHIP = { slug: 'MMWF', kind: 'podcast', destination: featured.path, active: true };
 function defaultStore() {
@@ -71,7 +76,20 @@ function createShortLinkRouters({
   publicRouter.get('/featured-page', async (_req, res) => {
     try {
       const metadata = await destinationMetadata(FLAGSHIP, loadApproved);
-      return res.type('html').send(socialMetadata(await loadTemplate(), metadata, `https://watchprotv.com${featured.path}`));
+      const canonical = `https://watchprotv.com${featured.path}`;
+      // Published episodes for the page summary. The page itself works before publication or if the catalog is down.
+      let episodes = [];
+      try {
+        const matches = podcastCatalog((await loadApproved()).filter(previewEligible)).filter(isFeaturedPodcast);
+        if (matches.length === 1) episodes = matches[0].episodes;
+      } catch (error) { console.error('Featured Podcast episodes unavailable for the page summary:', error.message); }
+      const data = podcastStructuredData({ title: featured.title, episodes }, canonical,
+        new URL(metadata.image, canonical).href, [featured.tagline, ...featured.description]);
+      const html = withBody(socialMetadata(await loadTemplate(), metadata, canonical, data), collectionBody({
+        title: featured.title, byline: `A podcast with ${featured.hosts}`, lead: featured.tagline,
+        description: featured.description, image: 'https://watchprotv.com/api/short-links/artwork/mmwf', episodes,
+      }));
+      return res.type('html').send(html);
     } catch (error) { return fail(res, error); }
   });
   publicRouter.get('/resolve/:slug', async (req, res) => {

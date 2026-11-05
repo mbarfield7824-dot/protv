@@ -16,7 +16,10 @@ function yearDate(value) {
   return Number.isInteger(year) && year >= 1000 && year <= 9999 ? String(year) : null;
 }
 
-function titleStructuredData(content, canonical, artworkUrl) {
+const { episodeName, episodeUrl, listedEpisodes, paragraphs } = require('./seoBody');
+
+// parent: { name, url } of the show an episode belongs to, when that show has a public page.
+function titleStructuredData(content, canonical, artworkUrl, parent = null) {
   const name = content.contentType === 'EPISODE' && typeof content.episodeTitle === 'string'
     && content.episodeTitle.trim() ? content.episodeTitle.trim() : content.title;
   if (typeof name !== 'string' || !name.trim()) return null;
@@ -59,8 +62,19 @@ function titleStructuredData(content, canonical, artworkUrl) {
       entity.partOfSeason = { '@type': 'TVSeason', seasonNumber: content.seasonNumber };
     }
     if (typeof content.seriesTitle === 'string' && content.seriesTitle.trim()) {
-      entity.partOfSeries = { '@type': 'TVSeries', name: content.seriesTitle.trim() };
+      entity.partOfSeries = { '@type': 'TVSeries', name: content.seriesTitle.trim(), ...(parent?.url ? { url: parent.url } : {}) };
     }
+    const datePublished = yearDate(content.year);
+    if (datePublished) entity.datePublished = datePublished;
+  } else if (content.contentType === 'PODCAST_EPISODE') {
+    entity = { '@type': 'PodcastEpisode', name, url: canonical, video: { '@id': videoId } };
+    if (typeof content.description === 'string' && content.description.trim()) {
+      entity.description = content.description.trim();
+    }
+    if (Number.isInteger(content.episodeNumber) && content.episodeNumber > 0) {
+      entity.episodeNumber = content.episodeNumber;
+    }
+    if (parent?.name && parent?.url) entity.partOfSeries = { '@type': 'PodcastSeries', name: parent.name, url: parent.url };
     const datePublished = yearDate(content.year);
     if (datePublished) entity.datePublished = datePublished;
   }
@@ -78,6 +92,29 @@ function seriesStructuredData(series, canonical, artworkUrl) {
   if (typeof series.category === 'string' && series.category.trim()) data.genre = series.category.trim();
   if (Number.isInteger(series.seasonCount) && series.seasonCount > 0) data.numberOfSeasons = series.seasonCount;
   if (Number.isInteger(series.episodeCount) && series.episodeCount > 0) data.numberOfEpisodes = series.episodeCount;
+  const description = paragraphs(series.description).join(' ');
+  if (description) data.description = description;
+  const episodes = listedEpisodes(series.episodes).map((episode) => ({
+    '@type': 'TVEpisode', name: episodeName(episode), url: episodeUrl(episode),
+    ...(Number.isInteger(episode.episodeNumber) && episode.episodeNumber > 0 ? { episodeNumber: episode.episodeNumber } : {}),
+    ...(Number.isInteger(episode.seasonNumber) && episode.seasonNumber > 0
+      ? { partOfSeason: { '@type': 'TVSeason', seasonNumber: episode.seasonNumber } } : {}),
+  }));
+  if (episodes.length) data.episode = episodes;
+  return data;
+}
+
+function podcastStructuredData(show, canonical, artworkUrl, description = show.description) {
+  if (typeof show.title !== 'string' || !show.title.trim()) return null;
+  const data = { '@context': 'https://schema.org', '@type': 'PodcastSeries', name: show.title.trim(), url: canonical };
+  const summary = paragraphs(description).join(' ');
+  if (summary) data.description = summary;
+  if (artworkUrl) data.image = artworkUrl;
+  const episodes = listedEpisodes(show.episodes).map((episode) => ({
+    '@type': 'PodcastEpisode', name: episodeName(episode), url: episodeUrl(episode),
+    ...(Number.isInteger(episode.episodeNumber) && episode.episodeNumber > 0 ? { episodeNumber: episode.episodeNumber } : {}),
+  }));
+  if (episodes.length) data.episode = episodes;
   return data;
 }
 
@@ -88,4 +125,4 @@ function structuredDataScript(data) {
   return `<script type="application/ld+json">${json}</script>`;
 }
 
-module.exports = { titleStructuredData, seriesStructuredData, structuredDataScript };
+module.exports = { titleStructuredData, seriesStructuredData, podcastStructuredData, structuredDataScript };

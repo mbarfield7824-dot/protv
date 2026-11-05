@@ -79,7 +79,8 @@ function contentMetadata(content, kind = 'title', id = content.id) {
   return { title, description, type, image: `${ORIGIN}/api/social/artwork/${kind}/${encodeURIComponent(id)}?v=${version}` };
 }
 
-function socialMetadata(template, metadata, canonical, structuredData = null) {
+// shareUrl: the address being shared (og:url) when it differs from the canonical page, as for short links.
+function socialMetadata(template, metadata, canonical, structuredData = null, { shareUrl = canonical } = {}) {
   if (!/<title>[^]*?<\/title>/.test(template) || !template.includes('</head>')) {
     throw new Error('The built social HTML template is invalid.');
   }
@@ -92,7 +93,7 @@ function socialMetadata(template, metadata, canonical, structuredData = null) {
     ...[['og:type', metadata.type || 'website'], ['og:title', title], ['og:description', metadata.description],
       ['og:image', image], ['og:image:secure_url', image], ['og:image:type', 'image/jpeg'],
       ['og:image:width', '1200'], ['og:image:height', '630'], ['og:image:alt', `${metadata.title} promotional artwork`],
-      ['og:url', canonical]].map(([key, value]) => `<meta property="${key}" content="${escapeHtml(value)}">`),
+      ['og:url', shareUrl]].map(([key, value]) => `<meta property="${key}" content="${escapeHtml(value)}">`),
     '<meta name="twitter:card" content="summary_large_image">',
     ...[['twitter:title', title], ['twitter:description', metadata.description], ['twitter:image', image],
       ['twitter:image:alt', `${metadata.title} promotional artwork`]]

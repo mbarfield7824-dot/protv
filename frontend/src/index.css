@@ -132,3 +132,23 @@ code {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Server-rendered show summary (series and Podcast pages) shown before the app starts; the app replaces it. */
+.seo-summary {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+  color: #f1efff;
+  text-align: left;
+}
+
+.seo-summary img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+
+.seo-summary a {
+  color: #4d9bff;
+}

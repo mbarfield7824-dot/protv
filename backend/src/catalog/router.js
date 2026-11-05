@@ -4,8 +4,13 @@ const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./re
 const { catalogSitemap } = require('./sitemap');
 const { eligibleForPlatform, platformFromRequest } = require('./platformEligibility');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
-const { previewContent, contentMetadata, socialMetadata, ORIGIN } = require('./socialMetadata');
-const { seriesStructuredData, titleStructuredData } = require('./structuredData');
+const {
+  previewContent, contentMetadata, socialMetadata, previewEligible, publicArtworkUrl, ORIGIN,
+} = require('./socialMetadata');
+const { seriesStructuredData, podcastStructuredData } = require('./structuredData');
+const { collectionBody, withBody, podcastPath } = require('./seoBody');
+
+const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const { signPlayback } = require('../mux');
 const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
 
@@ -168,23 +173,48 @@ function createCatalogRouter({
     }
   });
 
+  // The public show page an episode belongs to, found by catalog relationship (never by title text alone).
+  const episodeParent = (videos, content) => {
+    if (content.contentType === 'PODCAST_EPISODE') {
+      const show = podcastCatalog(videos.filter(previewEligible)).find((item) => item.id === content.podcastShowId);
+      return show ? { name: show.title, url: `${ORIGIN}${podcastPath(show)}` } : null;
+    }
+    if (content.contentType === 'EPISODE') {
+      const series = seriesDetails(videos).find((item) => item.episodes.some((episode) => episode.id === content.id));
+      return series ? { name: series.title, url: `${ORIGIN}/series/${encodeURIComponent(series.key)}` } : null;
+    }
+    return null;
+  };
+
   const renderPage = (kind) => async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     try {
-      const content = previewContent(await load(req), kind, req.params.id);
+      const videos = await load(req);
+      const content = previewContent(videos, kind, req.params.id);
       if (!content) {
         return res.status(404).set('X-Robots-Tag', 'noindex')
           .type('text/plain').send('Title not found.');
+      }
+      // The featured Podcast has one public page; its catalog address permanently points there
+      // (the website already redirects it in the browser).
+      if (kind === 'podcast' && podcastPath(content) !== `/podcasts/${encodeURIComponent(req.params.id)}`) {
+        return res.redirect(301, podcastPath(content));
       }
       const template = await loadHtmlTemplate();
       const route = kind === 'podcast' ? 'podcasts' : kind === 'series' ? 'series' : 'title';
       const canonical = `${ORIGIN}/${route}/${encodeURIComponent(req.params.id)}`;
       const metadata = contentMetadata(content, kind, req.params.id);
-      const structuredData = kind === 'title' && !req.path.endsWith('/player-html')
-        ? titleStructuredData(content, canonical, metadata.image)
-        : kind === 'series' ? seriesStructuredData(content, canonical, metadata.image) : null;
-      const html = kind === 'title' && !req.path.endsWith('/player-html') ? titleHtml(template, content)
-        : socialMetadata(template, metadata, canonical, structuredData);
+      if (kind === 'title' && !req.path.endsWith('/player-html')) {
+        return res.type('html').send(titleHtml(template, content, episodeParent(videos, content)));
+      }
+      if (kind === 'title') return res.type('html').send(socialMetadata(template, metadata, canonical));
+      const image = publicArtworkUrl(kind === 'series' ? content.artwork : content.artworkUrl) || '';
+      const html = kind === 'series'
+        ? withBody(socialMetadata(template, metadata, canonical, seriesStructuredData(content, canonical, metadata.image)),
+          collectionBody({ title: content.title, description: content.description, image, episodes: content.episodes }))
+        : withBody(socialMetadata(template, metadata, canonical, podcastStructuredData(content, canonical, metadata.image)),
+          collectionBody({ title: content.title, byline: text(content.host) ? `With ${text(content.host)}` : '',
+            description: content.description, image, episodes: content.episodes }));
       return res.type('html').send(html);
     } catch (error) {
       console.error('Failed to render public title metadata:', error);

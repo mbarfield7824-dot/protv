@@ -1,5 +1,6 @@
 const { playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { previewEligible } = require('./socialMetadata');
+const { podcastPath } = require('./seoBody');
 
 function escapeXml(value) {
   return value.replace(/[<>&"']/g, (character) => ({
@@ -17,9 +18,8 @@ function catalogSitemap(videos) {
     ...seriesCatalog(publicVideos).map((series) => (
       `https://watchprotv.com/series/${encodeURIComponent(series.key)}`
     )),
-    ...podcastCatalog(publicVideos).map((show) => (
-      `https://watchprotv.com/podcasts/${encodeURIComponent(show.id)}`
-    )),
+    // Each Podcast Show's one canonical page (the featured show has its own address).
+    ...podcastCatalog(publicVideos).map((show) => `https://watchprotv.com${podcastPath(show)}`),
   ];
   const entries = [...new Set(urls)]
     .map((url) => `  <url><loc>${escapeXml(url)}</loc></url>`);
