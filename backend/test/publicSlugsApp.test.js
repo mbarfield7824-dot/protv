@@ -30,6 +30,8 @@ async function site(context) {
       if (!match) continue;
       const target = new URL(rule.destination.replace(/:(\w+)\*?/g, (_, name) => match.groups[name]), 'http://local');
       for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
+      // Vercel also passes each named route parameter as a query parameter.
+      for (const [key, value] of Object.entries(match.groups || {})) target.searchParams.set(key, value);
       // What api/index.js does: /api/index?path=X&q -> X?q (the local app has no /api prefix).
       const route = target.searchParams.get('path');
       target.searchParams.delete('path');

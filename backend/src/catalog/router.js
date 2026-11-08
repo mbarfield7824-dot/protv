@@ -19,11 +19,14 @@ const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
 // so their responses stay exactly as they were.
 const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios']);
 const websiteRequest = (req) => !DEVICE_PLATFORMS.has(platformFromRequest(req)) && req.query.view !== 'all';
+// The visitor's own query parameters. The public rewrites (vercel.json) add `path` and the route parameter
+// (`id=<segment>`), which are not the visitor's and must not follow them to the readable address.
 const queryString = (req) => {
   const index = req.originalUrl.indexOf('?');
   if (index < 0) return '';
   const query = new URLSearchParams(req.originalUrl.slice(index + 1));
   query.delete('path');
+  if (query.get('id') === req.params.id) query.delete('id');
   return query.size ? `?${query}` : '';
 };
 
