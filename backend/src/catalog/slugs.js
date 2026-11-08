@@ -59,6 +59,15 @@ function candidates(entry) {
   return [...new Set([...preferred, `${base}-${shortHash(entry.target, 6)}`, `${base}-${shortHash(entry.target, 12)}`])];
 }
 
+// Titles with a verified metadata error awaiting an Administrator correction: no address is assigned while the
+// title still has the known error, so the permanent address is created from the corrected title. The hold ends by
+// itself as soon as the title changes; the page keeps its internal-ID address meanwhile.
+const HELD_FOR_CORRECTION = new Map([
+  // Episode of "Merrie Melodies"; its own series title and description spell the name "Merrie" (verified 2026-11-08).
+  ['v_1789872561270_i3svw5cbz', /^Merri Melodies shorts$/],
+]);
+const heldForCorrection = (record) => HELD_FOR_CORRECTION.get(record.id)?.test(text(record.title)) === true;
+
 // What each public title and show would be called. Only content that has a public page is listed.
 function publicSlugEntries(videos) {
   const records = Array.isArray(videos) ? videos : [];
@@ -67,7 +76,7 @@ function publicSlugEntries(videos) {
   const entries = [];
   for (const record of records) {
     if (!TITLE_TYPES.has(record?.contentType) || typeof record.id !== 'string' || !record.id) continue;
-    if (!detailEligible(record, records)) continue;
+    if (!detailEligible(record, records) || heldForCorrection(record)) continue;
     const yearValue = Number(record.year);
     const entry = { kind: 'title', target: record.id, name: text(record.title),
       ...(Number.isInteger(yearValue) && yearValue >= 1000 && yearValue <= 9999 ? { year: yearValue } : {}) };

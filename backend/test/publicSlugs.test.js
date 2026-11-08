@@ -356,3 +356,13 @@ test('an Administrator correction becomes the address and earlier addresses redi
     assert.equal(moved.headers.get('location'), '/title/dead-air-remastered');
   }
 });
+
+test('a title held for a verified correction gets no address until it is corrected, then gets the corrected one', async () => {
+  const held = { ...episode('v_1789872561270_i3svw5cbz', 'Merri Melodies shorts', 1, 1), seriesTitle: 'Merrie Melodies' };
+  const { registry: slugs } = registry();
+  const before = await publicPathsFor([...catalog(), held], slugs);
+  assert.equal(before.slug('title', held.id), null);
+  assert.equal(before.segment('title', held.id), held.id);
+  const after = await publicPathsFor([...catalog(), { ...held, title: 'Merrie Melodies shorts' }], slugs);
+  assert.equal(after.slug('title', held.id), 'merrie-melodies-shorts');
+});
