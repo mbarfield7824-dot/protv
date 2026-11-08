@@ -2,13 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { FALLBACK_POSTER } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
+import { titlePath } from '../utils/publicPaths';
 
 export default function StreamingCard({ video, onInfo, showRemove = false }) {
   const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useAuth();
   const saved = isFavorite(video.id);
   const watch = () => navigate(`/player/${video.id}`);
-  const details = () => navigate(`/title/${video.id}`);
+  const details = () => navigate(titlePath(video));
   const meta = [video.genreLabel || video.category, video.year].filter(Boolean).join(' • ');
 
   const stop = (handler) => (event) => {
@@ -62,13 +63,13 @@ export default function StreamingCard({ video, onInfo, showRemove = false }) {
             <span aria-hidden="true">{saved ? '✓' : '＋'}</span>
           </button>
           {onInfo && (
-            <button type="button" className="ptv-card__action" aria-label={`Details for ${video.title}`} onClick={stop(() => navigate(`/title/${video.id}`))}>
+            <button type="button" className="ptv-card__action" aria-label={`Details for ${video.title}`} onClick={stop(() => navigate(titlePath(video)))}>
               <span aria-hidden="true">i</span>
             </button>
           )}
         </div>
       </div>
-      <h3 className="ptv-card__title"><a href={`/title/${video.id}`}>{video.title}</a></h3>
+      <h3 className="ptv-card__title"><a href={titlePath(video)}>{video.title}</a></h3>
       {meta && <p className="ptv-card__meta">{meta}</p>}
       {showRemove && saved && (
         <button type="button" className="ptv-card__remove" onClick={() => void toggleFavorite(video.id)}>

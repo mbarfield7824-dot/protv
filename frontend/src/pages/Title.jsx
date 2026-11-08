@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ProTVShell from '../components/ProTVShell';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVFooter from '../components/ProTVFooter';
@@ -17,9 +17,16 @@ import { safetyReportUrl } from '../data/safetyReports';
 import { readInitialTitle } from '../data/initialTitle';
 import TrailerPlayer from '../components/TrailerPlayer';
 import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
+import { titlePath } from '../utils/publicPaths';
 import '../styles/Title.css';
 
 const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
+
+// The loaded title belongs to the address when it was loaded for it or is named by it (internal ID or slug),
+// so replacing an older ID address with the readable one keeps the title on screen.
+function showsRoute(video, loadedId, id) {
+  return loadedId === id || Boolean(video && (video.id === id || video.slug === id));
+}
 
 function present(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
@@ -36,13 +43,21 @@ export default function Title() {
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [releaseError, setReleaseError] = useState('');
   const { isFavorite, toggleFavorite } = useAuth();
+  const location = useLocation();
+
+  // One address per title: an older internal-ID link is replaced by the readable one in the location bar.
+  useEffect(() => {
+    if (video?.slug && showsRoute(video, loadedId, id) && id !== video.slug) {
+      navigate(`${titlePath(video)}${location.search}${location.hash}`, { replace: true });
+    }
+  }, [video, loadedId, id, navigate, location.search, location.hash]);
 
   useEffect(() => {
     document.getElementById('protv-initial-title')?.remove();
     let cancelled = false;
     async function loadTitle() {
       if (cancelled) return;
-      setTitleState((current) => current.loadedId === id && current.video
+      setTitleState((current) => showsRoute(current.video, current.loadedId, id) && current.video
         ? current : { video: null, loading: true, loadedId: null });
       try {
         const result = ALL_MOCK_VIDEOS.find((item) => item.id === id) || await api.getVideo(id);
@@ -51,7 +66,7 @@ export default function Title() {
         if (cancelled) return;
         console.error('Failed to load title details:', error);
         setTitleState((current) => ({
-          video: current.loadedId === id ? current.video : null,
+          video: showsRoute(current.video, current.loadedId, id) ? current.video : null,
           loading: false,
           loadedId: id,
         }));
@@ -80,7 +95,7 @@ export default function Title() {
     return () => { active = false; window.clearInterval(timer); };
   }, [id, video]);
 
-  if (loading || loadedId !== id) {
+  if (loading || !showsRoute(video, loadedId, id)) {
     return (
       <ProTVShell>
         <ProTVHeader />

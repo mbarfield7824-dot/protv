@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
-import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import reactPlugin from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import { readInitialTitle } from '../src/data/initialTitle.js';
@@ -62,19 +62,27 @@ after(async () => {
   dom.window.close();
 });
 
-async function mount({ seed = initial, id = initial.id, fetchTitle, strict = true } = {}) {
+async function mount({ seed = initial, id = initial.id, fetchTitle, strict = true, search = '' } = {}) {
   document.body.innerHTML = seed
     ? new window.DOMParser().parseFromString(titleHtml(template, seed), 'text/html').body.innerHTML
     : '<div id="root"></div>';
   api.getVideo = fetchTitle || (async () => initial);
   root = createRoot(document.getElementById('root'));
   const routes = React.createElement(AuthContext.Provider, { value: authValue },
-    React.createElement(MemoryRouter, { initialEntries: [`/title/${id}`] },
+    React.createElement(MemoryRouter, { initialEntries: [`/title/${id}${search}`] },
+      React.createElement(LocationProbe),
       React.createElement(Link, { to: '/title/public-b' }, 'Next title'),
       React.createElement(Routes, null,
         React.createElement(Route, { path: '/title/:id', element: React.createElement(Title) }),
         React.createElement(Route, { path: '/player/:id', element: React.createElement('h1', null, 'Player route') }))));
   await act(async () => root.render(strict ? React.createElement(React.StrictMode, null, routes) : routes));
+}
+
+let currentPath = '';
+function LocationProbe() {
+  const location = useLocation();
+  React.useEffect(() => { currentPath = `${location.pathname}${location.search}`; }, [location]);
+  return null;
 }
 
 function heading() {
@@ -211,4 +219,31 @@ test('title API distinguishes 404, outage, mismatched data and valid updates', a
   request.mock.mockImplementation(async () => Response.json(initial));
   assert.deepEqual(await originalGetVideo(initial.id), initial);
   assert.equal(request.mock.calls.at(-1).arguments[1].cache, 'no-store');
+});
+
+test('a readable address shows its title at once, and an older ID address is replaced by it', async () => {
+  const slugged = { ...initial, slug: 'real-title-and-one' };
+  let requested = [];
+  await mount({ seed: slugged, id: slugged.slug, fetchTitle: async (id) => { requested.push(id); return slugged; } });
+  assert.equal(heading(), initial.title);
+  assert.equal(currentPath, '/title/real-title-and-one');
+  assert.deepEqual(requested, ['real-title-and-one']);
+  await act(async () => root.unmount());
+
+  requested = [];
+  await mount({ seed: slugged, id: initial.id, search: '?utm_source=share', fetchTitle: async (id) => { requested.push(id); return slugged; } });
+  assert.equal(currentPath, '/title/real-title-and-one?utm_source=share');
+  assert.equal(heading(), initial.title);
+  assert.equal(document.querySelector('[aria-label="Loading title"]'), null);
+  await click('Watch Now');
+  assert.equal(document.querySelector('h1').textContent, 'Player route');
+  assert.equal(currentPath, `/player/${initial.id}`, 'playback keeps the internal ID');
+});
+
+test('title and series links use readable addresses when the catalog has them', async () => {
+  const { titlePath, seriesPath } = await vite.ssrLoadModule('/src/utils/publicPaths.js');
+  assert.equal(titlePath({ id: 'creator_1', slug: 'its-a-double-date-a-classic' }), '/title/its-a-double-date-a-classic');
+  assert.equal(titlePath({ id: 'creator_1' }), '/title/creator_1');
+  assert.equal(seriesPath({ key: 'bmlnaHQ', slug: 'night-shift' }), '/series/night-shift');
+  assert.equal(seriesPath({ key: 'bmlnaHQ' }), '/series/bmlnaHQ');
 });

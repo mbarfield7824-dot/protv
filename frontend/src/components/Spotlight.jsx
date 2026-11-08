@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import { FALLBACK_HERO } from '../data/mockData';
 import '../styles/Spotlight.css';
+import { titlePath } from '../utils/publicPaths';
 
 export default function Spotlight({ video }) {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function Spotlight({ video }) {
           <button type="button" onClick={() => void toggleFavorite(video.id)}>
             {isFavorite(video.id) ? '✓ In My List' : '+ My List'}
           </button>
-          <button type="button" onClick={() => navigate(`/title/${video.id}`)}>More Info</button>
+          <button type="button" onClick={() => navigate(titlePath(video))}>More Info</button>
         </div>
       </div>
     </section>

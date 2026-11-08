@@ -98,6 +98,8 @@ function seriesDetails(records) {
     const key = seriesKey(showTitle(record));
     if (!groups.has(key)) groups.set(key, { key, title: showTitle(record), episodes: [], show: null });
     const group = groups.get(key);
+    // The show's readable address, when the request's records carry one (see slugs.js).
+    if (!group.slug && record.publicSeriesSlug) group.slug = record.publicSeriesSlug;
     if (record.contentType === 'SERIES') {
       if (!group.show || record.id.localeCompare(group.show.id) < 0) group.show = record;
     } else group.episodes.push(titleDetails(record, records));
@@ -135,7 +137,7 @@ function comingSoonCatalog(records) {
 // Discovery card for a show (shared by Coming Soon and PROtv Originals).
 function seriesCard(series) {
   return {
-    id: `series-${series.key}`, kind: 'series', href: `/series/${encodeURIComponent(series.key)}`,
+    id: `series-${series.key}`, kind: 'series', href: `/series/${encodeURIComponent(series.slug || series.key)}`,
     title: series.title, description: series.description, artwork: series.artwork, categories: series.categories,
     comingSoon: Boolean(series.comingSoon), episodeCount: series.episodeCount, protvOriginal: Boolean(series.protvOriginal),
     ...(series.premiereAt ? { premiereAt: series.premiereAt } : {}),
@@ -147,7 +149,7 @@ function seriesCard(series) {
 // Discovery card for a film (shared by Coming Soon and PROtv Originals). watchAvailable follows existing playback rules.
 function filmCard(detail) {
   return {
-    id: detail.id, kind: 'title', href: `/title/${encodeURIComponent(detail.id)}`,
+    id: detail.id, kind: 'title', href: `/title/${encodeURIComponent(detail.slug || detail.id)}`,
     title: detail.title, description: detail.description, artwork: detail.posterUrl || detail.thumbnailUrl, categories: detail.categories,
     comingSoon: Boolean(detail.comingSoon), watchAvailable: Boolean(detail.watchAvailable), protvOriginal: Boolean(detail.protvOriginal),
     ...(detail.releaseAt && !detail.watchAvailable ? { premiereAt: detail.releaseAt } : {}),
@@ -165,4 +167,6 @@ function originalsCatalog(records) {
   return [...shows, ...films].sort((a, b) => Number(a.comingSoon) - Number(b.comingSoon) || a.title.localeCompare(b.title));
 }
 
-module.exports = { metadataAllowed, detailEligible, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog, categoriesOf };
+module.exports = {
+  metadataAllowed, detailEligible, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog, categoriesOf, showTitle,
+};

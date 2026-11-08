@@ -134,7 +134,8 @@ export const api = {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Title details are temporarily unavailable.');
     const title = await res.json();
-    if (title?.id !== id) throw new Error('The title response does not match the requested title.');
+    // id may be the title's internal ID or its readable address.
+    if (title?.id !== id && title?.slug !== id) throw new Error('The title response does not match the requested title.');
     return title;
   },
 

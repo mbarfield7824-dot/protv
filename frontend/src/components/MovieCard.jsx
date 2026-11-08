@@ -4,6 +4,7 @@ import { FALLBACK_POSTER } from '../data/mockData';
 import { useAuth } from '../hooks/useAuth';
 import { fallbackArtworkUrl } from '../utils/artwork';
 import '../styles/MovieCard.css';
+import { titlePath } from '../utils/publicPaths';
 
 export default function MovieCard({ video, onPreview, onInfo, showListRemoval = false }) {
   const navigate = useNavigate();
@@ -26,14 +27,14 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
 
   const handleClick = (event) => {
     if (event.target.closest('.card-remove-list')) return;
-    navigate(`/title/${video.id}`);
+    navigate(titlePath(video));
   };
 
   const handleKeyDown = (event) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      navigate(`/title/${video.id}`);
+      navigate(titlePath(video));
     }
   };
 
@@ -106,7 +107,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
             title="More info"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/title/${video.id}`);
+              navigate(titlePath(video));
             }}
           >
             <span>ⓘ</span>
@@ -166,7 +167,7 @@ export default function MovieCard({ video, onPreview, onInfo, showListRemoval = 
                 className="preview-info"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/title/${video.id}`);
+                  navigate(titlePath(video));
                 }}
               >
                 ⓘ

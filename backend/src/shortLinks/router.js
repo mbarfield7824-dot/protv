@@ -6,6 +6,7 @@ const { loadTitleTemplate } = require('../catalog/titleHtml');
 const { ShortLinkStore } = require('./store');
 const { linkInput, slugKey, RESERVED, LinkInputError, LinkConflictError } = require('./validation');
 const { destinationMetadata } = require('./metadata');
+const { defaultSlugRegistry, publicPathsFor } = require('../catalog/slugs');
 const { shareHtml, socialMetadata, unavailableHtml } = require('./html');
 const { renderFallback } = require('../catalog/socialArtwork');
 const featured = require('../../../shared/featuredPodcast.json');
@@ -21,7 +22,7 @@ function defaultStore() {
 }
 function createShortLinkRouters({
   store = defaultStore(), loadApproved = getApprovedVideos, authorize = verifyAdmin,
-  loadTemplate = loadTitleTemplate,
+  loadTemplate = loadTitleTemplate, slugRegistry = defaultSlugRegistry(),
 } = {}) {
   const publicRouter = express.Router();
   const adminRouter = express.Router();
@@ -54,7 +55,7 @@ function createShortLinkRouters({
   adminRouter.post('/', async (req, res) => {
     try {
       const input = linkInput(req.body);
-      await destinationMetadata(input, loadApproved);
+      await destinationMetadata(input, loadApproved, slugRegistry);
       return res.status(201).json(await store.save(input, req.user.uid));
     } catch (error) { return fail(res, error); }
   });
@@ -63,7 +64,7 @@ function createShortLinkRouters({
       const input = linkInput(req.body);
       const key = slugKey(req.params.slug);
       // Deactivation must remain possible if its content has since been unpublished.
-      if (input.active) await destinationMetadata(input, loadApproved);
+      if (input.active) await destinationMetadata(input, loadApproved, slugRegistry);
       return res.json(await store.save(input, req.user.uid, { key, version: req.body.version }));
     } catch (error) { return fail(res, error); }
   });
@@ -75,12 +76,15 @@ function createShortLinkRouters({
   });
   publicRouter.get('/featured-page', async (_req, res) => {
     try {
-      const metadata = await destinationMetadata(FLAGSHIP, loadApproved);
+      const metadata = await destinationMetadata(FLAGSHIP, loadApproved, slugRegistry);
       const canonical = `https://watchprotv.com${featured.path}`;
       // Published episodes for the page summary. The page itself works before publication or if the catalog is down.
       let episodes = [];
       try {
-        const matches = podcastCatalog((await loadApproved()).filter(previewEligible)).filter(isFeaturedPodcast);
+        const approved = await loadApproved();
+        // Episode links use their readable addresses.
+        const decorated = (await publicPathsFor(approved, slugRegistry)).decorate(approved);
+        const matches = podcastCatalog(decorated.filter(previewEligible)).filter(isFeaturedPodcast);
         if (matches.length === 1) episodes = matches[0].episodes;
       } catch (error) { console.error('Featured Podcast episodes unavailable for the page summary:', error.message); }
       const data = podcastStructuredData({ title: featured.title, episodes }, canonical,
@@ -102,7 +106,7 @@ function createShortLinkRouters({
       const record = await store.get(key);
       if (!record?.active) return unavailable(req, res);
       let metadata;
-      try { metadata = await destinationMetadata(record, loadApproved); } catch (error) {
+      try { metadata = await destinationMetadata(record, loadApproved, slugRegistry); } catch (error) {
         if (!(error instanceof LinkInputError)) throw error;
         console.warn('Short-link destination unavailable:', key, error.message);
         return unavailable(req, res);

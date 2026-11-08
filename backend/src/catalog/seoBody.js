@@ -28,7 +28,7 @@ function episodeLabel(episode) {
   return `${prefix}${name}`;
 }
 
-const episodeUrl = (episode) => `${ORIGIN}/title/${encodeURIComponent(episode.id)}`;
+const episodeUrl = (episode) => `${ORIGIN}/title/${encodeURIComponent(episode.slug || episode.id)}`;
 const listedEpisodes = (episodes) => (Array.isArray(episodes) ? episodes : [])
   .filter((episode) => typeof episode?.id === 'string' && episode.id && episodeName(episode));
 

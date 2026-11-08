@@ -11,7 +11,7 @@ function loadTitleTemplate() {
 // parent: { name, url } of the public series or Podcast page the episode belongs to (optional).
 function titleHtml(template, title, parent = null) {
   const name = typeof title.title === 'string' ? title.title.trim() : '';
-  const canonical = `https://watchprotv.com/title/${encodeURIComponent(title.id)}`;
+  const canonical = `https://watchprotv.com/title/${encodeURIComponent(title.slug || title.id)}`;
   if (!/<title>[^]*?<\/title>/.test(template) || !template.includes('<div id="root"></div>')) {
     throw new Error('The built React HTML template is invalid.');
   }

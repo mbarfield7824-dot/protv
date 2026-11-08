@@ -2,6 +2,7 @@ const express = require('express');
 const { catalogCategories } = require('../catalog/categories');
 const { ORIGINAL_TYPES, originalProjectIds, isProtvOriginal } = require('../catalog/originals');
 const path = require('path');
+const { publicPathsFor } = require('../catalog/slugs');
 const {
   db,
   getAllVideos,
@@ -145,6 +146,9 @@ function publicVideo(video) {
   delete sanitized.trailerDuration;
   delete sanitized.trailerError;
   delete sanitized.trailerStatus;
+  delete sanitized.publicSlug;
+  delete sanitized.publicSeriesSlug;
+  if (typeof video.publicSlug === 'string' && video.publicSlug) sanitized.slug = video.publicSlug;
   if (video.approvalStatus === 'approved'
     && video.trailerStatus === 'ready' && video.trailerPlaybackId) {
     sanitized.trailerAvailable = true;
@@ -160,7 +164,9 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const videos = await getApprovedVideos();
+    const approved = await getApprovedVideos();
+    // The website's lists link to each title's readable address.
+    const videos = (await publicPathsFor(approved)).decorate(approved);
     res.set({
       'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
       'CDN-Cache-Control': 'no-store',

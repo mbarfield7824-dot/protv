@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import ProTVFooter from '../components/ProTVFooter';
 import ProTVHeader from '../components/ProTVHeader';
@@ -8,6 +8,7 @@ import TrailerPlayer from '../components/TrailerPlayer';
 import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import { airingText, premiereText } from '../utils/premiere';
 import '../styles/Series.css';
+import { seriesPath, titlePath } from '../utils/publicPaths';
 
 function episodeRuntime(episode) {
   const seconds = Number(episode.runtime || episode.duration);
@@ -35,10 +36,18 @@ export default function SeriesDetail() {
     };
   }, []);
 
+  // The address names the show by its readable slug or, in older links, by its key.
   const series = useMemo(
-    () => seriesCatalog.find((item) => item.key === seriesKey),
+    () => seriesCatalog.find((item) => item.slug === seriesKey || item.key === seriesKey),
     [seriesCatalog, seriesKey],
   );
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (series?.slug && seriesKey !== series.slug) {
+      navigate(`${seriesPath(series)}${location.search}`, { replace: true });
+    }
+  }, [series, seriesKey, navigate, location.search]);
   const activeSeason = series?.seasons.includes(season) ? season : series?.seasons[0];
   const episodes = series?.episodes.filter((episode) => episode.seasonNumber === activeSeason) || [];
 
@@ -168,7 +177,7 @@ export default function SeriesDetail() {
                     {episode.description && <p className="series-episode__description">{episode.description}</p>}
                   </div>
                   <div className="series-episode__actions">
-                    <Link className="series-button series-button--quiet" to={`/title/${episode.id}`}>Details</Link>
+                    <Link className="series-button series-button--quiet" to={titlePath(episode)}>Details</Link>
                     {episode.watchAvailable ? (
                       <Link className="series-button" to={`/player/${episode.id}`}>▶ Play</Link>
                     ) : episode.releaseAt && (

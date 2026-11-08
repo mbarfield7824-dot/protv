@@ -105,13 +105,15 @@ test('episode pages link to their show by catalog relationship and declare it in
   assert.doesNotMatch(player, /Part of|application\/ld\+json/);
 });
 
-async function shortLinkApp(context, loadApproved) {
+async function shortLinkApp(context, loadApproved, slugRegistry) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'protv-seo-links-'));
   context.after(() => fs.rm(directory, { recursive: true, force: true }));
   const store = new ShortLinkStore({ db: null, filePath: path.join(directory, 'links.json'), production: false });
   await seedFlagship(store);
   await store.save({ slug: 'Watch', destination: '/player/film', kind: 'film', active: true }, 'admin');
-  const { publicRouter } = createShortLinkRouters({ store, loadApproved, loadTemplate: async () => template, authorize: (_q, _s, next) => next() });
+  const { publicRouter } = createShortLinkRouters({
+    store, loadApproved, loadTemplate: async () => template, authorize: (_q, _s, next) => next(), ...(slugRegistry ? { slugRegistry } : {}),
+  });
   return listen(context, express().use('/links', publicRouter));
 }
 
@@ -123,6 +125,19 @@ test('short links point search engines at their destination page while keeping t
   const playerLink = await (await fetch(`${base}/links/resolve/Watch`)).text();
   assert.equal(canonicalOf(playerLink), 'https://watchprotv.com/title/film', '/player is not indexed, so the title page is canonical');
   assert.match(playerLink, /location.replace\("\/player\/film"\)/);
+});
+
+test('with readable addresses, short links and the featured Podcast page point at them', async (context) => {
+  const { createSlugRegistry, memorySlugStore } = require('../src/catalog/slugs');
+  const base = await shortLinkApp(context, async () => records, createSlugRegistry({ store: memorySlugStore() }));
+  const playerLink = await (await fetch(`${base}/links/resolve/Watch`)).text();
+  assert.match(canonicalOf(playerLink), /^https:\/\/watchprotv.com\/title\/[a-z0-9-]+$/);
+  assert.notEqual(canonicalOf(playerLink), 'https://watchprotv.com/title/film');
+  assert.match(playerLink, /location.replace\("\/player\/film"\)/, 'playback keeps the internal ID');
+  const featuredPage = await (await fetch(`${base}/links/featured-page`)).text();
+  assert.equal(canonicalOf(featuredPage), `https://watchprotv.com${featured.path}`);
+  assert.doesNotMatch(featuredPage, /title\/mmwf-ep"/);
+  assert.match(featuredPage, /<a href="https:\/\/watchprotv.com\/title\/[a-z0-9-]+">Episode 2: Does Voting Cause Division\?<\/a>/);
 });
 
 test('the featured Podcast page is its own canonical, with its real summary, episodes and structured data', async (context) => {

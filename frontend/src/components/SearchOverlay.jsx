@@ -17,6 +17,7 @@ import {
   matchesMusicClassification,
 } from '../data/musicCatalog';
 import '../styles/SearchOverlay.css';
+import { titlePath } from '../utils/publicPaths';
 
 // Normalizes backend video to match mock data shape
 function normalizeApiVideo(raw) {
@@ -104,7 +105,7 @@ export default function SearchOverlay({ onClose }) {
 
   const handleSelect = (video) => {
     onClose();
-    navigate(isPodcastSearchResult(video) ? podcastResultUrl(video) : `/title/${video.id}`);
+    navigate(isPodcastSearchResult(video) ? podcastResultUrl(video) : titlePath(video));
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { titlePath } from '../utils/publicPaths';
 
 export default function SpotlightFeature({ video }) {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function SpotlightFeature({ video }) {
           <button type="button" className="ptv-btn ptv-btn--ghost ptv-btn--lg" onClick={() => void toggleFavorite(video.id)}>
             <span aria-hidden="true">{saved ? '✓' : '＋'}</span> {saved ? 'In My List' : 'My List'}
           </button>
-          <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/title/${video.id}`)}>
+          <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(titlePath(video))}>
             <span aria-hidden="true">ⓘ</span> More Info
           </button>
         </div>

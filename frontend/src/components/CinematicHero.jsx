@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { FEATURED_PODCAST } from '../data/featuredPodcast';
 import PodcastArtwork from './PodcastArtwork';
 import '../styles/FeaturedPodcast.css';
+import { titlePath } from '../utils/publicPaths';
 
 const ROTATE_MS = 9000;
 
@@ -142,7 +143,7 @@ export default function CinematicHero({ brand, titles = [], featuredPodcast = fa
               <span aria-hidden="true">{isFavorite(current.video.id) ? '✓' : '＋'}</span>
               {isFavorite(current.video.id) ? 'In My List' : 'My List'}
             </button>
-            <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(`/title/${current.video.id}`)}>
+            <button type="button" className="ptv-btn ptv-btn--quiet ptv-btn--lg" onClick={() => navigate(titlePath(current.video))}>
               <span aria-hidden="true">ⓘ</span> More Info
             </button>
           </div>

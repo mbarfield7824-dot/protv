@@ -13,6 +13,19 @@ const { collectionBody, withBody, podcastPath } = require('./seoBody');
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const { signPlayback } = require('../mux');
 const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
+const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
+
+// TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
+// so their responses stay exactly as they were.
+const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios']);
+const websiteRequest = (req) => !DEVICE_PLATFORMS.has(platformFromRequest(req)) && req.query.view !== 'all';
+const queryString = (req) => {
+  const index = req.originalUrl.indexOf('?');
+  if (index < 0) return '';
+  const query = new URLSearchParams(req.originalUrl.slice(index + 1));
+  query.delete('path');
+  return query.size ? `?${query}` : '';
+};
 
 function createCatalogRouter({
   loadApproved = db
@@ -20,8 +33,14 @@ function createCatalogRouter({
     : async () => (await getAllVideosAdmin()).filter((video) => video.approvalStatus === 'approved'),
   loadHtmlTemplate = loadTitleTemplate,
   signPlaybackToken = signPlayback,
+  slugRegistry = defaultSlugRegistry(),
 } = {}) {
   const router = express.Router();
+  // Records plus their readable addresses. The addresses come from the platform's own public catalog.
+  const withPaths = async (videos) => {
+    const paths = await publicPathsFor(videos, slugRegistry);
+    return { paths, records: paths.decorate(videos) };
+  };
   // Without a request (the sitemap) the full public catalog is loaded.
   const load = async (req) => {
     const videos = await loadApproved();
@@ -38,7 +57,7 @@ function createCatalogRouter({
 
   router.get('/details', async (req, res) => {
     try {
-      const records = await load(req);
+      const { records } = await withPaths(await load(req));
       return res.json({ items: records.filter(record => record.contentType === 'MOVIE')
         .map(record => titleDetails(record, records)).filter(Boolean) });
     } catch (error) {
@@ -49,7 +68,7 @@ function createCatalogRouter({
 
   router.get('/series-details', async (req, res) => {
     try {
-      return res.json({ items: seriesDetails(await load(req)) });
+      return res.json({ items: seriesDetails((await withPaths(await load(req))).records) });
     } catch (error) {
       console.error('Failed to load series details:', error);
       return res.status(503).json({ error: 'Series details are temporarily unavailable.' });
@@ -58,7 +77,7 @@ function createCatalogRouter({
 
   router.get('/coming-soon', async (req, res) => {
     try {
-      return res.json({ items: comingSoonCatalog(await load(req)) });
+      return res.json({ items: comingSoonCatalog((await withPaths(await load(req))).records) });
     } catch (error) {
       console.error('Failed to load Coming Soon titles:', error);
       return res.status(503).json({ error: 'Coming Soon titles are temporarily unavailable.' });
@@ -67,7 +86,7 @@ function createCatalogRouter({
 
   router.get('/originals', async (req, res) => {
     try {
-      return res.json({ items: originalsCatalog(await load(req)) });
+      return res.json({ items: originalsCatalog((await withPaths(await load(req))).records) });
     } catch (error) {
       console.error('Failed to load PROtv Originals:', error);
       return res.status(503).json({ error: 'PROtv Originals are temporarily unavailable.' });
@@ -76,8 +95,10 @@ function createCatalogRouter({
 
   router.get('/titles/:id/details', async (req, res) => {
     try {
-      const records = await load(req);
-      const record = records.find(item => item.id === req.params.id);
+      // The website asks by internal ID or by the readable address in its location bar.
+      const { paths, records } = await withPaths(await load(req));
+      const id = paths.target('title', req.params.id, (value) => records.some(item => item.id === value));
+      const record = records.find(item => item.id === id);
       const detail = record && titleDetails(record, records);
       if (!detail) return res.status(404).json({ error: 'Title not found.' });
       return res.json(detail);
@@ -90,7 +111,8 @@ function createCatalogRouter({
   router.get('/sitemap.xml', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-      const xml = catalogSitemap(await load());
+      const videos = await load();
+      const xml = catalogSitemap(videos, await publicPathsFor(videos, slugRegistry));
       res.type('application/xml').send(xml);
     } catch (error) {
       console.error('Failed to generate public sitemap:', error);
@@ -100,7 +122,8 @@ function createCatalogRouter({
 
   router.get('/', async (req, res) => {
     try {
-      const items = browse(await load(req), req.query);
+      const videos = await load(req);
+      const items = browse(websiteRequest(req) ? (await withPaths(videos)).records : videos, req.query);
       res.json({ items });
     } catch (error) {
       if (!(error instanceof RangeError)) console.error('Failed to load viewer catalog:', error);
@@ -143,7 +166,9 @@ function createCatalogRouter({
 
   router.get('/podcasts/:id', async (req, res) => {
     try {
-      const show = podcastCatalog(await load(req)).find((item) => item.id === req.params.id);
+      const videos = await load(req);
+      const show = podcastCatalog(websiteRequest(req) ? (await withPaths(videos)).records : videos)
+        .find((item) => item.id === req.params.id);
       if (!show) return res.status(404).json({ error: 'Podcast show not found.' });
       return res.json(show);
     } catch (error) {
@@ -174,14 +199,14 @@ function createCatalogRouter({
   });
 
   // The public show page an episode belongs to, found by catalog relationship (never by title text alone).
-  const episodeParent = (videos, content) => {
+  const episodeParent = (videos, content, paths) => {
     if (content.contentType === 'PODCAST_EPISODE') {
       const show = podcastCatalog(videos.filter(previewEligible)).find((item) => item.id === content.podcastShowId);
       return show ? { name: show.title, url: `${ORIGIN}${podcastPath(show)}` } : null;
     }
     if (content.contentType === 'EPISODE') {
       const series = seriesDetails(videos).find((item) => item.episodes.some((episode) => episode.id === content.id));
-      return series ? { name: series.title, url: `${ORIGIN}/series/${encodeURIComponent(series.key)}` } : null;
+      return series ? { name: series.title, url: `${ORIGIN}/series/${encodeURIComponent(paths.segment('series', series.key))}` } : null;
     }
     return null;
   };
@@ -189,11 +214,26 @@ function createCatalogRouter({
   const renderPage = (kind) => async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     try {
-      const videos = await load(req);
-      const content = previewContent(videos, kind, req.params.id);
+      const loaded = await load(req);
+      const { paths, records: videos } = await withPaths(loaded);
+      const player = req.path.endsWith('/player-html');
+      // A page is asked for by its readable address, an older one, or its internal ID. Eligibility is then
+      // checked by internal ID exactly as before, so an address never reveals what is not public.
+      const id = kind === 'podcast' ? req.params.id
+        : paths.target(kind, req.params.id, kind === 'series'
+          ? (value) => seriesDetails(videos).some((item) => item.key === value)
+          : (value) => videos.some((item) => item.id === value));
+      const content = id ? previewContent(videos, kind, id) : null;
       if (!content) {
         return res.status(404).set('X-Robots-Tag', 'noindex')
           .type('text/plain').send('Title not found.');
+      }
+      // One public address per page: internal-ID and older addresses permanently move to it. The player keeps
+      // internal IDs (playback and Continue Watching use them), so a readable address there moves to the ID.
+      const segment = kind === 'podcast' ? req.params.id : player ? id : paths.segment(kind, id);
+      if (segment !== req.params.id) {
+        const route = player ? 'player' : kind === 'series' ? 'series' : 'title';
+        return res.redirect(301, `/${route}/${encodeURIComponent(segment)}${queryString(req)}`);
       }
       // The featured Podcast has one public page; its catalog address permanently points there
       // (the website already redirects it in the browser).
@@ -202,10 +242,10 @@ function createCatalogRouter({
       }
       const template = await loadHtmlTemplate();
       const route = kind === 'podcast' ? 'podcasts' : kind === 'series' ? 'series' : 'title';
-      const canonical = `${ORIGIN}/${route}/${encodeURIComponent(req.params.id)}`;
-      const metadata = contentMetadata(content, kind, req.params.id);
-      if (kind === 'title' && !req.path.endsWith('/player-html')) {
-        return res.type('html').send(titleHtml(template, content, episodeParent(videos, content)));
+      const canonical = `${ORIGIN}/${route}/${encodeURIComponent(kind === 'podcast' ? id : paths.segment(kind, id))}`;
+      const metadata = contentMetadata(content, kind, id);
+      if (kind === 'title' && !player) {
+        return res.type('html').send(titleHtml(template, content, episodeParent(videos, content, paths)));
       }
       if (kind === 'title') return res.type('html').send(socialMetadata(template, metadata, canonical));
       const image = publicArtworkUrl(kind === 'series' ? content.artwork : content.artworkUrl) || '';

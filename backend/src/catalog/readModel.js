@@ -56,6 +56,8 @@ function publicTitle(video) {
     episodeTitle: video.episodeTitle || '',
     ...(video.contentType === 'MUSIC' ? { musicFormat: video.musicFormat } : {}),
     ...(video.contentType === PODCAST_EPISODE ? { podcastShowId: video.podcastShowId } : {}),
+    // Readable page address, present only on website responses (see catalog/slugs.js).
+    ...(typeof video.publicSlug === 'string' && video.publicSlug ? { slug: video.publicSlug } : {}),
   };
 }
 

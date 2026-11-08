@@ -6,7 +6,8 @@ export function readInitialTitle(id, document) {
       throw new Error('Invalid initial title data element.');
     }
     const title = JSON.parse(element.textContent);
-    if (title?.id !== id) return null;
+    // The page address is the title's readable slug or, in older links, its internal ID.
+    if (title?.id !== id && title?.slug !== id) return null;
     if (typeof title.title !== 'string' || typeof title.description !== 'string'
       || typeof title.muxPlaybackId !== 'string' || !title.muxPlaybackId.trim()
       || !Array.isArray(title.genres) || title.genres.some((genre) => typeof genre !== 'string')) {

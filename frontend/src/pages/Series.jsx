@@ -6,10 +6,11 @@ import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
 import '../styles/Series.css';
 import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
+import { seriesPath } from '../utils/publicPaths';
 
 function SeriesPresentation({ series }) {
   return (
-    <Link className="series-feature" to={`/series/${series.key}`}>
+    <Link className="series-feature" to={seriesPath(series)}>
       <div className={`series-feature__art ${series.artwork ? '' : 'series-feature__art--empty'}`}>
         {series.artwork
           ? <img src={series.artwork} alt="" />

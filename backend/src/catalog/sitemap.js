@@ -8,15 +8,17 @@ function escapeXml(value) {
   })[character]);
 }
 
-function catalogSitemap(videos) {
+// paths: the readable addresses (catalog/slugs.js); without one a page is listed at its internal-ID address.
+function catalogSitemap(videos, paths = null) {
+  const segment = (kind, target) => (paths ? paths.segment(kind, target) : target);
   const publicVideos = videos.filter(previewEligible);
   const urls = [
     'https://watchprotv.com/',
     ...playableCatalog(publicVideos).map((title) => (
-      `https://watchprotv.com/title/${encodeURIComponent(title.id)}`
+      `https://watchprotv.com/title/${encodeURIComponent(segment('title', title.id))}`
     )),
     ...seriesCatalog(publicVideos).map((series) => (
-      `https://watchprotv.com/series/${encodeURIComponent(series.key)}`
+      `https://watchprotv.com/series/${encodeURIComponent(segment('series', series.key))}`
     )),
     // Each Podcast Show's one canonical page (the featured show has its own address).
     ...podcastCatalog(publicVideos).map((show) => `https://watchprotv.com${podcastPath(show)}`),
