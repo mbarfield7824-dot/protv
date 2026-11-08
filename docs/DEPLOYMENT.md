@@ -121,7 +121,39 @@ and container are fixed in `frontend/src/ads/sponsored.js`; the switch cannot ch
 "Allow sponsored content" before anything from Adsterra loads; Global Privacy Control means no prompt and no ad; the
 choice is stored in `localStorage`. The script is added only inside that section (never in `index.html`), removed on
 leaving the page, and an error or empty response removes the section. Placement outcomes are sent to Vercel Analytics
-as `sponsored_native_banner` events; impressions and earnings come only from Adsterra.
+as `sponsored_native_banner` events. Impressions, viewability and clicks are measured automatically (below); earnings
+and Adsterra's own counts come from Adsterra.
+
+### Ad measurement (automatic, first-party)
+
+Viewers are never asked to confirm an impression. `frontend/src/ads/adMeasurement.js` reports what actually happened
+and `backend/src/ads/adMeasurement.js` decides what counts:
+
+- **Request**: counted when a measurement session is signed (`POST /api/ads/measurement/session` for the Sponsored
+  unit, after consent; `GET /api/ads/session/:videoId` for pre-rolls). Never an impression.
+- **Served impression**: the Sponsored unit's container receives the ad's content, or IMA's `IMPRESSION` (first frame).
+- **Viewable impression**: at least 50% of pixels in the viewport, tab visible, for 1 continuous second (display) or
+  2 continuous seconds while the ad plays (video), via IntersectionObserver. Exposures without IntersectionObserver, or
+  with PROtv framed by another site, are recorded as not measurable and can never be viewable. PROtv's own
+  measurement, not MRC-accredited.
+- **Clicks** (one per impression), **starts, 25/50/75% and completions, skips**, **failures** before rendering
+  (`empty`, `script_error`, `sdk_unavailable`, `ad_error`, `playback_blocked`, `timeout`) and interruptions after.
+- **Deduplication**: one record per event per exposure, keyed by the signed session and the ad's pod position
+  (`adExposures`), inside a Firestore transaction. Re-renders, retries, refreshes of the same unit, repeated SDK events
+  and in-app navigation cannot add counts; a new page load or a second ad in a pod is a separate exposure.
+- **Validation**: HMAC-signed sessions (key derived from `PLAYBACK_TRACKING_SECRET`, or `AD_MEASUREMENT_SECRET`), 30-minute
+  expiry, strict fields, valid order and server-side minimum times (viewable 1 s / 2 s after render / start, completion
+  1 s after start). Session signing is limited to 120 per minute per address (600 for unattributable addresses).
+- **Traffic classes**: automated user agents and `navigator.webdriver` are **invalid**, as is any address beyond 60
+  served ads per hour; signed-in Administrators, the owner and requests with `X-PROtv-Ad-Test: 1` are **test**. Both are
+  stored separately (`invalid_*`, `test_*` counters) and never in the valid totals.
+- **Storage**: daily counters in `adDailyMetrics/{day}__{channel}__{placement}__{page type or title}` (UTC days,
+  `FieldValue.increment`), exposures in `adExposures` (400-day `expiresAt`, 7 days for test), rate limits in
+  `adRateLimits` (2 days). No account, contact, cookie, device ID, user agent or raw address is stored.
+- **Reporting**: Admin → Monetization → Sponsored Placements → Advertising measurement (`GET /api/ads/admin/measurement`),
+  with a sponsor CSV. Roku and Fire TV have no ad placements and are reported as not measured.
+- **History**: `adTitleMetrics.playerImpressions` (IMA impressions before this change) and provider-reported impressions are
+  shown as recorded and never reclassified. The legacy `POST /api/ads/events` endpoint still accepts old cached pages.
 
 No approved public trailer was available during implementation verification. One authorized Admin upload is still
 needed to verify real Mux trailer playback, distinct media, and return-to-details behavior on desktop and mobile.

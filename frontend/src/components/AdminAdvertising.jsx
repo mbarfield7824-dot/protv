@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import AdMeasurementReport from './AdMeasurementReport';
 
 // Owner/Administrator switch for the homepage Sponsored (Adsterra Native Banner) placement. It takes effect on the next
 // page load, with no redeploy. Viewers still have to allow sponsored content before anything from Adsterra loads.
@@ -38,7 +39,7 @@ export default function AdminAdvertising() {
           <span className={`admin-status-pill ${on ? 'is-on' : ''}`}>{settings ? (on ? 'On' : 'Off') : 'Loading…'}</span>
         </header>
         <p>Appears once on the homepage after New on PROtv, Coming Soon and PROtv Originals. Never shown in players, trailers, sign-in, account pages, Admin or the Creator Portal.</p>
-        <p>Each viewer is asked before any Adsterra code loads, and browsers sending Global Privacy Control are never shown ads. Impressions and earnings are reported only in your Adsterra dashboard.</p>
+        <p>Each viewer is asked before any Adsterra code loads, and browsers sending Global Privacy Control are never shown ads. PROtv measures served and viewable impressions and clicks automatically (below); earnings and Adsterra&apos;s own counts are in your Adsterra dashboard.</p>
         {settings?.updatedAt && <p className="admin-advertising__meta">Last changed {new Date(settings.updatedAt).toLocaleString()}.</p>}
         {settings && (
           <button type="button" className={on ? 'admin-secondary' : 'admin-secondary admin-button-primary'} disabled={busy} onClick={() => change(!on)}>
@@ -47,6 +48,7 @@ export default function AdminAdvertising() {
         )}
         {error && <p className="admin-error" role="alert">{error}</p>}
       </article>
+      <AdMeasurementReport />
     </section>
   );
 }

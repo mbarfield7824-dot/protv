@@ -209,21 +209,38 @@ export const api = {
     return submitSafetyReport(API_URL, payload);
   },
 
+  // Signed-in Administrators send their sign-in only so their own activity is kept out of advertising totals.
   async getAdSession(videoId) {
-    const res = await fetch(`${API_URL}/ads/session/${encodeURIComponent(videoId)}`);
+    const res = await fetch(`${API_URL}/ads/session/${encodeURIComponent(videoId)}`, { headers: await authenticatedHeaders(), cache: 'no-store' });
     const response = await res.json();
     if (!res.ok) throw new Error(response.error || 'Unable to prepare advertising.');
     return response;
   },
 
-  async recordAdEvent(sessionToken, eventType) {
-    const res = await fetch(`${API_URL}/ads/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionToken, eventType }),
+  async startAdMeasurement(request) {
+    const res = await fetch(`${API_URL}/ads/measurement/session`, {
+      method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(request), cache: 'no-store',
     });
-    const response = await res.json();
-    if (!res.ok) throw new Error(response.error || 'Unable to record the ad event.');
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'Ad measurement is unavailable.'), { status: res.status });
+    return response;
+  },
+
+  // keepalive lets the final events of an ad still arrive when the viewer navigates away or closes the page.
+  async recordAdMeasurement(event) {
+    const res = await fetch(`${API_URL}/ads/measurement/events`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(event), keepalive: true,
+    });
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'The ad event was not recorded.'), { status: res.status });
+    return response;
+  },
+
+  async getAdMeasurementReport({ from, to }) {
+    const query = new URLSearchParams({ from, to });
+    const res = await fetch(`${API_URL}/ads/admin/measurement?${query}`, { headers: await authenticatedHeaders(), cache: 'no-store' });
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(response.error || 'Ad measurement reporting is unavailable.');
     return response;
   },
 

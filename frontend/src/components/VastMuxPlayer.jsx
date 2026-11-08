@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import { api } from '../api';
+import { attachImaMeasurement, createAdMeasurer, imaFailureReason } from '../ads/adMeasurement';
 
 const IMA_SDK_URL = 'https://imasdk.googleapis.com/js/sdkloader/ima3.js';
 
@@ -37,14 +38,9 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
     let contentPlayer;
     let adStarted = false;
     let userRequestedPlayback = false;
-    let sessionToken = '';
-
-    const sendEvent = (eventType) => {
-      if (!sessionToken) return;
-      void api.recordAdEvent(sessionToken, eventType).catch((error) => {
-        console.warn(`Ad ${eventType} telemetry was not recorded:`, error.message);
-      });
-    };
+    // Automatic measurement (src/ads/adMeasurement.js); nothing is asked of the viewer.
+    let measurer = null;
+    let tracking = null;
 
     const resumeContent = () => {
       if (disposed) return;
@@ -54,9 +50,11 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
       if (userRequestedPlayback) void contentPlayer?.play().catch(() => {});
     };
 
-    const failOpen = (error) => {
+    const failOpen = (error, reason) => {
       console.warn('VAST pre-roll unavailable:', error);
-      sendEvent('error');
+      // Before the ads manager exists no ad was chosen: the failure belongs to the break (position 0).
+      if (tracking) tracking.fail(error, reason);
+      else measurer?.record(0, 'error', { reason: reason || imaFailureReason(error) });
       adsManager?.destroy();
       resumeContent();
     };
@@ -81,8 +79,9 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
     async function initialize() {
       const configuration = await api.getAdSession(video.id);
       if (!configuration.enabled || disposed) return;
-      sessionToken = configuration.sessionToken;
-      const ima = await loadImaSdk();
+      measurer = createAdMeasurer(configuration.measurementToken || null);
+      let ima;
+      try { ima = await loadImaSdk(); } catch (error) { failOpen(error, 'sdk_unavailable'); return; }
       if (disposed) return;
       const player = playerRef.current;
       const adContainer = adContainerRef.current;
@@ -108,19 +107,10 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
             player.pause();
           });
           adsManager.addEventListener(ima.AdEvent.Type.CONTENT_RESUME_REQUESTED, resumeContent);
-          adsManager.addEventListener(ima.AdEvent.Type.IMPRESSION, () => sendEvent('impression'));
-          adsManager.addEventListener(ima.AdEvent.Type.STARTED, () => {
-            onAdStateChange?.(true);
-            sendEvent('started');
-          });
-          adsManager.addEventListener(ima.AdEvent.Type.COMPLETE, () => {
-            onAdStateChange?.(false);
-            sendEvent('completed');
-          });
-          adsManager.addEventListener(ima.AdEvent.Type.SKIPPED, () => {
-            onAdStateChange?.(false);
-            sendEvent('skipped');
-          });
+          tracking = attachImaMeasurement({ ima, adsManager, container: containerRef.current, measurer });
+          adsManager.addEventListener(ima.AdEvent.Type.STARTED, () => onAdStateChange?.(true));
+          adsManager.addEventListener(ima.AdEvent.Type.COMPLETE, () => onAdStateChange?.(false));
+          adsManager.addEventListener(ima.AdEvent.Type.SKIPPED, () => onAdStateChange?.(false));
           startAds(ima);
         },
         false,
@@ -161,6 +151,7 @@ export default function VastMuxPlayer({ video, playerRef, onAdStateChange }) {
     initialize().catch(failOpen);
     return () => {
       disposed = true;
+      tracking?.stop();
       if (contentPlayHandler) contentPlayer?.removeEventListener('play', contentPlayHandler);
       resizeObserver?.disconnect();
       adsManager?.destroy();

@@ -37,7 +37,11 @@ export default function Privacy() {
           </p>
           <p>
             You can withdraw your choice at any time with &quot;Turn off sponsored content&quot; in any Sponsored section. Browsers that
-            send a Global Privacy Control signal are treated as having declined and are not asked. Your choice is stored
+            send a Global Privacy Control signal are treated as having declined and are not asked. When an ad is shown on
+            the website, PROtv automatically counts whether it rendered, was at least half on screen, was clicked and, for
+            video ads, how far it played, so that we can report accurate figures to sponsors. These counts are anonymous: no
+            account, contact details, cookies or device identifiers are used, and temporary rate-limit records use a keyed
+            hash of the request address rather than the address itself. Your choice is stored
             in your browser, so clearing site data asks again. The website also loads Google&apos;s AdSense script, which
             Google may use to set its own cookies; you can manage Google ad settings at{' '}
             <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">adssettings.google.com</a>.

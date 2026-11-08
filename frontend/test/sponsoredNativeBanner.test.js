@@ -24,6 +24,10 @@ const CONTAINER = 'container-8dff71e28b526157552eaf451e0a4a21';
 let createRoot, vite, Banner, resetSession, root;
 let events = [];
 let created = 0;
+// Automatic measurement, observed: which ad events the page recorded and how many measurement sessions it opened.
+let measured = [];
+let measureSessions = 0;
+const measure = () => { measureSessions += 1; return { record: (position, eventType, details = {}) => { measured.push({ position, eventType, ...details }); return true; } }; };
 
 before(async () => {
   ({ createRoot } = await import('react-dom/client'));
@@ -47,6 +51,8 @@ beforeEach(async () => {
   Object.defineProperty(window.navigator, 'globalPrivacyControl', { configurable: true, value: undefined });
   events = [];
   created = 0;
+  measured = [];
+  measureSessions = 0;
 });
 
 const settle = (ms = 20) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)); });
@@ -59,7 +65,7 @@ async function page(enabled = true, props = {}, sections = 1) {
   document.body.innerHTML = '<div id="root"></div>';
   root = createRoot(document.getElementById('root'));
   const banners = Array.from({ length: sections }, (_, index) => React.createElement(Banner,
-    { key: index, loadSettings: settings(enabled), report: (state) => events.push(state), ...props }));
+    { key: index, loadSettings: settings(enabled), report: (state) => events.push(state), measure, ...props }));
   await act(async () => root.render(React.createElement(MemoryRouter, null, ...banners)));
   await settle();
 }
@@ -175,6 +181,43 @@ test('a script failure, ad blocker or empty response removes the section and is 
   await page(true, { emptyAfterMs: 30 });
   assert.equal(document.querySelector('.ptv-sponsored'), null);
   assert.equal(created, 2);
+});
+
+test('impressions are recorded automatically: on render only, once per page load, and never before consent', async () => {
+  await page(true);
+  assert.equal(measureSessions, 0, 'nothing is measured before the viewer allows sponsored content');
+  assert.equal(document.querySelector('.ptv-sponsored button').textContent, 'Allow sponsored content', 'the consent choice stays');
+  await act(async () => button('Allow sponsored content').click());
+  await settle();
+  assert.equal(measureSessions, 1);
+  assert.deepEqual(measured, [], 'a requested ad is not an impression');
+  await renderAd();
+  assert.deepEqual(measured, [{ position: 1, eventType: 'served', measurable: false }],
+    'served on render; not viewability-measurable without IntersectionObserver, so never viewable');
+  await act(async () => { document.getElementById(CONTAINER).appendChild(document.createElement('div')); });
+  for (let visit = 0; visit < 3; visit += 1) await page(true);
+  assert.equal(measured.filter((item) => item.eventType === 'served').length, 1, 're-renders and navigation add nothing');
+  assert.equal(measureSessions, 1);
+  const link = document.createElement('a');
+  link.href = 'https://advertiser.example/';
+  link.addEventListener('click', (event) => event.preventDefault());
+  await act(async () => { document.getElementById(CONTAINER).appendChild(link); link.click(); });
+  assert.deepEqual(measured.map((item) => item.eventType), ['served', 'click']);
+  await act(async () => button('Turn off sponsored content').click());
+  await act(async () => link.click());
+  assert.deepEqual(measured.map((item) => item.eventType), ['served', 'click'], 'withdrawal stops measurement');
+});
+
+test('failed and empty ads are recorded as failures, never as impressions', async () => {
+  window.localStorage.setItem('protv-sponsored-consent-v1', 'granted');
+  await page(true);
+  await act(async () => scripts()[0].dispatchEvent(new window.Event('error')));
+  assert.deepEqual(measured, [{ position: 1, eventType: 'error', reason: 'script_error' }]);
+  resetSession();
+  measured = [];
+  await page(true, { emptyAfterMs: 30 });
+  await settle(80);
+  assert.deepEqual(measured, [{ position: 1, eventType: 'error', reason: 'empty' }]);
 });
 
 test('settings that cannot load keep the placement off', async () => {

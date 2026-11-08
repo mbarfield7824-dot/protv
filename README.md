@@ -85,7 +85,8 @@ is disabled unless `VAST_AD_TAG_URL` and `AD_EVENT_SIGNING_SECRET` are configure
 server fails, playback remains available and the failure is logged; browser telemetry never creates
 revenue.
 
-Player impressions are recorded with short-lived, title-bound signed sessions. Authoritative money
+Ad impressions, viewability, clicks, quartiles and completions are measured automatically (see
+"Ad measurement" in docs/DEPLOYMENT.md); earlier player impressions are kept as recorded. Authoritative money
 enters only through `POST /ads/provider-revenue`, signed with `AD_PROVIDER_WEBHOOK_SECRET`. Provider
 event IDs are idempotent, and revenue is stored per catalog title in Firestore or the configured
 local development file.

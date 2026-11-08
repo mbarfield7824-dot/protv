@@ -737,3 +737,20 @@
   opacity: .7;
   font-size: .85rem;
 }
+
+/* Advertising measurement report. */
+.admin-ad-report { max-width: 1040px; margin-top: 16px; }
+.admin-ad-report header { flex-wrap: wrap; }
+.admin-ad-report__range { display: flex; gap: 6px; flex-wrap: wrap; }
+.admin-ad-report__range .is-active { border-color: #2563eb; background: #2563eb; color: #fff; }
+.admin-ad-report__scroll { overflow-x: auto; max-width: 100%; }
+.admin-ad-report__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.admin-ad-report__table th,
+.admin-ad-report__table td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, .08); text-align: right; vertical-align: top; }
+.admin-ad-report__table th[scope="row"],
+.admin-ad-report__table thead th:first-child { text-align: left; }
+.admin-ad-report__table small { display: block; opacity: .65; font-size: .78rem; }
+.admin-ad-report .is-unsupported { opacity: .6; font-style: italic; }
+.admin-ad-report__notes { display: grid; gap: 4px; margin: 0; }
+.admin-ad-report__notes dt { font-weight: 600; margin-top: 8px; }
+.admin-ad-report__notes dd { margin: 0; }
