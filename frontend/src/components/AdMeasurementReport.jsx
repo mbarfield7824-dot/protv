@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { METRICS, NOT_APPLICABLE, PLACEMENTS, RANGES, cell, isoDay, number, rate, reportCsv } from '../ads/adReport';
+import { METRICS, NOT_APPLICABLE, PLACEMENTS, RANGES, cell, coverage, isoDay, number, rate, reportCsv } from '../ads/adReport';
 
 function download(report) {
   const blob = new Blob([reportCsv(report)], { type: 'text/csv' });
@@ -42,6 +42,7 @@ export default function AdMeasurementReport({ load = loadReport }) {
       {error && <p className="admin-error" role="alert">{error}</p>}
       {!report && !error && <p>Loading…</p>}
       {report && <>
+        <p className="admin-advertising__meta" role="note">Measured from: {coverage(report)}.</p>
         {report.configuration?.measurement === false && <p className="admin-error" role="status">Measurement is not configured on the server, so no impressions are being recorded.</p>}
         <div className="admin-ad-report__scroll">
           <table className="admin-ad-report__table">
@@ -71,7 +72,7 @@ export default function AdMeasurementReport({ load = loadReport }) {
           <dt>Excluded traffic</dt>
           <dd>{PLACEMENTS.map((placement) => {
             const row = report.placements.find((item) => item.channel === placement.channel && item.placement === placement.placement);
-            return <span key={placement.placement}>{placement.title}: {number(row?.invalid?.served)} invalid (automated or excessive frequency), {number(row?.test?.served)} test or Administrator served impressions. </span>;
+            return <span key={placement.placement}>{placement.title}: {number(row?.invalid?.served)} invalid (automated or excessive frequency) and {number(row?.test?.served)} test or Administrator served impressions, from {number(row?.invalid?.requests)} and {number(row?.test?.requests)} requests. Your own visits while signed in to Admin are test traffic. </span>;
           })}</dd>
           <dt>Earlier records</dt>
           <dd>{number(report.legacy?.playerImpressions)} player impressions and {number(report.legacy?.providerImpressions)} provider-reported impressions recorded before automatic measurement are kept exactly as recorded. They are not reclassified as served or viewable impressions.</dd>

@@ -18,7 +18,7 @@ let vite, Report, model, createRoot;
 
 const counters = (values = {}) => ({ requests: 0, served: 0, measurable: 0, viewable: 0, clicks: 0, starts: 0, firstQuartiles: 0, midpoints: 0, thirdQuartiles: 0, completes: 0, skips: 0, errors: 0, interrupted: 0, ...values });
 const REPORT = {
-  from: '2026-10-10', to: '2026-11-08',
+  from: '2026-10-10', to: '2026-11-08', measurementStartedAt: '2026-11-08T19:47:49Z', measuredFrom: '2026-11-08T19:47:49Z',
   configuration: { measurement: true, nativeBanner: true, videoPreroll: false },
   placements: [{ channel: 'display', placement: 'native_banner', platform: 'web',
     valid: counters({ requests: 40, served: 30, measurable: 25, viewable: 20, clicks: 3, errors: 10 }),
@@ -51,6 +51,8 @@ test('the dashboard separates served, viewable, clicks and completions, and mark
   assert.match(text, /5 invalid .* 2 test or Administrator/);
   assert.match(text, /12 player impressions and 900 provider-reported impressions .* not reclassified/);
   assert.match(text, /never asked to confirm/);
+  assert.ok(text.includes('Measured from: 2026-11-08T19:47:49Z (automatic measurement began then; no PROtv measurement exists for the earlier part'));
+  assert.match(text, /Your own visits while signed in to Admin are test traffic/);
   assert.equal(ranges.length, 1, 'loads once, not on every render');
   await act(async () => [...document.querySelectorAll('button')].find((item) => item.textContent === '7 days').click());
   assert.equal(ranges.length, 2);
@@ -62,6 +64,8 @@ test('the sponsor CSV carries valid traffic only, with definitions and unsupport
   assert.match(csv, /"Sponsored · Adsterra Native Banner","Website","40","30","25","20","3","n\/a"/);
   assert.match(csv, /Roku and Fire TV apps","TV","not measured: no ad placements"/);
   assert.match(csv, /Not MRC-accredited/);
+  assert.ok(csv.includes('"Measured from","2026-11-08T19:47:49Z (automatic measurement began then'));
+  assert.match(model.reportCsv({ ...REPORT, measuredFrom: null }), /Not measured: automatic measurement began/);
   assert.match(csv, /"Viewable impressions","At least 50% of pixels/);
   assert.equal(csv.includes('"5"'), false, 'invalid traffic is not in the sponsor figures');
 });

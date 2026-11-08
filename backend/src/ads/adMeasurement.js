@@ -16,6 +16,9 @@
 // hashes for rate limiting.
 const crypto = require('crypto');
 
+// When automatic measurement went live in production (deployment dpl_86X4Un5NbCodJkHjkRYrJ1AXbgcK). Reports state
+// it, so a period that starts earlier is never presented as measured with zero results.
+const MEASUREMENT_STARTED_AT = '2026-11-08T19:47:49Z';
 const TOKEN_VERSION = 'm1';
 const TOKEN_LIFETIME_MS = 30 * 60 * 1000;
 const DISPLAY_VIEWABLE_MS = 1000;
@@ -320,7 +323,9 @@ class AdMeasurementService {
         titles.set(row.scope, title);
       }
     }
-    return { from, to, placements: [...placements.values()], titles: [...titles.values()] };
+    const measuredFrom = `${to}T23:59:59Z` < MEASUREMENT_STARTED_AT ? null
+      : `${from}T00:00:00Z` < MEASUREMENT_STARTED_AT ? MEASUREMENT_STARTED_AT : `${from}T00:00:00Z`;
+    return { from, to, measurementStartedAt: MEASUREMENT_STARTED_AT, measuredFrom, placements: [...placements.values()], titles: [...titles.values()] };
   }
 
   // Counts recorded before automatic measurement, reported exactly as stored. They are never reclassified:
@@ -397,6 +402,7 @@ module.exports = {
   COUNTERS,
   DISPLAY_VIEWABLE_MS,
   ERROR_REASONS,
+  MEASUREMENT_STARTED_AT,
   PAGES,
   SERVED_LIMIT_PER_HOUR,
   VIDEO_VIEWABLE_MS,

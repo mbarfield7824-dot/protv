@@ -334,3 +334,12 @@ test('HTTP: measurement events from one address are capped, which can only under
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get('retry-after'), '60');
 });
+
+test('reports state when measurement began, so earlier days are never presented as measured zeros', async () => {
+  const h = harness();
+  const before = await h.service.report({ from: '2026-10-10', to: '2026-11-08' });
+  assert.equal(before.measurementStartedAt, '2026-11-08T19:47:49Z');
+  assert.equal(before.measuredFrom, '2026-11-08T19:47:49Z', 'a 30-day period is measured only from go-live');
+  assert.equal((await h.service.report({ from: '2026-11-01', to: '2026-11-07' })).measuredFrom, null, 'entirely before go-live: not measured');
+  assert.equal((await h.service.report({ from: '2026-11-09', to: '2026-11-10' })).measuredFrom, '2026-11-09T00:00:00Z');
+});

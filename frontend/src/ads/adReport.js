@@ -33,6 +33,15 @@ export const PLACEMENTS = [
   { channel: 'video', placement: 'preroll', title: 'Video pre-roll · Google IMA (VAST)', platform: 'Website', config: 'videoPreroll' },
 ];
 
+// The part of the period PROtv actually measured. Earlier time has no PROtv data (not zero activity).
+export function coverage(report) {
+  if (!report.measurementStartedAt) return `${report.from} (UTC)`;
+  if (!report.measuredFrom) return `Not measured: automatic measurement began ${report.measurementStartedAt}`;
+  return report.measuredFrom === report.measurementStartedAt
+    ? `${report.measuredFrom} (automatic measurement began then; no PROtv measurement exists for the earlier part of this period)`
+    : report.measuredFrom;
+}
+
 export function cell(row, metric, channel) {
   if (!metric[channel]) return NOT_APPLICABLE;
   return number(row?.[metric.key]);
@@ -41,6 +50,7 @@ export function cell(row, metric, channel) {
 export function reportCsv(report) {
   const lines = [
     ['PROtv advertising report', `${report.from} to ${report.to} (UTC days)`],
+    ['Measured from', coverage(report)],
     ['Source', 'PROtv first-party measurement; valid traffic only. Not MRC-accredited. Ad network reports remain the billing source.'],
     ['Excluded', 'Invalid traffic (automated clients, excessive frequency) and test or Administrator activity are excluded from every figure below.'],
     [],
