@@ -1,5 +1,5 @@
 import { API_BASE_URL, CREATOR_PORTAL_ORIGIN, DEMO_HLS_URL, DEMO_MODE } from './config';
-import type { CatalogTitle } from '../data/catalog';
+import type { CatalogTitle, OriginalsIndex } from '../data/catalog';
 
 type CatalogResponse = { items?: unknown };
 type PlaybackResponse = {
@@ -95,6 +95,22 @@ export async function fetchCatalog(): Promise<CatalogTitle[]> {
   const titles = payload.items.map(normalizeCatalogTitle);
   if (titles.some((title) => title === null)) throw new Error('The catalog contains an invalid title.');
   return titles.filter((title): title is CatalogTitle => title !== null);
+}
+
+// PROtv Originals the Administrator has designated and released. Coming Soon entries are left out, so an Original is
+// never featured before it can be watched. Matching against the playable catalog happens in data/catalog.ts.
+export async function fetchOriginals(): Promise<OriginalsIndex> {
+  const payload = await request<{ items?: unknown }>('/v1/catalog/originals');
+  if (!Array.isArray(payload.items)) throw new Error('The PROtv Originals response did not contain an items list.');
+  const titleIds: string[] = [];
+  const seriesTitles: string[] = [];
+  for (const value of payload.items) {
+    const item = objectValue(value);
+    if (item.comingSoon === true || typeof item.id !== 'string') continue;
+    if (item.kind === 'title' && item.watchAvailable === true) titleIds.push(item.id);
+    if (item.kind === 'series' && typeof item.title === 'string' && item.title.trim()) seriesTitles.push(item.title);
+  }
+  return { titleIds, seriesTitles };
 }
 
 export async function fetchViewerAccount(token: string): Promise<{

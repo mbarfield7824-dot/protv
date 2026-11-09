@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BRAND } from '../constants/brand';
 import { BrandHeader } from './BrandHeader';
 
@@ -11,6 +11,9 @@ export function ScreenFrame({
   refreshing,
   onRefresh,
 }: PropsWithChildren<{ scroll?: boolean; header?: boolean; refreshing?: boolean; onRefresh?: () => void }>) {
+  // Content scrolls clear of the Android system navigation (gesture bar or buttons) instead of ending under it.
+  const { bottom } = useSafeAreaInsets();
+  const content = [styles.content, { paddingBottom: 28 + bottom }];
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {header ? <BrandHeader /> : null}
@@ -22,11 +25,11 @@ export function ScreenFrame({
           refreshControl={onRefresh ? (
             <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={BRAND.accentBright} />
           ) : undefined}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={content}
         >
           {children}
         </ScrollView>
-      ) : <View style={styles.content}>{children}</View>}
+      ) : <View style={content}>{children}</View>}
     </SafeAreaView>
   );
 }

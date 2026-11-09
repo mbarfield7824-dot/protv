@@ -75,57 +75,139 @@ export function relatedTitles(title: CatalogTitle, titles: CatalogTitle[], limit
   )).slice(0, limit);
 }
 
-export function featuredTitle(titles: CatalogTitle[]): CatalogTitle | undefined {
-  return titles.find((title) => title.heroImageUrl)
+// PROtv Originals, as designated by the Administrator on the backend (GET /v1/catalog/originals). Released films are
+// listed by title ID and released shows by name; Coming Soon entries are never included.
+export type OriginalsIndex = { titleIds: string[]; seriesTitles: string[] };
+export const NO_ORIGINALS: OriginalsIndex = { titleIds: [], seriesTitles: [] };
+
+function sameName(left: string | undefined, right: string | undefined) {
+  const normalize = (value: string | undefined) => (value || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+  return Boolean(normalize(left)) && normalize(left) === normalize(right);
+}
+
+// The backend publishes signed Creator Portal titles with creator_ IDs (creator_<project> films and
+// creator_episode_<id> episodes); Roku uses the same rule.
+export function isCreatorTitle(title: CatalogTitle): boolean {
+  return title.id.startsWith('creator_') || Boolean(title.creatorProjectId);
+}
+
+export function isOriginalTitle(title: CatalogTitle, originals: OriginalsIndex): boolean {
+  return originals.titleIds.includes(title.id)
+    || (title.contentType === 'EPISODE' && originals.seriesTitles.some((name) => sameName(name, title.seriesTitle)));
+}
+
+// Creators lead every list they appear in; catalog order is kept otherwise (as on Roku).
+export function creatorsFirst(items: CatalogTitle[]): CatalogTitle[] {
+  return [...items.filter(isCreatorTitle), ...items.filter((item) => !isCreatorTitle(item))];
+}
+
+function hasArtwork(title: CatalogTitle) {
+  return Boolean(title.heroImageUrl || title.posterUrl || title.thumbnailUrl);
+}
+
+export const MAX_FEATURED = 8;
+
+// Home hero order: released PROtv Originals, then signed creators' titles. Everything here is already published
+// and playable, because the device catalog only returns released, playable titles. Other catalog titles are used
+// only when no Original or creator title exists, and then just one.
+export function featuredTitles(titles: CatalogTitle[], originals: OriginalsIndex = NO_ORIGINALS): CatalogTitle[] {
+  const original = titles.filter((title) => isOriginalTitle(title, originals) && hasArtwork(title));
+  const creator = titles.filter((title) => isCreatorTitle(title) && !isOriginalTitle(title, originals) && hasArtwork(title));
+  const ranked = [
+    ...original.filter((title) => !isSeries(title)), ...seriesCards(original),
+    ...creator.filter((title) => !isSeries(title)), ...seriesCards(creator),
+  ];
+  if (ranked.length) return ranked.slice(0, MAX_FEATURED);
+  const fallback = titles.find((title) => title.heroImageUrl)
     ?? titles.find((title) => title.contentType === 'MOVIE' && title.posterUrl)
     ?? titles[0];
+  return fallback ? [fallback] : [];
 }
+
+export function featuredTitle(titles: CatalogTitle[], originals: OriginalsIndex = NO_ORIGINALS): CatalogTitle | undefined {
+  return featuredTitles(titles, originals)[0];
+}
+
+function inExactCategory(title: CatalogTitle, name: string) {
+  return [title.category, title.subgenre, ...title.genres].some((label) => sameName(label, name));
+}
+
+// Collections that have their own name and place on Home, the side navigation and Browse.
+export const NAMED_COLLECTIONS: Record<string, string> = {
+  continue: 'Continue Watching',
+  'my-list': 'My List',
+  creators: 'From PROtv Creators',
+  originals: 'PROtv Originals',
+  new: 'New Releases',
+  'black-cinema': 'Black Cinema',
+  independent: 'Independent Films',
+  movies: 'Movies',
+  series: 'Series',
+  documentaries: 'Documentaries',
+  classic: 'Classic Cinema',
+  ai: 'AI Cinema',
+  music: 'Music and Podcasts',
+};
+
+const CATEGORY_PREFIX = 'category-';
 
 // Every rail comes from fields the catalog actually returned; a rail with no matches is omitted.
 export function buildHomeRails(
   titles: CatalogTitle[],
   favorites: string[],
   progress: Record<string, ProgressEntry>,
+  originals: OriginalsIndex = NO_ORIGINALS,
 ): HomeRail[] {
+  const rail = (key: string, items: CatalogTitle[]): HomeRail => ({ key, title: NAMED_COLLECTIONS[key], items });
   const rails: HomeRail[] = [
-    { key: 'continue', title: 'Continue Watching', items: continueWatching(titles, progress) },
-    { key: 'my-list', title: 'My List', items: titles.filter((title) => favorites.includes(title.id)) },
-    {
-      key: 'new',
-      title: 'New Releases',
-      items: titles.filter((title) => title.addedAt).sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)).slice(0, 20),
-    },
-    {
-      key: 'originals',
-      title: 'PROtv Originals',
-      items: titles.filter((title) => text(title.category) === 'originals' || text(title.contentType) === 'original'),
-    },
-    { key: 'creators', title: 'From PROtv Creators', items: titles.filter((title) => title.creatorProjectId) },
-    { key: 'independent', title: 'Independent Films', items: titles.filter((title) => inCategory(title, 'independent')) },
-    { key: 'movies', title: 'Movies', items: titles.filter((title) => title.contentType === 'MOVIE') },
-    { key: 'series', title: 'Series', items: seriesCards(titles) },
-    { key: 'documentaries', title: 'Documentaries', items: titles.filter((title) => inCategory(title, 'documentar')) },
-    {
-      key: 'classic',
-      title: 'Classic Cinema',
-      items: titles.filter((title) => inCategory(title, 'classic cinema')
-        || (title.contentType === 'MOVIE' && title.year > 0 && title.year < CLASSIC_CUTOFF_YEAR)),
-    },
-    { key: 'ai', title: 'AI Cinema', items: titles.filter((title) => inCategory(title, 'ai cinema')) },
-    {
-      key: 'music',
-      title: 'Music and Podcasts',
-      items: titles.filter((title) => ['MUSIC', 'PODCAST'].includes(title.contentType) || inCategory(title, 'music', 'podcast', 'hip-hop')),
-    },
+    rail('continue', continueWatching(titles, progress)),
+    rail('my-list', titles.filter((title) => favorites.includes(title.id))),
+    rail('creators', [
+      ...titles.filter((title) => isCreatorTitle(title) && !isSeries(title)),
+      ...seriesCards(titles.filter(isCreatorTitle)),
+    ]),
+    rail('originals', [
+      ...titles.filter((title) => isOriginalTitle(title, originals) && !isSeries(title)),
+      ...seriesCards(titles.filter((title) => isOriginalTitle(title, originals))),
+    ]),
+    rail('new', titles.filter((title) => title.addedAt).sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0)).slice(0, 20)),
+    rail('black-cinema', creatorsFirst(titles.filter((title) => inExactCategory(title, 'Black Cinema')))),
+    rail('independent', creatorsFirst(titles.filter((title) => inCategory(title, 'independent')))),
+    rail('movies', creatorsFirst(titles.filter((title) => title.contentType === 'MOVIE'))),
+    rail('series', seriesCards(creatorsFirst(titles))),
+    rail('documentaries', creatorsFirst(titles.filter((title) => inCategory(title, 'documentar')))),
+    rail('classic', titles.filter((title) => inCategory(title, 'classic cinema')
+      || (title.contentType === 'MOVIE' && title.year > 0 && title.year < CLASSIC_CUTOFF_YEAR))),
+    rail('ai', creatorsFirst(titles.filter((title) => inCategory(title, 'ai cinema')))),
+    rail('music', creatorsFirst(titles.filter((title) => title.contentType === 'MUSIC' || title.contentType.startsWith('PODCAST')
+      || inCategory(title, 'music', 'podcast', 'hip-hop')))),
   ];
-  const named = new Set(['independent', 'documentary', 'ai cinema', 'music', 'podcast', 'originals']);
+  const named = new Set(['independent', 'documentary', 'ai cinema', 'music', 'podcast', 'podcasts', 'originals', 'black cinema']);
   const categories = [...new Set(titles.map((title) => title.category).filter(Boolean))]
     .filter((category) => !named.has(text(category)));
   for (const category of categories) {
     const items = titles.filter((title) => title.category === category);
-    if (items.length > 1) rails.push({ key: `category-${category}`, title: category, items });
+    if (items.length > 1) rails.push({ key: `${CATEGORY_PREFIX}${category}`, title: category, items: creatorsFirst(items) });
   }
-  return rails.filter((rail) => rail.items.length > 0);
+  return rails.filter((item) => item.items.length > 0);
+}
+
+// One Home rail, Browse collection or navigation destination, by its key. An empty collection keeps its name so the
+// screen can say so instead of showing a dead page.
+export function collectionByKey(
+  key: string,
+  titles: CatalogTitle[],
+  favorites: string[],
+  progress: Record<string, ProgressEntry>,
+  originals: OriginalsIndex = NO_ORIGINALS,
+): HomeRail {
+  const found = buildHomeRails(titles, favorites, progress, originals).find((rail) => rail.key === key);
+  if (found) return found;
+  if (key.startsWith(CATEGORY_PREFIX)) {
+    const category = key.slice(CATEGORY_PREFIX.length);
+    return { key, title: category || 'Collection', items: creatorsFirst(titles.filter((title) => title.category === category)) };
+  }
+  return { key, title: NAMED_COLLECTIONS[key] ?? 'Collection', items: [] };
 }
 
 export function seriesEpisodes(title: CatalogTitle | undefined, titles: CatalogTitle[]): CatalogTitle[] {

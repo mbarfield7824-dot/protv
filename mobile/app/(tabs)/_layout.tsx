@@ -1,55 +1,28 @@
 import { Tabs } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { Text, type ColorValue } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NavMenuProvider } from '../../components/navigation/NavMenu';
+import { BROWSE_ROUTE, SideNavigation } from '../../components/navigation/SideNavigation';
 import { BRAND } from '../../constants/brand';
 
-function TabGlyph({ symbol, glyph, color }: { symbol: SFSymbol; glyph: string; color: ColorValue }) {
-  return (
-    <SymbolView
-      name={{ ios: symbol }}
-      size={22}
-      tintColor={color}
-      fallback={<Text style={{ color, fontSize: 18, fontWeight: '700' }}>{glyph}</Text>}
-    />
-  );
-}
-
+// Navigation lives on the left (a rail on tablets and sideways phones, a menu on narrow phones) so it can never
+// cover rows, posters or the Android system navigation at the bottom of the screen.
 export default function TabLayout() {
-  const { bottom } = useSafeAreaInsets();
-  const paddingBottom = Math.max(bottom, 8);
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: BRAND.accentBright,
-        tabBarInactiveTintColor: BRAND.muted,
-        tabBarStyle: {
-          backgroundColor: BRAND.surface,
-          borderTopColor: BRAND.border,
-          height: 58 + paddingBottom,
-          paddingTop: 7,
-          paddingBottom,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Home', tabBarIcon: ({ color }) => <TabGlyph symbol="house.fill" glyph="⌂" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{ title: 'Search', tabBarIcon: ({ color }) => <TabGlyph symbol="magnifyingglass" glyph="⌕" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="categories"
-        options={{ title: 'Categories', tabBarIcon: ({ color }) => <TabGlyph symbol="square.grid.2x2.fill" glyph="▦" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="my-protv"
-        options={{ title: 'My PROtv', tabBarIcon: ({ color }) => <TabGlyph symbol="person.crop.circle.fill" glyph="◎" color={color} /> }}
-      />
-    </Tabs>
+    <NavMenuProvider>
+      <Tabs
+        backBehavior="history"
+        tabBar={() => <SideNavigation />}
+        screenOptions={{
+          headerShown: false,
+          tabBarPosition: 'left',
+          sceneStyle: { backgroundColor: BRAND.background },
+        }}
+      >
+        <Tabs.Screen name="index" options={{ title: 'Home' }} />
+        <Tabs.Screen name="search" options={{ title: 'Search' }} />
+        <Tabs.Screen name="categories" options={{ title: 'Categories' }} />
+        <Tabs.Screen name="my-protv" options={{ title: 'My PROtv' }} />
+        <Tabs.Screen name={BROWSE_ROUTE} options={{ title: 'Browse' }} />
+      </Tabs>
+    </NavMenuProvider>
   );
 }

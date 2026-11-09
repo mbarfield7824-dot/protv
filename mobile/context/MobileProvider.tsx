@@ -4,14 +4,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
+import { AppState } from 'react-native';
 import type { User } from 'firebase/auth';
-import { DEMO_FAVORITES, DEMO_PROGRESS, DEMO_TITLES, type CatalogTitle } from '../data/catalog';
+import { DEMO_FAVORITES, DEMO_PROGRESS, DEMO_TITLES, NO_ORIGINALS, type CatalogTitle, type OriginalsIndex } from '../data/catalog';
 import {
   fetchCatalog,
   fetchCreatorPortalUrl,
+  fetchOriginals,
   fetchPlaybackUrl,
   fetchViewerAccount,
   isApiConfigured,
@@ -41,6 +44,7 @@ type MobileContextValue = {
   resetPassword: typeof sendViewerPasswordReset;
   signOut: typeof signOutViewer;
   titles: CatalogTitle[];
+  originals: OriginalsIndex;
   catalogError: string;
   catalogLoading: boolean;
   refreshCatalog: () => void;
@@ -54,6 +58,8 @@ type MobileContextValue = {
   creatorPortalUrl: () => Promise<string>;
 };
 
+const CATALOG_REFRESH_MS = 15 * 60 * 1000;
+
 const MobileContext = createContext<MobileContextValue | null>(null);
 
 export function MobileProvider({ children }: PropsWithChildren) {
@@ -61,10 +67,12 @@ export function MobileProvider({ children }: PropsWithChildren) {
   const [authLoading, setAuthLoading] = useState(FIREBASE_CONFIGURED);
   const [authError, setAuthError] = useState('');
   const [titles, setTitles] = useState<CatalogTitle[]>(DEMO_MODE ? DEMO_TITLES : []);
+  const [originals, setOriginals] = useState<OriginalsIndex>(NO_ORIGINALS);
   const [catalogError, setCatalogError] = useState('');
   const [catalogLoading, setCatalogLoading] = useState(!DEMO_MODE);
   const [catalogRevision, setCatalogRevision] = useState(0);
   const refreshCatalog = useCallback(() => setCatalogRevision((current) => current + 1), []);
+  const catalogLoadedAt = useRef(0);
   const usingFixtures = DEMO_MODE;
   const [favorites, setFavorites] = useState<string[]>(DEMO_MODE ? DEMO_FAVORITES : []);
   const [progress, setProgress] = useState<Record<string, WatchProgress>>(
@@ -86,11 +94,16 @@ export function MobileProvider({ children }: PropsWithChildren) {
     let active = true;
     setCatalogLoading(true);
     setCatalogError('');
+    // Originals only decide ordering, so a failure there never hides the catalog.
+    fetchOriginals()
+      .then((result) => { if (active) setOriginals(result); })
+      .catch((error: unknown) => console.warn('PROtv Originals unavailable:', error instanceof Error ? error.message : error));
     fetchCatalog()
       .then((result) => {
         if (active) {
           setTitles(result);
           setCatalogError('');
+          catalogLoadedAt.current = Date.now();
         }
       })
       .catch((error: unknown) => {
@@ -101,6 +114,18 @@ export function MobileProvider({ children }: PropsWithChildren) {
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [catalogRevision]);
+
+  // Newly published titles, artwork and categories arrive without a new build: the catalog reloads on launch, on
+  // pull-to-refresh, and when the app returns to the foreground after a while.
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && catalogLoadedAt.current && Date.now() - catalogLoadedAt.current > CATALOG_REFRESH_MS) {
+        refreshCatalog();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshCatalog]);
 
   useEffect(() => {
     if (!user || !isApiConfigured) {
@@ -199,6 +224,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     resetPassword: sendViewerPasswordReset,
     signOut: signOutViewer,
     titles,
+    originals,
     catalogError,
     catalogLoading,
     refreshCatalog,
@@ -211,7 +237,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     playbackUrl: fetchPlaybackUrl,
     creatorPortalUrl,
   }), [
-    user, authLoading, authError, register, titles, catalogError, catalogLoading, refreshCatalog, usingFixtures,
+    user, authLoading, authError, register, titles, originals, catalogError, catalogLoading, refreshCatalog, usingFixtures,
     favorites, progress, accountError, toggleFavorite, recordProgress, creatorPortalUrl,
   ]);
 

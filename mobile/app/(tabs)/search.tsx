@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Loading, Notice, ScreenFrame } from '../../components/ScreenFrame';
-import { TitleCard } from '../../components/TitleCard';
+import { TitleGrid } from '../../components/TitleGrid';
 import { BRAND } from '../../constants/brand';
 import { titleMatchesQuery } from '../../data/catalog';
 import { useMobile } from '../../context/MobileProvider';
@@ -9,13 +9,10 @@ import { useMobile } from '../../context/MobileProvider';
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const { titles, catalogLoading, catalogError, refreshCatalog } = useMobile();
-  const { width } = useWindowDimensions();
-  const columns = width >= 800 ? 5 : width >= 600 ? 4 : width < 350 ? 2 : 3;
   const results = useMemo(
     () => titles.filter((title) => titleMatchesQuery(title, query)),
     [query, titles],
   );
-  const cardWidth = (width - 40 - (columns - 1) * 12) / columns;
 
   return (
     <ScreenFrame>
@@ -48,16 +45,7 @@ export default function SearchScreen() {
         </Text>
       ) : null}
       {results.length ? (
-        <FlatList
-          data={results}
-          key={columns}
-          keyExtractor={(item) => item.id}
-          numColumns={columns}
-          scrollEnabled={false}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.grid}
-          renderItem={({ item }) => <TitleCard title={item} width={cardWidth} />}
-        />
+        <TitleGrid items={results} />
       ) : titles.length ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No matches yet</Text>
@@ -83,8 +71,6 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
   },
   resultLabel: { color: BRAND.muted, fontSize: 13, fontWeight: '700', marginHorizontal: 20, marginTop: 20, marginBottom: 13 },
-  row: { justifyContent: 'flex-start', gap: 12, marginBottom: 18 },
-  grid: { paddingHorizontal: 20 },
   retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', margin: 20, paddingHorizontal: 16, borderRadius: 8, backgroundColor: BRAND.accent },
   retryText: { color: BRAND.text, fontSize: 14, fontWeight: '800' },
   empty: { alignItems: 'center', paddingHorizontal: 30, paddingVertical: 70 },

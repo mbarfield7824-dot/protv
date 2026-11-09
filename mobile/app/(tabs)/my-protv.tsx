@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandHeader } from '../../components/BrandHeader';
 import { ContentRail } from '../../components/ContentRail';
+import { useContentWidth } from '../../components/navigation/NavMenu';
 import { Notice, ScreenFrame } from '../../components/ScreenFrame';
 import { BRAND } from '../../constants/brand';
 import { useMobile } from '../../context/MobileProvider';
@@ -35,7 +36,7 @@ export default function MyProtvScreen() {
     accountError, creatorPortalUrl, signOut,
   } = useMobile();
   const [creatorError, setCreatorError] = useState('');
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const progressById = useMemo(
     () => Object.fromEntries(Object.entries(progress).map(([id, entry]) => [id, entry.progressPercent])),
     [progress],

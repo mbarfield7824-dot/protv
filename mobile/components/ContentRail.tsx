@@ -1,4 +1,5 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BRAND } from '../constants/brand';
 import type { CatalogTitle } from '../data/catalog';
 import { TitleCard } from './TitleCard';
@@ -8,8 +9,10 @@ export function ContentRail({
   items,
   progressById,
   compact = false,
+  collectionKey,
 }: {
   title: string;
+  collectionKey?: string;
   items: CatalogTitle[];
   progressById?: Record<string, number>;
   compact?: boolean;
@@ -17,7 +20,20 @@ export function ContentRail({
   if (!items.length) return null;
   return (
     <View style={styles.section}>
-      <Text accessibilityRole="header" style={styles.heading}>{title}</Text>
+      <View style={styles.headingRow}>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.heading}>{title}</Text>
+        {collectionKey ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`See all ${title}`}
+            hitSlop={6}
+            onPress={() => router.navigate({ pathname: '/browse/[key]', params: { key: collectionKey } })}
+            style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
+          >
+            <Text style={styles.seeAllText}>See all  ›</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <FlatList
         horizontal
         data={items}
@@ -34,7 +50,11 @@ export function ContentRail({
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 25 },
-  heading: { color: BRAND.text, fontSize: 19, fontWeight: '800', marginBottom: 13, paddingHorizontal: 20 },
+  section: { marginTop: 15 },
+  headingRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, paddingLeft: 20, paddingRight: 8 },
+  heading: { flexShrink: 1, color: BRAND.text, fontSize: 19, fontWeight: '800' },
+  seeAll: { minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 12 },
+  seeAllText: { color: BRAND.accentBright, fontSize: 13, fontWeight: '800' },
+  pressed: { opacity: 0.72 },
   cards: { paddingHorizontal: 20, paddingBottom: 2 },
 });

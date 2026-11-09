@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { Loading, Notice, ScreenFrame } from '../../components/ScreenFrame';
-import { TitleCard } from '../../components/TitleCard';
+import { TitleGrid } from '../../components/TitleGrid';
 import { BRAND } from '../../constants/brand';
 import { useMobile } from '../../context/MobileProvider';
 
@@ -11,9 +11,6 @@ export default function CategoriesScreen() {
   const categories = useMemo(() => ['All', ...new Set(titles.flatMap((title) => [
     title.category, ...title.genres, ...(title.contentType === 'EPISODE' ? ['Series'] : []),
   ]).filter(Boolean))].sort((a, b) => a === 'All' ? -1 : b === 'All' ? 1 : a.localeCompare(b)), [titles]);
-  const { width } = useWindowDimensions();
-  const columns = width >= 800 ? 5 : width >= 600 ? 4 : width < 350 ? 2 : 3;
-  const cardWidth = (width - 40 - (columns - 1) * 12) / columns;
   const results = useMemo(() => selected === 'All' ? titles : titles.filter((title) => (
     title.category === selected || title.genres.includes(selected)
       || (selected === 'Series' && title.contentType === 'EPISODE')
@@ -37,18 +34,10 @@ export default function CategoriesScreen() {
           </Pressable>
         ))}
       </ScrollView>
-      <FlatList
-        data={results}
-        key={columns}
-        keyExtractor={(item) => item.id}
-        numColumns={columns}
-        scrollEnabled={false}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.grid}
-        renderItem={({ item }) => (
-          <TitleCard title={item} width={cardWidth} />
-        )}
-      />
+      {results.length ? <TitleGrid items={results} /> : null}
+      {!catalogLoading && !catalogError && titles.length && !results.length ? (
+        <Notice>Nothing is in {selected} right now. New titles appear here as soon as they are published.</Notice>
+      ) : null}
     </ScreenFrame>
   );
 }
@@ -60,6 +49,4 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: BRAND.accent, borderColor: BRAND.accent },
   chipText: { color: BRAND.muted, fontSize: 13, fontWeight: '700' },
   chipTextSelected: { color: '#FFFFFF' },
-  row: { gap: 12, marginBottom: 18 },
-  grid: { paddingHorizontal: 20 },
 });

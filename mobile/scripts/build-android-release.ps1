@@ -1,6 +1,8 @@
 param(
   [string]$PasswordFile = (Join-Path $PSScriptRoot '..\.env.signing.local.json'),
-  [switch]$SkipPrebuild
+  [switch]$SkipPrebuild,
+  # Short folder for native-module junctions (Windows 260-character path limit). See react-native.config.js.
+  [string]$ShortNativeLinks
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -22,6 +24,23 @@ $env:PROTV_UPLOAD_KEY_ALIAS = 'protv-upload'
 $env:PROTV_UPLOAD_STORE_PASSWORD = $secrets.storePassword
 $env:PROTV_UPLOAD_KEY_PASSWORD = $secrets.keyPassword
 $secrets = $null
+if ($ShortNativeLinks) {
+  # Expo autolinking resolves links to their real paths, so these are fresh mirrors of the installed packages,
+  # refreshed on every build (never edited, never stale).
+  New-Item -ItemType Directory -Force $ShortNativeLinks | Out-Null
+  $shortNames = @{ 'react-native-gesture-handler' = 'g'; 'react-native-reanimated' = 'r'; 'react-native-safe-area-context' = 's'; 'react-native-screens' = 't'; 'react-native-worklets' = 'w' }
+  foreach ($name in $shortNames.Keys) {
+    $source = (Get-Item (Join-Path $root "node_modules\$name")).FullName
+    $copy = Join-Path $ShortNativeLinks $shortNames[$name]
+    if ((Test-Path $copy) -and (Get-Item $copy -Force).LinkType) { throw "$copy is a link; remove it first." }
+    & robocopy.exe $source $copy /MIR /NFL /NDL /NJH /NJS /NP /XD (Join-Path $source 'android\build') (Join-Path $source 'android\.cxx') | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "Could not mirror $name for the short native build path." }
+  }
+  # The mirrors resolve their own dependencies (react-native, worklets) through the app's packages.
+  $modules = Join-Path $ShortNativeLinks 'node_modules'
+  if (-not (Test-Path $modules)) { New-Item -ItemType Junction -Path $modules -Target (Get-Item (Join-Path $root 'node_modules')).FullName | Out-Null }
+  $env:PROTV_SHORT_NATIVE_LINKS = $ShortNativeLinks
+}
 $env:EXPO_OFFLINE = '1'
 $env:EXPO_NO_TELEMETRY = '1'
 try {
