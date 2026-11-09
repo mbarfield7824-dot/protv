@@ -45,7 +45,7 @@
     "typecheck": "tsc --noEmit",
     "export:android": "expo export --platform android",
     "lint": "expo lint",
-    "test": "tsc --ignoreConfig --outDir .test-build --module commonjs --moduleResolution node --ignoreDeprecations 6.0 --target es2022 --types node --skipLibCheck data/catalog.ts lib/config.ts lib/api.ts lib/authErrors.ts lib/chunkedStorage.ts && node --test tests/*.test.cjs"
+    "test": "tsc --ignoreConfig --outDir .test-build --module commonjs --moduleResolution node --ignoreDeprecations 6.0 --target es2022 --types node --skipLibCheck data/catalog.ts data/comingSoon.ts lib/config.ts lib/api.ts lib/authErrors.ts lib/chunkedStorage.ts && node --test tests/*.test.cjs"
   },
   "private": true
 }

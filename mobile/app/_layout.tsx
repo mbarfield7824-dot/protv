@@ -22,6 +22,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ contentStyle: { backgroundColor: BRAND.background }, ...BROWSE_ORIENTATION }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="title/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="coming-soon/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="player/[id]" options={{ headerShown: false, presentation: 'fullScreenModal', ...PLAYER_ORIENTATION }} />
           <Stack.Screen name="sign-in" options={{ headerShown: false, presentation: 'modal' }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />

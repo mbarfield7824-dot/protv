@@ -10,9 +10,11 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 import type { User } from 'firebase/auth';
+import { nextPremiere, type ComingSoonItem } from '../data/comingSoon';
 import { DEMO_FAVORITES, DEMO_PROGRESS, DEMO_TITLES, NO_ORIGINALS, type CatalogTitle, type OriginalsIndex } from '../data/catalog';
 import {
   fetchCatalog,
+  fetchComingSoon,
   fetchCreatorPortalUrl,
   fetchOriginals,
   fetchPlaybackUrl,
@@ -45,6 +47,7 @@ type MobileContextValue = {
   signOut: typeof signOutViewer;
   titles: CatalogTitle[];
   originals: OriginalsIndex;
+  comingSoon: ComingSoonItem[];
   catalogError: string;
   catalogLoading: boolean;
   refreshCatalog: () => void;
@@ -59,6 +62,8 @@ type MobileContextValue = {
 };
 
 const CATALOG_REFRESH_MS = 15 * 60 * 1000;
+const PREMIERE_WATCH_MS = 24 * 60 * 60 * 1000;
+const PREMIERE_GRACE_MS = 5000;
 
 const MobileContext = createContext<MobileContextValue | null>(null);
 
@@ -68,6 +73,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
   const [authError, setAuthError] = useState('');
   const [titles, setTitles] = useState<CatalogTitle[]>(DEMO_MODE ? DEMO_TITLES : []);
   const [originals, setOriginals] = useState<OriginalsIndex>(NO_ORIGINALS);
+  const [comingSoon, setComingSoon] = useState<ComingSoonItem[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [catalogLoading, setCatalogLoading] = useState(!DEMO_MODE);
   const [catalogRevision, setCatalogRevision] = useState(0);
@@ -94,6 +100,10 @@ export function MobileProvider({ children }: PropsWithChildren) {
     let active = true;
     setCatalogLoading(true);
     setCatalogError('');
+    // Coming Soon is promotional only; a failure there never hides the catalog.
+    fetchComingSoon()
+      .then((result) => { if (active) setComingSoon(result); })
+      .catch((error: unknown) => console.warn('Coming Soon unavailable:', error instanceof Error ? error.message : error));
     // Originals only decide ordering, so a failure there never hides the catalog.
     fetchOriginals()
       .then((result) => { if (active) setOriginals(result); })
@@ -114,6 +124,16 @@ export function MobileProvider({ children }: PropsWithChildren) {
       .finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [catalogRevision]);
+
+  // At a scheduled premiere the backend releases the title into the playable catalog, so the app reloads just after
+  // that moment (premieres within the next day; later ones are picked up by the regular refreshes).
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    const next = nextPremiere(comingSoon);
+    if (next === undefined || next - Date.now() > PREMIERE_WATCH_MS) return;
+    const timer = setTimeout(refreshCatalog, Math.max(0, next - Date.now()) + PREMIERE_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [comingSoon, refreshCatalog]);
 
   // Newly published titles, artwork and categories arrive without a new build: the catalog reloads on launch, on
   // pull-to-refresh, and when the app returns to the foreground after a while.
@@ -225,6 +245,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     signOut: signOutViewer,
     titles,
     originals,
+    comingSoon,
     catalogError,
     catalogLoading,
     refreshCatalog,
@@ -237,7 +258,7 @@ export function MobileProvider({ children }: PropsWithChildren) {
     playbackUrl: fetchPlaybackUrl,
     creatorPortalUrl,
   }), [
-    user, authLoading, authError, register, titles, originals, catalogError, catalogLoading, refreshCatalog, usingFixtures,
+    user, authLoading, authError, register, titles, originals, comingSoon, catalogError, catalogLoading, refreshCatalog, usingFixtures,
     favorites, progress, accountError, toggleFavorite, recordProgress, creatorPortalUrl,
   ]);
 

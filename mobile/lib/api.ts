@@ -1,5 +1,6 @@
 import { API_BASE_URL, CREATOR_PORTAL_ORIGIN, DEMO_HLS_URL, DEMO_MODE } from './config';
 import type { CatalogTitle, OriginalsIndex } from '../data/catalog';
+import type { ComingSoonItem } from '../data/comingSoon';
 
 type CatalogResponse = { items?: unknown };
 type PlaybackResponse = {
@@ -111,6 +112,35 @@ export async function fetchOriginals(): Promise<OriginalsIndex> {
     if (item.kind === 'series' && typeof item.title === 'string' && item.title.trim()) seriesTitles.push(item.title);
   }
   return { titleIds, seriesTitles };
+}
+
+// Upcoming films and shows (promotional metadata only, never playable). Entries the backend marks as released, or
+// that lack an ID or title, are left out; artwork must be HTTPS. Dates are passed through only when they parse.
+export async function fetchComingSoon(): Promise<ComingSoonItem[]> {
+  const payload = await request<{ items?: unknown }>('/v1/catalog/coming-soon');
+  if (!Array.isArray(payload.items)) throw new Error('The Coming Soon response did not contain an items list.');
+  const items: ComingSoonItem[] = [];
+  for (const value of payload.items) {
+    const item = objectValue(value);
+    if (item.comingSoon === false || typeof item.id !== 'string' || !item.id
+      || typeof item.title !== 'string' || !item.title.trim()
+      || (item.kind !== 'title' && item.kind !== 'series')) continue;
+    const schedule = objectValue(item.airingSchedule);
+    items.push({
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      description: typeof item.description === 'string' ? item.description : '',
+      ...(typeof item.artwork === 'string' && /^https:\/\//i.test(item.artwork) ? { artwork: item.artwork } : {}),
+      categories: Array.isArray(item.categories) ? item.categories.filter((name): name is string => typeof name === 'string') : [],
+      protvOriginal: item.protvOriginal === true,
+      ...(typeof item.premiereAt === 'string' && Number.isFinite(Date.parse(item.premiereAt)) ? { premiereAt: item.premiereAt } : {}),
+      ...(typeof schedule.weekday === 'string' && typeof schedule.time === 'string'
+        ? { airingSchedule: { weekday: schedule.weekday, time: schedule.time } } : {}),
+      trailerAvailable: item.trailerAvailable === true,
+    });
+  }
+  return items;
 }
 
 export async function fetchViewerAccount(token: string): Promise<{
