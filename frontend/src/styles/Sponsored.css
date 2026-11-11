@@ -90,3 +90,15 @@
     justify-content: center;
   }
 }
+
+/* The always-visible advertising notice under the unit (opt-out notice, and a reminder after consent). */
+.ptv-sponsored__notice {
+  margin: 10px 0 0;
+  color: rgba(241, 239, 255, 0.55);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.ptv-sponsored__notice a {
+  color: rgba(241, 239, 255, 0.75);
+}

@@ -11,6 +11,7 @@ const {
   verifySignedBody,
 } = require('./adRevenueService');
 const { FirestorePlacementSettings } = require('./placementSettings');
+const { sponsoredConsentMode } = require('./consentRegion');
 const { auth } = require('../firebase');
 const { reportingClientAddress } = require('../reports/clientAddress');
 const {
@@ -148,7 +149,8 @@ function createAdsRouter(dependencies = {}) {
     }
   });
 
-  // Display placements: one measurement session per ad request, signed only after the viewer allowed sponsored content.
+  // Display placements: one measurement session per ad request, opened only when the ad is actually requested (after
+  // consent where it is required, or automatically under a notice where it is not).
   router.post('/measurement/session', async (request, response) => {
     response.set(NO_STORE);
     if (!request.is('application/json')) return response.status(415).json({ error: 'Ad measurement requires application/json.' });
@@ -213,15 +215,18 @@ function createAdsRouter(dependencies = {}) {
   const requireAdmin = dependencies.verifyAdmin || verifyAdmin;
   const audit = dependencies.audit || ((event) => require('../adminBot/adminAudit').logAdminEvent(event));
 
-  // Public, website-only: whether the Sponsored placement is switched on. Fails closed: any error means off.
-  router.get('/placements', async (_request, response) => {
+  // Public, website-only: whether the Sponsored placement is switched on, and which consent rule applies to this
+  // visitor ('notice' or 'opt_in', see consentRegion.js). Fails closed: any error means off. Never cached, because
+  // the consent rule differs per visitor location.
+  router.get('/placements', async (request, response) => {
     response.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
+    const consent = sponsoredConsentMode(request.headers);
     try {
       const settings = await placements.read();
-      response.json({ nativeBanner: { enabled: settings.nativeBannerEnabled === true } });
+      response.json({ nativeBanner: { enabled: settings.nativeBannerEnabled === true, consent } });
     } catch (error) {
       console.error('Advertising settings unavailable; Sponsored placement stays off.', error.message);
-      response.json({ nativeBanner: { enabled: false } });
+      response.json({ nativeBanner: { enabled: false, consent } });
     }
   });
 

@@ -17,6 +17,7 @@ import { safetyReportUrl } from '../data/safetyReports';
 import { readInitialTitle } from '../data/initialTitle';
 import TrailerPlayer from '../components/TrailerPlayer';
 import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
+import { childDirectedContent } from '../ads/sponsored';
 import { titlePath } from '../utils/publicPaths';
 import '../styles/Title.css';
 
@@ -260,7 +261,7 @@ export default function Title() {
           </section>
         )}
         {/* Below the title information and actions; removed while the trailer plays. */}
-        {sponsoredEligible && !trailerOpen && <SponsoredNativeBanner />}
+        {sponsoredEligible && !trailerOpen && <SponsoredNativeBanner automatic={!childDirectedContent(genres)} />}
       </main>
       <ProTVFooter />
       {trailerOpen && <TrailerPlayer videoId={video.id} onClose={() => setTrailerOpen(false)} />}

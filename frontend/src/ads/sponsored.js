@@ -7,7 +7,8 @@ export const NATIVE_BANNER = Object.freeze({
 
 export const SPONSORED_CONSENT_KEY = 'protv-sponsored-consent-v1';
 
-// Opt-in for every viewer. A browser sending Global Privacy Control is treated as a refusal and is never asked.
+// The viewer's own stored choice, if any. A browser sending Global Privacy Control is treated as a refusal and is
+// never asked and never shown an ad, wherever it is.
 export function readSponsoredConsent() {
   if (typeof navigator !== 'undefined' && navigator.globalPrivacyControl === true) return 'declined';
   try {
@@ -16,6 +17,24 @@ export function readSponsoredConsent() {
   } catch {
     return null;
   }
+}
+
+// The consent rule the server chose for this visitor's location. Anything unexpected means asking first.
+export function consentModeFrom(settings) {
+  return settings?.nativeBanner?.consent === 'notice' ? 'notice' : 'opt_in';
+}
+
+// Content that may be aimed at children never loads advertising automatically (COPPA); it keeps the opt-in prompt.
+export function childDirectedContent(...labels) {
+  return labels.flat().some((label) => typeof label === 'string' && /\b(cartoons?|kids?|children'?s?)\b/i.test(label));
+}
+
+// Whether the ad may load for this viewer now: an explicit choice always wins (Global Privacy Control counts as a
+// refusal); without one, only a 'notice' location on content not aimed at children loads automatically.
+export function sponsoredAllowed(choice, mode, automatic = true) {
+  if (choice === 'granted') return true;
+  if (choice === 'declined') return false;
+  return mode === 'notice' && automatic === true;
 }
 
 export function writeSponsoredConsent(value) {

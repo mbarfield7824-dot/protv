@@ -57,15 +57,15 @@ beforeEach(async () => {
 
 const settle = (ms = 20) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)); });
 const scripts = () => [...document.querySelectorAll('script')].filter((item) => item.src === SRC);
-const settings = (enabled) => async () => ({ nativeBanner: { enabled } });
+const settings = (enabled, consent) => async () => ({ nativeBanner: { enabled, ...(consent ? { consent } : {}) } });
 
 // Renders one "page" holding the given number of Sponsored sections; switching pages mimics in-app navigation.
-async function page(enabled = true, props = {}, sections = 1) {
+async function page(enabled = true, props = {}, sections = 1, consent = undefined) {
   await act(async () => root?.unmount());
   document.body.innerHTML = '<div id="root"></div>';
   root = createRoot(document.getElementById('root'));
   const banners = Array.from({ length: sections }, (_, index) => React.createElement(Banner,
-    { key: index, loadSettings: settings(enabled), report: (state) => events.push(state), measure, ...props }));
+    { key: index, loadSettings: settings(enabled, consent), report: (state) => events.push(state), measure, ...props }));
   await act(async () => root.render(React.createElement(MemoryRouter, null, ...banners)));
   await settle();
 }
@@ -220,6 +220,87 @@ test('failed and empty ads are recorded as failures, never as impressions', asyn
   assert.deepEqual(measured, [{ position: 1, eventType: 'error', reason: 'empty' }]);
 });
 
+// Locations where an opt-out notice is enough (the server answers consent: 'notice').
+const noticePage = (props = {}, sections = 1) => page(true, props, sections, 'notice');
+
+test('notice location, first visit: the ad loads with the page, no click, under a visible Adsterra notice', async () => {
+  await noticePage();
+  assert.equal(button('Allow sponsored content'), undefined, 'no consent button');
+  assert.equal(created, 1, 'the ad script is requested on page load');
+  assert.equal(scripts().length, 1);
+  const section = document.querySelector('.ptv-sponsored');
+  assert.match(section.querySelector('.ptv-sponsored__notice').textContent, /Provided by Adsterra.*cookies/);
+  assert.ok(section.querySelector('.ptv-sponsored__notice a[href="/privacy#advertising"]'));
+  assert.ok(button('Turn off sponsored content'), 'the opt-out is on screen');
+  assert.equal(window.localStorage.getItem('protv-sponsored-consent-v1'), null, 'no choice is invented for the viewer');
+  assert.deepEqual(measured, [], 'loading is not an impression');
+  await renderAd();
+  assert.deepEqual(measured, [{ position: 1, eventType: 'served', measurable: false }]);
+  assert.deepEqual(events, ['notice_shown', 'requested', 'rendered']);
+  for (let visit = 0; visit < 3; visit += 1) await noticePage();
+  assert.equal(created, 1, 'returning to Sponsored pages in-app requests nothing new');
+  assert.equal(measured.filter((item) => item.eventType === 'served').length, 1, 'counted once per page load');
+});
+
+test('notice location: turning it off removes the ad, stops measurement and is remembered on every page', async () => {
+  await noticePage();
+  await renderAd();
+  await act(async () => button('Turn off sponsored content').click());
+  assert.equal(document.getElementById(CONTAINER), null);
+  assert.equal(window.localStorage.getItem('protv-sponsored-consent-v1'), 'declined');
+  resetSession(); // a returning visit, new page load
+  created = 0;
+  await noticePage();
+  assert.equal(document.querySelector('.ptv-sponsored'), null);
+  assert.equal(created, 0);
+});
+
+test('notice location: Global Privacy Control and an earlier refusal both win, with nothing loaded', async () => {
+  Object.defineProperty(window.navigator, 'globalPrivacyControl', { configurable: true, value: true });
+  await noticePage();
+  assert.equal(document.querySelector('.ptv-sponsored'), null);
+  Object.defineProperty(window.navigator, 'globalPrivacyControl', { configurable: true, value: undefined });
+  window.localStorage.setItem('protv-sponsored-consent-v1', 'declined');
+  await noticePage();
+  assert.equal(document.querySelector('.ptv-sponsored'), null);
+  assert.equal(created, 0);
+  assert.equal(measureSessions, 0);
+});
+
+test('content that may be aimed at children asks first even in a notice location', async () => {
+  await noticePage({ automatic: false });
+  assert.ok(button('Allow sponsored content'));
+  assert.equal(created, 0);
+  assert.deepEqual(events, ['consent_requested']);
+});
+
+test('an opt-in location, or an unknown answer, always asks first; an earlier "allow" loads without asking again', async () => {
+  await page(true, {}, 1, 'opt_in');
+  assert.ok(button('Allow sponsored content'));
+  await page(true, {}, 1, 'anything-else');
+  assert.ok(button('Allow sponsored content'));
+  assert.equal(created, 0);
+  window.localStorage.setItem('protv-sponsored-consent-v1', 'granted');
+  await page(true, {}, 1, 'opt_in');
+  assert.equal(created, 1, 'a returning viewer who allowed it is not asked again');
+});
+
+test('notice location: failed or empty ads are never impressions', async () => {
+  await noticePage();
+  await act(async () => scripts()[0].dispatchEvent(new window.Event('error')));
+  assert.deepEqual(measured, [{ position: 1, eventType: 'error', reason: 'script_error' }]);
+  assert.equal(document.querySelector('.ptv-sponsored'), null);
+});
+
+test('childDirectedContent recognises cartoon and kids labels only', async () => {
+  const { childDirectedContent } = await vite.ssrLoadModule('/src/ads/sponsored.js');
+  assert.equal(childDirectedContent('Cartoons'), true);
+  assert.equal(childDirectedContent(['Drama', 'Classic Cartoons']), true);
+  assert.equal(childDirectedContent(undefined, ['Kids & Family']), true);
+  assert.equal(childDirectedContent('Movies', ['Drama', 'Documentary', 'Anime']), false);
+  assert.equal(childDirectedContent(undefined, undefined), false);
+});
+
 test('settings that cannot load keep the placement off', async () => {
   await page(true, { loadSettings: async () => { throw new Error('offline'); } });
   assert.equal(document.querySelector('.ptv-sponsored'), null);
@@ -250,6 +331,10 @@ test('only approved content and browse pages use it; never players, account, sig
   const title = readFileSync(path.join(frontendRoot, 'src/pages/Title.jsx'), 'utf8');
   assert.ok(title.indexOf('className="title-actions"') < title.indexOf('<SponsoredNativeBanner'));
   assert.match(title, /sponsoredEligible && !trailerOpen && <SponsoredNativeBanner/);
+  assert.match(title, /<SponsoredNativeBanner automatic=\{!childDirectedContent\(genres\)\} \/>/);
+  assert.match(readFileSync(path.join(frontendRoot, 'src/pages/CollectionPage.jsx'), 'utf8'),
+    /<SponsoredNativeBanner automatic=\{!childDirectedContent\(category\)\} \/>/, 'the Cartoons page asks first');
+  assert.match(readFileSync(path.join(frontendRoot, 'src/pages/SeriesDetail.jsx'), 'utf8'), /automatic=\{!childDirectedContent\(series/);
   assert.match(title, /const sponsoredEligible = video\.contentType === 'MOVIE' \|\| video\.comingSoon === true/);
   const html = readFileSync(path.join(frontendRoot, 'index.html'), 'utf8');
   assert.equal(html.includes('bancadeltempoidea'), false, 'never in the global page template');

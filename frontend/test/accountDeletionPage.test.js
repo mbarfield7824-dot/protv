@@ -187,9 +187,10 @@ test('the privacy page links to the deletion page and keeps the support email ro
   assert.ok(document.querySelector('a[href="mailto:support@watchprotv.com"]'));
   assert.match(document.body.textContent, /watch progress/);
   assert.match(document.body.textContent, /PROtv on your TV/);
-  assert.match(document.body.textContent, /Updated November 5, 2026\./);
-  // The Advertising section explains the opt-in Sponsored placement and the existing AdSense script.
+  assert.match(document.body.textContent, /Updated November 11, 2026./);
+  // The Advertising section explains where Sponsored content loads with a notice, where it asks first, and AdSense.
   assert.ok(document.getElementById('advertising'));
-  assert.match(document.body.textContent, /Nothing from Adsterra loads unless you choose "Allow sponsored content"/);
+  assert.match(document.body.textContent, /loads with the page and says that it is provided by Adsterra/);
+  assert.match(document.body.textContent, /nothing from Adsterra loads unless you choose "Allow sponsored content"/);
   assert.match(document.body.textContent, /Global Privacy Control/);
 });
