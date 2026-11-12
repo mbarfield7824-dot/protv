@@ -8,6 +8,7 @@ import Search from './pages/Search';
 import MyList from './pages/MyList';
 import Title from './pages/Title';
 import Player from './pages/Player';
+import Live from './pages/Live';
 import Admin from './pages/Admin';
 import Profile from './pages/Profile';
 import About from './pages/About';
@@ -59,6 +60,7 @@ function App() {
           <Route path="/my-list" element={<MyList />} />
           <Route path="/title/:id" element={<Title />} />
           <Route path="/player/:id" element={<Player />} />
+          <Route path="/live" element={<Live />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/about" element={<About />} />

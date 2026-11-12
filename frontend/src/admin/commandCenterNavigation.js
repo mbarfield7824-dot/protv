@@ -12,6 +12,9 @@ export const ADMIN_GROUPS = [
     { mode: 'mmwf', label: 'Me and My White Friend', description: 'Upload Reggie Reg and Marv episodes or attach an existing upload to the featured Podcast.' },
     { mode: 'podcasts', label: 'Shows & Episodes', description: 'Manage Podcast Shows, Episode drafts and publishing.' },
   ] },
+  { title: 'Programming', items: [
+    { mode: 'linear-channel', label: 'PROtv LIVE', description: 'Schedule the linear channel, confirm linear rights, draft primetime and review channel viewing.' },
+  ] },
   { title: 'Discovery', items: [
     { mode: 'admin-bot', label: 'Public Domain Discovery', description: 'Review source evidence, discover candidates and manage ingestion.' },
     { mode: 'distributor-ingestion', label: 'Distributor Feed', description: 'Process the configured licensed distributor feed.' },

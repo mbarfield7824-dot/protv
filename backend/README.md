@@ -82,6 +82,12 @@ requires a dedicated `PLAYBACK_TRACKING_SECRET`. See
 rules, retention, Firestore TTL setup, and the deferred Creator Portal reporting
 integration.
 
+## PROtv LIVE (scheduled linear channel)
+
+One web channel at `/live` that plays existing Mux on-demand assets on a server-side
+schedule (no live encoder). It is off until launched from Admin. Linear rights are
+recorded separately and fail closed. See [`docs/linear-channel.md`](./docs/linear-channel.md).
+
 ### Owner access
 
 Content uploads, catalog edits, reviews, and Mux ingestion require a Firebase

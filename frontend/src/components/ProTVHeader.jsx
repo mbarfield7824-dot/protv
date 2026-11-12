@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useLinearChannelPublic } from '../hooks/useLinearChannelPublic';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -39,6 +40,8 @@ export default function ProTVHeader() {
   const { user, isAdmin, openAuthModal, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const liveChannel = useLinearChannelPublic();
+  const navLinks = liveChannel ? [NAV_LINKS[0], { to: '/live', label: 'LIVE' }, ...NAV_LINKS.slice(1)] : NAV_LINKS;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -97,7 +100,7 @@ export default function ProTVHeader() {
         </Link>
 
         <nav className="ptv-header__nav" aria-label="Primary">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.to}
@@ -161,7 +164,7 @@ export default function ProTVHeader() {
       </div>
 
       <nav className={`ptv-mobile-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Mobile" hidden={!mobileOpen}>
-        {NAV_LINKS.map((link) => (
+        {navLinks.map((link) => (
           <Link key={link.label} to={link.to} className={isActive(link.to) ? 'is-active' : ''} onClick={closeAll}>
             {link.label}
           </Link>

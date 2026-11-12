@@ -7,6 +7,7 @@ import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import AdminPodcasts from '../components/AdminPodcasts';
 import AdminShortLinks from '../components/AdminShortLinks';
 import AdminAdvertising from '../components/AdminAdvertising';
+import AdminLinearChannel from '../components/AdminLinearChannel';
 import AdminSafetyReports from '../components/AdminSafetyReports';
 import AdminAccountDeletionRequests from '../components/AdminAccountDeletionRequests';
 import AdminBotPanel from '../components/AdminBotPanel';
@@ -1034,6 +1035,7 @@ export default function Admin() {
         {visitedModes.includes('mmwf') && <div hidden={mode !== 'mmwf'}><AdminPodcasts featured onBusyChange={setPodcastBusy} /></div>}
         {visitedModes.includes('safety-reports') && <div hidden={mode !== 'safety-reports'}><AdminSafetyReports /></div>}
         {visitedModes.includes('advertising') && <div hidden={mode !== 'advertising'}><AdminAdvertising /></div>}
+        {visitedModes.includes('linear-channel') && <div hidden={mode !== 'linear-channel'}><AdminLinearChannel /></div>}
         {visitedModes.includes('account-deletion-requests') && <div hidden={mode !== 'account-deletion-requests'}><AdminAccountDeletionRequests /></div>}
         {visitedModes.includes('admin-bot') && <div hidden={mode !== 'admin-bot'}><AdminBotPanel onPrepareManualUpload={prepareReferenceUpload} /></div>}
         {visitedModes.includes('distributor-ingestion') && <div hidden={mode !== 'distributor-ingestion'}><DistributorIngestionPanel /></div>}

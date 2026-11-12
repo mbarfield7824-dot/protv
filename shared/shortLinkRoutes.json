@@ -8,6 +8,6 @@
     "assets", "icons", "favicon", "robots", "sitemap", "short-links", "health",
     "users", "videos", "mux", "posters", "playback", "v1", "admin-bot",
     "distributor-ingestion", "admin-assistant", "ads", "reports", "settings",
-    "account", "register", "reset-password", "undefined", "null"
+    "account", "register", "reset-password", "live", "undefined", "null"
   ]
 }

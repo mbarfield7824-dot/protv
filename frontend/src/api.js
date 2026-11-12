@@ -244,6 +244,42 @@ export const api = {
     return response;
   },
 
+  // PROtv LIVE. Signed-in Administrators send their sign-in so they can preview before launch and are kept out of channel analytics.
+  async getLinearChannelStatus() {
+    const res = await fetch(`${API_URL}/v1/linear/status`, { cache: 'no-store' });
+    if (!res.ok) return { public: false };
+    return res.json();
+  },
+
+  async getLinearChannel({ preview = false, signal } = {}) {
+    const res = await fetch(`${API_URL}/v1/linear/channel${preview ? '?preview=1' : ''}`, {
+      headers: await authenticatedHeaders(), cache: 'no-store', signal,
+    });
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'PROtv LIVE is temporarily unavailable.'), { status: res.status });
+    return response;
+  },
+
+  async recordLinearEvent(event) {
+    const res = await fetch(`${API_URL}/v1/linear/events`, {
+      method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(event), keepalive: true,
+    });
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'The channel event was not recorded.'), { status: res.status });
+    return response;
+  },
+
+  async adminLinear(path, { method = 'GET', body } = {}) {
+    const res = await fetch(`${API_URL}/admin/linear/${path}`, {
+      method, headers: await authenticatedHeaders(), cache: 'no-store',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    if (res.status === 204) return null;
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'PROtv LIVE administration failed.'), { status: res.status });
+    return response;
+  },
+
   async recordPlaybackEvent(event, { token, signal } = {}) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);

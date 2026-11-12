@@ -15,6 +15,7 @@ const { createCatalogRouter } = require('./catalog/router');
 const { createAdminPodcastRouter } = require('./catalog/adminPodcastRouter');
 const { createLiveRouter } = require('./live/router');
 const { createAdminLiveRouter } = require('./live/adminRouter');
+const { createLinearRouters } = require('./linear/router');
 const { createReportRouters } = require('./reports/router');
 const { createCreatorPosterRouter, createCreatorPosterStorageCheckRouter, posterNotFound } = require('./integrations/creatorPosterStore');
 const { createTitlePosterRouter } = require('./integrations/titlePosterUpload');
@@ -65,6 +66,9 @@ app.use(`${apiPrefix}/short-links`, shortLinks.publicRouter);
 app.use(`${apiPrefix}/admin/short-links`, shortLinks.adminRouter);
 app.use(`${apiPrefix}/v1/live`, createLiveRouter());
 app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
+const linearChannel = createLinearRouters();
+app.use(`${apiPrefix}/v1/linear`, linearChannel.publicRouter);
+app.use(`${apiPrefix}/admin/linear`, linearChannel.adminRouter);
 // Mounted before the users router so the existing favorites/progress routes are untouched.
 app.use(`${apiPrefix}/users/me/deletion-request`, createAccountDeletionRequestRouter());
 app.use(`${apiPrefix}/users`, userRoutes);
