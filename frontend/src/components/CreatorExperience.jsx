@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { useCreatorPortal } from '../hooks/useCreatorPortal';
+import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 
 const benefits = [
@@ -47,7 +49,10 @@ function BenefitIcon({ name }) {
   );
 }
 
-export function CreatorPortalButton({ className = '', children = 'Start Uploading' }) {
+// autoOpen continues to the Creator Portal on its own: it asks a signed-out visitor to sign in once, then opens the
+// portal once per page load. Failures and unverified email stop and wait for the visitor, so it can never loop.
+export function CreatorPortalButton({ className = '', children = 'Start Uploading', autoOpen = false }) {
+  const { user, loading, openAuthModal } = useAuth();
   const {
     openCreatorPortal,
     opening,
@@ -56,6 +61,21 @@ export function CreatorPortalButton({ className = '', children = 'Start Uploadin
     verificationMessage,
     sendVerification,
   } = useCreatorPortal();
+  const prompted = useRef(false);
+  const started = useRef(false);
+  useEffect(() => {
+    if (!autoOpen || loading) return;
+    if (!user) {
+      if (!prompted.current) {
+        prompted.current = true;
+        openAuthModal();
+      }
+      return;
+    }
+    if (started.current) return;
+    started.current = true;
+    openCreatorPortal();
+  }, [autoOpen, loading, user, openAuthModal, openCreatorPortal]);
   return (
     <div className="creator-portal-action">
       <button className={className} type="button" onClick={openCreatorPortal} disabled={opening}>
