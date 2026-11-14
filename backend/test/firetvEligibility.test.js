@@ -15,7 +15,25 @@ const FIRE_TV = { 'User-Agent': 'okhttp/4.12.0', 'X-PROtv-Platform': 'firetv' };
 const CLEARED = 'gbcxmtl6mAHQeBxx8Dgs'; // Tears of Steel
 const HELD = 'IHkqDr5bGIY0Nw5Lhkky'; // Detour: replacement copy awaiting approval
 const HELD_EPISODE = '5FHvg3BEwBlk9qqNdZT5'; // One Step Beyond - The Storm
-const IOS_UNVERIFIED = 'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9'; // A Long Time Coming
+const IOS_A_LONG_TIME_COMING = 'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9';
+const IOS_DOUBLE_DATE = 'creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8';
+const IOS_CAESAR = 'creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f';
+const IOS_CURTAIN_CALL = 'creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d';
+const IOS_LOST_CAMP = 'creator_20752565-9909-4c2b-9f53-c9719ca26769';
+const IOS_CLEARANCES = [
+  [IOS_A_LONG_TIME_COMING, 'A Long Time Coming'],
+  [IOS_DOUBLE_DATE, 'It’s a Double Date a Classic'],
+  [IOS_CAESAR, 'CAESAR III JUDGEMENT'],
+  [IOS_CURTAIN_CALL, 'Curtain Call'],
+  [IOS_LOST_CAMP, 'The Lost Camp'],
+];
+const IOS_EXPECTED_EXPIRY = new Map([
+  [IOS_A_LONG_TIME_COMING, '2028-11-09'],
+  [IOS_DOUBLE_DATE, '2028-11-06'],
+  [IOS_CAESAR, '2028-11-03'],
+  [IOS_CURTAIN_CALL, '2028-11-03'],
+  [IOS_LOST_CAMP, null],
+]);
 
 function title(id, overrides = {}) {
   return {
@@ -34,7 +52,7 @@ const records = [
   title(CLEARED),
   title(HELD),
   title(HELD_EPISODE, { contentType: 'EPISODE', seriesTitle: 'One Step Beyond', seasonNumber: 2, episodeNumber: 7 }),
-  title(IOS_UNVERIFIED, { title: 'A Long Time Coming' }),
+  title(IOS_A_LONG_TIME_COMING, { title: 'A Long Time Coming' }),
 ];
 
 async function serve(context) {
@@ -79,17 +97,44 @@ test('the website, Android and older Fire TV builds keep the full approved catal
   }
 });
 
-test('iOS remains fail-closed until original signed agreements are verified', async (context) => {
-  assert.equal(IOS_LAUNCH_TITLE_IDS.size, 0);
-  assert.equal(IOS_LAUNCH_TITLE_EXPIRY.size, 0);
-  assert.deepEqual(eligibleForPlatform(records, 'ios'), []);
+test('iOS exposes only signed mobile clearances and enforces their term boundaries', async (context) => {
+  const iosRecords = IOS_CLEARANCES.map(([id, name]) => title(id, { title: name }));
+  const iosIds = IOS_CLEARANCES.map(([id]) => id);
+  assert.equal(IOS_LAUNCH_TITLE_IDS.size, 5);
+  assert.equal(IOS_LAUNCH_TITLE_EXPIRY.size, 5);
+  assert.deepEqual([...IOS_LAUNCH_TITLE_IDS], iosIds);
+  assert.deepEqual([...IOS_LAUNCH_TITLE_EXPIRY], [...IOS_EXPECTED_EXPIRY]);
+  assert.deepEqual(eligibleForPlatform(iosRecords, 'ios').map(({ id }) => id), iosIds);
+
+  for (const [id, expiresOn] of IOS_LAUNCH_TITLE_EXPIRY) {
+    if (expiresOn === null) continue;
+    const endOfTermDate = new Date(`${expiresOn}T23:59:59.999Z`);
+    const firstInstantAfterTermDate = new Date(endOfTermDate.getTime() + 1);
+    assert.equal(eligibleForPlatform([title(id)], 'ios', endOfTermDate).length, 1, id);
+    assert.equal(eligibleForPlatform([title(id)], 'ios', firstInstantAfterTermDate).length, 0, id);
+  }
+  assert.deepEqual(
+    eligibleForPlatform([title(IOS_LOST_CAMP)], 'ios', new Date('2100-01-01T00:00:00.000Z')).map(({ id }) => id),
+    [IOS_LOST_CAMP],
+  );
+
+  const unresolved = [
+    'creator_3af7527e-f093-41e3-a52e-b4586d315481', // ARÍỌRÍ: AI commercial-use evidence pending
+    'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: US-only; playback geofencing unverified
+    'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6', // UNITED NATIONS: US-only; playback geofencing unverified
+    'creator_89303465-51e3-46bb-bd21-ff5ed2db2c49', // Dead Air: signing authority unverified
+  ].map((id) => title(id));
+  assert.deepEqual(eligibleForPlatform(unresolved, 'ios'), []);
+
   const get = await serve(context);
   const ios = { 'X-PROtv-Platform': 'ios' };
-  assert.deepEqual((await get('?view=all', ios)).body.items, []);
+  assert.deepEqual((await get('?view=all', ios)).body.items.map((item) => item.id), [IOS_A_LONG_TIME_COMING]);
+  assert.deepEqual((await get('?q=A+Long', ios)).body.items.map((item) => item.id), [IOS_A_LONG_TIME_COMING]);
+  assert.deepEqual((await get('/details', ios)).body.items.map((item) => item.id), [IOS_A_LONG_TIME_COMING]);
   assert.equal((await get(`/titles/${CLEARED}`, ios)).status, 404);
   assert.equal((await get(`/titles/${CLEARED}/playback`, ios)).status, 404);
-  assert.equal((await get(`/titles/${IOS_UNVERIFIED}`, ios)).status, 404);
-  assert.equal((await get(`/titles/${IOS_UNVERIFIED}/playback`, ios)).status, 404);
+  assert.equal((await get(`/titles/${IOS_A_LONG_TIME_COMING}/details`, ios)).status, 200);
+  assert.equal((await get(`/titles/${IOS_A_LONG_TIME_COMING}/playback`, ios)).status, 200);
   assert.equal((await get('?view=all', ios)).policy, 'ios-rights-v1');
 });
 
