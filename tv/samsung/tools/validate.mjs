@@ -112,7 +112,8 @@ export function validateWidget(root, { release = false } = {}) {
     const configJs = join(root, 'js/config.js');
     const text = existsSync(configJs) ? readFileSync(configJs, 'utf8') : '';
     if (!/previewAllowlist:\s*\[\]/.test(text)) fail('release builds must not carry a preview allowlist');
-    if (/build:\s*'preview'/.test(text)) fail('release builds must not be preview builds');
+    if (!/build:\s*"release"/.test(text)) fail('release builds must be built as the "release" flavor');
+    if (!/apiBase:\s*"https:\/\/watchprotv\.com\/api"/.test(text)) fail('release builds must use the production API');
   }
   return { errors, warnings, files: files.length };
 }

@@ -10,8 +10,10 @@ older TVs. Branch: `feature/samsung-tizen` (isolated worktree `D:\protv-samsung`
 | --- | --- |
 | App | Feature-complete for v1.0.0; tested in unit tests and a headless-Chromium browser preview |
 | Package | `dist/PROtv-1.0.0-release-unsigned.wgt` builds reproducibly (same SHA-256 every build) |
-| Signed | **No.** Needs Tizen Studio + Samsung certificate (Samsung account sign-in) |
-| Emulator / TV | **Not run.** Tizen Studio is not installed on this machine yet |
+| Tizen Studio | 6.1 at `D:\tizen-studio` (TV Extensions 10.0, Samsung Certificate Extension 2.0.75, TV emulator 10.0), installed 2026-11-14 |
+| Signed | **Emulator-only.** `dist/signed/*-tizen-emulator-signed.wgt`, signed by the official `tizen package` CLI with a Tizen author certificate + Tizen distributor (key and password in `%USERPROFILE%\PROtv-signing`, outside Git). **Samsung** author/distributor certificates (Samsung account sign-in in Certificate Manager) are still required for a physical TV and Seller Office |
+| Emulator | **Not run.** The TV emulator refuses to start: "Your system cannot support HW virtualization". This PC is AMD (Intel HAXM unsupported) and Windows Hypervisor Platform is off (`check-whpx` exit 2) |
+| TV | Not run |
 | Backend | Samsung rights rule in `backend/src/catalog/platformEligibility.js`, **not deployed** |
 | Store | Listing drafted in `store/LISTING.md`; nothing submitted |
 
@@ -53,6 +55,9 @@ npm test                                   # 36 unit tests
 node tools/validate.mjs                    # config.xml / ES2017 / CSS / secrets checks
 node tools/build.mjs --env-file D:\protv\frontend\.env            # release .wgt (unsigned)
 node tools/build.mjs --preview --env-file D:\protv\frontend\.env  # preview .wgt (unsigned)
+node tools/build.mjs --test-api http://10.0.2.2:5055/api --env-file D:\protv\frontend\.env
+                                           # "localtest" .wgt: release rules against an isolated
+                                           # loopback test backend (emulator host = 10.0.2.2); never submit
 node tools/e2e.mjs                         # 19 remote-key scenarios, fixture backend
 node tools/e2e.mjs --live                  # read-only production GETs + store screenshots
 node tools/serve.mjs                       # http://127.0.0.1:8790 (arrows, Enter, Esc = Back)
