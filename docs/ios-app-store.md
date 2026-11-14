@@ -97,9 +97,9 @@ anything to declare. Creator Portal access is not exposed in the iOS viewer app.
 
 ## Remaining blockers
 
-1. **Expo account:** `eas login` and `scripts/setup-eas-ios.ps1`. No cloud build has run yet.
+1. **Expo account:** The existing project is linked and CLI authentication was verified on 2026-11-14. The preview environment lists the four Firebase client configuration variables, but their correctness has not been tested on iOS. The configured simulator profile disables account deletion, so that flow needs an isolated environment and an appropriately configured test build.
 2. **Apple Developer Program:** the owner reports that Prophecy Entertainment LLC's organization enrollment has been submitted and is pending Apple verification. The current Apple Account is not enabled for App Store Connect, and App Store Connect returns `INVALIDITCUSER`. Do not submit another enrollment. The company membership, any existing app record, bundle registration, signing and distribution permissions remain unverified until Apple completes verification.
-3. **iOS rights:** the 59-title matrix has **5 CLEARED FOR IOS, 29 REQUIRES CLARIFICATION, and 25 NOT CLEARED**. Nine signed Creator Portal agreements and one signed amendment were reviewed against the current published masters. The five allowlisted grants expressly include PROtv mobile apps; the two US-only grants remain withheld because no playback-level territorial restriction is verified. See the [rights audit](./ios-rights-audit-2026-11-13.md) and [59-title matrix](./ios-rights-audit-2026-11-13.csv). The change is development-only; do not distribute a production build until the rights policy is deployed and the remaining conditions are resolved. The client continues to require the `ios-rights-v1` policy marker on catalog, My List, and watch-progress responses.
+3. **iOS rights:** the 59-title matrix has **8 CLEARED FOR IOS, 25 REQUIRES CLARIFICATION, and 26 NOT CLEARED**. Five entries are supported by signed agreements and three by worldwide CC BY licenses; the CC BY masters must still be checked against the documented releases. US-only grants remain withheld because no playback-level territorial restriction is verified. See the [rights audit](./ios-rights-audit-2026-11-13.md) and [59-title matrix](./ios-rights-audit-2026-11-13.csv). The change is development-only; do not distribute a production build until the rights policy is deployed and the remaining conditions are resolved. The client continues to require the `ios-rights-v1` policy marker on catalog, My List, and watch-progress responses.
 4. **iOS acceptance is entirely unverified:** nothing has run on a simulator or iPhone. Run the checklist below after signing and rights are ready.
 5. **Deletion test and service timing:** the app lets a viewer start deletion in-app, but fulfillment is a manual review and deletion runbook, not immediate self-service deletion. The updated backend records iOS submissions as `channel: 'ios'` when deployed and the admin queue preserves that channel. Test with a dedicated account in an isolated environment; no completion deadline is approved. Owner/legal review must approve user-facing timing and retention language before submission.
 6. **Backend catalog field:** the public catalog omits `creatorProjectId` and any added date, so "From PROtv Creators" and "New Releases" stay hidden. The app shows them automatically if the API adds them. No titles currently match Originals, Independent, or Music and Podcasts.
@@ -117,11 +117,20 @@ them in a signed release build before App Store screenshots or submission.
 
 ## Native build status
 
-The EAS project and simulator/production profiles are configured, but the EAS
-CLI is not installed, and cloud account authentication has not been verified.
-This Windows host has no Xcode or iOS simulator. No native `.app` or `.ipa` has
-been produced; a signed or simulator build still requires an authorized macOS
-build environment and the applicable Apple/Expo access.
+The EAS project and simulator/production profiles are configured, and the CLI
+is authenticated. EAS lists an older simulator build from commit `ec336dd`:
+[build 44432f91](https://expo.dev/accounts/prophecyentertainment/projects/protv-mobile/builds/44432f91-5e64-4373-a221-4827e3ca51cf).
+It predates the current iOS release changes and is not their validation.
+On 2026-11-14, Expo reported hosted simulator access unavailable for this
+account. This Windows host has no Xcode or local iOS simulator. No simulator
+build of the current commit or signed TestFlight build has been verified.
+
+The production catalog endpoint returned 59 items without the required iOS
+policy marker on 2026-11-14, so the current iOS client fails closed against it.
+End-to-end testing requires an isolated, production-equivalent backend with
+the current rights policy, authorized test data and services; the existing
+automated tests use local storage and do not establish live playback or
+authentication. Do not deploy the policy to production without approval.
 
 ## iOS acceptance checklist
 

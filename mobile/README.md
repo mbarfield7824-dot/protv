@@ -25,10 +25,12 @@ playback ID and optional server-generated token. Never add a Mux private key,
 Firebase Admin service account, or production secret to this app.
 The iOS build declares `X-PROtv-Platform: ios` on API requests and requires the
 `ios-rights-v1` response marker for catalog, My List, and watch-progress data.
-The source allowlist is empty until each title is verified against its original
-signed agreement. The local review summary for *A Long Time Coming* is not a
-substitute for the signed record. No Roku or Fire TV clearance is reused for
-iOS. Do not distribute a production iOS build until the backend gate is
+The development allowlist contains five titles supported by signed agreements
+and three supported by worldwide CC BY licenses. The latter's streamed masters
+must still be checked against the documented copies before release. See
+`docs/ios-rights-audit-2026-11-13.md` for evidence and outstanding conditions.
+Roku or Fire TV clearance alone does not establish iOS rights.
+Do not distribute a production iOS build until the backend gate is
 deployed; the client rejects responses from older API versions rather than
 displaying or playing an unfiltered catalog.
 
