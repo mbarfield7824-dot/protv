@@ -2,7 +2,7 @@ const express = require('express');
 const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
-const { eligibleForPlatform, platformFromRequest } = require('./platformEligibility');
+const { eligibleForPlatform, platformFromRequest, platformPolicy } = require('./platformEligibility');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const {
   previewContent, contentMetadata, socialMetadata, previewEligible, publicArtworkUrl, ORIGIN,
@@ -17,8 +17,13 @@ const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
 
 // TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
 // so their responses stay exactly as they were.
-const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios']);
+const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios', 'samsung']);
 const websiteRequest = (req) => !DEVICE_PLATFORMS.has(platformFromRequest(req)) && req.query.view !== 'all';
+// Only clients with their own rights policy (Samsung) receive this field; every other response is unchanged.
+const withPolicy = (req, body) => {
+  const policy = platformPolicy(platformFromRequest(req));
+  return policy ? { ...body, platformPolicy: policy } : body;
+};
 // The visitor's own query parameters. The public rewrites (vercel.json) add `path` and the route parameter
 // (`id=<segment>`), which are not the visitor's and must not follow them to the readable address.
 const queryString = (req) => {
@@ -127,7 +132,7 @@ function createCatalogRouter({
     try {
       const videos = await load(req);
       const items = browse(websiteRequest(req) ? (await withPaths(videos)).records : videos, req.query);
-      res.json({ items });
+      res.json(withPolicy(req, { items }));
     } catch (error) {
       if (!(error instanceof RangeError)) console.error('Failed to load viewer catalog:', error);
       res.status(error instanceof RangeError ? 400 : 500).json({
@@ -285,14 +290,14 @@ function createCatalogRouter({
     try {
       const title = await loadTitle(req, req.params.id);
       if (!title) return res.status(404).json({ error: 'Title not found.' });
-      return res.json({
+      return res.json(withPolicy(req, {
         id: title.id,
         streamType: 'on-demand',
         muxPlaybackId: title.muxPlaybackId,
         ...(title.muxPlaybackPolicy === 'signed' ? {
           playbackToken: await signPlaybackToken(title.muxPlaybackId, title.duration),
         } : {}),
-      });
+      }));
     } catch (error) {
       console.error('Failed to load viewer playback:', error);
       return res.status(500).json({ error: 'The catalog is temporarily unavailable.' });

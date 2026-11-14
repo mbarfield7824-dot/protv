@@ -68,10 +68,51 @@ function rokuEligible(video) {
   return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || ROKU_REVIEWED_CREATOR_TITLE_IDS.has(video.id) || video.rokuCleared === true;
 }
 
-function eligibleForPlatform(videos, platform) {
+// Samsung Smart TV (Tizen) is fail-closed with its own allowlist. Roku, Fire TV and iOS clearances do not
+// authorize Samsung. Only titles whose reviewed evidence is worldwide AND covers PROtv's own apps generally
+// (not a list of named platforms) are included, so the Samsung app adds no new geographic exposure:
+// the 2026-11-13 signed-agreement reconciliation (docs/samsung-rights-2026-11-14.md) plus three CC BY 3.0 films.
+// U.S.-only grants and U.S. public-domain findings stay out until playback-level territory controls exist.
+// Inclusive UTC calendar cutoffs; null means no fixed calendar expiry. samsungHold withdraws a title.
+const SAMSUNG_POLICY = 'samsung-rights-v1';
+const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
+  ['creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', '2028-11-09'], // A Long Time Coming: PROtv apps, worldwide
+  ['creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', '2028-11-06'], // It's a Double Date a Classic: website/app streaming, worldwide
+  ['creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', '2028-11-03'], // CAESAR III JUDGEMENT: other PROtv-controlled platforms, worldwide
+  ['creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', '2028-11-03'], // Curtain Call: other PROtv-controlled platforms, worldwide
+  ['creator_20752565-9909-4c2b-9f53-c9719ca26769', null], // The Lost Camp: PROtv platform and associated applications, worldwide
+  ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0, worldwide
+  ['sCWQqVE5WIoNNN5wAGQ2', null], // Sintel: CC BY 3.0, worldwide
+  ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0, worldwide
+]);
+
+function samsungEligible(video, now = new Date()) {
+  if (!video || video.samsungHold === true) return false;
+  const expiresOn = SAMSUNG_LAUNCH_TITLE_EXPIRY.get(video.id);
+  if (expiresOn === undefined) return false;
+  return expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
+}
+
+function eligibleForPlatform(videos, platform, now = new Date()) {
   if (platform === 'roku') return videos.filter(rokuEligible);
+  if (platform === 'samsung') return videos.filter((video) => samsungEligible(video, now));
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
 
-module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform, rokuEligible };
+// Responses that applied a platform's own rights policy name it, so a fail-closed client can refuse a
+// catalog that was not filtered for it (for example, a backend deployed before that client existed).
+function platformPolicy(platform) {
+  return platform === 'samsung' ? SAMSUNG_POLICY : null;
+}
+
+module.exports = {
+  FIRETV_LAUNCH_TITLE_IDS,
+  SAMSUNG_LAUNCH_TITLE_EXPIRY,
+  SAMSUNG_POLICY,
+  platformFromRequest,
+  platformPolicy,
+  eligibleForPlatform,
+  rokuEligible,
+  samsungEligible,
+};

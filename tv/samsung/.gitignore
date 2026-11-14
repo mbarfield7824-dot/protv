@@ -1,0 +1,11 @@
+node_modules/
+build/
+dist/
+*.p12
+*.pem
+*.key
+*.cer
+*.crt
+profiles.xml
+.env
+.env.*
