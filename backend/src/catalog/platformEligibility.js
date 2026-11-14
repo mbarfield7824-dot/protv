@@ -38,14 +38,17 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
-// Signed agreements verified against the current published master. Dates are inclusive UTC
-// calendar cutoffs chosen conservatively before the agreement's exact expiry timestamp.
+// Reviewed iOS rights with inclusive UTC calendar cutoffs where a fixed term applies.
 // Evidence and covered-master references are recorded in docs/ios-rights-audit-2026-11-13.md.
+// A null cutoff means no fixed calendar expiry; continue to honor the documented license terms.
 const IOS_LAUNCH_TITLE_EXPIRY = new Map([
   ['creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', '2028-11-09'], // A Long Time Coming
   ['creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', '2028-11-06'], // It's a Double Date a Classic
   ['creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', '2028-11-03'], // CAESAR III JUDGEMENT
   ['creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', '2028-11-03'], // Curtain Call
+  ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0
+  ['sCWQqVE5WIoNNN5wAGQ2', null], // Sintel: CC BY 3.0
+  ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0
   ['creator_20752565-9909-4c2b-9f53-c9719ca26769', null], // The Lost Camp: while available under the signed schedule
 ]);
 const IOS_LAUNCH_TITLE_IDS = new Set(IOS_LAUNCH_TITLE_EXPIRY.keys());

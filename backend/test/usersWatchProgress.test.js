@@ -10,14 +10,13 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
   const usersPath = require.resolve('../src/routes/users');
   const previous = [firebasePath, authPath, usersPath].map((path) => require.cache[path]);
   const legacy = { positionSeconds: 30, durationSeconds: 100, progressPercent: 30, updatedAt: 1 };
-  const allowedTitleId = 'ios-allowed';
+  const allowedTitleId = 'hKPU3JNJ4faWLgWE6ZSq'; // Big Buck Bunny: reviewed CC BY 3.0 title
   const blockedTitleId = 'ios-blocked';
   let profile = {
     'watchProgress.legacy': legacy, watchProgress: { sibling: legacy },
     favoriteVideoIds: ['sibling'], displayName: 'Viewer',
   };
   const previousEligibility = new Map(IOS_LAUNCH_TITLE_EXPIRY);
-  IOS_LAUNCH_TITLE_EXPIRY.set(allowedTitleId, '2028-11-09');
   const writes = [];
   const ref = {
     get: async () => ({ exists: true, data: () => profile }),

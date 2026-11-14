@@ -6,12 +6,46 @@ This audit reconciles the 59-title matrix with the current published catalog and
 
 | Decision | Count |
 | --- | ---: |
-| CLEARED FOR IOS | 5 |
-| REQUIRES CLARIFICATION | 29 |
-| NOT CLEARED | 25 |
+| CLEARED FOR IOS | 8 |
+| REQUIRES CLARIFICATION | 25 |
+| NOT CLEARED | 26 |
 | Total | 59 |
 
-The five cleared grants name mobile apps or PROtv applications and have no Apple-specific agreement condition in the wording reviewed. This is a factual summary of the signed documents, not a legal opinion. The other 50 matrix decisions were retained: Roku/Fire TV eligibility alone does not establish the rights in a particular mobile-delivered copy, and the available records did not supply the missing title-specific evidence.
+Five cleared titles rely on signed creator agreements; three additional titles are supported by worldwide CC BY 3.0 licenses for the documented official copies. This is a factual summary of the evidence reviewed, not a legal opinion. Roku/Fire TV eligibility alone does not establish rights for a mobile-delivered copy or worldwide availability.
+
+## Reconciliation of earlier rights investigations (2026-11-14)
+
+No new external rights research was performed. I reviewed the existing Roku rights summary, the detailed launch catalog and title-copy matrix from commit [`a101f2c`](https://github.com/mbarfield7824-dot/protv/blob/a101f2c/tv/roku/store/ROKU-LAUNCH-CATALOG.md), the matrix it supersedes ([`TITLE-RIGHTS-MATRIX.md`](https://github.com/mbarfield7824-dot/protv/blob/a101f2c/tv/roku/store/TITLE-RIGHTS-MATRIX.md)), the prior public-domain candidate records, and the catalog snapshots already in the repository. The detailed Roku report records Copyright Office/Catalog of Copyright Entries searches and identifies the copies and music reviewed; the 2026-11-02 Roku summary alone does not establish worldwide or mobile rights.
+
+The Roku findings support three further iOS entries under open licenses, not creator agreements:
+
+| Title | Existing evidence | iOS scope |
+| --- | --- | --- |
+| Big Buck Bunny (2008) | CC BY 3.0; official 480p release and soundtrack; attribution recorded in the catalog description. | Worldwide, commercial streaming permitted with attribution. |
+| Sintel (2010) | CC BY 3.0; official film copy, including its soundtrack; attribution recorded in the catalog description. | Worldwide, commercial streaming permitted with attribution. |
+| Tears of Steel (2012) | CC BY 3.0; official Commons release; attribution recorded in the catalog description. | Worldwide, commercial streaming permitted with attribution. Prepared subtitles are not included in this clearance. |
+
+The archived public-catalog snapshot carries the three CC BY 3.0 attribution lines, and the prior catalog reconciliation matched the title IDs. The live catalog does not expose a source-copy identifier, so confirm the Mux masters still match the documented official releases before a production release; no live catalog record was changed here.
+
+Other results:
+
+- The Roku report identifies U.S. public-domain or non-renewal grounds for 21 currently old-enough Group A films. Those records do not establish worldwide public-domain status, and this backend has no playback-level territory enforcement. They remain `REQUIRES CLARIFICATION`; none was added to the iOS allowlist. Several also have copy- or music-specific caveats recorded in the Roku report. Public-domain works do not require creator signatures, but a U.S.-only finding cannot be exposed globally without enforceable territorial controls.
+- The Exile (1931) is `NOT CLEARED` as of this audit. Its U.S. copyright term runs through 2026-12-31; the report says it enters the U.S. public domain on 2027-01-01. That future date does not establish worldwide rights or remove the iOS territory-control requirement.
+- Elephants Dream remains `REQUIRES CLARIFICATION`: the Roku report identifies CC BY 2.5, while the published catalog description says CC BY 3.0. Both are attribution licenses, but the evidence conflicts on the applicable version, so it was not added.
+- The public-domain candidate store contains discovery leads, mostly still pending. For example, the Woman on the Run and KIPHO candidates do not override the Roku report's renewed-score or unidentified-current-score findings. The confirmed Internet Archive Public Domain Mark for “All public domain Looney Tunes and Merrie Melodies shorts” is a collection-level record, not proof for every embedded work or PROtv version. The Roku report identifies a renewed song in the 1932 Merrie Melodies short, unknown songs/versions in the Looney Tunes collection, and later colorized material; both entries remain blocked.
+- The six Roku “replacement staged” titles remain `NOT CLEARED` for iOS until the approved replacement is actually the published stream. The other Roku rights holds remain blocked for their documented music, derivative-work, episode, source-copy, or authorship issues. Creator agreements with territorial, authority, or AI-commercial-use conditions remain withheld as detailed in the matrix.
+
+The CSV now records a reconciled rights category and title-specific evidence/limit for every row. The three CC BY clearances are additions to the existing five signed clearances; the five signed clearances and all playback safeguards remain unchanged.
+
+In the CSV, `PUBLIC_DOMAIN_US_RIGHTS_BASIS` records U.S.-specific work/copy research, not worldwide clearance. Categories marked `CANDIDATE` or `CLAIM` are unverified leads; `COPY_HELD`, `REPLACEMENT_NOT_APPLIED`, and similar categories mean that public-domain status of the underlying work does not clear the current streamed version.
+
+## Additional clearances
+
+| Title | License and master | Territory and term | Attribution / conditions |
+| --- | --- | --- | --- |
+| Big Buck Bunny (2008) | CC BY 3.0; official 480p release and soundtrack. | Worldwide; no fixed calendar expiry. | Commercial use permitted; Blender Foundation credit remains in the description. |
+| Sintel (2010) | CC BY 3.0; official 888-second film release and soundtrack. | Worldwide; no fixed calendar expiry. | Commercial use permitted; Blender Foundation credit remains in the description. |
+| Tears of Steel (2012) | CC BY 3.0; official 734.06-second Commons release. | Worldwide; no fixed calendar expiry. | Commercial use permitted; Blender Foundation credit remains in the description. The separately prepared subtitles remain outside this clearance. |
 
 ## Cleared titles
 
@@ -38,7 +72,7 @@ For the two US-only grants, the current Mux playback signer in [`backend/src/mux
 
 ## Backend and release state
 
-- The iOS allowlist contains only the five titles in the cleared table. The Lost Camp's `null` expiry means no fixed calendar expiry; its signed term is tied to publication and removal notice.
+- The iOS allowlist contains the five signed titles and three worldwide CC BY 3.0 titles. The three open-license entries use `null` expiry because the licenses have no fixed calendar end date; The Lost Camp's term remains tied to publication and removal notice.
 - Existing iOS request behavior remains: `X-PROtv-Platform: ios` selects the iOS catalog and `X-PROtv-Platform-Policy: ios-rights-v1` identifies the policy. Browse, search, details, playback, favorites, and viewing progress use the same allowlist.
 - No production deployment, catalog publication, agreement change, APK/build, or store submission occurred. The backend changes are on `mobile/ios-release-prep` only.
-- The other 50 rows retain the earlier evidence-based decisions. In particular, titles held for current-copy rights issues remain NOT CLEARED, and other platform clearance is not treated as iOS authorization.
+- The other 51 titles remain excluded from the iOS catalog: 25 require clarification and 26 are not cleared. Current-copy holds remain blocked, and platform-specific Roku/Fire TV eligibility is not treated as iOS authorization.
