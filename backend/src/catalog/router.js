@@ -55,6 +55,7 @@ function createCatalogRouter({
     res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
     res.vary('User-Agent');
     res.vary('X-PROtv-Platform');
+    if (platformFromRequest(req) === 'ios') res.set('X-PROtv-Platform-Policy', 'ios-rights-v1');
     next();
   });
 

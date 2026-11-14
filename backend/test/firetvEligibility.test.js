@@ -2,7 +2,11 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const express = require('express');
 const { createCatalogRouter } = require('../src/catalog/router');
-const { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest } = require('../src/catalog/platformEligibility');
+const {
+  FIRETV_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_IDS,
+  platformFromRequest,
+} = require('../src/catalog/platformEligibility');
 
 const ROKU_UA = 'Roku/DVP-14.0 (114.00E04114A)';
 const FIRE_TV = { 'User-Agent': 'okhttp/4.12.0', 'X-PROtv-Platform': 'firetv' };
@@ -38,7 +42,12 @@ async function serve(context) {
   const base = `http://127.0.0.1:${server.address().port}/v1/catalog`;
   return async (suffix, headers = {}) => {
     const response = await fetch(`${base}${suffix}`, { headers });
-    return { status: response.status, vary: response.headers.get('vary'), body: await response.json() };
+    return {
+      status: response.status,
+      vary: response.headers.get('vary'),
+      policy: response.headers.get('X-PROtv-Platform-Policy'),
+      body: await response.json(),
+    };
   };
 }
 
@@ -66,9 +75,28 @@ test('the website, Android and older Fire TV builds keep the full approved catal
   }
 });
 
+test('iOS is fail-closed for catalog, direct title, and playback until rights are cleared', async (context) => {
+  assert.equal(IOS_LAUNCH_TITLE_IDS.size, 0);
+  const get = await serve(context);
+  const ios = { 'X-PROtv-Platform': 'ios' };
+  assert.deepEqual((await get('?view=all', ios)).body.items, []);
+  assert.equal((await get(`/titles/${CLEARED}`, ios)).status, 404);
+  assert.equal((await get(`/titles/${CLEARED}/playback`, ios)).status, 404);
+  assert.equal((await get('?view=all', ios)).policy, 'ios-rights-v1');
+  try {
+    IOS_LAUNCH_TITLE_IDS.add(CLEARED);
+    assert.deepEqual((await get('?view=all', ios)).body.items.map(({ id }) => id), [CLEARED]);
+    assert.equal((await get(`/titles/${CLEARED}`, ios)).status, 200);
+    assert.equal((await get(`/titles/${CLEARED}/playback`, ios)).status, 200);
+  } finally {
+    IOS_LAUNCH_TITLE_IDS.delete(CLEARED);
+  }
+});
+
 test('the Roku user agent or header selects Roku; a header wins over the user agent', async () => {
   assert.equal(platformFromRequest({ get: (name) => (name === 'User-Agent' ? ROKU_UA : '') }), 'roku');
   assert.equal(platformFromRequest({ get: (name) => (name === 'X-PROtv-Platform' ? ' FireTV ' : '') }), 'firetv');
+  assert.equal(platformFromRequest({ get: (name) => (name === 'X-PROtv-Platform' ? ' iOS ' : '') }), 'ios');
   assert.equal(platformFromRequest({ get: (name) => (name === 'User-Agent' ? 'okhttp/4.12.0' : '') }), 'default');
 });
 

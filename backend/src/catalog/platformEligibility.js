@@ -3,9 +3,10 @@
 // Fire TV is fail-closed: a Fire TV client sees only titles whose rights
 // evidence covers the copy PROtv streams (Group A in
 // tv/roku/store/ROKU-LAUNCH-CATALOG.md on release/roku-1.0-rc9, reused for the
-// Amazon launch). Every other client, Roku included, keeps the full approved
-// catalog. Adding a title here is a reviewed code change, so a rights decision
-// and its deployment travel together.
+// Amazon launch). Roku has its own reviewed eligibility rules; iOS uses a
+// separate allowlist because rights for TV apps do not authorize mobile apps.
+// Adding a title here is a reviewed code change, so a rights decision and its
+// deployment travel together.
 const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'gbcxmtl6mAHQeBxx8Dgs', // Tears of Steel (2012)
   'sCWQqVE5WIoNNN5wAGQ2', // Sintel (2010)
@@ -37,16 +38,20 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
+// iOS is fail-closed until rights evidence is reviewed for iPhone/iPad distribution.
+// Roku and Fire TV clearances do not authorize titles for iOS.
+const IOS_LAUNCH_TITLE_IDS = new Set();
+
 // A scheduled episode carries its own Fire TV clearance: an Administrator ticks it, per season, when
 // scheduling a series with verified ownership and a signed agreement. It is never set by default.
 function clearedEpisode(video) {
   return video.contentType === 'EPISODE' && Boolean(video.creatorEpisodeId) && video.firetvCleared === true;
 }
 
-// Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
-// send X-PROtv-Platform: firetv; older sideloaded builds, Roku, the website and
-// Android send nothing and are unchanged. The header is self-declared, so this
-// controls what the Fire TV app shows; it is not access control.
+// Only an explicit header selects a platform. Fire TV and iOS builds declare
+// their platform; older sideloaded builds, Roku, the website and Android send
+// nothing and are unchanged. The header is self-declared, so it controls the
+// client catalog, not authorization.
 function platformFromRequest(req) {
   const declared = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
   if (declared) return declared;
@@ -70,8 +75,15 @@ function rokuEligible(video) {
 
 function eligibleForPlatform(videos, platform) {
   if (platform === 'roku') return videos.filter(rokuEligible);
+  if (platform === 'ios') return videos.filter((video) => IOS_LAUNCH_TITLE_IDS.has(video.id));
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
 
-module.exports = { FIRETV_LAUNCH_TITLE_IDS, platformFromRequest, eligibleForPlatform, rokuEligible };
+module.exports = {
+  FIRETV_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_IDS,
+  platformFromRequest,
+  eligibleForPlatform,
+  rokuEligible,
+};
