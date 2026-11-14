@@ -17,7 +17,7 @@ const TRANSITIONS = {
   on_hold: new Set(['pending_review', 'additional_information_required', 'approved_for_processing']),
   completed: new Set(),
 };
-const CHANNELS = new Set(['web', 'email']);
+const CHANNELS = new Set(['web', 'email', 'ios']);
 const UID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 // Firebase ID tokens last one hour and the existing verifyToken middleware does not check

@@ -58,6 +58,27 @@ test('iOS rejects successful catalog responses from servers without the rights p
     else process.env.EXPO_OS = originalExpoOs;
   }
 });
+test('iOS My List and progress require server-side rights filtering', async () => {
+  const originalExpoOs = process.env.EXPO_OS;
+  process.env.EXPO_OS = 'ios';
+  const requests = [];
+  global.fetch = async (url, init) => {
+    requests.push({ url, init });
+    return new Response(JSON.stringify(url.endsWith('/favorites') ? [] : {}), {
+      headers: { 'X-PROtv-Platform-Policy': 'ios-rights-v1' },
+    });
+  };
+  try {
+    await api.fetchViewerAccount('test-token');
+    assert.equal(requests.length, 2);
+    assert.ok(requests.every(({ init }) => init.headers['X-PROtv-Platform'] === 'ios'));
+    global.fetch = async () => new Response(JSON.stringify([]));
+    await assert.rejects(api.fetchViewerAccount('test-token'), /does not yet enforce iOS content rights/);
+  } finally {
+    if (originalExpoOs === undefined) delete process.env.EXPO_OS;
+    else process.env.EXPO_OS = originalExpoOs;
+  }
+});
 test('Mux playback validates identifiers and signed tokens', async () => {
   reply({ id: 'real', streamType: 'on-demand', muxPlaybackId: 'abc123', playbackToken: 'signed.token-value' });
   assert.equal(await api.fetchPlaybackUrl('real'), 'https://stream.mux.com/abc123.m3u8?token=signed.token-value');

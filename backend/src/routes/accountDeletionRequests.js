@@ -31,11 +31,12 @@ function createAccountDeletionRequestRouter({
     }
   });
 
-  // TV sign-in sessions (custom tokens) cannot submit: the person must sign in on the
-  // website with their password or Google account within the last five minutes.
+  // TV sign-in sessions (custom tokens) cannot submit: the person must reauthenticate
+  // interactively with a supported account provider within the last five minutes.
   router.post('/', verify, requireInteractive, requireRecent, async (req, res, next) => {
     try {
-      const result = await service.submitRequest(req.user.uid);
+      const channel = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase() === 'ios' ? 'ios' : 'web';
+      const result = await service.submitRequest(req.user.uid, channel);
       res.status(result.created ? 201 : 200).json({ request: result.request });
     } catch (error) {
       if (error.status === 503) return res.status(503).json({ error: error.message });

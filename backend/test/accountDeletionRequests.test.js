@@ -126,10 +126,10 @@ test('account deletion requests require recent interactive auth and are idempote
   context.after(() => new Promise((resolve) => server.close(resolve)));
   await new Promise((resolve) => server.once('listening', resolve));
   const url = `http://127.0.0.1:${server.address().port}/users/me/deletion-request`;
-  async function request(token, method = 'GET') {
+  async function request(token, method = 'GET', extraHeaders = {}) {
     const response = await fetch(url, {
       method,
-      headers: { Authorization: 'Bearer ' + token },
+      headers: { Authorization: 'Bearer ' + token, ...extraHeaders },
     });
     return { status: response.status, cache: response.headers.get('cache-control'), body: await response.json() };
   }
@@ -160,4 +160,7 @@ test('account deletion requests require recent interactive auth and are idempote
   assert.equal(writes.filter((write) => !write.reference.subcollection).length, 1, 'repeat submissions reuse the single request');
   assert.deepEqual((await request('stale')).body, { request: created.body.request }, 'status can be viewed without a recent sign-in');
   assert.deepEqual((await request('otherViewer')).body, { request: null }, 'viewers only see their own request');
+  const iosCreated = await request('otherViewer', 'POST', { 'X-PROtv-Platform': 'ios' });
+  assert.equal(iosCreated.status, 201);
+  assert.equal(records.get('viewer-2').channel, 'ios');
 });

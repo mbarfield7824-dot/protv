@@ -1,8 +1,8 @@
 # Account deletion runbook
 
 For the PROtv administrator who handles deletion requests. One PROtv account
-covers the website and every TV app (Roku, Fire TV, future Android apps), so
-every request is handled the same way, whatever device the person uses.
+covers the website and every app (Roku, Fire TV, Android and iOS), so every
+request is handled the same way, whatever device the person uses.
 
 Deletion is done by hand in the Firebase console. The admin queue tracks each
 request and checks the result; it never deletes anything itself.
@@ -12,6 +12,7 @@ request and checks the result; it never deletes anything itself.
 | Channel | How it arrives | Identity check |
 | --- | --- | --- |
 | Website | `watchprotv.com/delete-account` | Password or Google sign-in within the last 5 minutes, token checked for revocation. TV sign-in sessions cannot submit. |
+| iOS | My PROtv › Account & privacy › Account deletion | Password reauthentication within the last 5 minutes; tagged `ios` by the app request header. |
 | Email | `support@watchprotv.com` (the Roku Account screen and the website both point here) | The email must come from the account's own address. If not, reply asking them to write from that address. |
 
 Requests are stored in Firestore `accountDeletionRequests/{uid}` with the UID,

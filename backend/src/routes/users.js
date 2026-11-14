@@ -1,10 +1,22 @@
 const express = require('express');
 const admin = require('firebase-admin');
-const { db } = require('../firebase');
+const { db, getApprovedVideos } = require('../firebase');
 const { verifyToken } = require('../middleware/auth');
 const { restoredWatchProgress } = require('../watchProgress');
+const { eligibleForPlatform, platformFromRequest } = require('../catalog/platformEligibility');
 
 const router = express.Router();
+
+router.use((req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store',
+    'CDN-Cache-Control': 'no-store',
+    'Vercel-CDN-Cache-Control': 'no-store',
+  });
+  res.vary('X-PROtv-Platform');
+  if (platformFromRequest(req) === 'ios') res.set('X-PROtv-Platform-Policy', 'ios-rights-v1');
+  next();
+});
 
 function requireFirestore(res) {
   if (db) return true;
@@ -12,13 +24,21 @@ function requireFirestore(res) {
   return false;
 }
 
+async function eligibleTitleIdsForRequest(req) {
+  if (platformFromRequest(req) !== 'ios') return null;
+  const videos = await getApprovedVideos();
+  return new Set(eligibleForPlatform(videos, 'ios').map(({ id }) => id));
+}
+
 router.get('/me/favorites', verifyToken, async (req, res, next) => {
   if (!requireFirestore(res)) return;
   try {
     const profile = await db.collection('users').doc(req.user.uid).get();
-    res.json(profile.exists && Array.isArray(profile.data().favoriteVideoIds)
+    const favorites = profile.exists && Array.isArray(profile.data().favoriteVideoIds)
       ? profile.data().favoriteVideoIds
-      : []);
+      : [];
+    const eligibleIds = await eligibleTitleIdsForRequest(req);
+    res.json(eligibleIds ? favorites.filter((id) => eligibleIds.has(id)) : favorites);
   } catch (error) {
     next(error);
   }
@@ -33,6 +53,10 @@ router.put('/me/favorites/:videoId', verifyToken, async (req, res, next) => {
   }
 
   try {
+    const eligibleIds = await eligibleTitleIdsForRequest(req);
+    if (favorite && eligibleIds && !eligibleIds.has(videoId)) {
+      return res.status(404).json({ error: 'Title not found.' });
+    }
     const userRef = db.collection('users').doc(req.user.uid);
     await db.runTransaction(async (transaction) => {
       const profile = await transaction.get(userRef);
@@ -62,7 +86,11 @@ router.get('/me/progress', verifyToken, async (req, res, next) => {
     const profile = await db.collection('users').doc(req.user.uid).get();
     // Includes entries that earlier writes stored as literal "watchProgress.<id>"
     // fields, so saved progress reappears without rewriting any record.
-    res.json(profile.exists ? restoredWatchProgress(profile.data()) : {});
+    const progress = profile.exists ? restoredWatchProgress(profile.data()) : {};
+    const eligibleIds = await eligibleTitleIdsForRequest(req);
+    res.json(eligibleIds
+      ? Object.fromEntries(Object.entries(progress).filter(([id]) => eligibleIds.has(id)))
+      : progress);
   } catch (error) {
     next(error);
   }
@@ -85,6 +113,10 @@ router.put('/me/progress/:videoId', verifyToken, async (req, res, next) => {
   const entry = { positionSeconds, durationSeconds, progressPercent, updatedAt: Date.now() };
 
   try {
+    const eligibleIds = await eligibleTitleIdsForRequest(req);
+    if (eligibleIds && !eligibleIds.has(videoId)) {
+      return res.status(404).json({ error: 'Title not found.' });
+    }
     const userRef = db.collection('users').doc(req.user.uid);
     // set() treats a dotted key as a literal top-level field name (only
     // update() reads it as a path), so write the nested map, which merge

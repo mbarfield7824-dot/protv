@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.protv.mobile",
       "supportsTablet": true,
       "buildNumber": "1",
-      "icon": "./assets/images/ios-icon.png",
+      "icon": "./assets/images/ios-icon-approved-2026-11-13.png",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -50,11 +50,20 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#000000",
+          "ios": {
+            "image": "./assets/images/ios-splash-cinematic-540x405.png",
+            "imageWidth": 280,
+            "resizeMode": "contain",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       "expo-video",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

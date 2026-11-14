@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const express = require('express');
 const admin = require('firebase-admin');
+const { IOS_LAUNCH_TITLE_EXPIRY } = require('../src/catalog/platformEligibility');
 
 test('progress routes write nested fields, preserve siblings, recover legacy entries and delete both shapes', async () => {
   const firebasePath = require.resolve('../src/firebase');
@@ -9,10 +10,14 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
   const usersPath = require.resolve('../src/routes/users');
   const previous = [firebasePath, authPath, usersPath].map((path) => require.cache[path]);
   const legacy = { positionSeconds: 30, durationSeconds: 100, progressPercent: 30, updatedAt: 1 };
+  const allowedTitleId = 'ios-allowed';
+  const blockedTitleId = 'ios-blocked';
   let profile = {
     'watchProgress.legacy': legacy, watchProgress: { sibling: legacy },
     favoriteVideoIds: ['sibling'], displayName: 'Viewer',
   };
+  const previousEligibility = new Map(IOS_LAUNCH_TITLE_EXPIRY);
+  IOS_LAUNCH_TITLE_EXPIRY.set(allowedTitleId, '2028-11-09');
   const writes = [];
   const ref = {
     get: async () => ({ exists: true, data: () => profile }),
@@ -29,7 +34,10 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
       }
     },
   };
-  require.cache[firebasePath] = { exports: { db: { collection: () => ({ doc: () => ref }) } } };
+  require.cache[firebasePath] = { exports: {
+    db: { collection: () => ({ doc: () => ref }) },
+    getApprovedVideos: async () => [{ id: allowedTitleId }, { id: blockedTitleId }],
+  } };
   require.cache[authPath] = { exports: { verifyToken: (req, res, next) => { req.user = { uid: 'test-viewer' }; next(); } } };
   delete require.cache[usersPath];
   const app = express();
@@ -73,8 +81,38 @@ test('progress routes write nested fields, preserve siblings, recover legacy ent
     assert.deepEqual(profile.watchProgress.sibling, legacy);
     assert.deepEqual(profile.favoriteVideoIds, ['sibling']);
     assert.equal(profile.displayName, 'Viewer');
+
+    profile.favoriteVideoIds = [allowedTitleId, blockedTitleId];
+    profile.watchProgress = { ...profile.watchProgress, [allowedTitleId]: legacy, [blockedTitleId]: legacy };
+    const iosHeaders = { 'X-PROtv-Platform': 'ios' };
+    const iosFavorites = await fetch('http://127.0.0.1:' + server.address().port + '/users/me/favorites', { headers: iosHeaders });
+    assert.deepEqual(await iosFavorites.json(), [allowedTitleId]);
+    assert.equal(iosFavorites.headers.get('X-PROtv-Platform-Policy'), 'ios-rights-v1');
+    const iosProgress = await fetch(origin, { headers: iosHeaders });
+    assert.deepEqual(await iosProgress.json(), { [allowedTitleId]: legacy });
+    assert.equal(iosProgress.headers.get('X-PROtv-Platform-Policy'), 'ios-rights-v1');
+    const writesBeforeBlocked = writes.length;
+    for (const [url, body] of [
+      ['http://127.0.0.1:' + server.address().port + '/users/me/favorites/' + blockedTitleId, { favorite: true }],
+      [`${origin}/${blockedTitleId}`, { positionSeconds: 10, durationSeconds: 100 }],
+    ]) {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { ...iosHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 404);
+    }
+    assert.equal(writes.length, writesBeforeBlocked);
+    assert.equal((await fetch(`${origin}/${allowedTitleId}`, {
+      method: 'PUT',
+      headers: { ...iosHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionSeconds: 10, durationSeconds: 100 }),
+    })).status, 200);
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    IOS_LAUNCH_TITLE_EXPIRY.clear();
+    previousEligibility.forEach((date, id) => IOS_LAUNCH_TITLE_EXPIRY.set(id, date));
     [firebasePath, authPath, usersPath].forEach((path, index) => {
       if (previous[index]) require.cache[path] = previous[index];
       else delete require.cache[path];

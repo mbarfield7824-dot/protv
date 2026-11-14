@@ -88,7 +88,10 @@ async function request<T>(path: string, token?: string, init?: RequestInit): Pro
     const body = objectValue(payload);
     throw new Error(typeof body.error === 'string' ? body.error : `PROtv API request failed (${response.status}).`);
   }
-  if (process.env.EXPO_OS === 'ios' && path.startsWith('/v1/catalog')
+  const requiresIosRightsPolicy = path.startsWith('/v1/catalog')
+    || path.startsWith('/users/me/favorites')
+    || path.startsWith('/users/me/progress');
+  if (process.env.EXPO_OS === 'ios' && requiresIosRightsPolicy
     && response.headers.get('X-PROtv-Platform-Policy') !== 'ios-rights-v1') {
     throw new Error('The PROtv server does not yet enforce iOS content rights. Please try again later.');
   }

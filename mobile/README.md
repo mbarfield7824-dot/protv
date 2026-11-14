@@ -24,10 +24,13 @@ the existing `/v1/catalog/titles/:id/playback` endpoint and use its Mux
 playback ID and optional server-generated token. Never add a Mux private key,
 Firebase Admin service account, or production secret to this app.
 The iOS build declares `X-PROtv-Platform: ios` on API requests and requires the
-`ios-rights-v1` response marker. The backend iOS rights allowlist is intentionally
-empty until per-title mobile rights are verified. Do not distribute a production
-iOS build until the backend gate is deployed; the client rejects responses from
-older API versions rather than displaying or playing their unfiltered catalog.
+`ios-rights-v1` response marker for catalog, My List, and watch-progress data.
+The source allowlist is empty until each title is verified against its original
+signed agreement. The local review summary for *A Long Time Coming* is not a
+substitute for the signed record. No Roku or Fire TV clearance is reused for
+iOS. Do not distribute a production iOS build until the backend gate is
+deployed; the client rejects responses from older API versions rather than
+displaying or playing an unfiltered catalog.
 
 ## Firebase and account configuration
 
@@ -83,11 +86,11 @@ Back up the key and passwords securely; future updates must preserve signing
 identity. A release APK does not need Metro. Replacing a debug-signed installation
 with the upload-signed APK requires uninstalling the debug app first.
 
-The app icon uses the supplied blue PROtv artwork. The standard icon is a
-1024-pixel square; the Android adaptive foreground includes transparent padding
-to protect the wordmark under launcher masks. No monochrome icon is configured,
-so Android themed-icon support is not claimed. Icon/config changes require a
-native rebuild without `-SkipPrebuild`.
+The Android launcher icon and splash remain unchanged. The iOS icon uses the
+approved 1024-pixel Apple artwork, and the iOS launch screen uses the approved
+540×405 Roku poster with `contain` scaling; its artwork is platform-specific.
+No monochrome Android icon is configured, so themed-icon support is not
+claimed. Icon/config changes require a native rebuild without `-SkipPrebuild`.
 
 This Windows workstation previously required short native-module junctions at
 `D:\g`, `D:\r`, `D:\s`, and `D:\t` to avoid CMake path limits. Dependency installation
@@ -111,8 +114,10 @@ The root `.easignore` limits uploads to `mobile/` and excludes keys and local en
 On iOS the Firebase session is stored in the Keychain (`lib/firebaseAuth.ios.ts`), split
 across items; Android keeps its existing persistence until its next planned release.
 iPhone screens are portrait except the player, which rotates. iPad rotates freely.
-`assets/images/ios-icon.png` is the approved `icon.png` cropped to its drawn square and
-opaque, so the iOS corner mask does not double the artwork's rounded corners.
+The approved 1024×1024 iOS icon and cinematic 540×405 splash are separate
+platform assets; Expo uses the splash artwork with `contain` scaling. Native
+Firebase persistence is platform-specific so server exports do not execute
+React Native-only Firebase APIs.
 
 ## Project architecture
 
@@ -130,8 +135,6 @@ opaque, so the iOS corner mask does not double the artwork's rounded corners.
 - iOS and iPadOS targets are configured from the beginning. iOS builds and
   physical-device validation require macOS or an approved EAS build profile,
   Apple signing credentials, and actual iPhone/iPad acceptance tests.
-  Native Firebase persistence is platform-specific so server exports do not
-  execute React Native-only Firebase APIs.
 
 ## Checks
 
@@ -153,9 +156,14 @@ toolchain. The native debug APK is written to
   data-retention review (including Creator Portal records).
 - Owner-approved privacy text, Google Play Data Safety declarations, store listing,
   D-U-N-S/developer registration, and physical phone/tablet verification.
-- Dependency audit still reports Zod and deepmerge advisories with no compatible
-  patched version in the current Expo/Firebase dependency chain. Do not force
-  Expo/Firebase downgrades or override Zod 3 with incompatible Zod 4.
+- Dependency audit on 2026-11-13, after non-forced compatible fixes, reports
+  8 moderate advisories in the full tree and 3 moderate in the production tree.
+  The remaining findings are minimatch glob-amplification advisories in the
+  Expo fingerprint/build and TypeScript-ESLint dependency chains;
+  `npm audit fix --force` would downgrade Expo to 52.0.49, so no forced
+  downgrade or minimatch major override was applied. The high Zod advisory was
+  fixed without changing Expo. Recheck for compatible upstream fixes before
+  distribution.
 - Apple credentials, macOS build/signing, and iOS/iPadOS device verification.
 
 Free viewing remains enabled. No advertisement SDK, billing, subscriptions,

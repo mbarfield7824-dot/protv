@@ -38,9 +38,15 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
-// iOS is fail-closed until rights evidence is reviewed for iPhone/iPad distribution.
-// Roku and Fire TV clearances do not authorize titles for iOS.
-const IOS_LAUNCH_TITLE_IDS = new Set();
+// Keep iOS fail-closed until each title is verified against its original signed agreement.
+// The local review summary is not the signed record; TV clearances do not authorize iOS.
+const IOS_LAUNCH_TITLE_EXPIRY = new Map();
+const IOS_LAUNCH_TITLE_IDS = new Set(IOS_LAUNCH_TITLE_EXPIRY.keys());
+
+function iosEligible(video, now) {
+  const expiresOn = IOS_LAUNCH_TITLE_EXPIRY.get(video.id);
+  return expiresOn !== undefined && now.toISOString().slice(0, 10) <= expiresOn;
+}
 
 // A scheduled episode carries its own Fire TV clearance: an Administrator ticks it, per season, when
 // scheduling a series with verified ownership and a signed agreement. It is never set by default.
@@ -73,9 +79,9 @@ function rokuEligible(video) {
   return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || ROKU_REVIEWED_CREATOR_TITLE_IDS.has(video.id) || video.rokuCleared === true;
 }
 
-function eligibleForPlatform(videos, platform) {
+function eligibleForPlatform(videos, platform, now = new Date()) {
   if (platform === 'roku') return videos.filter(rokuEligible);
-  if (platform === 'ios') return videos.filter((video) => IOS_LAUNCH_TITLE_IDS.has(video.id));
+  if (platform === 'ios') return videos.filter((video) => iosEligible(video, now));
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
@@ -83,6 +89,7 @@ function eligibleForPlatform(videos, platform) {
 module.exports = {
   FIRETV_LAUNCH_TITLE_IDS,
   IOS_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_EXPIRY,
   platformFromRequest,
   eligibleForPlatform,
   rokuEligible,

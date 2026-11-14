@@ -32,18 +32,24 @@ account access. Check every answer against App Store Connect's current forms whe
 >
 > Create a free account to save titles to My List and pick up where you left off on your other PROtv devices.
 >
-> PROtv is free to watch. No subscriptions, in-app purchases, or advertisements.
+> PROtv is free to watch. No subscriptions, in-app purchases, or in-app advertisements.
 
 **Keywords (100 characters max):** movies,films,streaming,independent,classic,cinema,documentary,series,free,black cinema
 
 ## Screenshots
 
-`supportsTablet` is on, so Apple asks for iPad screenshots as well as iPhone ones.
+`supportsTablet` is on, so Apple requires screenshots for iPhone with Dynamic
+Island (medium display) and 13-inch iPad. See [Apple's current screenshot
+specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
 
 | Device class | Portrait size |
 | --- | --- |
-| iPhone 6.9-inch | 1320 × 2868 (or 1290 × 2796) |
-| iPad 13-inch | 2064 × 2752 |
+| iPhone with Dynamic Island, medium (required) | 1179 × 2556 or 1206 × 2622 |
+| iPhone with Dynamic Island, large (optional high-resolution set) | 1320 × 2868 or 1290 × 2796 |
+| iPad 13-inch (required) | 2064 × 2752 or 2048 × 2732 |
+
+Use `.jpeg`, `.jpg`, or `.png` without transparency. App Store Connect can scale
+screenshots down when the UI is consistent across device sizes.
 
 Capture from the real app on a simulator or device: Home, title details, series episodes,
 player in landscape, Search, and My PROtv. Up to 10 per device class, using only titles PROtv
@@ -55,6 +61,15 @@ Based on what this codebase does. The app bundles the Firebase client (Auth only
 analytics, advertising, crash-reporting, or tracking SDK.
 
 **Tracking: No.** No App Tracking Transparency prompt is needed.
+
+The iOS bundle contains no ad or analytics SDK. The privacy, support, and
+deletion URLs returned HTTP 200 in the live check, but serve the shared website
+HTML shell, which loads Google's AdSense script; the privacy page separately
+discloses website advertising. Its ad disclosure names website and TV behavior
+but does not explicitly mention the mobile app. Confirm that App Store privacy
+answers describe the iOS app (not the linked website), and verify whether
+Firebase, Mux, or backend logs collect additional app-linked data before
+submitting.
 
 | Data type | Collected | Linked to identity | Purpose |
 | --- | --- | --- | --- |
@@ -83,13 +98,30 @@ anything to declare. Creator Portal access is not exposed in the iOS viewer app.
 ## Remaining blockers
 
 1. **Expo account:** `eas login` and `scripts/setup-eas-ios.ps1`. No cloud build has run yet.
-2. **Apple Developer Program:** organization enrollment is pending; membership, App Store Connect access, signing and distribution permissions are not verified.
-3. **iOS rights are not cleared:** the new server-side iOS allowlist is empty. The iOS app declares its platform so catalog, direct-title and playback requests remain unavailable until each title's mobile rights are verified, approved and deployed. Roku/Fire TV rights are not evidence of iOS rights. Do not distribute a production build until the backend gate is deployed; the client also rejects catalog responses without the `ios-rights-v1` policy marker.
+2. **Apple Developer Program:** the owner reports that Prophecy Entertainment LLC's organization enrollment has been submitted and is pending Apple verification. The current Apple Account is not enabled for App Store Connect, and App Store Connect returns `INVALIDITCUSER`. Do not submit another enrollment. The company membership, any existing app record, bundle registration, signing and distribution permissions remain unverified until Apple completes verification.
+3. **iOS rights:** the 59-title matrix now has **0 CLEARED FOR IOS, 35 REQUIRES CLARIFICATION, and 24 NOT CLEARED** based on independently accessible evidence. This does not establish that the other titles lack contractual rights. The local review summary for *A Long Time Coming* references a signed STD6040-v1 agreement, but the original signed record was not independently reopened; it remains blocked pending verification. The only local agreement PDF found is an unapproved, unsent proposal for a different title. Roku/Fire TV clearances are not mobile authorization. Do not distribute a production build until the rights review is complete and the backend gate is deployed; the client rejects catalog, My List, and watch-progress responses without the `ios-rights-v1` policy marker.
 4. **iOS acceptance is entirely unverified:** nothing has run on a simulator or iPhone. Run the checklist below after signing and rights are ready.
-5. **Deletion test and service timing:** the app uses the existing manual review queue. Test with a dedicated account in a safe environment; no completion deadline is approved. The queue records `channel: 'web'` for app requests, and the website runbook needs owner/legal confirmation of the user-facing timing and retention text.
+5. **Deletion test and service timing:** the app lets a viewer start deletion in-app, but fulfillment is a manual review and deletion runbook, not immediate self-service deletion. The updated backend records iOS submissions as `channel: 'ios'` when deployed and the admin queue preserves that channel. Test with a dedicated account in an isolated environment; no completion deadline is approved. Owner/legal review must approve user-facing timing and retention language before submission.
 6. **Backend catalog field:** the public catalog omits `creatorProjectId` and any added date, so "From PROtv Creators" and "New Releases" stay hidden. The app shows them automatically if the API adds them. No titles currently match Originals, Independent, or Music and Podcasts.
-7. **Owner items:** approve listing copy, age rating, rights-cleared screenshots, demo account, privacy answers and review contact instructions.
+7. **Owner items:** approve listing copy, age rating, rights-cleared screenshots, demo account, privacy answers and review contact instructions. Confirm mobile privacy disclosures against Firebase, Mux/backend logging, and the linked website's AdSense behavior.
 8. **App Review risk:** the app has a per-title link to the existing safety report form and no creator submission, comments or messaging features. Apple may still view creator-submitted catalog content under guideline 1.2; confirm whether a block-user feature and a defined response timeframe are required for this curated viewer app before submission. The app does not claim either feature.
+
+## Proposed iOS branding
+
+The iOS icon points to `mobile/assets/images/ios-icon-approved-2026-11-13.png`
+(1024×1024); the iOS-only splash uses
+`mobile/assets/images/ios-splash-cinematic-540x405.png` (540×405) with
+`contain` scaling. The Android launcher and splash artwork remain unchanged.
+These config changes have not been built or viewed on an iPhone/iPad; verify
+them in a signed release build before App Store screenshots or submission.
+
+## Native build status
+
+The EAS project and simulator/production profiles are configured, but the EAS
+CLI is not installed, and cloud account authentication has not been verified.
+This Windows host has no Xcode or iOS simulator. No native `.app` or `.ipa` has
+been produced; a signed or simulator build still requires an authorized macOS
+build environment and the applicable Apple/Expo access.
 
 ## iOS acceptance checklist
 

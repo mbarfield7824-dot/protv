@@ -5,6 +5,8 @@ const { createCatalogRouter } = require('../src/catalog/router');
 const {
   FIRETV_LAUNCH_TITLE_IDS,
   IOS_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_EXPIRY,
+  eligibleForPlatform,
   platformFromRequest,
 } = require('../src/catalog/platformEligibility');
 
@@ -13,6 +15,7 @@ const FIRE_TV = { 'User-Agent': 'okhttp/4.12.0', 'X-PROtv-Platform': 'firetv' };
 const CLEARED = 'gbcxmtl6mAHQeBxx8Dgs'; // Tears of Steel
 const HELD = 'IHkqDr5bGIY0Nw5Lhkky'; // Detour: replacement copy awaiting approval
 const HELD_EPISODE = '5FHvg3BEwBlk9qqNdZT5'; // One Step Beyond - The Storm
+const IOS_UNVERIFIED = 'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9'; // A Long Time Coming
 
 function title(id, overrides = {}) {
   return {
@@ -31,6 +34,7 @@ const records = [
   title(CLEARED),
   title(HELD),
   title(HELD_EPISODE, { contentType: 'EPISODE', seriesTitle: 'One Step Beyond', seasonNumber: 2, episodeNumber: 7 }),
+  title(IOS_UNVERIFIED, { title: 'A Long Time Coming' }),
 ];
 
 async function serve(context) {
@@ -68,29 +72,25 @@ test('the website, Android and older Fire TV builds keep the full approved catal
   const clients = [{}, { 'User-Agent': 'Mozilla/5.0' }, { 'User-Agent': 'okhttp/4.12.0' }];
   for (const headers of clients) {
     const catalog = await get('?view=all', headers);
-    assert.equal(catalog.body.items.length, 3, JSON.stringify(headers));
+    assert.equal(catalog.body.items.length, 4, JSON.stringify(headers));
     assert.equal((await get(`/titles/${HELD}/playback`, headers)).status, 200);
     assert.equal((await get('/series', headers)).body.items.length, 1);
     assert.match(catalog.vary, /X-PROtv-Platform/);
   }
 });
 
-test('iOS is fail-closed for catalog, direct title, and playback until rights are cleared', async (context) => {
+test('iOS remains fail-closed until original signed agreements are verified', async (context) => {
   assert.equal(IOS_LAUNCH_TITLE_IDS.size, 0);
+  assert.equal(IOS_LAUNCH_TITLE_EXPIRY.size, 0);
+  assert.deepEqual(eligibleForPlatform(records, 'ios'), []);
   const get = await serve(context);
   const ios = { 'X-PROtv-Platform': 'ios' };
   assert.deepEqual((await get('?view=all', ios)).body.items, []);
   assert.equal((await get(`/titles/${CLEARED}`, ios)).status, 404);
   assert.equal((await get(`/titles/${CLEARED}/playback`, ios)).status, 404);
+  assert.equal((await get(`/titles/${IOS_UNVERIFIED}`, ios)).status, 404);
+  assert.equal((await get(`/titles/${IOS_UNVERIFIED}/playback`, ios)).status, 404);
   assert.equal((await get('?view=all', ios)).policy, 'ios-rights-v1');
-  try {
-    IOS_LAUNCH_TITLE_IDS.add(CLEARED);
-    assert.deepEqual((await get('?view=all', ios)).body.items.map(({ id }) => id), [CLEARED]);
-    assert.equal((await get(`/titles/${CLEARED}`, ios)).status, 200);
-    assert.equal((await get(`/titles/${CLEARED}/playback`, ios)).status, 200);
-  } finally {
-    IOS_LAUNCH_TITLE_IDS.delete(CLEARED);
-  }
 });
 
 test('the Roku user agent or header selects Roku; a header wins over the user agent', async () => {
