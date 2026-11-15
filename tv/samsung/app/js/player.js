@@ -193,6 +193,7 @@
     var recoveryTimer = null;
     var closed = true;
     var suspended = false;
+    var playingBeforeSuspend = false;
 
     function publish(patch) {
       Object.keys(patch).forEach(function (key) { state[key] = patch[key]; });
@@ -211,6 +212,9 @@
     var events = {
       buffering: function (on) {
         if (closed) return;
+        // A seek (or AVPlay rebuffer) while paused/ended/errored must not flip the UI to "playing":
+        // AVPlay stays paused after seekTo, so only the buffering flag changes.
+        if (state.phase === 'paused' || state.phase === 'ended' || state.phase === 'error') { publish({ buffering: on }); return; }
         publish({ buffering: on, phase: on ? 'buffering' : (state.phase === 'buffering' ? 'playing' : state.phase) });
       },
       time: function (seconds) {
@@ -310,15 +314,18 @@
     function suspend() {
       if (!adapter || closed || suspended) return;
       suspended = true;
+      playingBeforeSuspend = state.phase === 'playing' || state.phase === 'buffering';
       checkpoint(true);
       adapter.suspend();
       publish({ phase: 'paused' });
     }
 
+    // AVPlay.restore() returns to the pre-suspend state, so the UI phase must follow it.
     function resume() {
       if (!adapter || closed || !suspended) return;
       suspended = false;
       adapter.restore();
+      if (playingBeforeSuspend && state.phase === 'paused') publish({ phase: 'playing' });
     }
 
     function stop() {

@@ -286,3 +286,33 @@ test('end of stream records the full duration', async () => {
   assert.equal(h.session.state().phase, 'ended');
   assert.deepEqual(h.saves.pop(), [600, 600, true]);
 });
+
+test('seeking while paused keeps the session paused (AVPlay stays paused after seekTo)', async () => {
+  const h = playerHarness();
+  await h.session.start({ id: 'a', duration: 600 }, 0);
+  h.av.fire('oncurrentplaytime', 78000);
+  h.session.toggle();
+  assert.equal(h.session.state().phase, 'paused');
+  h.session.seekBy(30);
+  await h.runTimers();
+  assert.deepEqual(h.av.log.filter((e) => e[0] === 'seekTo').pop(), ['seekTo', 108000]);
+  assert.equal(h.session.state().phase, 'paused', 'UI must not claim playback after a paused seek');
+  h.av.fire('onbufferingstart'); h.av.fire('onbufferingcomplete');
+  assert.equal(h.session.state().phase, 'paused', 'rebuffering while paused stays paused');
+  h.session.toggle();
+  assert.deepEqual(h.av.log.slice(-1), [['play']], 'one press resumes');
+  assert.equal(h.session.state().phase, 'playing');
+});
+
+test('resume after suspend restores the playing phase only if it was playing', async () => {
+  const h = playerHarness();
+  await h.session.start({ id: 'a', duration: 600 }, 0);
+  h.session.suspend();
+  assert.equal(h.session.state().phase, 'paused');
+  h.session.resume();
+  assert.equal(h.session.state().phase, 'playing');
+  h.session.toggle();
+  h.session.suspend();
+  h.session.resume();
+  assert.equal(h.session.state().phase, 'paused');
+});
