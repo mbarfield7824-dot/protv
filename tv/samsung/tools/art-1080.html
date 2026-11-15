@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- 1920x1080 Seller Office artwork, same identity as art.html (black, royal/electric blue, white).
+     ?bg renders the background image (logo smaller, tagline); default renders the large icon. -->
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; background: #04060c; }
+  .art { position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background: radial-gradient(1300px 900px at 50% 40%, #163a9c 0%, #0a1a4d 38%, #04060c 78%); font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+  .art::before { content: ''; position: absolute; left: -100px; right: -100px; bottom: -330px; height: 600px;
+    background: radial-gradient(closest-side, rgba(96,165,250,.32), rgba(96,165,250,0)); }
+  .mark { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-weight: 800; font-size: 320px; letter-spacing: -13px; color: #fff; line-height: 1;
+    text-shadow: 0 24px 90px rgba(0,0,0,.55); }
+  .mark i { color: #60a5fa; font-style: italic; letter-spacing: -10px; }
+  .rule { position: absolute; left: 640px; right: 640px; top: 720px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgba(65,105,225,0), #4169e1 30%, #60a5fa 70%, rgba(96,165,250,0)); }
+  .tag { position: absolute; left: 0; right: 0; top: 770px; text-align: center; color: #aab6d3; font-size: 44px; letter-spacing: 10px; display: none; }
+  .bg .mark { top: 360px; font-size: 220px; letter-spacing: -9px; }
+  .bg .rule { top: 620px; left: 760px; right: 760px; height: 6px; }
+  .bg .tag { display: block; top: 660px; }
+</style></head>
+<body><div class="art" id="art"><div class="mark">PRO<i>tv</i></div><div class="rule"></div><div class="tag">WHERE THE FIRE LIVES</div></div>
+<script>if (location.search.indexOf('bg') >= 0) document.getElementById('art').className = 'art bg';</script></body></html>
