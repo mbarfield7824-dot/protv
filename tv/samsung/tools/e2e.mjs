@@ -213,6 +213,15 @@ async function fixtureSuite(url) {
       await shot(page, '03-nav');
     });
 
+    await step('Up/Down at the ends of the rail stay in the rail', async () => {
+      for (let i = 0; i < 10; i += 1) await page.key('down');
+      let cls = await focusClass(page);
+      expect(cls.includes('nav-item'), `Down past the last rail item left the rail: ${cls}`);
+      for (let i = 0; i < 10; i += 1) await page.key('up');
+      cls = await focusClass(page);
+      expect(cls.includes('nav-item'), `Up past the first rail item left the rail: ${cls}`);
+    });
+
     await step('Right from the rail returns to the same card', async () => {
       await page.key('right');
       const cls = await focusClass(page);

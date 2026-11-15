@@ -455,6 +455,8 @@
       if (top) top.lastFocus = focused;
       target = dom.nav.querySelector('.nav-item.active') || target;
     }
+    // Symmetric rule: Up/Down at the top or bottom of the rail stay in the rail (content is left with Right).
+    if (dom.nav.contains(focused) && !dom.nav.contains(target) && (direction === 'up' || direction === 'down')) return;
     setFocus(target);
   }
 
