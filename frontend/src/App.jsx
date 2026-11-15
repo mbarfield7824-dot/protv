@@ -22,6 +22,7 @@ import WatchHistory from './pages/WatchHistory';
 import Series from './pages/Series';
 import SeriesDetail from './pages/SeriesDetail';
 import Creators from './pages/Creators';
+import CreatorPortalSignIn from './pages/CreatorPortalSignIn';
 import CollectionPage from './pages/CollectionPage';
 import Music from './pages/Music';
 import Podcasts from './pages/Podcasts';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/shows" element={<Navigate to="/series" replace />} />
           <Route path="/shows/:slug" element={<Navigate to="/series" replace />} />
           <Route path="/creators" element={<Creators />} />
+          <Route path="/creators/portal" element={<CreatorPortalSignIn />} />
           <Route path="/activate" element={<Activate />} />
           <Route path="/delete-account" element={<AccountDeletion />} />
           <Route path="/music" element={<Music />} />

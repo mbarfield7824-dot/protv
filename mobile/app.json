@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "PROtv",
+    "slug": "protv-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "protv",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.protv.mobile",
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "icon": "./assets/images/ios-icon-approved-2026-11-13.png",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
+      }
+    },
+    "android": {
+      "package": "com.protv.mobile",
+      "versionCode": 3,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#02040C",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "server",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withAndroidRelease",
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000",
+          "ios": {
+            "image": "./assets/images/ios-splash-cinematic-540x405.png",
+            "imageWidth": 280,
+            "resizeMode": "contain",
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-video",
+      "expo-image",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f9f68c38-8aa8-41ee-8f2d-7ef37887dd15"
+      }
+    },
+    "owner": "prophecyentertainment"
+  }
+}

@@ -216,6 +216,17 @@ The code deploys with the normal website release; nothing turns the channel on.
 - No new indexes are needed.
 - After deploying, add Firestore TTL policies on `expiresAt` for `linearChannelSessions` and `linearChannelEventKeys`.
 
+### Deployment record (2026-11-12)
+
+- Deployed commit `d1f6043` (one commit on top of the previous production source `b7a947d`, verified file-for-file)
+  from a tracked-only detached worktree with `--prod --skip-domain`, verified with `vercel curl`, then promoted.
+- Production deployment: `dpl_FHKUoDyNvjFGRKoGc5ymhiptxGqw`. Rollback target: `dpl_CVHvrdfchChytsogxLppgdH7cEQj`
+  (`vercel rollback dpl_CVHvrdfchChytsogxLppgdH7cEQj --yes --scope pro-tv1`). A rollback does not touch Firestore.
+- Channel left **off**: `/v1/linear/status` reports `public: false`, `/v1/linear/channel` returns 404 and `/live` shows
+  "coming soon". `linearChannels/protv-live` was not created.
+- Firestore TTL on `expiresAt` is ACTIVE for `linearChannelSessions` and `linearChannelEventKeys`.
+- `main` was not pushed (a push to `main` rebuilds production through the Git integration).
+
 ## Launch checklist
 
 1. Record linear-rights decisions for the titles you intend to air. A Long Time Coming is pre-filled; the other

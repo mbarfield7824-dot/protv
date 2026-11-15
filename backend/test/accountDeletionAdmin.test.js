@@ -128,6 +128,14 @@ test('admin list reports live, read-only fulfillment checks for each request', a
   assert.equal(request.completionAvailableAt, null);
 });
 
+test('admin request details preserve the iOS submission channel', async () => {
+  const store = testStore();
+  seedRequest(store);
+  store.requests.get('viewer-1').channel = 'ios';
+  const request = await serviceFor(store).getRequest('viewer-1');
+  assert.equal(request.channel, 'ios');
+});
+
 test('the sign-in step requires the TV links and Auth account gone, then starts the waiting period', async () => {
   const store = testStore();
   seedRequest(store, { status: 'approved_for_processing' });

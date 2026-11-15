@@ -43,7 +43,7 @@ function createAccountDeletionRequestService({
 
   // One request per account, keyed by UID, so repeat submissions are idempotent.
   // The record holds no email address; the admin queue reads it from Firebase Auth.
-  async function submitRequest(uid) {
+  async function submitRequest(uid, channel = 'web') {
     const db = requireDb();
     const reference = db.collection(COLLECTION).doc(uid);
     return db.runTransaction(async (transaction) => {
@@ -52,7 +52,7 @@ function createAccountDeletionRequestService({
       const requestedAt = new Date(now());
       const record = {
         uid,
-        channel: 'web',
+        channel: channel === 'ios' ? 'ios' : 'web',
         status: 'pending_review',
         requestedAt,
         updatedAt: requestedAt,

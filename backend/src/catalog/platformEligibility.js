@@ -3,9 +3,11 @@
 // Fire TV is fail-closed: a Fire TV client sees only titles whose rights
 // evidence covers the copy PROtv streams (Group A in
 // tv/roku/store/ROKU-LAUNCH-CATALOG.md on release/roku-1.0-rc9, reused for the
-// Amazon launch). Every other client, Roku included, keeps the full approved
-// catalog. Adding a title here is a reviewed code change, so a rights decision
-// and its deployment travel together.
+// Amazon launch). Roku has its own reviewed eligibility rules; iOS uses a
+// separate allowlist because rights for TV apps do not authorize mobile apps;
+// Samsung Smart TV has its own fail-closed allowlist and policy marker.
+// Adding a title here is a reviewed code change, so a rights decision and its
+// deployment travel together.
 const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'gbcxmtl6mAHQeBxx8Dgs', // Tears of Steel (2012)
   'sCWQqVE5WIoNNN5wAGQ2', // Sintel (2010)
@@ -37,16 +39,37 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
   'MZ6Q6DI2S62pP8laH9Ku', // The Incredible Petrified World (1959)
 ]);
 
+// Reviewed iOS rights with inclusive UTC calendar cutoffs where a fixed term applies.
+// Evidence and covered-master references are recorded in docs/ios-rights-audit-2026-11-13.md.
+// A null cutoff means no fixed calendar expiry; continue to honor the documented license terms.
+const IOS_LAUNCH_TITLE_EXPIRY = new Map([
+  ['creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', '2028-11-09'], // A Long Time Coming
+  ['creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', '2028-11-06'], // It's a Double Date a Classic
+  ['creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', '2028-11-03'], // CAESAR III JUDGEMENT
+  ['creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', '2028-11-03'], // Curtain Call
+  ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0
+  ['sCWQqVE5WIoNNN5wAGQ2', null], // Sintel: CC BY 3.0
+  ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0
+  ['creator_20752565-9909-4c2b-9f53-c9719ca26769', null], // The Lost Camp: while available under the signed schedule
+]);
+const IOS_LAUNCH_TITLE_IDS = new Set(IOS_LAUNCH_TITLE_EXPIRY.keys());
+
+function iosEligible(video, now) {
+  const expiresOn = IOS_LAUNCH_TITLE_EXPIRY.get(video.id);
+  if (expiresOn === undefined) return false;
+  return expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
+}
+
 // A scheduled episode carries its own Fire TV clearance: an Administrator ticks it, per season, when
 // scheduling a series with verified ownership and a signed agreement. It is never set by default.
 function clearedEpisode(video) {
   return video.contentType === 'EPISODE' && Boolean(video.creatorEpisodeId) && video.firetvCleared === true;
 }
 
-// Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
-// send X-PROtv-Platform: firetv; older sideloaded builds, Roku, the website and
-// Android send nothing and are unchanged. The header is self-declared, so this
-// controls what the Fire TV app shows; it is not access control.
+// Only an explicit header selects a platform. Fire TV and iOS builds declare
+// their platform; older sideloaded builds, Roku, the website and Android send
+// nothing and are unchanged. The header is self-declared, so it controls the
+// client catalog, not authorization.
 function platformFromRequest(req) {
   const declared = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
   if (declared) return declared;
@@ -93,8 +116,10 @@ function samsungEligible(video, now = new Date()) {
   return expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
 }
 
+// Each platform with its own rights policy is listed explicitly; every other client keeps the full catalog.
 function eligibleForPlatform(videos, platform, now = new Date()) {
   if (platform === 'roku') return videos.filter(rokuEligible);
+  if (platform === 'ios') return videos.filter((video) => iosEligible(video, now));
   if (platform === 'samsung') return videos.filter((video) => samsungEligible(video, now));
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
@@ -108,6 +133,8 @@ function platformPolicy(platform) {
 
 module.exports = {
   FIRETV_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_IDS,
+  IOS_LAUNCH_TITLE_EXPIRY,
   SAMSUNG_LAUNCH_TITLE_EXPIRY,
   SAMSUNG_POLICY,
   platformFromRequest,
