@@ -594,10 +594,27 @@
       ambient(item);
     }
 
+    // The spotlight rotates, so an OK pressed just as it changes would act on a title the viewer never read:
+    // within the grace window the previous title is restored and used instead.
+    var previous = null;
+    var rotatedAt = 0;
+    function syncPlayLabel() {
+      playBtn.querySelector('span').textContent = P.progress.resumePosition(state.progress, current.id) ? 'Resume' : 'Play';
+    }
+    function chosen() {
+      if (previous && Date.now() - rotatedAt < SPOTLIGHT_GRACE_MS) {
+        state.spotlightIndex = spot.indexOf(previous);
+        show(previous);
+        syncPlayLabel();
+      }
+      previous = null;
+      return current;
+    }
+
     var resume = 0;
-    var playBtn = button('Play', 'play', function () { playItem(current); }, true);
-    var infoBtn = button('More Info', 'info', function () { openItem(current); });
-    var myListBtn = button('My List', 'mylist', function () { toggleFavorite(current, function () { show(current); }); });
+    var playBtn = button('Play', 'play', function () { playItem(chosen()); }, true);
+    var infoBtn = button('More Info', 'info', function () { openItem(chosen()); });
+    var myListBtn = button('My List', 'mylist', function () { var item = chosen(); toggleFavorite(item, function () { show(item); }); });
     var myListLabel = myListBtn.querySelector('span');
     [playBtn, infoBtn, myListBtn].forEach(function (b) { b._focus = function () { browsing = false; ambient(current); }; actions.appendChild(b); });
     spot.forEach(function () { dots.appendChild(el('b')); });
@@ -625,10 +642,14 @@
     if (spot.length > 1) {
       rotate = setInterval(function () {
         if (browsing || !document.body.contains(node) || !dom.dialog.classList.contains('hidden')) return;
+        // Hold the spotlight while the viewer is using the remote; rotate only after they stop.
+        if (Date.now() - lastKeyAt < SPOTLIGHT_HOLD_MS) return;
+        previous = current;
+        rotatedAt = Date.now();
         state.spotlightIndex = (state.spotlightIndex + 1) % spot.length;
         show(spot[state.spotlightIndex]);
-        playBtn.querySelector('span').textContent = P.progress.resumePosition(state.progress, current.id) ? 'Resume' : 'Play';
-      }, 8000);
+        syncPlayLabel();
+      }, SPOTLIGHT_INTERVAL_MS);
     }
 
     return {
@@ -1351,7 +1372,13 @@
   })();
 
   /* ================= key handling ================= */
+  var SPOTLIGHT_INTERVAL_MS = 8000;
+  var SPOTLIGHT_HOLD_MS = 8000;
+  var SPOTLIGHT_GRACE_MS = 1200;
+  var lastKeyAt = 0;
+
   function onKeyDown(event) {
+    lastKeyAt = Date.now();
     var name = P.keys.name(event);
     var top = currentScreen();
     var playerOpen = !dom.player.classList.contains('hidden');
