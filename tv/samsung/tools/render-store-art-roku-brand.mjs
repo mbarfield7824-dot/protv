@@ -10,6 +10,8 @@ import { launch } from './cdp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = process.argv[2];
+// --app (with --logo): also write the TV app's logo images: splash 720, details placeholder 320, menu/card 120 px wide.
+const APP_LOGO_WIDTHS = [720, 320, 120];
 const logoAt = process.argv.indexOf('--logo');
 const logoFile = logoAt > 0 ? process.argv[logoAt + 1] : null;
 if (!out || out.startsWith('--')) throw new Error('usage: node tools/render-store-art-roku-brand.mjs <output dir> [--logo <png>]');
@@ -66,6 +68,18 @@ try {
     write('_review/icon-preview-logo-on-background.jpg', fromDataUrl(await page.eval('ART.official.preview(0.92)')));
     const box = await page.eval('ART.official.logoBox()');
     console.log(`logo placed at ${Math.round(box.width)}x${Math.round(box.height)} px in the 1920x1080 frame`);
+    if (process.argv.includes('--app')) {
+      // In-app logo images at their exact on-screen widths, and the package icon (same as the store 512x423 icon).
+      const appDir = join(here, '..', 'app');
+      mkdirSync(join(appDir, 'img'), { recursive: true });
+      for (const w of APP_LOGO_WIDTHS) {
+        const buf = png(await page.eval(`ART.official.scaled(${w})`), true);
+        writeFileSync(join(appDir, 'img', `logo-${w}.png`), buf);
+        console.log(`app/img/logo-${w}.png ${buf.length} bytes`);
+      }
+      writeFileSync(join(appDir, 'icon.png'), readFileSync(join(out, 'app-icon-512x423.png')));
+      console.log('app/icon.png = app-icon-512x423.png');
+    }
     process.exitCode = 0;
   } else {
   write('app-icon-512x423.png', png(await page.eval('ART.icon512()'), false));

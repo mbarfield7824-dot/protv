@@ -77,10 +77,16 @@
     return node;
   }
 
-  function wordmark() {
-    var mark = el('span', 'wordmark', 'PRO');
-    mark.appendChild(el('i', '', 'tv'));
-    return mark;
+  // Official PROtv logo artwork, pre-scaled to its exact on-screen width (img/logo-<width>.png; see
+  // tools/render-store-art-roku-brand.mjs --app). Width and height keep the logo's own aspect ratio.
+  var LOGO_HEIGHTS = { 720: 198, 320: 88, 120: 33 };
+  function wordmark(width) {
+    var w = LOGO_HEIGHTS[width] ? width : 120;
+    var img = new Image(w, LOGO_HEIGHTS[w]);
+    img.className = 'wordmark';
+    img.alt = 'PROtv';
+    img.src = 'img/logo-' + w + '.png';
+    return img;
   }
 
   var ICONS = {
@@ -757,7 +763,7 @@
     var episode = item.contentType === 'EPISODE';
     var art = el('div', 'details-art' + (episode ? ' wide' : ''));
     if (item.artwork) { var img = new Image(); img.src = item.artwork; img.alt = item.title; art.appendChild(img); }
-    else { art.appendChild(wordmark()); art.style.display = 'flex'; art.style.alignItems = 'center'; art.style.justifyContent = 'center'; }
+    else { art.appendChild(wordmark(320)); art.style.display = 'flex'; art.style.alignItems = 'center'; art.style.justifyContent = 'center'; }
     var copy = el('div', 'details-copy');
     var series = episode ? C.seriesFor(state.items, item) : null;
     copy.appendChild(el('div', 'eyebrow', C.isCreatorTitle(item) ? 'PROtv Creator Original' : (episode ? (item.seriesTitle || 'Episode') : (item.category || 'Movie'))));

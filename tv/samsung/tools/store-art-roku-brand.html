@@ -208,6 +208,20 @@ window.ART = {
     detailBackground: (q) => jpeg(OFFICIAL.detail(), q),
     preview: (q) => jpeg(OFFICIAL.preview(), q),
     logoBox: () => window.__logoBox,
+    // The logo alone at an exact display width for the TV app (1:1 pixels on a 1920x1080 screen). Downscaled in
+    // halving steps for sharpness; aspect ratio from the logo's own visible bounds, so nothing is stretched.
+    scaled: (width) => {
+      let src = canvas(LOGO.w, LOGO.h); src[1].drawImage(LOGO.img, LOGO.x, LOGO.y, LOGO.w, LOGO.h, 0, 0, LOGO.w, LOGO.h);
+      let cur = src[0];
+      while (cur.width / 2 >= width) {
+        const [n, nx] = canvas(Math.round(cur.width / 2), Math.round(cur.height / 2));
+        nx.imageSmoothingEnabled = true; nx.imageSmoothingQuality = 'high'; nx.drawImage(cur, 0, 0, n.width, n.height); cur = n;
+      }
+      const h = Math.round(width * LOGO.h / LOGO.w);
+      const [out, ox] = canvas(width, h);
+      ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = 'high'; ox.drawImage(cur, 0, 0, width, h);
+      return rgba(out);
+    },
   },
   icon512: () => rgba(brandCard(512, 423, '')),
   logo: () => rgba(samsungLogo()),
