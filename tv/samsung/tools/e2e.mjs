@@ -160,6 +160,17 @@ async function fixtureSuite(url) {
     await page.goto(url);
     await ready(page);
 
+    await step('branding: the official logo image loads at its exact size in the splash and menu; no text logo remains', async () => {
+      const logos = await page.eval(`Array.from(document.querySelectorAll('img.wordmark')).map((i) => ({ src: i.getAttribute('src'), w: i.getBoundingClientRect().width, h: i.getBoundingClientRect().height, nw: i.naturalWidth, nh: i.naturalHeight, ok: i.complete && i.naturalWidth > 0, where: i.closest('#splash') ? 'splash' : i.closest('.nav') ? 'menu' : 'other' }))`);
+      const splash = logos.find((l) => l.where === 'splash');
+      const menu = logos.find((l) => l.where === 'menu');
+      expect(splash && splash.ok && splash.src === 'img/logo-720.png' && splash.nw === 720 && splash.nh === 198, `splash logo ${JSON.stringify(splash)}`);
+      expect(menu && menu.ok && menu.src === 'img/logo-120.png' && Math.round(menu.w) === 120 && Math.round(menu.h) === 33, `menu logo ${JSON.stringify(menu)}`);
+      const textMarks = await page.eval(`document.querySelectorAll('span.wordmark, div.wordmark').length`);
+      expect(textMarks === 0, `${textMarks} text wordmarks remain`);
+      return `menu ${menu.w}x${menu.h}, splash ${splash.nw}x${splash.nh}`;
+    });
+
     await step('home renders the hero with Play focused and only Samsung-cleared movies', async () => {
       const text = await focusText(page);
       expect(/Play|Resume/.test(text), `focus is "${text}"`);
