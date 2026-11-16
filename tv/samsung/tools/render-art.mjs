@@ -11,7 +11,12 @@ if (process.argv.includes('--seller')) {
   const big = await launch({ width: 1920, height: 1080 });
   try {
     mkdirSync(join(here, '..', 'store'), { recursive: true });
-    for (const [query, name] of [['', 'app-icon-1920x1080.png'], ['?bg', 'background-1920x1080.png']]) {
+    // Seller Office icon = a logo with transparency layered over a separate background image.
+    const shots = [['', 'app-icon-1920x1080.png'], ['?bg', 'background-1920x1080.png'],
+      ['?logo', 'app-logo-1920x1080-transparent.png'], ['?plain', 'icon-background-1920x1080.png']];
+    for (const [query, name] of shots) {
+      const transparent = query === '?logo';
+      await big.send('Emulation.setDefaultBackgroundColorOverride', transparent ? { color: { r: 0, g: 0, b: 0, a: 0 } } : {});
       await big.goto(pathToFileURL(join(here, 'art-1080.html')).href + query);
       await big.waitFor('document.readyState === "complete"');
       const png = await big.screenshot('png');

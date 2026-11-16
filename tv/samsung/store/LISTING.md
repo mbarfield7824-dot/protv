@@ -40,7 +40,7 @@ Filmmakers can submit their work at watchprotv.com/creators.
 
 ## URLs and contacts
 
-- Privacy policy: https://watchprotv.com/privacy (**publish the updated policy first**, as for Roku)
+- Privacy policy: https://watchprotv.com/privacy (live; has a "PROtv on your TV" section, updated 2026-11-11)
 - Terms: https://watchprotv.com/terms
 - Support: support@watchprotv.com, https://watchprotv.com/contact
 - Support phone, administrative and technical contacts: **OWNER**

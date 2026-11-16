@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- 1920x1080 Seller Office artwork, same identity as art.html (black, royal/electric blue, white).
-     ?bg renders the background image (logo smaller, tagline); default renders the large icon. -->
+     ?bg renders the background image (logo smaller, tagline); default renders the large icon.
+     ?logo renders the logo alone on a transparent canvas; ?plain renders the backdrop with no text. -->
 <html><head><meta charset="utf-8"><style>
   html, body { margin: 0; background: #04060c; }
   .art { position: relative; width: 1920px; height: 1080px; overflow: hidden;
@@ -15,6 +16,13 @@
   .bg .mark { top: 360px; font-size: 220px; letter-spacing: -9px; }
   .bg .rule { top: 620px; left: 760px; right: 760px; height: 6px; }
   .bg .tag { display: block; top: 660px; }
+  html.logo, html.logo body, .logo .art { background: transparent; }
+  .logo .art::before { display: none; }
+  .logo .mark { text-shadow: none; }
+  .plain .mark, .plain .rule, .plain .tag { display: none; }
 </style></head>
 <body><div class="art" id="art"><div class="mark">PRO<i>tv</i></div><div class="rule"></div><div class="tag">WHERE THE FIRE LIVES</div></div>
-<script>if (location.search.indexOf('bg') >= 0) document.getElementById('art').className = 'art bg';</script></body></html>
+<script>var q = location.search;
+if (q.indexOf('bg') >= 0) document.getElementById('art').className = 'art bg';
+if (q.indexOf('logo') >= 0) document.documentElement.className = 'logo';
+if (q.indexOf('plain') >= 0) document.documentElement.className = 'plain';</script></body></html>
