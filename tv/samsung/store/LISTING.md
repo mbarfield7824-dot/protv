@@ -73,7 +73,8 @@ a personal or admin account (TV sessions are restricted from admin routes, but k
 
 ## Before submitting (blocking)
 
-1. Deploy the backend Samsung rule (the release app shows no titles until then).
+1. ~~Deploy the backend Samsung rule~~ Done 2026-11-16 (`dpl_6oC21Wk7WsQZELruyGjaTQTBSe2y`, from local branch
+   `release/samsung-backend-2026-11-16` = production `d1d62b6` + this branch; rollback `dpl_Hz8GsG964hwGxv86dGxakZ4ex7iB`).
 2. Sign the package with the Samsung distributor certificate (Tizen Studio profile `PROtv`). The current
    distributor certificate is a DUID-bound public-level certificate listing only the emulator DUID. Confirm in
    Seller Office which signed package it expects at upload (not verified from Samsung docs). Every future

@@ -170,6 +170,33 @@ async function fixtureSuite(url) {
       return `${cards.length} cards`;
     });
 
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const heroTitle = () => page.eval(`document.querySelector('.hero-title').textContent`);
+    await step('spotlight holds while the remote is in use', async () => {
+      const before = await heroTitle();
+      for (let i = 0; i < 8; i += 1) { await page.key(i % 2 ? 'left' : 'right'); await sleep(2300); }
+      const after = await heroTitle();
+      expect(after === before, `spotlight rotated from "${before}" to "${after}" while keys were pressed`);
+      expect(/Play|Resume/.test(await focusText(page)), 'focus left Play');
+      return `held "${before}" for ~19 s of key presses`;
+    });
+
+    await step('OK just after the spotlight rotates plays the title that was showing', async () => {
+      const shown = await heroTitle();
+      await page.waitFor(`document.querySelector('.hero-title').textContent !== ${JSON.stringify(shown)}`, 20000);
+      const before = backend.requests.length;
+      await page.key('enter');
+      await page.waitFor(`!document.getElementById('player').classList.contains('hidden')`);
+      await sleep(600);
+      const auth = backend.requests.slice(before).find((r) => /\/playback$/.test(r.url));
+      const expected = titles.find((t) => t.title === shown);
+      expect(auth && expected && auth.url.includes(encodeURIComponent(expected.id)), `played ${auth && auth.url}, expected "${shown}"`);
+      await page.key('back');
+      await page.waitFor(`document.getElementById('player').classList.contains('hidden')`);
+      expect((await heroTitle()) === shown, 'spotlight was not restored to the title that was showing');
+      return `played "${shown}"`;
+    });
+
     await step('every API request declares X-PROtv-Platform: samsung', async () => {
       const api = backend.requests.filter((r) => r.url.startsWith('https://watchprotv.com/api'));
       expect(api.length > 0, 'no API requests');
@@ -345,6 +372,18 @@ async function fixtureSuite(url) {
       await page.key('back');
       await page.waitFor(`!!document.querySelector('.hero')`);
       return label;
+    });
+
+    await step('Signed in: changes made on the website reach My List and Continue Watching without relaunching', async () => {
+      const extra = titles.find((t) => !backend.favorites.includes(t.id) && t.id !== TEARS);
+      backend.favorites = [...backend.favorites, extra.id];
+      backend.progress[extra.id] = { positionSeconds: 120, durationSeconds: 600, progressPercent: 20, updatedAt: Date.now() };
+      await new Promise((r) => setTimeout(r, 31000)); // past the 30 s refresh interval
+      await goNav(page, 'mylist');
+      await page.waitFor(`document.getElementById('screen').textContent.indexOf(${JSON.stringify(extra.title)}) >= 0`, 10000);
+      await goNav(page, 'home');
+      await page.waitFor(`Array.from(document.querySelectorAll('[data-row="continue"] .card')).some((c) => c._item && c._item.id === ${JSON.stringify(extra.id)})`, 10000);
+      return extra.title;
     });
 
     await step('Back from a row goes to the hero, Back again shows the exit dialog; Cancel keeps the app open', async () => {

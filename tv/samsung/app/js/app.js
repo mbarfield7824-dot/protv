@@ -33,6 +33,7 @@
     progress: {},
     favorites: [],
     favoritesLoaded: false,
+    accountSyncedAt: 0,
     stack: [],
     navOpen: false,
     rowMemory: {},
@@ -306,6 +307,7 @@
     state.stack = [];
     state.navOpen = false;
     push(buildRoot(id));
+    if (id === 'home' || id === 'mylist') refreshAccount();
   }
 
   function buildRoot(id) {
@@ -594,10 +596,27 @@
       ambient(item);
     }
 
+    // The spotlight rotates, so an OK pressed just as it changes would act on a title the viewer never read:
+    // within the grace window the previous title is restored and used instead.
+    var previous = null;
+    var rotatedAt = 0;
+    function syncPlayLabel() {
+      playBtn.querySelector('span').textContent = P.progress.resumePosition(state.progress, current.id) ? 'Resume' : 'Play';
+    }
+    function chosen() {
+      if (previous && Date.now() - rotatedAt < SPOTLIGHT_GRACE_MS) {
+        state.spotlightIndex = spot.indexOf(previous);
+        show(previous);
+        syncPlayLabel();
+      }
+      previous = null;
+      return current;
+    }
+
     var resume = 0;
-    var playBtn = button('Play', 'play', function () { playItem(current); }, true);
-    var infoBtn = button('More Info', 'info', function () { openItem(current); });
-    var myListBtn = button('My List', 'mylist', function () { toggleFavorite(current, function () { show(current); }); });
+    var playBtn = button('Play', 'play', function () { playItem(chosen()); }, true);
+    var infoBtn = button('More Info', 'info', function () { openItem(chosen()); });
+    var myListBtn = button('My List', 'mylist', function () { var item = chosen(); toggleFavorite(item, function () { show(item); }); });
     var myListLabel = myListBtn.querySelector('span');
     [playBtn, infoBtn, myListBtn].forEach(function (b) { b._focus = function () { browsing = false; ambient(current); }; actions.appendChild(b); });
     spot.forEach(function () { dots.appendChild(el('b')); });
@@ -625,10 +644,14 @@
     if (spot.length > 1) {
       rotate = setInterval(function () {
         if (browsing || !document.body.contains(node) || !dom.dialog.classList.contains('hidden')) return;
+        // Hold the spotlight while the viewer is using the remote; rotate only after they stop.
+        if (Date.now() - lastKeyAt < SPOTLIGHT_HOLD_MS) return;
+        previous = current;
+        rotatedAt = Date.now();
         state.spotlightIndex = (state.spotlightIndex + 1) % spot.length;
         show(spot[state.spotlightIndex]);
-        playBtn.querySelector('span').textContent = P.progress.resumePosition(state.progress, current.id) ? 'Resume' : 'Play';
-      }, 8000);
+        syncPlayLabel();
+      }, SPOTLIGHT_INTERVAL_MS);
     }
 
     return {
@@ -1092,13 +1115,33 @@
     var progress = accountService.authorized('GET', '/users/me/progress').then(function (response) {
       if (!accountService.current() || accountService.current().uid !== viewer) return;
       if (response.status === 200 && response.body && typeof response.body === 'object') {
-        state.progress = P.progress.parse(JSON.stringify(response.body));
+        // Positions saved on this TV but not yet accepted by the server stay newer than the server copy.
+        var merged = P.progress.parse(JSON.stringify(response.body));
+        Object.keys(pendingProgress).forEach(function (id) { merged = P.progress.record(merged, id, pendingProgress[id], 100000); });
+        state.progress = merged;
       }
     });
     return Promise.all([favorites, progress]).then(function () {
+      state.accountSyncedAt = Date.now();
       if (announce) toast('Your PROtv account is up to date.', 3000);
     }, function () {
       if (announce) toast('We couldn’t sync right now. We’ll try again later.');
+    });
+  }
+
+  // My List and Continue Watching change on the website and other devices too: refresh them (at most every
+  // ACCOUNT_STALE_MS) when PROtv returns to the foreground or the viewer opens Home or My List, and redraw
+  // only when something changed and the viewer is on that top-level screen.
+  var ACCOUNT_STALE_MS = 30 * 1000;
+  function refreshAccount() {
+    if (!accountService.current() || Date.now() - state.accountSyncedAt < ACCOUNT_STALE_MS) return;
+    state.accountSyncedAt = Date.now();
+    var before = JSON.stringify([state.favorites, state.progress]);
+    syncAccount(false).then(function () {
+      if (JSON.stringify([state.favorites, state.progress]) === before) return;
+      var top = currentScreen();
+      if (top && state.stack.length === 1 && (top.navId === 'home' || top.navId === 'mylist') && !state.navOpen
+        && dom.player.classList.contains('hidden') && dom.dialog.classList.contains('hidden')) rebuildTop();
     });
   }
 
@@ -1351,7 +1394,13 @@
   })();
 
   /* ================= key handling ================= */
+  var SPOTLIGHT_INTERVAL_MS = 8000;
+  var SPOTLIGHT_HOLD_MS = 8000;
+  var SPOTLIGHT_GRACE_MS = 1200;
+  var lastKeyAt = 0;
+
   function onKeyDown(event) {
+    lastKeyAt = Date.now();
     var name = P.keys.name(event);
     var top = currentScreen();
     var playerOpen = !dom.player.classList.contains('hidden');
@@ -1403,7 +1452,7 @@
       return;
     }
     if (!dom.player.classList.contains('hidden')) { session.resume(); osd.show(true); }
-    accountService.ensureFresh().then(function () { flushPending(); }, function () {});
+    accountService.ensureFresh().then(function () { flushPending(); refreshAccount(); }, function () {});
     if (state.catalogStatus === 'ready' && Date.now() - state.catalogLoadedAt > CATALOG_STALE_MS && dom.player.classList.contains('hidden')) {
       loadCatalog(true).then(function () { var top = currentScreen(); if (top && top.navId === 'home' && state.stack.length === 1) rebuildTop(); });
     }
