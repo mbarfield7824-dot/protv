@@ -1,0 +1,167 @@
+<!doctype html>
+<!-- Samsung Seller Office images in the approved Roku brand (store tooling only; not part of the TV package).
+     The constants and drawing functions below are copied verbatim from the approved Roku generator
+     (release/roku-1.0-rc9: tv/roku/tools/assets.html): BG/ROYAL/ELECTRIC, FONT, rr, glow, dither, ambience,
+     wordmark, wordmarkWidth, brandCard. Only canvas sizes and placement are adapted to Samsung's rules.
+     Run: node tools/render-store-art-roku-brand.mjs -->
+<html><head><meta charset="utf-8"></head><body><script>
+const BG = '#05070B';
+const ROYAL = '#4169E1';
+const ELECTRIC = '#60A5FA';
+const FONT = '"Segoe UI", Arial, sans-serif';
+
+function canvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return [c, c.getContext('2d')];
+}
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function glow(ctx, x, y, radius, rgb, alpha) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  g.addColorStop(0, `rgba(${rgb},${alpha})`);
+  g.addColorStop(0.45, `rgba(${rgb},${alpha * 0.45})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+}
+function dither(ctx, w, h, rows) {
+  const img = ctx.getImageData(0, 0, w, rows);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 3;
+    img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function ambience(ctx, w, h, fadeTop, fadeBottom, noise = true) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+  glow(ctx, w * 0.84, h * 0.06, w * 0.6, '37,73,190', 0.55);
+  glow(ctx, w * 0.12, -h * 0.12, w * 0.42, '96,165,250', 0.20);
+  glow(ctx, w * 0.5, h * 0.02, w * 0.3, '65,105,225', 0.12);
+  const f = ctx.createLinearGradient(0, fadeTop, 0, fadeBottom);
+  f.addColorStop(0, 'rgba(5,7,11,0)'); f.addColorStop(1, 'rgba(5,7,11,1)');
+  ctx.fillStyle = f; ctx.fillRect(0, fadeTop, w, h - fadeTop);
+  ctx.fillStyle = BG; ctx.fillRect(0, fadeBottom, w, h - fadeBottom);
+  if (noise) dither(ctx, w, h, Math.min(h, fadeBottom));
+}
+function wordmark(ctx, x, baseline, size) {
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `800 ${size}px ${FONT}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('PRO', x, baseline);
+  const pro = ctx.measureText('PRO').width;
+  ctx.font = `italic 800 ${size}px ${FONT}`;
+  ctx.fillStyle = '#4D9BFF';
+  ctx.fillText('tv', x + pro + size * 0.02, baseline);
+  return pro + size * 0.02 + ctx.measureText('tv').width;
+}
+function wordmarkWidth(ctx, size) {
+  ctx.font = `800 ${size}px ${FONT}`;
+  const pro = ctx.measureText('PRO').width;
+  ctx.font = `italic 800 ${size}px ${FONT}`;
+  return pro + size * 0.02 + ctx.measureText('tv').width;
+}
+function brandCard(w, h, tagline) {
+  const [c, ctx] = canvas(w, h);
+  ambience(ctx, w, h, h * 0.55, h * 1.2, Boolean(tagline));
+  const size = Math.round(h * (tagline ? 0.16 : 0.27));
+  const mw = wordmarkWidth(ctx, size);
+  const x = (w - mw) / 2;
+  const baseline = h * (tagline ? 0.52 : 0.6);
+  ctx.fillStyle = ELECTRIC;
+  rr(ctx, x, baseline - size * 1.12, size * 1.1, Math.max(3, size * 0.07), size * 0.035); ctx.fill();
+  wordmark(ctx, x, baseline, size);
+  if (tagline) {
+    ctx.font = `500 ${Math.round(size * 0.24)}px ${FONT}`;
+    ctx.fillStyle = 'rgba(214,224,245,0.82)';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = `${Math.round(size * 0.04)}px`;
+    ctx.fillText(tagline, w / 2, baseline + size * 0.55);
+    ctx.letterSpacing = '0px';
+    ctx.textAlign = 'left';
+  }
+  return c;
+}
+/* ---------- end of verbatim Roku code; Samsung adaptations below ---------- */
+const TAGLINE = 'INDEPENDENT STORIES  ·  TIMELESS CINEMA';
+
+// The Roku mark (bar + wordmark) at a given size, drawn exactly as brandCard draws it.
+function mark(ctx, cx, baseline, size) {
+  const x = cx - wordmarkWidth(ctx, size) / 2;
+  ctx.fillStyle = ELECTRIC;
+  rr(ctx, x, baseline - size * 1.12, size * 1.1, Math.max(3, size * 0.07), size * 0.035); ctx.fill();
+  wordmark(ctx, x, baseline, size);
+}
+
+// Samsung 1920x1080 logo (transparent): the 1:1 icon Samsung derives from it, and a possible squircle mask,
+// need a margin, so the Roku size (0.27h) is capped to keep the wordmark within 70% of the central square.
+function logoSize(ctx) {
+  let size = Math.round(1080 * 0.27);
+  while (wordmarkWidth(ctx, size) > 1080 * 0.70) size -= 1;
+  return size;
+}
+function samsungLogo() {
+  const [c, ctx] = canvas(1920, 1080);
+  mark(ctx, 960, 1080 * 0.6, logoSize(ctx));
+  return c;
+}
+// Icon background: exactly the Roku brandCard backdrop (no tagline variant).
+function samsungIconBackground() {
+  const [c, ctx] = canvas(1920, 1080);
+  ambience(ctx, 1920, 1080, 1080 * 0.55, 1080 * 1.2, false);
+  return c;
+}
+// Detail-page background: the Roku splash (splash-fhd) composition, moved into the right 60% that Samsung
+// keeps clear of its left-side text overlay, and scaled only as much as the tagline needs to fit there.
+function samsungDetailBackground() {
+  const [c, ctx] = canvas(1920, 1080);
+  ambience(ctx, 1920, 1080, 1080 * 0.55, 1080 * 1.2, true);
+  const zone = { x: 1920 * 0.4, w: 1920 * 0.6 };
+  const cx = zone.x + zone.w / 2;
+  let size = Math.round(1080 * 0.16);
+  const tagWidth = (s) => { ctx.font = `500 ${Math.round(s * 0.24)}px ${FONT}`; ctx.letterSpacing = `${Math.round(s * 0.04)}px`; const m = ctx.measureText(TAGLINE).width; ctx.letterSpacing = '0px'; return m; };
+  while (tagWidth(size) > zone.w - 120) size -= 1;
+  const baseline = 1080 * 0.52;
+  mark(ctx, cx, baseline, size);
+  ctx.font = `500 ${Math.round(size * 0.24)}px ${FONT}`;
+  ctx.fillStyle = 'rgba(214,224,245,0.82)';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = `${Math.round(size * 0.04)}px`;
+  ctx.fillText(TAGLINE, cx, baseline + size * 0.55);
+  ctx.letterSpacing = '0px';
+  ctx.textAlign = 'left';
+  window.__detailSize = size;
+  return c;
+}
+// Composite of logo over icon background (what the TV shows), for review only.
+function preview() {
+  const [c, ctx] = canvas(1920, 1080);
+  ctx.drawImage(samsungIconBackground(), 0, 0);
+  ctx.drawImage(samsungLogo(), 0, 0);
+  return c;
+}
+function rgba(c) {
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  let s = ''; const chunk = 0x8000;
+  for (let i = 0; i < d.length; i += chunk) s += String.fromCharCode.apply(null, d.subarray(i, i + chunk));
+  return { w: c.width, h: c.height, b64: btoa(s) };
+}
+const jpeg = (c, q) => c.toDataURL('image/jpeg', q);
+window.ART = {
+  icon512: () => rgba(brandCard(512, 423, '')),
+  logo: () => rgba(samsungLogo()),
+  iconBackground: (q) => jpeg(samsungIconBackground(), q),
+  detailBackground: (q) => jpeg(samsungDetailBackground(), q),
+  preview: (q) => jpeg(preview(), q),
+  rokuSplash: (q) => jpeg(brandCard(1920, 1080, TAGLINE), q),
+  logoSize: () => logoSize(canvas(1, 1)[1]),
+};
+document.title = 'ready';
+</script></body></html>
