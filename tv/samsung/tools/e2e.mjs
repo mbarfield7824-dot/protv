@@ -374,6 +374,18 @@ async function fixtureSuite(url) {
       return label;
     });
 
+    await step('Signed in: changes made on the website reach My List and Continue Watching without relaunching', async () => {
+      const extra = titles.find((t) => !backend.favorites.includes(t.id) && t.id !== TEARS);
+      backend.favorites = [...backend.favorites, extra.id];
+      backend.progress[extra.id] = { positionSeconds: 120, durationSeconds: 600, progressPercent: 20, updatedAt: Date.now() };
+      await new Promise((r) => setTimeout(r, 31000)); // past the 30 s refresh interval
+      await goNav(page, 'mylist');
+      await page.waitFor(`document.getElementById('screen').textContent.indexOf(${JSON.stringify(extra.title)}) >= 0`, 10000);
+      await goNav(page, 'home');
+      await page.waitFor(`Array.from(document.querySelectorAll('[data-row="continue"] .card')).some((c) => c._item && c._item.id === ${JSON.stringify(extra.id)})`, 10000);
+      return extra.title;
+    });
+
     await step('Back from a row goes to the hero, Back again shows the exit dialog; Cancel keeps the app open', async () => {
       for (let i = 0; i < 3; i += 1) {
         if (await page.eval(`document.getElementById('dialog').textContent.indexOf('Exit PROtv?') >= 0`)) break;

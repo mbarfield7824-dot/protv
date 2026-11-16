@@ -33,6 +33,7 @@
     progress: {},
     favorites: [],
     favoritesLoaded: false,
+    accountSyncedAt: 0,
     stack: [],
     navOpen: false,
     rowMemory: {},
@@ -306,6 +307,7 @@
     state.stack = [];
     state.navOpen = false;
     push(buildRoot(id));
+    if (id === 'home' || id === 'mylist') refreshAccount();
   }
 
   function buildRoot(id) {
@@ -1113,13 +1115,33 @@
     var progress = accountService.authorized('GET', '/users/me/progress').then(function (response) {
       if (!accountService.current() || accountService.current().uid !== viewer) return;
       if (response.status === 200 && response.body && typeof response.body === 'object') {
-        state.progress = P.progress.parse(JSON.stringify(response.body));
+        // Positions saved on this TV but not yet accepted by the server stay newer than the server copy.
+        var merged = P.progress.parse(JSON.stringify(response.body));
+        Object.keys(pendingProgress).forEach(function (id) { merged = P.progress.record(merged, id, pendingProgress[id], 100000); });
+        state.progress = merged;
       }
     });
     return Promise.all([favorites, progress]).then(function () {
+      state.accountSyncedAt = Date.now();
       if (announce) toast('Your PROtv account is up to date.', 3000);
     }, function () {
       if (announce) toast('We couldn’t sync right now. We’ll try again later.');
+    });
+  }
+
+  // My List and Continue Watching change on the website and other devices too: refresh them (at most every
+  // ACCOUNT_STALE_MS) when PROtv returns to the foreground or the viewer opens Home or My List, and redraw
+  // only when something changed and the viewer is on that top-level screen.
+  var ACCOUNT_STALE_MS = 30 * 1000;
+  function refreshAccount() {
+    if (!accountService.current() || Date.now() - state.accountSyncedAt < ACCOUNT_STALE_MS) return;
+    state.accountSyncedAt = Date.now();
+    var before = JSON.stringify([state.favorites, state.progress]);
+    syncAccount(false).then(function () {
+      if (JSON.stringify([state.favorites, state.progress]) === before) return;
+      var top = currentScreen();
+      if (top && state.stack.length === 1 && (top.navId === 'home' || top.navId === 'mylist') && !state.navOpen
+        && dom.player.classList.contains('hidden') && dom.dialog.classList.contains('hidden')) rebuildTop();
     });
   }
 
@@ -1430,7 +1452,7 @@
       return;
     }
     if (!dom.player.classList.contains('hidden')) { session.resume(); osd.show(true); }
-    accountService.ensureFresh().then(function () { flushPending(); }, function () {});
+    accountService.ensureFresh().then(function () { flushPending(); refreshAccount(); }, function () {});
     if (state.catalogStatus === 'ready' && Date.now() - state.catalogLoadedAt > CATALOG_STALE_MS && dom.player.classList.contains('hidden')) {
       loadCatalog(true).then(function () { var top = currentScreen(); if (top && top.navId === 'home' && state.stack.length === 1) rebuildTop(); });
     }
