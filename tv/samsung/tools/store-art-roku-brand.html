@@ -154,7 +154,61 @@ function rgba(c) {
   return { w: c.width, h: c.height, b64: btoa(s) };
 }
 const jpeg = (c, q) => c.toDataURL('image/jpeg', q);
+
+/* ---------- Official logo artwork (owner-supplied PNG) on the approved Roku backdrop ----------
+   The logo file is placed as-is: trimmed to its visible pixels, scaled uniformly (never stretched or recolored). */
+let LOGO = null; // { img, x, y, w, h } visible bounds inside the source PNG
+function setLogo(dataUrl) {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onload = () => {
+      const [c, ctx] = canvas(img.width, img.height); ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, img.width, img.height).data;
+      let x0 = img.width, x1 = 0, y0 = img.height, y1 = 0;
+      for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) if (d[(y * img.width + x) * 4 + 3] > 16) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      LOGO = { img, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+      ok({ source: img.width + 'x' + img.height, visible: LOGO.w + 'x' + LOGO.h });
+    };
+    img.onerror = () => fail(new Error('logo did not load'));
+    img.src = dataUrl;
+  });
+}
+// Draws the logo centered on (cx, cy) at a given visible width; height follows the logo's own aspect ratio.
+function placeLogo(ctx, cx, cy, width) {
+  const s = width / LOGO.w, h = LOGO.h * s;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(LOGO.img, LOGO.x, LOGO.y, LOGO.w, LOGO.h, cx - width / 2, cy - h / 2, width, h);
+  return { width, height: h };
+}
+const OFFICIAL = {
+  // 1920x1080 transparent: logo within 70% of the 1080x1080 centre square (Samsung 1:1 crop / squircle mask).
+  logo() { const [c, ctx] = canvas(1920, 1080); const r = placeLogo(ctx, 960, 540, 1080 * 0.70); window.__logoBox = r; return c; },
+  // 512x423: the Roku channel-icon backdrop with the logo at 70% of the width, centred.
+  icon512() { const [c, ctx] = canvas(512, 423); ambience(ctx, 512, 423, 423 * 0.55, 423 * 1.2, false); placeLogo(ctx, 256, 423 * 0.5, 512 * 0.70); return c; },
+  // Detail page: the Roku splash backdrop and tagline, composition in the right 60% (Samsung overlays the left 40%).
+  detail() {
+    const [c, ctx] = canvas(1920, 1080);
+    ambience(ctx, 1920, 1080, 1080 * 0.55, 1080 * 1.2, true);
+    const cx = 1920 * 0.4 + 1920 * 0.6 / 2;
+    const box = placeLogo(ctx, cx, 1080 * 0.45, 1920 * 0.6 - 300);
+    ctx.font = `500 38px ${FONT}`; ctx.fillStyle = 'rgba(214,224,245,0.82)'; ctx.textAlign = 'center'; ctx.letterSpacing = '6px';
+    ctx.fillText(TAGLINE, cx, 1080 * 0.45 + box.height / 2 + 70);
+    ctx.letterSpacing = '0px'; ctx.textAlign = 'left';
+    return c;
+  },
+  preview() { const [c, ctx] = canvas(1920, 1080); ctx.drawImage(samsungIconBackground(), 0, 0); ctx.drawImage(OFFICIAL.logo(), 0, 0); return c; },
+};
+
 window.ART = {
+  setLogo,
+  official: {
+    icon512: () => rgba(OFFICIAL.icon512()),
+    logo: () => rgba(OFFICIAL.logo()),
+    detailBackground: (q) => jpeg(OFFICIAL.detail(), q),
+    preview: (q) => jpeg(OFFICIAL.preview(), q),
+    logoBox: () => window.__logoBox,
+  },
   icon512: () => rgba(brandCard(512, 423, '')),
   logo: () => rgba(samsungLogo()),
   iconBackground: (q) => jpeg(samsungIconBackground(), q),

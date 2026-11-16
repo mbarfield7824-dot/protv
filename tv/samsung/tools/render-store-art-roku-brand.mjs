@@ -1,7 +1,8 @@
 // Renders tools/store-art-roku-brand.html (approved Roku brand) into Samsung Seller Office images.
-// usage: node tools/render-store-art-roku-brand.mjs <output dir>
+// usage: node tools/render-store-art-roku-brand.mjs <output dir> [--logo <official-logo.png>]
+//   --logo: place the owner's logo artwork (transparent PNG) as-is instead of drawing the Roku wordmark.
 // Store tooling only: it does not touch the app or the .wgt package.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deflateSync } from 'node:zlib';
@@ -9,7 +10,9 @@ import { launch } from './cdp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = process.argv[2];
-if (!out) throw new Error('usage: node tools/render-store-art-roku-brand.mjs <output dir>');
+const logoAt = process.argv.indexOf('--logo');
+const logoFile = logoAt > 0 ? process.argv[logoAt + 1] : null;
+if (!out || out.startsWith('--')) throw new Error('usage: node tools/render-store-art-roku-brand.mjs <output dir> [--logo <png>]');
 mkdirSync(out, { recursive: true });
 
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
@@ -51,6 +54,20 @@ try {
     }
     throw new Error(`${fn} does not fit ${limit} bytes`);
   }
+  if (logoFile) {
+    // Official logo artwork placed as-is on the approved Roku backdrop.
+    const info = await page.eval(`ART.setLogo(${JSON.stringify('data:image/png;base64,' + readFileSync(logoFile).toString('base64'))})`);
+    console.log(`logo source ${info.source}, visible ${info.visible}`);
+    write('app-icon-512x423.png', png(await page.eval('ART.official.icon512()'), false));
+    write('app-logo-1920x1080-transparent.png', png(await page.eval('ART.official.logo()'), true));
+    const [bg, qb] = await jpegUnder('iconBackground', 300 * 1024); write('icon-background-1920x1080.jpg', bg); console.log(`  (JPEG quality ${qb.toFixed(2)})`);
+    const [db, qd] = await jpegUnder('official.detailBackground', 2 * 1024 * 1024); write('detail-background-1920x1080.jpg', db); console.log(`  (JPEG quality ${qd.toFixed(2)})`);
+    mkdirSync(join(out, '_review'), { recursive: true });
+    write('_review/icon-preview-logo-on-background.jpg', fromDataUrl(await page.eval('ART.official.preview(0.92)')));
+    const box = await page.eval('ART.official.logoBox()');
+    console.log(`logo placed at ${Math.round(box.width)}x${Math.round(box.height)} px in the 1920x1080 frame`);
+    process.exitCode = 0;
+  } else {
   write('app-icon-512x423.png', png(await page.eval('ART.icon512()'), false));
   write('app-logo-1920x1080-transparent.png', png(await page.eval('ART.logo()'), true));
   const [bg, qb] = await jpegUnder('iconBackground', 300 * 1024); write('icon-background-1920x1080.jpg', bg); console.log(`  (JPEG quality ${qb.toFixed(2)})`);
@@ -59,6 +76,7 @@ try {
   write('_review/icon-preview-logo-on-background.jpg', fromDataUrl(await page.eval('ART.preview(0.92)')));
   write('_review/roku-splash-redrawn-by-this-tool.jpg', fromDataUrl(await page.eval('ART.rokuSplash(0.92)')));
   console.log(`logo wordmark size ${await page.eval('ART.logoSize()')} px (Roku formula 292)`);
+  }
 } finally {
   await page.close();
 }
