@@ -1,4 +1,4 @@
-# Samsung emulator / TV test pass (emulator run 2026-11-15; physical TV not yet run)
+# Samsung emulator / TV test pass (emulator runs 2026-11-15 and 2026-11-16; physical TV not yet run)
 
 Run with the **signed release** package against a backend that has the Samsung rule deployed (or the
 signed preview package against today's production). Record model, firmware/Tizen version and result.
@@ -60,3 +60,24 @@ Audio: Windows output peak meter 0.13 while playing, exactly 0 while paused, so 
 
 Still required: steps 11–14 against production with a reviewer account, and at least one physical Samsung TV
 (ideally a 2018–2020 model for the Chromium 56–69 floor).
+
+## Results: account and sync against production, Samsung TV emulator, 2026-11-16
+
+Package: **release** flavor (production API), signed with profile `PROtv` (rc2, commit `43d3ce3`), on the same
+emulator. Production had the Samsung rule live (`dpl_6oC21Wk7WsQZELruyGjaTQTBSe2y`). Reviewer account
+`support+samsung-review-1@watchprotv.com` was created through the website's own sign-up form. Website actions
+ran in a separate headless browser with every ad host blocked, so no ad impressions were made.
+
+| # | Result | Evidence |
+| --- | --- | --- |
+| 11 | **PASS** | Account > Sign in showed code S9TR-2GTB; approved at watchprotv.com/activate ("Your TV is connected"); TV showed "Signed in as …" and returned Home |
+| 12 | **PASS** | Still signed in after an app update reinstall, after an app relaunch, and after a hard power cut (emulator process killed, cold boot); My List and Continue Watching reloaded from the account |
+| 13 | **PASS** (after fix) | TV add → account `/users/me/favorites` updated; TV remove → updated. Website add (Sintel, Big Buck Bunny) and remove (Tears of Steel) appeared on the TV **without relaunching** (fix `43d3ce3`) |
+| 14 | **PASS** | ~66 s of Big Buck Bunny on TV (AVPlay PLAYING, audio peak 0.02) → account progress 66/596 s; website Continue Watching "9 min left"; progress set through the website's progress API (Sintel 3:20) → TV Continue Watching first card, "Resume 3:20" |
+| — | **PASS** | Sign out: confirmation (Cancel focused) → guest; stored session removed; My List asks to sign in; account data kept on the server |
+
+Defects found and fixed in this run (local commits, retested on the emulator against production):
+- `c7b0f8e`: the spotlight kept rotating while its buttons were focused, so Right, Right, OK added the next title.
+  It now holds while the remote is in use, and OK within 1.2 s of a rotation acts on the title that was showing.
+- `43d3ce3`: changes made on the website reached the TV only after a relaunch or Sync now. The app now refreshes
+  (at most every 30 s) on return to the foreground and when Home or My List opens. Unsent local progress is kept.
