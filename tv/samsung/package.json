@@ -1,0 +1,19 @@
+{
+  "name": "protv-samsung-tizen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PROtv Samsung Smart TV (Tizen web application)",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "validate": "node tools/validate.mjs",
+    "build": "node tools/build.mjs",
+    "serve": "node tools/serve.mjs",
+    "e2e": "node tools/e2e.mjs"
+  },
+  "devDependencies": {
+    "acorn": "8.14.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,144 @@
+// Builds the PROtv Samsung widget and an UNSIGNED .wgt (deterministic ZIP).
+//
+//   node tools/build.mjs                 release build: server rights policy required
+//   node tools/build.mjs --preview       preview build: also accepts today's production API by
+//                                        intersecting with the backend's Samsung allowlist
+//   --env-file <path>                    read VITE_FIREBASE_API_KEY from a dotenv file
+//   --test-api <http://host:port/api>    LOCAL TEST build ("localtest"): release catalog rules (server
+//                                        Samsung policy required, no preview allowlist) but pointed at an
+//                                        isolated test backend. Never submit this flavor.
+//
+// The Firebase key is the existing public web client key (not a privileged credential). It is
+// written into the package's js/config.js only, never into source, and never printed.
+// Signing is done afterwards with the Samsung/Tizen certificate tools (see README).
+import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { deflateRawSync, crc32 } from 'node:zlib';
+import { join, relative, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { validateWidget, walk } from './validate.mjs';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const project = join(here, '..');
+const require = createRequire(import.meta.url);
+const args = process.argv.slice(2);
+const preview = args.includes('--preview');
+const envFileIndex = args.indexOf('--env-file');
+const testApiIndex = args.indexOf('--test-api');
+const testApi = testApiIndex >= 0 ? String(args[testApiIndex + 1] || '').replace(/\/+$/, '') : '';
+if (testApiIndex >= 0 && !/^https?:\/\/[A-Za-z0-9.-]+(:\d+)?\/api$/.test(testApi)) {
+  console.log('error: --test-api must look like http://10.0.2.2:5055/api');
+  process.exit(1);
+}
+if (preview && testApi) {
+  console.log('error: --preview and --test-api cannot be combined');
+  process.exit(1);
+}
+
+function firebaseKey() {
+  const fromEnv = process.env.PROTV_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || '';
+  if (fromEnv) return fromEnv.trim();
+  if (envFileIndex >= 0) {
+    const text = readFileSync(args[envFileIndex + 1], 'utf8');
+    const match = /^VITE_FIREBASE_API_KEY\s*=\s*"?([A-Za-z0-9_-]+)"?\s*$/m.exec(text);
+    return match ? match[1] : '';
+  }
+  return '';
+}
+
+// Preview builds use the backend's own Samsung allowlist (respecting cutoffs), so no title can
+// appear in a preview that the server rule would not also allow.
+function previewAllowlist() {
+  const { SAMSUNG_LAUNCH_TITLE_EXPIRY } = require('../../../backend/src/catalog/platformEligibility.js');
+  const today = new Date().toISOString().slice(0, 10);
+  return [...SAMSUNG_LAUNCH_TITLE_EXPIRY].filter(([, cutoff]) => cutoff === null || today <= cutoff).map(([id]) => id);
+}
+
+// Minimal deterministic ZIP writer (deflate, fixed timestamps, sorted entries).
+function zip(entries) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  const DOS_TIME = 0;
+  const DOS_DATE = (0 << 9) | (1 << 5) | 1; // 1980-01-01
+  for (const { name, data } of entries) {
+    const nameBuf = Buffer.from(name, 'utf8');
+    const compressed = deflateRawSync(data, { level: 9 });
+    const useDeflate = compressed.length < data.length;
+    const body = useDeflate ? compressed : data;
+    const crc = crc32(data) >>> 0;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(useDeflate ? 8 : 0, 8); local.writeUInt16LE(DOS_TIME, 10); local.writeUInt16LE(DOS_DATE, 12);
+    local.writeUInt32LE(crc, 14); local.writeUInt32LE(body.length, 18); local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26); local.writeUInt16LE(0, 28);
+    locals.push(local, nameBuf, body);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(useDeflate ? 8 : 0, 10); central.writeUInt16LE(DOS_TIME, 12); central.writeUInt16LE(DOS_DATE, 14);
+    central.writeUInt32LE(crc, 16); central.writeUInt32LE(body.length, 20); central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(nameBuf.length, 28); central.writeUInt32LE(offset, 42);
+    centrals.push(central, nameBuf);
+    offset += 30 + nameBuf.length + body.length;
+  }
+  const centralBuf = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralBuf.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralBuf, end]);
+}
+
+const source = join(project, 'app');
+const configXml = readFileSync(join(source, 'config.xml'), 'utf8');
+const version = /<widget[^>]*\sversion="([^"]+)"/.exec(configXml)[1];
+const flavor = preview ? 'preview' : testApi ? 'localtest' : 'release';
+const out = join(project, 'build', flavor);
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
+cpSync(source, out, { recursive: true });
+if (testApi) {
+  const origin = new URL(testApi).origin;
+  const xml = readFileSync(join(out, 'config.xml'), 'utf8')
+    .replace('<tizen:privilege', `<access origin="${origin}" subdomains="false"/>
+    <tizen:privilege`);
+  writeFileSync(join(out, 'config.xml'), xml);
+}
+
+const key = firebaseKey();
+const allowlist = preview ? previewAllowlist() : [];
+const configJs = `/* Generated by tools/build.mjs (${flavor}). */
+window.PROTV_CONFIG = {
+  apiBase: ${JSON.stringify(testApi || 'https://watchprotv.com/api')},
+  webBase: 'https://watchprotv.com',
+  firebaseApiKey: ${JSON.stringify(key)},
+  version: ${JSON.stringify(version)},
+  build: ${JSON.stringify(flavor)},
+  previewAllowlist: ${JSON.stringify(allowlist)},
+  supportEmail: 'support@watchprotv.com',
+};
+`;
+writeFileSync(join(out, 'js', 'config.js'), configJs);
+
+const result = validateWidget(out, { release: flavor === 'release' });
+for (const warning of result.warnings) console.log(`warning: ${warning}`);
+if (result.errors.length) {
+  for (const error of result.errors) console.log(`error: ${error}`);
+  process.exit(1);
+}
+
+const entries = walk(out)
+  .map((path) => ({ name: relative(out, path).replace(/\\/g, '/'), data: readFileSync(path) }))
+  .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+const wgt = zip(entries);
+mkdirSync(join(project, 'dist'), { recursive: true });
+const name = `PROtv-${version}-${flavor}-unsigned.wgt`;
+writeFileSync(join(project, 'dist', name), wgt);
+const sha = createHash('sha256').update(wgt).digest('hex');
+writeFileSync(join(project, 'dist', `${name}.sha256`), `${sha}  ${name}\n`);
+console.log(`built dist/${name} (${entries.length} files, ${wgt.length} bytes)`);
+console.log(`sha256 ${sha}`);
+console.log(`account sign-in: ${key ? 'configured (public Firebase web key injected)' : 'NOT configured (guest-only build)'}`);
+console.log(`api: ${testApi || 'https://watchprotv.com/api'}`);
+console.log(`catalog policy: ${preview ? `server policy, else preview allowlist of ${allowlist.length} titles` : 'server Samsung policy required (fail closed)'}`);
+if (!existsSync(join(out, 'author-signature.xml'))) console.log('signature: UNSIGNED (sign with a Samsung certificate profile before installing on a TV)');

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://watchprotv.com/apps/samsung" version="1.0.0" viewmodes="maximized">
+    <tizen:application id="PROtvTizen.PROtv" package="PROtvTizen" required_version="4.0"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+    <icon src="icon.png"/>
+    <name>PROtv</name>
+    <description>PROtv streams free movies and original films from independent creators. Sign in with your phone or computer to keep My List and Continue Watching in sync.</description>
+    <author href="https://watchprotv.com" email="support@watchprotv.com">Prophecy Entertainment LLC</author>
+    <license href="https://watchprotv.com/terms">PROtv Terms of Use</license>
+    <access origin="https://watchprotv.com" subdomains="true"/>
+    <access origin="https://mux.com" subdomains="true"/>
+    <access origin="https://storage.googleapis.com" subdomains="false"/>
+    <access origin="https://firebasestorage.googleapis.com" subdomains="false"/>
+    <access origin="https://identitytoolkit.googleapis.com" subdomains="false"/>
+    <access origin="https://securetoken.googleapis.com" subdomains="false"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:profile name="tv-samsung"/>
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>
