@@ -11,7 +11,7 @@ export default function Privacy() {
         <section className="info-hero">
           <p className="info-eyebrow">Privacy</p>
           <h1>Your information, explained simply.</h1>
-          <p className="info-lead">Effective September 16, 2026. Updated November 11, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
+          <p className="info-lead">Effective September 16, 2026. Updated November 18, 2026. PROtv uses account information to provide and improve the streaming experience.</p>
         </section>
         <section className="info-copy">
           <h2>Information we use</h2>
@@ -26,31 +26,8 @@ export default function Privacy() {
           <p>PROtv relies on trusted services to provide authentication, data storage, hosting, analytics, and video streaming. These providers process only the information needed to deliver their services.</p>
           <h2 id="advertising">Advertising</h2>
           <p>
-            The PROtv website may show a clearly labeled Sponsored section on its homepage and on title, series,
-            Podcast and browse pages, provided by Adsterra, a
-            third-party advertising network. In the United States and in Canada outside Quebec, the Sponsored section
-            loads with the page and says that it is provided by Adsterra; you can turn it off at any time. Everywhere
-            else, including the European Economic Area, the United Kingdom, Switzerland and Quebec, and whenever your
-            location cannot be determined, nothing from Adsterra loads unless you choose &quot;Allow sponsored
-            content&quot; in that section. Pages for cartoons and other content that may be aimed at children always ask
-            first. PROtv uses your approximate country and region, as reported by its hosting provider, only to choose
-            which of these applies, and does not store it. When it loads, Adsterra may set its own cookies and use similar technologies,
-            and may receive information such as your browser and device type, screen size, time zone, IP address and the
-            page you are viewing, to select, show and measure ads and to prevent fraud. Adsterra handles that information
-            under its own privacy policy. Sponsored content is never placed inside video players, trailers, sign-in or
-            account pages, or PROtv&apos;s TV apps.
-          </p>
-          <p>
-            You can turn sponsored content off, or withdraw your choice, at any time with &quot;Turn off sponsored
-            content&quot; in any Sponsored section; it then stays off on every page in that browser. Browsers that send a
-            Global Privacy Control signal are treated as having opted out everywhere: no ads load and they are not asked. When an ad is shown on
-            the website, PROtv automatically counts whether it rendered, was at least half on screen, was clicked and, for
-            video ads, how far it played, so that we can report accurate figures to sponsors. These counts are anonymous: no
-            account, contact details, cookies or device identifiers are used, and temporary rate-limit records use a keyed
-            hash of the request address rather than the address itself. Your choice is stored
-            in your browser, so clearing site data asks again. The website also loads Google&apos;s AdSense script, which
-            Google may use to set its own cookies; you can manage Google ad settings at{' '}
-            <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">adssettings.google.com</a>.
+            The PROtv website does not currently show third-party advertising, and no advertising network scripts load on
+            the website. If PROtv adds advertising in the future, this policy will be updated before it starts.
           </p>
           <h2>Deleting your account</h2>
           <p>

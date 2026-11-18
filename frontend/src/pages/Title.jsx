@@ -16,8 +16,6 @@ import { fallbackArtworkUrl } from '../utils/artwork';
 import { safetyReportUrl } from '../data/safetyReports';
 import { readInitialTitle } from '../data/initialTitle';
 import TrailerPlayer from '../components/TrailerPlayer';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
-import { childDirectedContent } from '../ads/sponsored';
 import { titlePath } from '../utils/publicPaths';
 import '../styles/Title.css';
 
@@ -136,8 +134,6 @@ export default function Title() {
   const maturityRating = video.maturityRating || video.ageRating;
   const creator = video.creator || video.director;
   const isEpisode = video.contentType === 'EPISODE';
-  // Sponsored placements: movie and Coming Soon detail pages only.
-  const sponsoredEligible = video.contentType === 'MOVIE' || video.comingSoon === true;
   const episodeNumber = present(video.episodeNumber) ? `E${video.episodeNumber}` : '';
   const seasonNumber = present(video.seasonNumber) ? `S${video.seasonNumber}` : '';
   const episodePosition = [seasonNumber, episodeNumber].filter(Boolean).join(' · ');
@@ -261,7 +257,6 @@ export default function Title() {
           </section>
         )}
         {/* Below the title information and actions; removed while the trailer plays. */}
-        {sponsoredEligible && !trailerOpen && <SponsoredNativeBanner automatic={!childDirectedContent(genres)} />}
       </main>
       <ProTVFooter />
       {trailerOpen && <TrailerPlayer videoId={video.id} onClose={() => setTrailerOpen(false)} />}

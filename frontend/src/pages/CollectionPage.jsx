@@ -8,8 +8,6 @@ import { COLLECTION_CONFIG } from '../data/categories';
 import { FALLBACK_POSTER } from '../data/mockData';
 import { useHorizontalScrollState } from '../hooks/useHorizontalScrollState';
 import '../styles/CollectionPage.css';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
-import { childDirectedContent } from '../ads/sponsored';
 
 function normalizeVideo(raw) {
   const category = raw.category || raw.genre || 'General';
@@ -138,7 +136,6 @@ export default function CollectionPage({ category }) {
           </section>
         )}
         {/* Below the browse grid, once it has loaded. */}
-        {!loading && <SponsoredNativeBanner automatic={!childDirectedContent(category)} />}
       </main>
       <Footer />
       {previewVideo && <MoviePreview video={previewVideo} onClose={() => setPreviewVideo(null)} />}

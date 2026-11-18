@@ -14,7 +14,6 @@ import ProTVFooter from '../components/ProTVFooter';
 import MoviePreview from '../components/MoviePreview';
 import EmptyState from '../components/EmptyState';
 import ComingSoonCard from '../components/ComingSoonCard';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import { api } from '../api';
 import { mockVideoData, FALLBACK_POSTER, FALLBACK_HERO } from '../data/mockData';
 import { BROWSE_CATEGORIES, EXTRA_BROWSE_CATEGORIES, matchesCategory } from '../data/browseCategories';
@@ -393,7 +392,6 @@ export default function Home() {
               {originals.map((item) => <ComingSoonCard key={item.id} item={item} />)}
             </StreamingRail>
           )}
-          <SponsoredNativeBanner />
         </div>
 
         <SpotlightFeature video={spotlight} />

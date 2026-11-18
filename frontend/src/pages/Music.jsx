@@ -10,7 +10,6 @@ import { api } from '../api';
 import { matchesMusicFormat, normalizeMusicTitle } from '../data/musicCatalog';
 import '../styles/Movies.css';
 import '../styles/Music.css';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 
 export default function Music() {
   const [videos, setVideos] = useState([]);
@@ -116,7 +115,6 @@ export default function Music() {
           </section>
         )}
         {/* Below the browse grid, once it has loaded. */}
-        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
       {previewVideo && (

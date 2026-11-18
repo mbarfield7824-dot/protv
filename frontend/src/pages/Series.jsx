@@ -5,7 +5,6 @@ import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
 import { api } from '../api';
 import '../styles/Series.css';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 import { seriesPath } from '../utils/publicPaths';
 
 function SeriesPresentation({ series }) {
@@ -78,7 +77,6 @@ export default function Series() {
           </section>
         )}
         {/* Below the browse grid, once it has loaded. */}
-        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
     </ProTVShell>

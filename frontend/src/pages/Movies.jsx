@@ -6,7 +6,6 @@ import ProTVFooter from '../components/ProTVFooter';
 import MoviePreview from '../components/MoviePreview';
 import { api } from '../api';
 import '../styles/Movies.css';
-import SponsoredNativeBanner from '../components/SponsoredNativeBanner';
 
 function normalizeMovie(raw) {
   const category = raw.category || raw.genre || '';
@@ -103,7 +102,6 @@ export default function Movies() {
           </section>
         )}
         {/* Below the browse grid, once it has loaded. */}
-        {!loading && <SponsoredNativeBanner />}
       </main>
       <ProTVFooter />
       {previewVideo && (
