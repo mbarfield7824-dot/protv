@@ -11,6 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { firebaseAuth, googleProvider, isFirebaseConfigured } from '../firebase';
+import { createAccount } from './authFlow';
 import { api } from '../api';
 import AuthModal from '../components/AuthModal';
 import { AuthContext } from './authState';
@@ -29,6 +30,8 @@ export function AuthProvider({ children }) {
     if (!firebaseAuth) return undefined;
     return onAuthStateChanged(firebaseAuth, (nextUser) => {
       setUser(nextUser);
+      // Signing in (including a registration that finished after the sign-in box gave up waiting) closes the box.
+      if (nextUser) setAuthModalOpen(false);
       if (!nextUser) {
         setFavorites([]);
         setFavoritesLoading(false);
@@ -140,9 +143,12 @@ export function AuthProvider({ children }) {
   }, [favorites, user]);
 
   const register = useCallback(async ({ displayName, email, password }) => {
-    const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-    await updateProfile(credential.user, { displayName });
-    await sendEmailVerification(credential.user);
+    await createAccount({
+      create: async () => (await createUserWithEmailAndPassword(firebaseAuth, email, password)).user,
+      setDisplayName: (createdUser) => updateProfile(createdUser, { displayName }),
+      sendVerification: (createdUser) => sendEmailVerification(createdUser),
+      onFollowUpError: (step, error) => console.error(`Account created, but the ${step} step failed:`, error?.code || error),
+    });
     setAuthModalOpen(false);
   }, []);
 
@@ -166,6 +172,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
+    authConfigured: isFirebaseConfigured,
     favorites,
     favoritesLoading,
     progress,
@@ -186,7 +193,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <AuthModal key={authModalOpen ? 'open' : 'closed'} open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </AuthContext.Provider>
   );
 }

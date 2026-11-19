@@ -233,6 +233,24 @@
   color: #BBF7D0;
 }
 
+.auth-inline-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--protv-white);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-hint {
+  margin: 10px 0 0 !important;
+  color: var(--protv-muted, #A1A1AA);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 420px) {
   .auth-modal-overlay {
     padding: 14px;
