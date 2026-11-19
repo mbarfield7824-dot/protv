@@ -332,3 +332,39 @@ test('playback catalogs hide unreleased episodes while approved premieres expose
     server.close();
   }
 });
+
+test('a season blanket agreement admits a delivered episode only with an approved delivery of that exact video', () => {
+  const deliveryRevision = uuid(10);
+  const delivered = (mutate) => {
+    const body = payload('episode_status', 3);
+    body.submission = { id: deliveryRevision, revision: 2, status: 'approved' };
+    body.requestId = `episode:${projectId}:${deliveryRevision}:${body.episode.id}`;
+    body.coverage = {
+      kind: 'season_blanket', signedSubmissionId: submissionId, season: 1, authorizedEpisodes: 6, signedEpisode: false,
+      delivery: { id: uuid(11), status: 'approved', mediaId: body.episode.media.assetId, mediaSha256: body.episode.media.sha256, approvedBy: actorId, approvedAt: '2026-12-02T00:00:00.000Z' },
+    };
+    if (mutate) mutate(body);
+    return body;
+  };
+  assert.doesNotThrow(() => validateCreatorActionRequest(...signed(delivered())));
+  // A signed episode published from a later delivery revision.
+  assert.doesNotThrow(() => validateCreatorActionRequest(...signed(delivered((p) => { p.coverage.signedEpisode = true; p.coverage.delivery = null; }))));
+  const refused = [
+    (p) => { delete p.coverage; },
+    (p) => { p.coverage.kind = 'other'; },
+    (p) => { p.coverage.signedSubmissionId = uuid(12); },
+    (p) => { p.project.contract.seriesSubmissionId = uuid(12); p.coverage.signedSubmissionId = uuid(12); p.coverage.signedSubmissionId = submissionId; },
+    (p) => { p.coverage.season = 2; },
+    (p) => { p.episode.number = 7; },
+    (p) => { p.coverage.authorizedEpisodes = 2; },
+    (p) => { p.coverage.delivery = null; },
+    (p) => { p.coverage.delivery.status = 'pending'; },
+    (p) => { p.coverage.delivery.mediaSha256 = 'b'.repeat(64); },
+    (p) => { p.coverage.delivery.mediaId = uuid(13); },
+    (p) => { p.coverage.delivery.approvedAt = 'not a date'; },
+    (p) => { p.project.contract.revokedAt = '2026-12-03T00:00:00.000Z'; },
+  ];
+  for (const mutate of refused) {
+    assert.throws(() => validateCreatorActionRequest(...signed(delivered(mutate))), /Approved exact revision/);
+  }
+});

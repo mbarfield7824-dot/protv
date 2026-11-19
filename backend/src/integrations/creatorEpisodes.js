@@ -8,6 +8,23 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BINDING = ['creatorProjectId', 'creatorSubmissionId', 'creatorEpisodeId', 'creatorMediaId', 'creatorMediaSha256', 'creatorContractReference', 'seriesId', 'seasonId', 'episodeNumber', 'seasonNumber'];
 const CLOCK_TOLERANCE_MS = 60_000;
 
+// The episode's revision is the one the agreement was signed for, or (season blanket agreement) a later revision the
+// Creator Portal recorded for an episode delivered after signing. The portal decides eligibility; this independently
+// re-checks the coverage it states: the same signed revision, the covered season and episode range, and either an
+// episode unchanged since signing or an approved delivery of this exact video.
+function coveredRevision({ project, submission, episode, coverage }) {
+  if (project.contract.seriesSubmissionId === submission.id) return true;
+  if (!coverage || coverage.kind !== 'season_blanket') return false;
+  if (!UUID.test(String(coverage.signedSubmissionId || '')) || coverage.signedSubmissionId !== project.contract.seriesSubmissionId) return false;
+  if (!Number.isInteger(coverage.season) || !Number.isInteger(coverage.authorizedEpisodes) || coverage.authorizedEpisodes < 1
+    || episode.seasonNumber !== coverage.season || episode.number < 1 || episode.number > coverage.authorizedEpisodes) return false;
+  if (coverage.signedEpisode === true) return true;
+  const delivery = coverage.delivery;
+  return Boolean(delivery && delivery.status === 'approved' && UUID.test(String(delivery.id || ''))
+    && delivery.mediaId === episode.media.assetId && delivery.mediaSha256 === episode.media.sha256
+    && UUID.test(String(delivery.approvedBy || '')) && Number.isFinite(Date.parse(delivery.approvedAt)));
+}
+
 function validateEpisodeRequest(payload, now = Date.now()) {
   const { project, episode, submission, authorization } = payload;
   for (const id of [project?.id, episode?.id, episode?.seasonId, episode?.media?.assetId, submission?.id, authorization?.actorId]) {
@@ -25,7 +42,7 @@ function validateEpisodeRequest(payload, now = Date.now()) {
     || authorization.role !== 'admin' || !Number.isFinite(Date.parse(authorization.authorizedAt))
     || project.ownership?.status !== 'verified' || project.contract?.status !== 'signed'
     || !Number.isFinite(Date.parse(project.contract.signedAt)) || project.contract.revokedAt
-    || project.contract.seriesSubmissionId !== submission.id || project.contract.contentType !== 'Series'
+    || !coveredRevision(payload) || project.contract.contentType !== 'Series'
     || project.contractApproval !== 'approved' || typeof project.contract.reference !== 'string'
     || !project.contract.reference.trim()) {
     throw new Error('Approved exact revision, valid signed agreement and explicit Administrator authorization are required.');
