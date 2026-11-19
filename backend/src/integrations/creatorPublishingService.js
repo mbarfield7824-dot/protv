@@ -239,7 +239,7 @@ class CreatorPublishingService {
     this.creatorAgentOrigin = creatorAgentOrigin;
     this.publishingSecret = publishingSecret;
     this.dependencies = dependencies;
-    this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, dependencies });
+    this.episodes = new CreatorEpisodeService({ creatorAgentOrigin, publishingSecret, dependencies });
     this.seriesPromotion = new CreatorSeriesPromotionService({ creatorAgentOrigin, publishingSecret, dependencies });
     this.intake = new CreatorIntakeService({ creatorAgentOrigin, dependencies });
   }

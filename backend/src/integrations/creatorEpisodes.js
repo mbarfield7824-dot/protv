@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { verifyIntakeAsset } = require('./creatorIntake');
+const { CreatorSeriesRecordService, validateSeriesProfile } = require('./creatorSeriesRecord');
 
 // Episodes are ingested with no Mux playback ID at all. A public ID is created only at release, so before
 // that there is nothing a viewer, a device or a leaked response could play. Unpublishing deletes the ID.
@@ -37,6 +38,7 @@ function validateEpisodeRequest(payload, now = Date.now()) {
   }
   // A revoked agreement is exactly when an episode must still be able to come down.
   if (payload.action === 'episode_unpublish') return payload;
+  validateSeriesProfile(payload.seriesProfile);
   if (submission.status !== 'approved'
     || !Number.isInteger(submission.revision) || submission.revision < 1
     || authorization.role !== 'admin' || !Number.isFinite(Date.parse(authorization.authorizedAt))
@@ -133,9 +135,10 @@ function publicationResult(video) {
 }
 
 class CreatorEpisodeService {
-  constructor({ creatorAgentOrigin, dependencies }) {
+  constructor({ creatorAgentOrigin, publishingSecret = '', dependencies }) {
     this.origin = creatorAgentOrigin;
     this.dependencies = dependencies;
+    this.seriesRecords = new CreatorSeriesRecordService({ creatorAgentOrigin, publishingSecret, dependencies });
   }
 
   async execute(payload) {
@@ -207,7 +210,17 @@ class CreatorEpisodeService {
     return { ...video, ...updates };
   }
 
-  async release({ release }, stored) {
+  // Releases the episode, then (when the Administrator set an official series description) creates or updates the
+  // series' show record. The show record never blocks or undoes the episode release; its outcome is reported.
+  async release(payload, stored) {
+    const result = await this.releaseEpisode(payload, stored);
+    if (result.status !== 'published' || !payload.seriesProfile) return result;
+    const video = await this.dependencies.getCreatorEpisode(stored.creatorEpisodeId);
+    const note = video && isReleased(video) ? await this.seriesRecords.sync(payload, video) : null;
+    return note ? { ...result, message: `${result.message} ${note}` } : result;
+  }
+
+  async releaseEpisode({ release }, stored) {
     if (isReleased(stored)) return publicationResult(stored);
     const video = await this.refresh(stored);
     if (video.status !== 'held') return publicationResult(video);
@@ -246,7 +259,9 @@ class CreatorEpisodeService {
       for (const item of asset.playback_ids || []) await this.dependencies.deletePlaybackId(asset.id, item.id);
     }
     await this.audit('episode_unpublish', video, 'Unpublished episode and removed its playback address.');
-    return publicationResult(video);
+    const result = publicationResult(video);
+    const note = await this.seriesRecords.hideIfUnreleased(video.creatorProjectId);
+    return note ? { ...result, message: `${result.message} ${note}` } : result;
   }
 
   async audit(action, video, message) {

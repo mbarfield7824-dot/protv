@@ -40,7 +40,9 @@ const FIRETV_LAUNCH_TITLE_IDS = new Set([
 // A scheduled episode carries its own Fire TV clearance: an Administrator ticks it, per season, when
 // scheduling a series with verified ownership and a signed agreement. It is never set by default.
 function clearedEpisode(video) {
-  return video.contentType === 'EPISODE' && Boolean(video.creatorEpisodeId) && video.firetvCleared === true;
+  return (video.contentType === 'EPISODE' && Boolean(video.creatorEpisodeId) && video.firetvCleared === true)
+    // A Creator Portal series' show record follows its episodes: it carries firetvCleared once a cleared episode is released.
+    || (video.contentType === 'SERIES' && Boolean(video.creatorSeriesProjectId) && video.firetvCleared === true);
 }
 
 // Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
