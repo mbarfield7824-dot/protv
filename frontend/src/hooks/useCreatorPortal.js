@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { sendEmailVerification } from 'firebase/auth';
 import { api } from '../api';
 import { useAuth } from './useAuth';
@@ -29,11 +29,19 @@ export function useCreatorPortal() {
   const [verificationRequired, setVerificationRequired] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState('');
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const announced = useRef(false);
 
   // Counts down until another verification email may be requested, so the button cannot trigger Firebase's limit.
+  // Sign-up sends the first email in the background, so once it is recorded, say where it went (once).
   useEffect(() => {
     if (!verificationRequired || !user) return undefined;
-    const tick = () => setCooldownSeconds(Math.ceil(verificationCooldownLeft(user.uid) / 1000));
+    const tick = () => {
+      setCooldownSeconds(Math.ceil(verificationCooldownLeft(user.uid) / 1000));
+      if (!announced.current && lastVerificationSent(user.uid)) {
+        announced.current = true;
+        setVerificationMessage((current) => current || verificationSentMessage(user.email));
+      }
+    };
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
@@ -54,6 +62,7 @@ export function useCreatorPortal() {
           setVerificationMessage('');
           setError(NOT_VERIFIED_YET);
         } else if (lastVerificationSent(user.uid)) {
+          announced.current = true;
           setVerificationMessage(verificationSentMessage(user.email));
         }
         setVerificationRequired(true);
@@ -81,6 +90,7 @@ export function useCreatorPortal() {
     try {
       const result = await requestVerificationEmail(user, { send: sendVerificationEmail || firebaseSend });
       setVerificationRequired(true);
+      announced.current = true;
       if (result.ok) setVerificationMessage(result.message);
       else setError(result.message);
       setCooldownSeconds(Math.ceil(verificationCooldownLeft(user.uid) / 1000));

@@ -177,3 +177,13 @@ test('a creator whose sign-up just sent the email is told so instead of being as
   assert.match(notice, /We sent a verification link to creator@example\.invalid/);
   assert.ok(button('Resend available in'));
 });
+
+test('the sign-up email is announced once it has been sent, even if it finishes after the prompt appears', async () => {
+  const flow = await vite.ssrLoadModule('/src/context/authFlow.js');
+  await mount({ user: viewer({ emailVerified: false, uid: 'verify-late' }), sendVerificationEmail: async () => {} });
+  assert.doesNotMatch(document.body.textContent, /We sent a verification link/);
+  flow.recordVerificationSent('verify-late');
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1100)); });
+  assert.match(document.querySelector('.creator-verification-notice').textContent, /We sent a verification link to creator@example\.invalid/);
+  assert.ok(button('Resend available in'));
+});
