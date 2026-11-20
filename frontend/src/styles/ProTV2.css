@@ -1044,6 +1044,28 @@
 
 .ptv-card--discovery .ptv-card__poster { display: block; }
 
+/* Watch Trailer on Administrator Coming Soon promotions. Plays the promotional trailer only, never the title. */
+.ptv-card__trailer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--ptv-blue);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ptv-ink);
+  font: 600 13px/1 var(--ptv-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ptv-card__trailer:hover,
+.ptv-card__trailer:focus-visible {
+  background: var(--ptv-blue);
+}
+
 /* "PROtv Original" mark on title and show pages. */
 .ptv-original-mark {
   display: inline-block;

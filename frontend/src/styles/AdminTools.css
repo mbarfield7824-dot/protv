@@ -770,3 +770,20 @@
   border-radius: 8px;
   margin: 4px 0 12px;
 }
+
+.admin-coming-soon__source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 12px;
+}
+
+.admin-coming-soon__source label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-coming-soon__trailer {
+  margin: 20px 0;
+}

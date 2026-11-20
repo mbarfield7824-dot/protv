@@ -14,7 +14,7 @@ const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const { signPlayback } = require('../mux');
 const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
 const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
-const { defaultPromotionStore, withPromotions } = require('./comingSoonPromotions');
+const { defaultPromotionStore, withPromotions, livePromotionTrailer } = require('./comingSoonPromotions');
 
 // TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
 // so their responses stay exactly as they were.
@@ -196,6 +196,24 @@ function createCatalogRouter({
   });
 
   const loadTitle = async (req, id) => playableCatalog(await load(req)).find((item) => item.id === id);
+
+  // The trailer on a live website promotional card. Only ever a trailer playback ID, never full-length media.
+  router.get('/coming-soon/promotions/:id/trailer', async (req, res) => {
+    try {
+      if (DEVICE_PLATFORMS.has(platformFromRequest(req))) return res.status(404).json({ error: 'Trailer not found.' });
+      const [records, promotions] = await Promise.all([load(req), promotionStore.list()]);
+      const source = livePromotionTrailer(promotions, records, req.params.id);
+      if (!source) return res.status(404).json({ error: 'Trailer not found.' });
+      return res.json({
+        id: req.params.id,
+        muxPlaybackId: source.playbackId,
+        playbackToken: await signPlaybackToken(source.playbackId, source.duration),
+      });
+    } catch (error) {
+      console.error('Failed to load promotional trailer:', error);
+      return res.status(500).json({ error: 'The trailer is temporarily unavailable.' });
+    }
+  });
 
   router.get('/titles/:id/trailer/playback', async (req, res) => {
     try {

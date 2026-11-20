@@ -4,19 +4,22 @@ import MuxPlayer from '@mux/mux-player-react';
 import { api } from '../api';
 import '../styles/TrailerPlayer.css';
 
-export default function TrailerPlayer({ videoId, admin = false, onClose }) {
+// `source` picks where the signed trailer comes from: a catalog title (default) or a Coming Soon promotion.
+export default function TrailerPlayer({ videoId, admin = false, source = 'title', onClose }) {
   const [playback, setPlayback] = useState(null);
   const [error, setError] = useState('');
   const dialogRef = useRef(null);
 
   useEffect(() => {
     let active = true;
-    const load = admin ? api.getAdminTitleTrailerPreview : api.getTitleTrailerPlayback;
+    const load = source === 'promotion'
+      ? (admin ? api.getAdminComingSoonTrailerPreview : api.getComingSoonPromotionTrailer)
+      : (admin ? api.getAdminTitleTrailerPreview : api.getTitleTrailerPlayback);
     load(videoId)
       .then((result) => { if (active) setPlayback(result); })
       .catch((requestError) => { if (active) setError(requestError.message); });
     return () => { active = false; };
-  }, [admin, videoId]);
+  }, [admin, source, videoId]);
 
   useEffect(() => {
     const dialog = dialogRef.current;

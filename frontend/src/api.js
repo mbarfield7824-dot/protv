@@ -416,6 +416,51 @@ export const api = {
     });
     if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Unable to remove the promotion.');
   },
+  async createComingSoonTrailerUpload(id) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}/trailer/upload-url`, {
+      method: 'POST', headers: await authenticatedHeaders(),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to start the trailer upload.');
+    return result;
+  },
+  async getComingSoonTrailerStatus(id) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}/trailer/status`, {
+      headers: await authenticatedHeaders(), cache: 'no-store',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to check the trailer.');
+    return result;
+  },
+  async selectComingSoonTrailer(id, titleId) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}/trailer/select`, {
+      method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify({ titleId }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to use that trailer.');
+    return result;
+  },
+  async removeComingSoonTrailer(id) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}/trailer`, {
+      method: 'DELETE', headers: await authenticatedHeaders(),
+    });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Unable to remove the trailer.');
+  },
+  async getAdminComingSoonTrailerPreview(id) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}/trailer/preview`, {
+      headers: await authenticatedHeaders(), cache: 'no-store',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to preview the trailer.');
+    return result;
+  },
+  // Public: the trailer on a live promotional Coming Soon card.
+  async getComingSoonPromotionTrailer(promotionId) {
+    const response = await fetch(`${API_URL}/v1/catalog/coming-soon/promotions/${encodeURIComponent(promotionId)}/trailer`, { cache: 'no-store' });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'The trailer is unavailable.');
+    return result;
+  },
   async uploadComingSoonArtwork(file) {
     const body = await preparePosterUpload(file);
     const { Authorization } = await authenticatedHeaders();

@@ -37,7 +37,7 @@ test('the migrated 2212 Episode 3 card keeps its artwork, TBD date and /series/2
   const { state, card } = resolvePromotion(seed, [show2212, ep1, ep2], series([show2212, ep1, ep2]));
   assert.equal(state, 'live');
   assert.deepEqual(card, {
-    id: 'promo-2212-episode-3-c-fluid', kind: 'series', href: '/series/2212', title: '2212 · Episode 3: C-Fluid', description: '',
+    id: 'promo-2212-episode-3-c-fluid', promotionId: '2212-episode-3-c-fluid', kind: 'series', href: '/series/2212', title: '2212 · Episode 3: C-Fluid', description: '',
     artwork: '/coming-soon/2212-episode-3-c-fluid.jpg', categories: [], comingSoon: true, protvOriginal: false, trailerAvailable: false, promotion: true,
   });
   assert.equal(card.premiereAt, undefined, 'no invented date: the website shows "Premiere date TBD"');
@@ -94,7 +94,7 @@ test('input validation: TBD, paired season/episode, safe artwork, no unknown sta
   assert.throws(() => promotionInput({ ...base, artworkUrl: 'javascript:alert(1)' }), /Artwork/);
   assert.throws(() => promotionInput({ ...base, artworkUrl: '//evil.example/x.jpg' }), /Artwork/);
   assert.throws(() => promotionInput({ ...base, status: 'live' }), /Status/);
-  assert.throws(() => promotionInput({ target: { kind: 'video', id: 'a' } }), /film, episode or series/);
+  assert.throws(() => promotionInput({ target: { kind: 'video', id: 'a' } }), /catalog title or describe a new upcoming title/);
 });
 
 test('the one-time migration creates the 2212 card once and never brings it back after removal', async () => {
@@ -175,11 +175,17 @@ test('Administrators can publish, edit, hide and remove a promotion without touc
     const listed = await call('GET', '/');
     assert.deepEqual(listed.body.targets.titles.map((t) => t.title), ['Upcoming Film'], 'only unreleased films and episodes are offered');
     assert.deepEqual(listed.body.targets.series.map((s) => s.title), ['2212', 'Dread Head']);
-    assert.equal((await call('POST', '/', { target: { kind: 'series', id: seriesKey('2212') }, status: 'published' })).status, 400, 'a streaming show cannot be promoted as a whole');
-    const created = await call('POST', '/', { target: { kind: 'title', id: upcomingFilm.id }, description: 'Promo copy', premiereAt: '', status: 'published' });
+    const whole = await call('POST', '/', { target: { kind: 'series', id: seriesKey('2212') }, status: 'published', rightsConfirmed: true });
+    assert.equal(whole.status, 400, 'a streaming show cannot be promoted as a whole');
+    assert.match(whole.body.error, /already streaming/);
+    const unconfirmed = await call('POST', '/', { target: { kind: 'title', id: upcomingFilm.id }, status: 'published' });
+    assert.equal(unconfirmed.status, 400, 'publishing requires the promotional rights confirmation');
+    assert.match(unconfirmed.body.error, /rights/);
+    const created = await call('POST', '/', { target: { kind: 'title', id: upcomingFilm.id }, description: 'Promo copy', premiereAt: '', status: 'published', rightsConfirmed: true });
+    assert.equal(created.body.promotionRights.confirmedBy, 'admin-1');
     assert.equal(created.status, 201);
     assert.equal(created.body.premiereAt, null);
-    const edited = await call('PATCH', `/${created.body.id}`, { ...created.body, premiereAt: '2099-05-01', status: 'published' });
+    const edited = await call('PATCH', `/${created.body.id}`, { ...created.body, premiereAt: '2099-05-01', status: 'published', rightsConfirmed: true });
     assert.equal(edited.body.version, 2);
     assert.equal((await call('PATCH', `/${created.body.id}`, { ...created.body, status: 'hidden' })).status, 409, 'stale edits are refused');
     const hidden = await call('PATCH', `/${created.body.id}`, { ...edited.body, status: 'hidden' });

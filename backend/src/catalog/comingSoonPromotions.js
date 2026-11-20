@@ -2,24 +2,30 @@ const express = require('express');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { titleDetails, seriesDetails } = require('./details');
+const { metadataAllowed, titleDetails, seriesDetails } = require('./details');
 const { seriesKey } = require('./readModel');
 
-// Coming Soon promotions: Administrator-managed promotional cards for an existing upcoming film, episode or series
-// (optionally one upcoming episode of a show that is already streaming). A promotion only stores presentation:
-// artwork, description and a premiere date or TBD. It never changes the title, its media, rights or release state,
-// and it is shown only while its target is publicly eligible and not yet released.
+// Coming Soon promotions: Administrator-managed promotional cards. A promotion targets either
+//   - an existing catalog title: an unreleased film or episode, a show, or one upcoming episode of a streaming show, or
+//   - a new upcoming title that is not in the catalog yet (title + content type only; no catalog record is created).
+// A promotion stores presentation only: artwork, description, a premiere date or TBD, and an optional promotional
+// trailer (its own signed Mux upload, or an existing catalog trailer). It never changes a title, its media, rights,
+// contracts or release state, never exposes full-length media, and leaves Coming Soon automatically when the title
+// is released (or, for a title not yet linked to the catalog, when its premiere date passes). Records are kept.
 
 const COLLECTION = 'comingSoonPromotions';
 const MIGRATIONS = 'comingSoonPromotionMigrations';
 const STATUSES = new Set(['published', 'hidden']);
-const TARGET_KINDS = new Set(['title', 'episode', 'series']);
+const TARGET_KINDS = new Set(['title', 'episode', 'series', 'upcoming']);
+const UPCOMING_TYPES = { film: 'Film', series: 'Series', documentary: 'Documentary', episode: 'Episode' };
 const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const RECORD_ID = /^[A-Za-z0-9_-]{1,200}$/;
 const SITE_PATH = /^\/(?!\/)[A-Za-z0-9._~/-]{1,300}$/;
+const TRAILER_TYPES = new Set(['MOVIE', 'EPISODE', 'SERIES']);
 
 class PromotionInputError extends Error {}
 class PromotionConflictError extends Error {}
+class PromotionNotFoundError extends Error {}
 
 const text = (value, max, label) => {
   if (value === undefined || value === null) return '';
@@ -38,11 +44,20 @@ const positive = (value, label) => {
 function promotionInput(body = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new PromotionInputError('Invalid promotion.');
   const target = body.target || {};
-  if (!TARGET_KINDS.has(target.kind)) throw new PromotionInputError('Choose a film, episode or series to promote.');
-  if (typeof target.id !== 'string' || !RECORD_ID.test(target.id)) throw new PromotionInputError('Choose an existing title to promote.');
-  const seasonNumber = target.kind === 'series' ? positive(target.seasonNumber, 'Season number') : null;
-  const episodeNumber = target.kind === 'series' ? positive(target.episodeNumber, 'Episode number') : null;
-  if ((seasonNumber === null) !== (episodeNumber === null)) throw new PromotionInputError('Enter both the season and the episode number, or neither.');
+  if (!TARGET_KINDS.has(target.kind)) throw new PromotionInputError('Choose a catalog title or describe a new upcoming title.');
+  let cleanTarget;
+  if (target.kind === 'upcoming') {
+    if (!Object.hasOwn(UPCOMING_TYPES, target.contentType)) throw new PromotionInputError('Choose film, series, documentary or episode.');
+    cleanTarget = { kind: 'upcoming', contentType: target.contentType };
+  } else {
+    if (typeof target.id !== 'string' || !RECORD_ID.test(target.id)) throw new PromotionInputError('Choose an existing title to promote.');
+    const seasonNumber = target.kind === 'series' ? positive(target.seasonNumber, 'Season number') : null;
+    const episodeNumber = target.kind === 'series' ? positive(target.episodeNumber, 'Episode number') : null;
+    if ((seasonNumber === null) !== (episodeNumber === null)) throw new PromotionInputError('Enter both the season and the episode number, or neither.');
+    cleanTarget = { kind: target.kind, id: target.id, ...(seasonNumber ? { seasonNumber, episodeNumber } : {}) };
+  }
+  const title = text(body.title, 160, 'Card title');
+  if (cleanTarget.kind === 'upcoming' && !title) throw new PromotionInputError('Enter the title of the upcoming film, series, documentary or episode.');
   const artworkUrl = text(body.artworkUrl, 2000, 'Artwork');
   if (artworkUrl && !SITE_PATH.test(artworkUrl) && !/^https:\/\/[^\s"'<>]+$/.test(artworkUrl)) {
     throw new PromotionInputError('Artwork must be an uploaded image, an https:// link or a /path on watchprotv.com.');
@@ -58,10 +73,8 @@ function promotionInput(body = {}) {
   const sortOrder = body.sortOrder === undefined || body.sortOrder === null || body.sortOrder === '' ? 0 : Number(body.sortOrder);
   if (!Number.isInteger(sortOrder) || Math.abs(sortOrder) > 9999) throw new PromotionInputError('Order must be a whole number.');
   return {
-    target: { kind: target.kind, id: target.id, ...(seasonNumber ? { seasonNumber, episodeNumber } : {}) },
-    title: text(body.title, 160, 'Card title'),
-    description: text(body.description, 1000, 'Description'),
-    artworkUrl, premiereAt, status, sortOrder,
+    target: cleanTarget, title, description: text(body.description, 1000, 'Description'),
+    artworkUrl, premiereAt, status, sortOrder, rightsConfirmed: body.rightsConfirmed === true,
   };
 }
 
@@ -101,7 +114,7 @@ class PromotionStore {
   async writeLocal(mutate) {
     const run = this.queue.then(async () => {
       const state = await this.readLocal();
-      const result = mutate(state);
+      const result = await mutate(state);
       await fs.mkdir(path.dirname(this.filePath), { recursive: true });
       const temporary = `${this.filePath}.${crypto.randomUUID()}.tmp`;
       try {
@@ -149,12 +162,29 @@ class PromotionStore {
     return Object.values((await this.readLocal()).promotions);
   }
 
+  async get(id) {
+    if (!ID.test(id)) throw new PromotionNotFoundError('Promotion not found.');
+    if (this.db) {
+      const snapshot = await this.db.collection(COLLECTION).doc(id).get();
+      if (!snapshot.exists) throw new PromotionNotFoundError('Promotion not found.');
+      return { ...snapshot.data(), id: snapshot.id };
+    }
+    const record = (await this.readLocal()).promotions[id];
+    if (!record) throw new PromotionNotFoundError('Promotion not found.');
+    return record;
+  }
+
+  // Saves the Administrator's fields. The trailer is managed by its own endpoints and is always carried over, so
+  // editing details or linking the promotion to a catalog title never loses it.
   async save(input, actor, { id, version } = {}) {
     const now = new Date().toISOString();
+    const { rightsConfirmed, ...fields } = input;
     const update = (existing, newId) => {
       if (id && (!existing || existing.version !== version)) throw new PromotionConflictError('This promotion changed. Refresh before editing.');
       return {
-        ...input, id: newId, version: (existing?.version || 0) + 1,
+        ...fields, id: newId, version: (existing?.version || 0) + 1,
+        trailer: existing?.trailer || null,
+        promotionRights: rightsConfirmed ? { confirmedBy: actor, confirmedAt: now } : existing?.promotionRights || null,
         createdAt: existing?.createdAt || now, createdBy: existing?.createdBy || actor, updatedAt: now, updatedBy: actor,
       };
     };
@@ -174,6 +204,31 @@ class PromotionStore {
       if (!id && state.promotions[newId]) throw new PromotionConflictError('Try saving again.');
       const record = update(state.promotions[newId] || null, newId);
       state.promotions[newId] = record;
+      return record;
+    });
+  }
+
+  // Replaces only the trailer field. `change` receives the current promotion and returns the new trailer (or null).
+  // The version is not bumped, so an open edit form can still be saved afterwards.
+  async updateTrailer(id, change) {
+    if (!ID.test(id)) throw new PromotionNotFoundError('Promotion not found.');
+    const now = new Date().toISOString();
+    if (this.db) {
+      return this.db.runTransaction(async (transaction) => {
+        const ref = this.db.collection(COLLECTION).doc(id);
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists) throw new PromotionNotFoundError('Promotion not found.');
+        const current = { ...snapshot.data(), id };
+        const trailer = change(current);
+        transaction.update(ref, { trailer, trailerUpdatedAt: now });
+        return { ...current, trailer, trailerUpdatedAt: now };
+      });
+    }
+    return this.writeLocal((state) => {
+      const current = state.promotions[id];
+      if (!current) throw new PromotionNotFoundError('Promotion not found.');
+      const record = { ...current, trailer: change(current), trailerUpdatedAt: now };
+      state.promotions[id] = record;
       return record;
     });
   }
@@ -198,16 +253,42 @@ class PromotionStore {
 
 const future = (value, now) => (value && Date.parse(value) > now ? value : null);
 
+// A public catalog title's own trailer, never its full media.
+function catalogTrailer(records, id) {
+  const record = id && records.find((item) => item.id === id);
+  if (!record || !metadataAllowed(record) || !TRAILER_TYPES.has(record.contentType)
+    || record.trailerStatus !== 'ready' || !record.trailerPlaybackId) return null;
+  return { playbackId: record.trailerPlaybackId, duration: record.trailerDuration || 0 };
+}
+
+// The trailer a promotion plays: its own uploaded trailer, a catalog trailer the Administrator selected, or else the
+// promoted title's own trailer.
+function promotionTrailerSource(promotion, records, baseTrailerId) {
+  const trailer = promotion.trailer;
+  if (trailer?.source === 'upload' && trailer.status === 'ready' && trailer.playbackId) {
+    return { playbackId: trailer.playbackId, duration: trailer.duration || 0 };
+  }
+  if (trailer?.source === 'title') return catalogTrailer(records, trailer.titleId);
+  return catalogTrailer(records, baseTrailerId);
+}
+
 // Resolves a promotion against the public catalog the visitor can see. `state` is:
 //   live        - published, target public and unreleased: shown on the homepage
 //   hidden      - kept but switched off by an Administrator
-//   released    - the target is now streaming; retired automatically (the record is kept)
-//   unavailable - the target is not public on this platform (draft, rights, removed); nothing is shown
+//   released    - the linked title is now streaming; retired automatically (the record is kept)
+//   premiered   - a title not linked to the catalog reached its premiere date; retired automatically (record kept)
+//   unavailable - the linked title is not public on this platform (draft, rights, removed); nothing is shown
 function resolvePromotion(promotion, records, series, now = Date.now()) {
   const { target } = promotion;
   let base = null;
   let released = false;
-  if (target.kind === 'series') {
+  if (target.kind === 'upcoming') {
+    released = Boolean(promotion.premiereAt) && Date.parse(promotion.premiereAt) <= now;
+    base = {
+      kind: 'upcoming', href: null, supersedes: null, title: promotion.title, description: '', artwork: '', categories: [],
+      protvOriginal: false, premiereAt: null, contentType: UPCOMING_TYPES[target.contentType],
+    };
+  } else if (target.kind === 'series') {
     const show = series.find((item) => item.key === target.id);
     if (show) {
       released = target.episodeNumber
@@ -217,7 +298,9 @@ function resolvePromotion(promotion, records, series, now = Date.now()) {
       base = {
         kind: 'series', href: `/series/${encodeURIComponent(show.slug || show.key)}`, supersedes: target.episodeNumber ? null : `series-${show.key}`,
         title: show.title, description: show.description, artwork: show.artwork, categories: show.categories,
-        protvOriginal: Boolean(show.protvOriginal), trailerAvailable: Boolean(show.trailerAvailable), premiereAt: show.premiereAt,
+        protvOriginal: Boolean(show.protvOriginal), premiereAt: show.premiereAt,
+        // A single upcoming episode only plays a trailer chosen for it, never the show's general trailer.
+        trailerId: target.episodeNumber ? null : show.trailerTitleId,
       };
     }
   } else {
@@ -229,22 +312,26 @@ function resolvePromotion(promotion, records, series, now = Date.now()) {
       base = {
         kind: 'title', href: `/title/${encodeURIComponent(detail.slug || detail.id)}`, supersedes: detail.id,
         title: detail.title, description: detail.description, artwork: detail.posterUrl || detail.thumbnailUrl,
-        categories: detail.categories, protvOriginal: Boolean(detail.protvOriginal), trailerAvailable: Boolean(detail.trailerAvailable),
-        premiereAt: detail.releaseAt,
+        categories: detail.categories, protvOriginal: Boolean(detail.protvOriginal), premiereAt: detail.releaseAt, trailerId: record.id,
       };
     }
   }
-  const state = !base ? 'unavailable' : released ? 'released' : promotion.status === 'published' ? 'live' : 'hidden';
-  if (!base) return { state, card: null, supersedes: null };
+  const state = !base ? 'unavailable'
+    : released ? (target.kind === 'upcoming' ? 'premiered' : 'released')
+      : promotion.status === 'published' ? 'live' : 'hidden';
+  if (!base) return { state, card: null, supersedes: null, trailer: null };
+  const trailer = promotionTrailerSource(promotion, records, base.trailerId);
   const premiereAt = future(promotion.premiereAt, now) || (promotion.premiereAt ? null : future(base.premiereAt, now));
   return {
     state,
     supersedes: base.supersedes,
+    trailer,
     card: {
-      id: `promo-${promotion.id}`, kind: base.kind, href: base.href,
+      id: `promo-${promotion.id}`, promotionId: promotion.id, kind: base.kind, href: base.href,
       title: promotion.title || base.title, description: promotion.description || base.description || '',
       artwork: promotion.artworkUrl || base.artwork || '', categories: base.categories || [],
-      comingSoon: true, protvOriginal: base.protvOriginal, trailerAvailable: base.trailerAvailable,
+      comingSoon: true, protvOriginal: base.protvOriginal, trailerAvailable: Boolean(trailer),
+      ...(base.contentType ? { contentType: base.contentType } : {}),
       ...(premiereAt ? { premiereAt } : {}), promotion: true,
     },
   };
@@ -269,7 +356,16 @@ function withPromotions(items, promotions, records, now = Date.now()) {
   return [...live.map((result) => result.card), ...items.filter((item) => !replaced.has(item.id))];
 }
 
-// Choices for the Admin form: unreleased films and episodes, and every public show (for a show or one upcoming episode).
+// The trailer a visitor may play from a live promotional card (website only). Null when there is none to show.
+function livePromotionTrailer(promotions, records, id, now = Date.now()) {
+  const promotion = promotions.find((item) => item.id === id);
+  if (!promotion) return null;
+  const result = resolvePromotion(promotion, records, seriesDetails(records), now);
+  return result.state === 'live' ? result.trailer : null;
+}
+
+// Choices for the Admin form: unreleased films and episodes, every public show (for a show or one upcoming episode),
+// and the public catalog trailers that can be reused.
 function promotionTargets(records) {
   const series = seriesDetails(records).map((show) => ({
     kind: 'series', id: show.key, title: show.title, href: `/series/${encodeURIComponent(show.slug || show.key)}`,
@@ -284,7 +380,10 @@ function promotionTargets(records) {
       title: record.contentType === 'EPISODE' && detail.seriesTitle ? `${detail.seriesTitle} · ${detail.title}` : detail.title,
       href: `/title/${encodeURIComponent(detail.slug || detail.id)}`,
     }));
-  return { series, titles: titles.sort((a, b) => a.title.localeCompare(b.title)) };
+  const trailers = records.filter((record) => catalogTrailer(records, record.id))
+    .map((record) => ({ id: record.id, title: record.contentType === 'SERIES' ? record.seriesTitle || record.title : record.title }))
+    .sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  return { series, titles: titles.sort((a, b) => a.title.localeCompare(b.title)), trailers };
 }
 
 function defaultPromotionStore() {
@@ -304,6 +403,14 @@ function createAdminPromotionRouter({
   posterStore,
   normalizePosterImage = (bytes, mimeType) => require('../integrations/creatorPromotional').normalizePosterImage(bytes, mimeType),
   logAdminEvent = (event) => require('../adminBot/adminAudit').logAdminEvent(event),
+  // The same Mux helpers the catalog trailer uploads use. Promotional trailers are always signed playback.
+  createDirectUpload = (...args) => require('../mux').createDirectUpload(...args),
+  getUpload = (id) => require('../mux').getUpload(id),
+  getAsset = (id) => require('../mux').getAsset(id),
+  getPlaybackId = (...args) => require('../mux').getPlaybackId(...args),
+  signPlayback = (...args) => require('../mux').signPlayback(...args),
+  cancelUpload = (id) => require('../mux').cancelUpload(id),
+  deleteAsset = (id) => require('../mux').deleteAsset(id),
 } = {}) {
   const router = express.Router();
   router.use(authorize);
@@ -311,20 +418,66 @@ function createAdminPromotionRouter({
   const fail = (res, error) => {
     if (error instanceof PromotionInputError) return res.status(400).json({ error: error.message });
     if (error instanceof PromotionConflictError) return res.status(409).json({ error: error.message });
+    if (error instanceof PromotionNotFoundError) return res.status(404).json({ error: error.message });
     console.error('Coming Soon promotion operation failed:', error);
     return res.status(503).json({ error: 'Coming Soon promotions are temporarily unavailable.' });
   };
   const audit = (req, type, message, details) => logAdminEvent({ type, message, actorId: req.user.uid, details }).catch(() => {});
-  const requireTarget = (input, records) => {
+  const requirePublishable = (input, records) => {
+    if (!input.rightsConfirmed) {
+      throw new PromotionInputError('Confirm that PROtv has the rights to use this promotional artwork, copy and trailer before publishing.');
+    }
     const result = resolvePromotion(input, records, seriesDetails(records));
     if (result.state === 'unavailable') throw new PromotionInputError('That title is not public, so it cannot be promoted yet.');
     if (result.state === 'released') throw new PromotionInputError('That title is already streaming. Coming Soon is only for unreleased titles.');
+    if (result.state === 'premiered') throw new PromotionInputError('That premiere date has passed. Choose a future date or TBD.');
+  };
+  // Best-effort removal of a promotion's own Mux trailer (never a catalog title's).
+  const discardOwnAsset = async (trailer) => {
+    if (trailer?.source !== 'upload' || !trailer.assetId) return;
+    try { await deleteAsset(trailer.assetId); } catch (error) { console.error('Replaced promotional trailer could not be deleted from Mux:', error.message); }
+  };
+
+  // Moves a finished upload into place, keeping the previous trailer playable until then.
+  const reconcile = async (promotion) => {
+    const pending = promotion.trailer?.pendingUploadId;
+    if (!pending) return promotion;
+    const upload = await getUpload(pending);
+    let asset = null;
+    if (!['errored', 'cancelled'].includes(upload.status) && upload.asset_id) asset = await getAsset(upload.asset_id);
+    const failed = ['errored', 'cancelled'].includes(upload.status) || asset?.status === 'errored';
+    if (!failed && asset?.status !== 'ready') return promotion;
+    const playbackId = asset && getPlaybackId(asset, 'signed');
+    let previous = null;
+    const updated = await store.updateTrailer(promotion.id, (current) => {
+      const trailer = current.trailer || {};
+      if (trailer.pendingUploadId !== pending) return current.trailer;
+      const { pendingUploadId, ...rest } = trailer;
+      if (failed || !playbackId) return { ...rest, error: 'Mux could not process the trailer upload. Try again.' };
+      previous = rest;
+      return { source: 'upload', status: 'ready', assetId: asset.id, playbackId, duration: Math.round(asset.duration || 0), error: '' };
+    });
+    if (previous && previous.assetId !== asset?.id) await discardOwnAsset(previous);
+    return updated;
+  };
+  const trailerStatus = (promotion, records) => {
+    const trailer = promotion.trailer || {};
+    const source = promotionTrailerSource(promotion, records, null);
+    return {
+      status: trailer.pendingUploadId ? 'processing' : source ? 'ready' : 'empty',
+      source: trailer.pendingUploadId ? 'upload' : trailer.source || null,
+      titleId: trailer.source === 'title' ? trailer.titleId : null,
+      error: trailer.error || '',
+    };
   };
 
   router.get('/', async (_req, res) => {
     try {
       const [promotions, records] = await Promise.all([store.list(), loadRecords()]);
-      const items = resolveAll(promotions, records).map(({ promotion, state, card }) => ({ ...promotion, state, preview: card }));
+      const current = await Promise.all(promotions.map((promotion) => reconcile(promotion).catch(() => promotion)));
+      const items = resolveAll(current, records).map(({ promotion, state, card }) => ({
+        ...promotion, state, preview: card, trailerStatus: trailerStatus(promotion, records),
+      }));
       return res.json({ items, targets: promotionTargets(records) });
     } catch (error) { return fail(res, error); }
   });
@@ -332,18 +485,24 @@ function createAdminPromotionRouter({
   router.post('/', async (req, res) => {
     try {
       const input = promotionInput(req.body);
-      requireTarget(input, await loadRecords());
+      const records = await loadRecords();
+      if (input.status === 'published') requirePublishable(input, records);
+      else if (input.target.kind !== 'upcoming' && resolvePromotion(input, records, seriesDetails(records)).state === 'unavailable') {
+        throw new PromotionInputError('That title is not public, so it cannot be promoted yet.');
+      }
       const saved = await store.save(input, req.user.uid);
       await audit(req, 'coming_soon_promotion_saved', `Created Coming Soon promotion ${saved.id}.`, { id: saved.id, target: saved.target, status: saved.status });
       return res.status(201).json(saved);
     } catch (error) { return fail(res, error); }
   });
 
+  // Also links a promotion for a new title to its catalog record once it exists: only the target changes, and the
+  // artwork, copy and trailer are kept.
   router.patch('/:id', async (req, res) => {
     try {
       const input = promotionInput(req.body);
       // Hiding stays possible even after the target is released or withdrawn.
-      if (input.status === 'published') requireTarget(input, await loadRecords());
+      if (input.status === 'published') requirePublishable(input, await loadRecords());
       const saved = await store.save(input, req.user.uid, { id: req.params.id, version: req.body.version });
       await audit(req, 'coming_soon_promotion_saved', `Updated Coming Soon promotion ${saved.id}.`, { id: saved.id, target: saved.target, status: saved.status });
       return res.json(saved);
@@ -356,6 +515,75 @@ function createAdminPromotionRouter({
       await store.remove(req.params.id, Number(req.body?.version));
       await audit(req, 'coming_soon_promotion_removed', `Removed Coming Soon promotion ${req.params.id}. The promoted title was not changed.`, { id: req.params.id });
       return res.status(204).end();
+    } catch (error) { return fail(res, error); }
+  });
+
+  // ---- Promotional trailer ----------------------------------------------------------------------------------------
+  router.post('/:id/trailer/upload-url', async (req, res) => {
+    let upload;
+    try {
+      const promotion = await reconcile(await store.get(req.params.id));
+      if (promotion.trailer?.pendingUploadId) throw new PromotionConflictError('A trailer upload is already processing for this promotion.');
+      upload = await createDirectUpload(process.env.FRONTEND_URL, { playbackPolicy: 'signed' });
+      await store.updateTrailer(req.params.id, (current) => {
+        if (current.trailer?.pendingUploadId) throw new PromotionConflictError('A trailer upload is already processing for this promotion.');
+        return { ...(current.trailer || {}), pendingUploadId: upload.id, error: '' };
+      });
+      await audit(req, 'coming_soon_trailer_upload_started', `Started a promotional trailer upload for ${req.params.id}.`, { id: req.params.id, uploadId: upload.id });
+      return res.status(201).json({ uploadId: upload.id, uploadUrl: upload.url, status: 'processing' });
+    } catch (error) {
+      if (upload?.id) await cancelUpload(upload.id).catch(() => {});
+      return fail(res, error);
+    }
+  });
+
+  router.get('/:id/trailer/status', async (req, res) => {
+    try {
+      const [promotion, records] = await Promise.all([store.get(req.params.id).then(reconcile), loadRecords()]);
+      return res.json(trailerStatus(promotion, records));
+    } catch (error) { return fail(res, error); }
+  });
+
+  // Reuse a trailer that a public catalog title already has.
+  router.post('/:id/trailer/select', async (req, res) => {
+    try {
+      const titleId = req.body?.titleId;
+      if (typeof titleId !== 'string' || !RECORD_ID.test(titleId)) throw new PromotionInputError('Choose a catalog trailer.');
+      if (!catalogTrailer(await loadRecords(), titleId)) throw new PromotionInputError('That title has no public trailer ready.');
+      let previous = null;
+      await store.updateTrailer(req.params.id, (current) => {
+        if (current.trailer?.pendingUploadId) throw new PromotionConflictError('A trailer upload is still processing. Wait for it or remove the trailer first.');
+        previous = current.trailer;
+        return { source: 'title', titleId, status: 'ready', error: '' };
+      });
+      await discardOwnAsset(previous);
+      await audit(req, 'coming_soon_trailer_selected', `Selected the catalog trailer of ${titleId} for ${req.params.id}.`, { id: req.params.id, titleId });
+      return res.json({ status: 'ready', source: 'title', titleId });
+    } catch (error) { return fail(res, error); }
+  });
+
+  router.delete('/:id/trailer', async (req, res) => {
+    try {
+      let previous = null;
+      await store.updateTrailer(req.params.id, (current) => { previous = current.trailer; return null; });
+      if (previous?.pendingUploadId) {
+        try {
+          const upload = await getUpload(previous.pendingUploadId);
+          if (upload.asset_id) await deleteAsset(upload.asset_id); else await cancelUpload(previous.pendingUploadId);
+        } catch (error) { console.error('Pending promotional trailer upload could not be cancelled:', error.message); }
+      }
+      await discardOwnAsset(previous);
+      await audit(req, 'coming_soon_trailer_removed', `Removed the promotional trailer of ${req.params.id}. No catalog trailer was changed.`, { id: req.params.id });
+      return res.status(204).end();
+    } catch (error) { return fail(res, error); }
+  });
+
+  router.get('/:id/trailer/preview', async (req, res) => {
+    try {
+      const [promotion, records] = await Promise.all([store.get(req.params.id).then(reconcile), loadRecords()]);
+      const source = promotionTrailerSource(promotion, records, null);
+      if (!source) return res.status(409).json({ error: 'The trailer is not ready to preview.' });
+      return res.json({ id: promotion.id, muxPlaybackId: source.playbackId, playbackToken: await signPlayback(source.playbackId, source.duration) });
     } catch (error) { return fail(res, error); }
   });
 
@@ -387,6 +615,6 @@ function createAdminPromotionRouter({
 }
 
 module.exports = {
-  PromotionStore, PromotionInputError, promotionInput, resolvePromotion, withPromotions, promotionTargets,
-  createAdminPromotionRouter, defaultPromotionStore, SEED_MIGRATIONS,
+  PromotionStore, PromotionInputError, promotionInput, resolvePromotion, withPromotions, promotionTargets, livePromotionTrailer,
+  createAdminPromotionRouter, defaultPromotionStore, SEED_MIGRATIONS, UPCOMING_TYPES,
 };
