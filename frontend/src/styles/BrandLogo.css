@@ -1,0 +1,108 @@
+/* Official PROtv logo artwork. Each placement sets a height (or width) close to the old text wordmark's size. */
+.ptv-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+/* Site header */
+.ptv-wordmark--logo {
+  align-items: center;
+  line-height: 0;
+}
+
+.ptv-wordmark--logo .ptv-logo {
+  height: 34px;
+}
+
+@media (min-width: 1025px) {
+  .ptv-header .ptv-wordmark--logo .ptv-logo {
+    height: 44px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .ptv-wordmark--logo .ptv-logo {
+    height: 30px;
+  }
+}
+
+/* Site footer */
+.ptv-wordmark--footer.ptv-wordmark--logo .ptv-logo {
+  height: 38px;
+}
+
+/* Homepage hero brand slide */
+.ptv-hero__brand--logo {
+  display: block;
+  line-height: 0 !important;
+  text-shadow: none;
+}
+
+.ptv .ptv-hero__brand--logo .ptv-logo,
+.ptv-hero__brand--logo .ptv-logo {
+  width: clamp(280px, 38vw, 600px);
+  height: auto;
+  filter: drop-shadow(0 18px 48px rgba(0, 0, 0, 0.45));
+}
+
+@media (max-width: 640px) {
+  .ptv .ptv-hero__brand--logo .ptv-logo,
+  .ptv-hero__brand--logo .ptv-logo {
+    width: min(80vw, 340px);
+  }
+}
+
+/* Sign-in / create-account box */
+.auth-wordmark--logo .ptv-logo {
+  height: 40px;
+}
+
+/* Older page header and footer (About, FAQ, policies and similar pages) */
+.logo--image,
+.footer-logo--image {
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.logo--image .ptv-logo {
+  height: 32px;
+}
+
+.footer-logo--image .ptv-logo {
+  height: 34px;
+}
+
+/* Player top bar */
+.player-brand--logo {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.player-brand--logo .ptv-logo {
+  height: 26px;
+}
+
+/* Creators page artwork */
+.creators-hero__frame-wordmark--logo {
+  display: block;
+  line-height: 0;
+}
+
+.creators-hero__frame-wordmark--logo .ptv-logo {
+  width: min(78%, 340px);
+  margin: 0 auto;
+}
+
+.creators-cta__mark--logo {
+  line-height: 0;
+  opacity: 0.16;
+}
+
+.creators-cta__mark--logo .ptv-logo {
+  width: clamp(200px, 26vw, 420px);
+}

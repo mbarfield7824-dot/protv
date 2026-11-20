@@ -1,6 +1,7 @@
 import ProTVFooter from '../components/ProTVFooter';
 import ProTVHeader from '../components/ProTVHeader';
 import ProTVShell from '../components/ProTVShell';
+import BrandLogo from '../components/BrandLogo';
 import { CreatorPortalButton } from '../components/CreatorExperience';
 import { useAuth } from '../hooks/useAuth';
 import brand from '../../../shared/brand.json';
@@ -79,7 +80,7 @@ export default function Creators() {
               <div className="creators-hero__frame creators-hero__frame--back" />
               <div className="creators-hero__frame creators-hero__frame--front">
                 <span className="creators-hero__frame-line" />
-                <span className="creators-hero__frame-wordmark">PRO<span>tv</span></span>
+                <span className="creators-hero__frame-wordmark creators-hero__frame-wordmark--logo"><BrandLogo decorative /></span>
                 <span className="creators-hero__frame-caption">INDEPENDENT STORIES</span>
               </div>
               <span className="creators-hero__light" />
@@ -135,7 +136,7 @@ export default function Creators() {
                 Open Creator Portal
               </CreatorPortalButton>
             </div>
-            <div className="creators-cta__mark" aria-hidden="true">PRO<span>tv</span></div>
+            <div className="creators-cta__mark creators-cta__mark--logo" aria-hidden="true"><BrandLogo decorative /></div>
           </section>
         </main>
         <ProTVFooter />

@@ -64,34 +64,54 @@ async function mount(Component, entry = '/') {
 
 const railTitles = (id) => [...document.querySelectorAll(`#${id} .ptv-card__title`)].map((item) => item.textContent);
 
+const curatedEpisode = '2212 · Episode 3: C-Fluid';
+
+// Note: compare titles/booleans rather than passing mounted DOM elements to assert. When an assertion on a React-mounted
+// element fails, Node's assert tries to inspect the element's whole fiber/jsdom graph and dies with
+// "RangeError: Array buffer allocation failed" instead of reporting the real failure.
 test('the homepage shows a Coming Soon row and Browse tile that open detail pages, with no Play action', async () => {
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [upcoming];
-  api.getOriginals = async () => [];
   await mount(Home);
-  assert.deepEqual(railTitles('coming-soon'), ['Synthetic Upcoming Show']);
-  const card = document.querySelector('#coming-soon .ptv-card');
+  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode, 'Synthetic Upcoming Show']);
+  const card = document.querySelectorAll('#coming-soon .ptv-card')[1];
   assert.equal(card.querySelector('a').getAttribute('href'), '/series/abc');
   assert.match(card.textContent, /Coming Soon/);
-  assert.match(card.textContent, /Premiere date to be announced/);
-  assert.equal(card.querySelector('.ptv-card__action--play'), null);
+  assert.match(card.textContent, /Premiere date TBD/);
+  assert.equal(card.querySelector('.ptv-card__action--play') === null, true);
   const tile = document.querySelector('#categories a[href="/#coming-soon"]');
   assert.ok(tile);
-  assert.match(tile.getAttribute('aria-label'), /Coming Soon, 1 title/);
+  assert.match(tile.getAttribute('aria-label'), /Coming Soon, 2 titles/);
 });
 
-test('with nothing published the row is hidden, while the Browse tile keeps an empty state', async () => {
+test('2212 Episode 3: C-Fluid is a Coming Soon card with its artwork and no playback, and never touches released episodes', async () => {
+  const released = { ...film, id: 'creator_episode_ep1', title: 'Concrete', contentType: 'TV_EPISODE', seriesTitle: '2212', episodeNumber: 1 };
+  api.getVideos = async () => [film, released];
+  api.getComingSoon = async () => [];
+  await mount(Home);
+  const cards = document.querySelectorAll('#coming-soon .ptv-card');
+  assert.equal(cards.length, 1, 'released episodes stay out of Coming Soon');
+  const card = cards[0];
+  assert.equal(card.querySelector('.ptv-card__title').textContent, curatedEpisode);
+  assert.equal(card.querySelector('img').getAttribute('src'), '/coming-soon/2212-episode-3-c-fluid.jpg');
+  assert.equal(card.querySelector('.ptv-card__meta').textContent, 'Premiere date TBD');
+  assert.deepEqual([...card.querySelectorAll('a')].map((link) => link.getAttribute('href')), ['/series/2212', '/series/2212']);
+  assert.equal(card.querySelector('.ptv-card__action--play, a[href^="/player/"]') === null, true, 'no playback entry point');
+  assert.equal(released.comingSoon, undefined, 'released episode records are not modified');
+});
+
+test('with nothing published the row keeps only the curated card, and a Coming Soon outage never breaks the homepage', async () => {
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [];
-  api.getOriginals = async () => [];
   await mount(Home);
-  assert.equal(document.querySelector('section#coming-soon .ptv-card'), null);
+  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode]);
   assert.ok(document.querySelector('#categories a[href="/#coming-soon"]'));
   await mount(Home, '/#coming-soon');
-  assert.match(document.querySelector('#coming-soon').textContent, /Nothing is announced just yet/);
+  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode], 'the Browse tile destination is the populated row');
   api.getComingSoon = async () => { throw new Error('offline'); };
   await mount(Home);
   assert.ok(railTitles('new-on-protv').includes(film.title), 'a Coming Soon failure never breaks the homepage');
+  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode]);
 });
 
 test('one title appears in New on PROtv and in every category it is assigned to', async () => {
@@ -127,38 +147,49 @@ test('Admin can set a primary genre and add or remove more categories, and savin
   assert.ok(!chip('Black Cinema'), 'the primary genre is not offered twice');
 });
 
-test('PROtv Originals: a permanent Browse tile and a row that shares Coming Soon titles without duplicating them', async () => {
+test('the homepage has no PROtv Originals section, tile or nav link, but Original branding stays on cards', async () => {
   const original = { ...upcoming, comingSoon: true, protvOriginal: true, categories: ['Black Cinema', 'Drama'] };
+  let originalsRequests = 0;
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [original];
-  api.getOriginals = async () => [original];
+  api.getOriginals = async () => { originalsRequests += 1; return [original]; };
   await mount(Home);
-  assert.deepEqual(railTitles('originals'), [original.title]);
-  assert.deepEqual(railTitles('coming-soon'), [original.title]);
-  const card = document.querySelector('#originals .ptv-card');
+  assert.equal(document.querySelector('#originals') === null, true, 'no Originals section');
+  assert.equal(document.querySelector('a[href="/#originals"], a[href="/#featured-on-protv"]') === null, true, 'no dead Originals links');
+  assert.equal([...document.querySelectorAll('header a')].some((link) => link.textContent.trim() === 'Originals'), false);
+  assert.equal(originalsRequests, 0, 'the homepage no longer requests the Originals row');
+  assert.equal(typeof api.getOriginals, 'function', 'the Originals catalog endpoint client is kept');
+  const card = [...document.querySelectorAll('#coming-soon .ptv-card')].find((item) => item.textContent.includes(original.title));
   assert.equal(card.querySelector('a').getAttribute('href'), '/series/abc');
   assert.deepEqual([...card.querySelectorAll('.ptv-card__badge')].map((item) => item.textContent), ['PROtv Original', 'Coming Soon']);
-  assert.equal(card.querySelector('.ptv-card__action--play'), null);
-  const tiles = [...document.querySelectorAll('#categories a')].map((item) => item.getAttribute('href'));
-  assert.deepEqual(tiles.slice(0, 2), ['/#coming-soon', '/#originals']);
-
-  api.getOriginals = async () => [];
-  await mount(Home);
-  assert.equal(document.querySelector('section#originals .ptv-card'), null);
-  assert.ok(document.querySelector('#categories a[href="/#originals"]'), 'the Browse tile is permanent');
+  assert.equal(card.querySelector('.ptv-card__action--play') === null, true);
+  assert.equal(document.querySelectorAll('#categories a')[0].getAttribute('href'), '/#coming-soon');
   await mount(Home, '/#originals');
-  assert.match(document.querySelector('#originals').textContent, /PROtv Originals are coming soon/);
+  assert.ok(railTitles('new-on-protv').includes(film.title), 'an old /#originals link still lands on a working homepage');
 });
 
 test('a released Original keeps its badge on regular cards and keeps its normal Play action', async () => {
   api.getVideos = async () => [{ ...film, protvOriginal: true }];
   api.getComingSoon = async () => [];
-  api.getOriginals = async () => [{ id: film.id, kind: 'title', href: `/title/${film.id}`, title: film.title, comingSoon: false, watchAvailable: true, protvOriginal: true }];
   await mount(Home);
   const card = document.querySelector('#new-on-protv .ptv-card');
   assert.equal(card.querySelector('.ptv-card__badge--original').textContent, 'PROtv Original');
   assert.ok(card.querySelector('.ptv-card__action--play'));
-  assert.match(document.querySelector('#originals .ptv-card').textContent, /Now streaming/);
+});
+
+test('the homepage hero shows UNITED NATIONS, The Thirst and A Long Time Coming in that order', async () => {
+  const hero = (id, title) => ({ ...film, id, title, description: `${title} description`, categories: [], category: 'Drama', genre: 'Drama' });
+  api.getVideos = async () => [
+    film,
+    hero('creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', 'A Long Time Coming'),
+    hero('creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6', 'UNITED NATIONS'),
+    hero('creator_613e215e-709f-48ee-91bb-b225d8da4a33', 'The Thirst'),
+  ];
+  api.getComingSoon = async () => [];
+  await mount(Home);
+  const tabs = [...document.querySelectorAll('.ptv-hero [role="tab"]')].map((item) => item.getAttribute('aria-label'));
+  const titles = tabs.filter((label) => ['UNITED NATIONS', 'The Thirst', 'A Long Time Coming', film.title].includes(label));
+  assert.deepEqual(titles, ['UNITED NATIONS', 'The Thirst', 'A Long Time Coming']);
 });
 
 test('Admin can designate and remove a PROtv Original alongside categories', async () => {

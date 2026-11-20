@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import BrandSlogan from './BrandSlogan';
+import BrandLogo from './BrandLogo';
 
 const COLUMNS = [
   {
@@ -61,7 +62,7 @@ export default function ProTVFooter() {
   return (
     <footer className="ptv-footer">
       <div className="ptv-footer__brand">
-        <Link to="/" className="ptv-wordmark ptv-wordmark--footer" aria-label="PROtv home">PRO<span>tv</span></Link>
+        <Link to="/" className="ptv-wordmark ptv-wordmark--footer ptv-wordmark--logo" aria-label="PROtv home"><BrandLogo decorative /></Link>
         <p><BrandSlogan /></p>
         <small>© {new Date().getFullYear()} PROtv. All rights reserved.</small>
       </div>

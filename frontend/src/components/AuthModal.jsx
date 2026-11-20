@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { isFirebaseConfigured } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { AUTH_SLOW_MS, AUTH_TIMEOUT_MS, authErrorMessage, isInAppBrowser, withTimeout } from '../context/authFlow';
+import BrandLogo from './BrandLogo';
 import '../styles/AuthModal.css';
 
 const LOGIN = 'login';
@@ -74,8 +75,8 @@ export default function AuthModal({ open, onClose, timeoutMs = AUTH_TIMEOUT_MS, 
     <div className="auth-modal-overlay" role="presentation" onMouseDown={onClose}>
       <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
         <button className="auth-close" onClick={onClose} aria-label="Close sign in">x</button>
-        <p className="auth-wordmark" aria-label="PROtv">
-          PRO<span>tv</span>
+        <p className="auth-wordmark auth-wordmark--logo">
+          <BrandLogo />
         </p>
         <h2 id="auth-title">
           {mode === REGISTER ? 'Create your account' : mode === RESET ? 'Reset your password' : 'Welcome back'}

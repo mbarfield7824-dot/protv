@@ -212,7 +212,10 @@ test('homepage preserves brand and titles, adds spotlight, and hero next/previou
   await act(async () => document.querySelector('[aria-label="Previous featured slide"]').click());
   assert.equal(document.querySelector('[aria-label="Me and My White Friend"]').getAttribute('aria-selected'), 'true');
   await act(async () => document.querySelector('[aria-label="PROtv brand hero"]').click());
-  assert.match(document.querySelector('h1').textContent, /PROtv/);
+  const logo = document.querySelector('h1 img.ptv-logo');
+  assert.ok(logo, 'the brand slide shows the PROtv logo image');
+  assert.equal(logo.getAttribute('alt'), 'PROtv');
+  assert.equal(logo.getAttribute('src'), '/brand/protv-logo-1200.webp');
   api.getVideos = async () => [];
   api.getComingSoon = async () => [];
   api.getOriginals = async () => [];

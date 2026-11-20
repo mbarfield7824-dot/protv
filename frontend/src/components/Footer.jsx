@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import BrandSlogan from './BrandSlogan';
+import BrandLogo from './BrandLogo';
 import '../styles/Footer.css';
 
 export default function Footer() {
@@ -7,9 +8,8 @@ export default function Footer() {
     <footer className="protv-footer">
       <div className="footer-content">
         <div className="footer-brand">
-          <Link to="/" className="footer-logo">
-            <span className="footer-logo-icon">▶</span>
-            <span className="footer-logo-text">PROtv</span>
+          <Link to="/" className="footer-logo footer-logo--image" aria-label="PROtv home">
+            <BrandLogo decorative />
           </Link>
           <p className="footer-tagline"><BrandSlogan /></p>
         </div>

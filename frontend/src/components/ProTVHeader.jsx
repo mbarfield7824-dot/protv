@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import BrandLogo from './BrandLogo';
 import { useLinearChannelPublic } from '../hooks/useLinearChannelPublic';
 
 const NAV_LINKS = [
@@ -10,7 +11,6 @@ const NAV_LINKS = [
   { to: '/music', label: 'Music' },
   { to: '/podcasts', label: 'Podcasts' },
   { to: '/documentaries', label: 'Documentaries' },
-  { to: '/#originals', label: 'Originals' },
   { to: '/creators', label: 'Submit Your Film' },
 ];
 
@@ -95,8 +95,8 @@ export default function ProTVHeader() {
           <span className={mobileOpen ? 'is-open' : ''} />
         </button>
 
-        <Link to="/" className="ptv-wordmark" aria-label="PROtv home">
-          PRO<span>tv</span>
+        <Link to="/" className="ptv-wordmark ptv-wordmark--logo" aria-label="PROtv home">
+          <BrandLogo decorative />
         </Link>
 
         <nav className="ptv-header__nav" aria-label="Primary">

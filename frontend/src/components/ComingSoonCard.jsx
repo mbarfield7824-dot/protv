@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { FALLBACK_POSTER } from '../data/mockData';
 
 function premiereLabel(premiereAt) {
-  if (!premiereAt) return 'Premiere date to be announced';
+  if (!premiereAt) return 'Premiere date TBD';
   return `Premieres ${new Date(premiereAt).toLocaleDateString('en-US', {
     timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric',
   })}`;

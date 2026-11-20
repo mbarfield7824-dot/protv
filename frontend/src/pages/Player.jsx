@@ -2,6 +2,7 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ContentRow from '../components/ContentRow';
 import VastMuxPlayer from '../components/VastMuxPlayer';
+import BrandLogo from '../components/BrandLogo';
 import TrailerPlayer from '../components/TrailerPlayer';
 import { api } from '../api';
 import { podcastEpisodeLabel, podcastParentUrl } from '../data/playerCatalog';
@@ -61,8 +62,8 @@ export default function Player() {
       <button className="player-back" type="button" onClick={goBack}>
         <span aria-hidden="true">←</span> Back
       </button>
-      <Link className="player-brand" to="/" aria-label="PROtv home">
-        PRO<span>tv</span>
+      <Link className="player-brand player-brand--logo" to="/" aria-label="PROtv home">
+        <BrandLogo decorative />
       </Link>
       <span className="player-chrome__spacer" aria-hidden="true" />
     </div>

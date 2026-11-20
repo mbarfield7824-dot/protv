@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import SearchOverlay from './SearchOverlay';
+import BrandLogo from './BrandLogo';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/Header.css';
 
@@ -17,7 +18,6 @@ export default function Header() {
     { to: '/music', label: 'Music' },
     { to: '/podcasts', label: 'Podcasts' },
     { to: '/#documentary', label: 'Documentaries' },
-    { to: '/#featured-on-protv', label: 'Originals' },
     { to: '/creators', label: 'Submit Your Film' },
     { to: '/report', label: 'Report Safety' },
     { to: '/#my-list', label: 'My List' },
@@ -34,9 +34,8 @@ export default function Header() {
     <header className="header-premium">
       <div className="header-content">
         {/* Logo */}
-        <Link to="/" className="logo">
-          <span className="logo-icon">▶</span>
-          <span className="logo-text">PROtv</span>
+        <Link to="/" className="logo logo--image" aria-label="PROtv home">
+          <BrandLogo decorative />
         </Link>
 
         {/* Navigation Menu */}

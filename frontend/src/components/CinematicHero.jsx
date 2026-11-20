@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import BrandSlogan from './BrandSlogan';
+import BrandLogo from './BrandLogo';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { FEATURED_PODCAST } from '../data/featuredPodcast';
@@ -108,7 +109,7 @@ export default function CinematicHero({ brand, titles = [], featuredPodcast = fa
           <p className="ptv-hero__kicker">
             <BrandSlogan />
           </p>
-          <h1 className="ptv-hero__brand">PRO<span>tv</span></h1>
+          <h1 className="ptv-hero__brand ptv-hero__brand--logo"><BrandLogo large /></h1>
           <p className="ptv-hero__lede">
             The home for independent films, documentaries,{' '}
             <br />

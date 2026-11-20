@@ -23,11 +23,24 @@ import { isTvEpisode } from '../utils/shows';
 import { muxStillUrl } from '../utils/artwork';
 import '../styles/Creators.css';
 
+// Homepage hero titles, in order: United Nations, The Thirst, A Long Time Coming.
 const FEATURED_PROTV_TITLE_IDS = [
-  '3NAU6BldsmCNs9wjM08a',
-  'WIVB9NPQQzvtvjTBsiKw',
-  'B2MDEH2b25NknMQMEhoM',
-  'zGpbFWvSaup6ioUaoqsN',
+  'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6',
+  'creator_613e215e-709f-48ee-91bb-b225d8da4a33',
+  'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9',
+];
+
+// Curated Coming Soon cards shown ahead of the published listings. Artwork lives in frontend/public/coming-soon.
+// These open an existing public page; they never start playback.
+const CURATED_COMING_SOON = [
+  {
+    id: 'curated-2212-episode-3',
+    kind: 'series',
+    href: '/series/2212',
+    title: '2212 · Episode 3: C-Fluid',
+    artwork: '/coming-soon/2212-episode-3-c-fluid.jpg',
+    comingSoon: true,
+  },
 ];
 
 const RAILS_AFTER_SPOTLIGHT = [
@@ -118,7 +131,6 @@ function HomeSkeleton() {
 export default function Home() {
   const [apiVideos, setApiVideos] = useState([]);
   const [comingSoon, setComingSoon] = useState([]);
-  const [originals, setOriginals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [previewVideo, setPreviewVideo] = useState(null);
   const { user, favorites, progress } = useAuth();
@@ -129,12 +141,8 @@ export default function Home() {
   async function fetchApiVideos() {
     // Published Coming Soon listings load alongside the catalog; a failure only hides the row.
     const comingSoonRequest = api.getComingSoon()
-      .then((items) => setComingSoon(Array.isArray(items) ? items : []))
-      .catch(() => setComingSoon([]));
-    // PROtv Originals are an Administrator designation, independent of genre; a failure only hides the row.
-    const originalsRequest = api.getOriginals()
-      .then((items) => setOriginals(Array.isArray(items) ? items : []))
-      .catch(() => setOriginals([]));
+      .then((items) => setComingSoon([...CURATED_COMING_SOON, ...(Array.isArray(items) ? items : [])]))
+      .catch(() => setComingSoon([...CURATED_COMING_SOON]));
     try {
       const data = await api.getVideos();
       if (Array.isArray(data) && data.length > 0) {
@@ -153,7 +161,7 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to load live videos:', error);
     } finally {
-      await Promise.all([comingSoonRequest, originalsRequest]);
+      await comingSoonRequest;
       setLoading(false);
     }
   }
@@ -271,15 +279,6 @@ export default function Home() {
     fallback: FALLBACK_POSTER,
   };
 
-  // PROtv Originals is a permanent Browse tile, right after Coming Soon.
-  const originalsTile = {
-    category: { id: 'originals', name: 'PROtv Originals' },
-    count: originals.length,
-    comingSoon: originals.length === 0,
-    artwork: originals.find((item) => item.artwork)?.artwork || '',
-    fallback: FALLBACK_POSTER,
-  };
-
   // ---- New on PROtv / Spotlight -----------------------------------------
   const newOnProtv = isLive
     ? [...movieCatalog].sort((left, right) => catalogTimestamp(right) - catalogTimestamp(left)).slice(0, 12)
@@ -302,7 +301,6 @@ export default function Home() {
     'continue-watching', 'categories', 'new-on-protv', 'submit',
     ...(comingSoon.length ? ['coming-soon'] : []),
     ...editorialRails.map((rail) => rail.id),
-    ...(originals.length ? ['originals'] : []),
   ]);
 
   // ---- Hash-driven destination (nav, category tiles, footer links) -------
@@ -319,8 +317,6 @@ export default function Home() {
       destination = { id: 'movies', title: 'Movies', items: movieCatalog };
     } else if (selection === 'coming-soon') {
       destination = { id: 'coming-soon', empty: { title: 'Nothing is announced just yet.', body: 'New series and films appear here with their trailers before they premiere on PROtv.' } };
-    } else if (selection === 'originals') {
-      destination = { id: 'originals', empty: { title: 'PROtv Originals are coming soon.', body: 'Distinctive stories made for PROtv will premiere here.' } };
     } else if (category) {
       const items = catalog.filter((video) => matchesCategory(video, category));
       destination = items.length
@@ -355,7 +351,7 @@ export default function Home() {
         <CinematicHero brand={brandSlide} titles={heroTitles} featuredPodcast />
 
         <div className="ptv-stack ptv-stack--lead">
-        <CategoryShowcase tiles={[comingSoonTile, originalsTile, ...categoryTiles]} activeId={selection} />
+        <CategoryShowcase tiles={[comingSoonTile, ...categoryTiles]} activeId={selection} />
         <ContinueWatchingRail items={continueWatchingItems} />
         <FeaturedPodcastSpotlight />
 
@@ -385,11 +381,6 @@ export default function Home() {
           {comingSoon.length > 0 && (
             <StreamingRail id="coming-soon" title="Coming Soon">
               {comingSoon.map((item) => <ComingSoonCard key={item.id} item={item} />)}
-            </StreamingRail>
-          )}
-          {originals.length > 0 && (
-            <StreamingRail id="originals" title="PROtv Originals">
-              {originals.map((item) => <ComingSoonCard key={item.id} item={item} />)}
             </StreamingRail>
           )}
         </div>
