@@ -191,3 +191,27 @@ test('withTimeout rejects with the PROtv timeout code and clears its timer on su
   await assert.rejects(flow.withTimeout(never(), 10), { code: flow.AUTH_TIMEOUT_CODE });
   assert.equal(await flow.withTimeout(Promise.resolve('ok'), 10), 'ok');
 });
+
+test('verification email requests time out with a clear message and respect the resend cooldown', async () => {
+  const user = { uid: 'flow-timeout', email: 'creator@example.invalid' };
+  const slow = await flow.requestVerificationEmail(user, { send: () => new Promise(() => {}), timeoutMs: 20 });
+  assert.equal(slow.ok, false);
+  assert.match(slow.message, /cannot confirm the email was sent/);
+  assert.equal(flow.verificationCooldownLeft('flow-timeout'), 0, 'a timed-out request does not block a retry');
+
+  let sends = 0;
+  const ok = await flow.requestVerificationEmail(user, { send: async () => { sends += 1; } });
+  assert.equal(ok.ok, true);
+  const again = await flow.requestVerificationEmail(user, { send: async () => { sends += 1; } });
+  assert.equal(again.ok, false);
+  assert.equal(sends, 1);
+  assert.match(again.message, /less than a minute ago/);
+  const later = await flow.requestVerificationEmail(user, { send: async () => { sends += 1; }, now: () => Date.now() + flow.VERIFY_RESEND_COOLDOWN_MS + 1 });
+  assert.equal(later.ok, true);
+  assert.equal(sends, 2);
+});
+
+test('the verification link returns the creator to the PROtv portal sign-in on an authorized domain', () => {
+  assert.equal(new URL(flow.verificationActionSettings.url).host, 'watchprotv.com');
+  assert.equal(new URL(flow.verificationActionSettings.url).pathname, '/creators/portal');
+});

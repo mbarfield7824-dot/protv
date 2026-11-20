@@ -60,6 +60,7 @@ export function CreatorPortalButton({ className = '', children = 'Start Uploadin
     verificationRequired,
     verificationMessage,
     sendVerification,
+    cooldownSeconds,
   } = useCreatorPortal();
   const prompted = useRef(false);
   const started = useRef(false);
@@ -86,15 +87,20 @@ export function CreatorPortalButton({ className = '', children = 'Start Uploadin
           <strong>Verify your email to continue</strong>
           <p>
             For account security, confirm your PROtv email address before entering the Creator Portal.
+            {user?.email && <> Signed in as <strong>{user.email}</strong>.</>}
           </p>
           <div className="creator-verification-actions">
-            <button type="button" onClick={sendVerification} disabled={opening}>
-              Send verification email
+            <button type="button" onClick={sendVerification} disabled={opening || cooldownSeconds > 0}>
+              {cooldownSeconds > 0 ? `Resend available in ${cooldownSeconds}s` : 'Send verification email'}
             </button>
             <button type="button" onClick={openCreatorPortal} disabled={opening}>
               I&apos;ve verified — open dashboard
             </button>
           </div>
+          <p className="creator-verification-help">
+            Already registered? Keep using this account — you do not need to create another one. Wrong email address?
+            Contact support@watchprotv.com and we will help.
+          </p>
           {verificationMessage && <p className="creator-action-success">{verificationMessage}</p>}
         </div>
       )}

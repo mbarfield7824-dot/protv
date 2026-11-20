@@ -441,6 +441,19 @@
   color: #9de2b1 !important;
 }
 
+.creator-verification-notice,
+.creator-action-error {
+  overflow-wrap: anywhere;
+}
+
+.creator-verification-notice .creator-verification-help {
+  font-size: 0.84rem;
+}
+
+.creator-verification-actions button:disabled:not([aria-busy]) {
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .creators-hero {
     grid-template-columns: minmax(0, 1.1fr) minmax(250px, 0.9fr);

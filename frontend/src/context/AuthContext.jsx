@@ -11,7 +11,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { firebaseAuth, googleProvider, isFirebaseConfigured } from '../firebase';
-import { createAccount } from './authFlow';
+import { createAccount, recordVerificationSent, verificationActionSettings } from './authFlow';
 import { api } from '../api';
 import AuthModal from '../components/AuthModal';
 import { AuthContext } from './authState';
@@ -146,7 +146,10 @@ export function AuthProvider({ children }) {
     await createAccount({
       create: async () => (await createUserWithEmailAndPassword(firebaseAuth, email, password)).user,
       setDisplayName: (createdUser) => updateProfile(createdUser, { displayName }),
-      sendVerification: (createdUser) => sendEmailVerification(createdUser),
+      sendVerification: async (createdUser) => {
+        await sendEmailVerification(createdUser, verificationActionSettings);
+        recordVerificationSent(createdUser.uid);
+      },
       onFollowUpError: (step, error) => console.error(`Account created, but the ${step} step failed:`, error?.code || error),
     });
     setAuthModalOpen(false);

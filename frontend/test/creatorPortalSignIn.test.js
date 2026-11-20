@@ -50,9 +50,12 @@ after(async () => {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function viewer({ emailVerified = true } = {}) {
-  return { uid: 'viewer-1', email: 'creator@example.invalid', emailVerified, reload: async () => {}, getIdToken: async () => 'id-token' };
+function viewer({ emailVerified = true, uid = 'viewer-1' } = {}) {
+  return { uid, email: 'creator@example.invalid', emailVerified, reload: async () => {}, getIdToken: async () => 'id-token' };
 }
+
+const button = (text) => [...document.querySelectorAll('button')].find((item) => item.textContent.includes(text));
+const click = async (text) => act(async () => { button(text).click(); await settle(); await settle(); });
 
 async function render(auth) {
   const value = { loading: false, isAdmin: false, favorites: [], progress: {}, openAuthModal: () => {}, ...auth };
@@ -121,4 +124,56 @@ test('a failed handoff shows the error and is not retried on its own', async () 
   await render(auth);
   assert.equal(calls.sso, 1);
   assert.match(document.querySelector('[role="alert"]').textContent, /not configured/);
+});
+
+// Reported 2026-11-20: a creator who registered from Facebook was stuck at the email step. Sign-up already sends one
+// verification email and Firebase refuses another for about a minute, so "Send verification email" only showed
+// "auth/too-many-requests" and "I've verified" did nothing visible.
+test('sending the verification email confirms where it went and blocks an immediate resend', async () => {
+  const sent = [];
+  const user = viewer({ emailVerified: false, uid: 'verify-send' });
+  await mount({ user, sendVerificationEmail: async (target) => { sent.push(target.uid); } });
+  await click('Send verification email');
+  assert.deepEqual(sent, ['verify-send']);
+  const notice = document.querySelector('.creator-verification-notice').textContent;
+  assert.match(notice, /creator@example\.invalid/);
+  assert.match(notice, /noreply@protv-2f48e\.firebaseapp\.com/);
+  assert.match(notice, /Spam or Junk/);
+  assert.match(notice, /do not need to create another one/);
+  const resend = button('Resend available in');
+  assert.ok(resend, 'the resend button counts down');
+  assert.equal(resend.disabled, true);
+  await act(async () => { resend.click(); await settle(); });
+  assert.deepEqual(sent, ['verify-send'], 'no second request inside the cooldown');
+});
+
+test("Firebase's resend limit is explained in plain English, never as a raw error code", async () => {
+  const user = viewer({ emailVerified: false, uid: 'verify-limited' });
+  await mount({ user, sendVerificationEmail: async () => { throw Object.assign(new Error('Firebase: Error (auth/too-many-requests).'), { code: 'auth/too-many-requests' }); } });
+  await click('Send verification email');
+  const alert = document.querySelector('[role="alert"]').textContent;
+  assert.match(alert, /already sent to creator@example\.invalid/);
+  assert.doesNotMatch(alert, /auth\/too-many-requests|Firebase: Error/);
+  assert.ok(button('Resend available in'));
+});
+
+test("pressing I've verified before confirming says so, then continues once the email is confirmed", async () => {
+  const user = viewer({ emailVerified: false, uid: 'verify-resume' });
+  const calls = await mount({ user, sendVerificationEmail: async () => {} });
+  await click("I've verified");
+  assert.match(document.querySelector('[role="alert"]').textContent, /not confirmed yet/);
+  assert.equal(calls.sso, 0);
+  user.reload = async () => { user.emailVerified = true; };
+  await click("I've verified");
+  assert.equal(calls.sso, 1);
+  assert.equal(document.querySelector('[role="alert"]'), null);
+});
+
+test('a creator whose sign-up just sent the email is told so instead of being asked to send again', async () => {
+  const flow = await vite.ssrLoadModule('/src/context/authFlow.js');
+  flow.recordVerificationSent('verify-registered');
+  await mount({ user: viewer({ emailVerified: false, uid: 'verify-registered' }), sendVerificationEmail: async () => { throw new Error('must not send'); } });
+  const notice = document.querySelector('.creator-verification-notice').textContent;
+  assert.match(notice, /We sent a verification link to creator@example\.invalid/);
+  assert.ok(button('Resend available in'));
 });
