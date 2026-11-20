@@ -30,19 +30,6 @@ const FEATURED_PROTV_TITLE_IDS = [
   'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9',
 ];
 
-// Curated Coming Soon cards shown ahead of the published listings. Artwork lives in frontend/public/coming-soon.
-// These open an existing public page; they never start playback.
-const CURATED_COMING_SOON = [
-  {
-    id: 'curated-2212-episode-3',
-    kind: 'series',
-    href: '/series/2212',
-    title: '2212 · Episode 3: C-Fluid',
-    artwork: '/coming-soon/2212-episode-3-c-fluid.jpg',
-    comingSoon: true,
-  },
-];
-
 const RAILS_AFTER_SPOTLIGHT = [
   { id: 'black-cinema', title: 'Black Cinema', matches: ['Black Cinema'] },
   { id: 'ai-cinema', title: 'AI Cinema', matches: ['AI Cinema'] },
@@ -139,10 +126,10 @@ export default function Home() {
   // Fetch the live catalog. Fails silently (the development fallback
   // catalog still renders) if the backend is offline.
   async function fetchApiVideos() {
-    // Published Coming Soon listings load alongside the catalog; a failure only hides the row.
+    // Published Coming Soon listings (including Administrator promotions) load alongside the catalog; a failure only hides the row.
     const comingSoonRequest = api.getComingSoon()
-      .then((items) => setComingSoon([...CURATED_COMING_SOON, ...(Array.isArray(items) ? items : [])]))
-      .catch(() => setComingSoon([...CURATED_COMING_SOON]));
+      .then((items) => setComingSoon(Array.isArray(items) ? items : []))
+      .catch(() => setComingSoon([]));
     try {
       const data = await api.getVideos();
       if (Array.isArray(data) && data.length > 0) {

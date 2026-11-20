@@ -23,6 +23,9 @@ const { createTitleTrailerRouter } = require('./integrations/titleTrailerRouter'
 const { createPlaybackRouter } = require('./playback/router');
 const { createShortLinkRouters } = require('./shortLinks/router');
 const { createSocialArtworkRouter } = require('./catalog/socialArtwork');
+const { createAdminPromotionRouter } = require('./catalog/comingSoonPromotions');
+const { defaultSlugRegistry, publicPathsFor } = require('./catalog/slugs');
+const { getApprovedVideos } = require('./firebase');
 
 const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
@@ -59,6 +62,13 @@ app.use(`${apiPrefix}/mux`, (req, res, next) => {
   return next();
 });
 app.use(`${apiPrefix}/v1/catalog`, createCatalogRouter());
+// Website Coming Soon promotions (Administrators only). Records carry their readable addresses for card links.
+app.use(`${apiPrefix}/admin/coming-soon-promotions`, createAdminPromotionRouter({
+  loadRecords: async () => {
+    const videos = await getApprovedVideos();
+    return (await publicPathsFor(videos, defaultSlugRegistry())).decorate(videos);
+  },
+}));
 app.use(`${apiPrefix}/social`, createSocialArtworkRouter());
 app.use(`${apiPrefix}/admin/podcasts`, createAdminPodcastRouter());
 const shortLinks = createShortLinkRouters();

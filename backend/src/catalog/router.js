@@ -14,6 +14,7 @@ const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const { signPlayback } = require('../mux');
 const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
 const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
+const { defaultPromotionStore, withPromotions } = require('./comingSoonPromotions');
 
 // TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
 // so their responses stay exactly as they were.
@@ -42,6 +43,7 @@ function createCatalogRouter({
   loadHtmlTemplate = loadTitleTemplate,
   signPlaybackToken = signPlayback,
   slugRegistry = defaultSlugRegistry(),
+  promotionStore = defaultPromotionStore(),
 } = {}) {
   const router = express.Router();
   // Records plus their readable addresses. The addresses come from the platform's own public catalog.
@@ -85,7 +87,15 @@ function createCatalogRouter({
 
   router.get('/coming-soon', async (req, res) => {
     try {
-      return res.json({ items: comingSoonCatalog((await withPaths(await load(req))).records) });
+      const { records } = await withPaths(await load(req));
+      const items = comingSoonCatalog(records);
+      // Administrator promotions are website cards; TV and mobile apps keep their existing response.
+      if (DEVICE_PLATFORMS.has(platformFromRequest(req))) return res.json({ items });
+      let promotions = [];
+      try { promotions = await promotionStore.list(); } catch (error) {
+        console.error('Coming Soon promotions unavailable; showing automatic listings only:', error.message);
+      }
+      return res.json({ items: withPromotions(items, promotions, records) });
     } catch (error) {
       console.error('Failed to load Coming Soon titles:', error);
       return res.status(503).json({ error: 'Coming Soon titles are temporarily unavailable.' });

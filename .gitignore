@@ -23,3 +23,5 @@ backend/.data/safety-reports.json
 backend/.data/safety-reports.json.*.tmp
 backend/.data/short-links.json
 backend/.data/short-links.json.*.tmp
+backend/.data/coming-soon-promotions.json
+backend/.data/coming-soon-promotions.json.*.tmp

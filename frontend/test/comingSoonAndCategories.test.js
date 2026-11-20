@@ -65,13 +65,19 @@ async function mount(Component, entry = '/') {
 const railTitles = (id) => [...document.querySelectorAll(`#${id} .ptv-card__title`)].map((item) => item.textContent);
 
 const curatedEpisode = '2212 · Episode 3: C-Fluid';
+// The managed promotion exactly as GET /v1/catalog/coming-soon returns it (see backend comingSoonPromotions.js).
+const episodePromotion = {
+  id: 'promo-2212-episode-3-c-fluid', kind: 'series', href: '/series/2212', title: curatedEpisode, description: '',
+  artwork: '/coming-soon/2212-episode-3-c-fluid.jpg', categories: [], comingSoon: true, protvOriginal: false,
+  trailerAvailable: false, promotion: true,
+};
 
 // Note: compare titles/booleans rather than passing mounted DOM elements to assert. When an assertion on a React-mounted
 // element fails, Node's assert tries to inspect the element's whole fiber/jsdom graph and dies with
 // "RangeError: Array buffer allocation failed" instead of reporting the real failure.
 test('the homepage shows a Coming Soon row and Browse tile that open detail pages, with no Play action', async () => {
   api.getVideos = async () => [film];
-  api.getComingSoon = async () => [upcoming];
+  api.getComingSoon = async () => [episodePromotion, upcoming];
   await mount(Home);
   assert.deepEqual(railTitles('coming-soon'), [curatedEpisode, 'Synthetic Upcoming Show']);
   const card = document.querySelectorAll('#coming-soon .ptv-card')[1];
@@ -84,13 +90,13 @@ test('the homepage shows a Coming Soon row and Browse tile that open detail page
   assert.match(tile.getAttribute('aria-label'), /Coming Soon, 2 titles/);
 });
 
-test('2212 Episode 3: C-Fluid is a Coming Soon card with its artwork and no playback, and never touches released episodes', async () => {
+test('the managed 2212 Episode 3: C-Fluid promotion shows its artwork and TBD, opens /series/2212 and never plays', async () => {
   const released = { ...film, id: 'creator_episode_ep1', title: 'Concrete', contentType: 'TV_EPISODE', seriesTitle: '2212', episodeNumber: 1 };
   api.getVideos = async () => [film, released];
-  api.getComingSoon = async () => [];
+  api.getComingSoon = async () => [episodePromotion];
   await mount(Home);
   const cards = document.querySelectorAll('#coming-soon .ptv-card');
-  assert.equal(cards.length, 1, 'released episodes stay out of Coming Soon');
+  assert.equal(cards.length, 1, 'shown once: the website no longer adds its own copy');
   const card = cards[0];
   assert.equal(card.querySelector('.ptv-card__title').textContent, curatedEpisode);
   assert.equal(card.querySelector('img').getAttribute('src'), '/coming-soon/2212-episode-3-c-fluid.jpg');
@@ -100,18 +106,18 @@ test('2212 Episode 3: C-Fluid is a Coming Soon card with its artwork and no play
   assert.equal(released.comingSoon, undefined, 'released episode records are not modified');
 });
 
-test('with nothing published the row keeps only the curated card, and a Coming Soon outage never breaks the homepage', async () => {
+test('Coming Soon shows exactly what the catalog publishes, and an outage hides the row without breaking the homepage', async () => {
   api.getVideos = async () => [film];
   api.getComingSoon = async () => [];
   await mount(Home);
-  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode]);
+  assert.equal(document.querySelector('section#coming-soon .ptv-card') === null, true);
   assert.ok(document.querySelector('#categories a[href="/#coming-soon"]'));
   await mount(Home, '/#coming-soon');
-  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode], 'the Browse tile destination is the populated row');
+  assert.match(document.querySelector('#coming-soon').textContent, /Nothing is announced just yet/);
   api.getComingSoon = async () => { throw new Error('offline'); };
   await mount(Home);
   assert.ok(railTitles('new-on-protv').includes(film.title), 'a Coming Soon failure never breaks the homepage');
-  assert.deepEqual(railTitles('coming-soon'), [curatedEpisode]);
+  assert.deepEqual(railTitles('coming-soon'), []);
 });
 
 test('one title appears in New on PROtv and in every category it is assigned to', async () => {

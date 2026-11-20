@@ -35,6 +35,8 @@
 .info-hero h1 {
   max-width: 680px;
   margin: 0;
+  /* Readable on the dark hero; without it the heading inherits a near-black colour. */
+  color: #fff;
   font-size: clamp(2.25rem, 5vw, 4rem);
   line-height: 1.04;
 }
@@ -341,6 +343,7 @@
 
 .info-features h2 {
   margin: 0;
+  color: #fff;
   font-size: clamp(1.5rem, 3vw, 2rem);
 }
 

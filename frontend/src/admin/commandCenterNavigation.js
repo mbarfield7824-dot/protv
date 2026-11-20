@@ -7,6 +7,7 @@ export const ADMIN_GROUPS = [
     { mode: 'review-content', label: 'Review Content', description: 'Inspect rights evidence and review catalog approvals.' },
     { mode: 'edit-catalog', label: 'Catalog & Metadata', description: 'Edit existing titles, artwork, formats and episode metadata.' },
     { mode: 'bulk', label: 'Series & Seasons', description: 'Upload a season with per-episode titles and numbering.' },
+    { mode: 'coming-soon', label: 'Coming Soon Promotions', description: 'Promote upcoming films, episodes and shows on the homepage with artwork and a premiere date or TBD.' },
   ] },
   { title: 'Podcasts', items: [
     { mode: 'mmwf', label: 'Me and My White Friend', description: 'Upload Reggie Reg and Marv episodes or attach an existing upload to the featured Podcast.' },

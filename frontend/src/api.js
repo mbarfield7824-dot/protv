@@ -5,7 +5,7 @@ import { fetchSearchVideos } from './data/searchCatalog';
 import { fetchPlayerTitle } from './data/playerCatalog';
 import { submitSafetyReport } from './data/safetyReports';
 import { adminReportRequest } from './admin/safetyReports';
-import { uploadTitlePoster } from './admin/posterUpload';
+import { preparePosterUpload, uploadTitlePoster } from './admin/posterUpload';
 
 // API client for PROtv backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -394,6 +394,37 @@ export const api = {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Unable to save short link.');
     return result;
+  },
+  // Coming Soon promotions (Administrators only). Promotions change homepage cards, never the promoted title.
+  async getComingSoonPromotions() {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions`, { headers: await authenticatedHeaders() });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to load Coming Soon promotions.');
+    return result;
+  },
+  async saveComingSoonPromotion(id, data) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions${id ? `/${encodeURIComponent(id)}` : ''}`, {
+      method: id ? 'PATCH' : 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(data),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to save the promotion.');
+    return result;
+  },
+  async removeComingSoonPromotion(id, version) {
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: await authenticatedHeaders(), body: JSON.stringify({ version }),
+    });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Unable to remove the promotion.');
+  },
+  async uploadComingSoonArtwork(file) {
+    const body = await preparePosterUpload(file);
+    const { Authorization } = await authenticatedHeaders();
+    const response = await fetch(`${API_URL}/admin/coming-soon-promotions/artwork`, {
+      method: 'PUT', headers: { 'Content-Type': body.type, ...(Authorization ? { Authorization } : {}) }, body,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Unable to upload the artwork.');
+    return result.artworkUrl;
   },
   async resolveShortLink(slug) {
     const response = await fetch(`${API_URL}/short-links/resolve/${encodeURIComponent(slug)}?format=json`);

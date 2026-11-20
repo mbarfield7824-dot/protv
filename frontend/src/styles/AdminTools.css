@@ -754,3 +754,19 @@
 .admin-ad-report__notes { display: grid; gap: 4px; margin: 0; }
 .admin-ad-report__notes dt { font-weight: 600; margin-top: 8px; }
 .admin-ad-report__notes dd { margin: 0; }
+
+/* Coming Soon promotions */
+.admin-coming-soon__episode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 160px));
+  gap: 12px;
+}
+
+.admin-coming-soon__preview {
+  display: block;
+  width: 120px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 4px 0 12px;
+}

@@ -6,6 +6,7 @@ import AdminContentReview from '../components/AdminContentReview';
 import AdminCatalogEditor from '../components/AdminCatalogEditor';
 import AdminPodcasts from '../components/AdminPodcasts';
 import AdminShortLinks from '../components/AdminShortLinks';
+import AdminComingSoon from '../components/AdminComingSoon';
 import AdminLinearChannel from '../components/AdminLinearChannel';
 import AdminSafetyReports from '../components/AdminSafetyReports';
 import AdminAccountDeletionRequests from '../components/AdminAccountDeletionRequests';
@@ -25,7 +26,7 @@ const BULK_UPLOAD_CONCURRENCY = 3;
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
   const { hash } = useLocation();
-  const initialMode = hash === '#mmwf' ? 'mmwf' : hash === '#short-links' ? 'short-links' : 'overview';
+  const initialMode = hash === '#mmwf' ? 'mmwf' : hash === '#short-links' ? 'short-links' : hash === '#coming-soon' ? 'coming-soon' : 'overview';
   const [mode, setMode] = useState(initialMode);
   const [visitedModes, setVisitedModes] = useState(initialMode === 'overview' ? [] : [initialMode]);
   const [resetVersion, setResetVersion] = useState(0);
@@ -1039,6 +1040,7 @@ export default function Admin() {
         {visitedModes.includes('distributor-ingestion') && <div hidden={mode !== 'distributor-ingestion'}><DistributorIngestionPanel /></div>}
         {visitedModes.includes('assistant') && <div hidden={mode !== 'assistant'}><AdminAssistantPanel /></div>}
         {visitedModes.includes('short-links') && <div hidden={mode !== 'short-links'}><AdminShortLinks /></div>}
+        {visitedModes.includes('coming-soon') && <div hidden={mode !== 'coming-soon'}><AdminComingSoon /></div>}
     </AdminCommandCenter>
   );
 }
