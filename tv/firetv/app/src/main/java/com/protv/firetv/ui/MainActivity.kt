@@ -29,8 +29,12 @@ import com.protv.firetv.data.api.CatalogApiClient
 import com.protv.firetv.playback.PlaybackApiClient
 import com.protv.firetv.playback.PlayerScreen
 import com.protv.firetv.playback.RemoteKeyDispatcher
+import com.protv.firetv.ui.home.CatalogRefreshPolicy
 import com.protv.firetv.ui.home.HomeController
 import com.protv.firetv.ui.home.HomeState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class SelectedTitle(
@@ -78,6 +82,19 @@ class MainActivity : ComponentActivity() {
             }
             LaunchedEffect(home, home.reloadToken) { home.load() }
             var selectedTitle by remember { mutableStateOf<SelectedTitle?>(null) }
+            // New releases (such as an 8 PM premiere) appear without restarting the app: while the app is in front
+            // and nothing is playing, the catalog is checked in the background (see CatalogRefreshPolicy). Leaving
+            // the app pauses the checks; coming back checks at once. Playback is never interrupted.
+            val playing = selectedTitle != null
+            LaunchedEffect(home, playing) {
+                if (playing) return@LaunchedEffect
+                this@MainActivity.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (true) {
+                        home.refreshIfDue()
+                        delay(CatalogRefreshPolicy.CHECK_INTERVAL_MILLIS)
+                    }
+                }
+            }
             var accountScreenOpen by remember { mutableStateOf(pendingSessionStore.hasPendingSession()) }
             var accountLabel by remember { mutableStateOf(firebaseAuth?.accountLabel) }
             var viewerId by remember { mutableStateOf(firebaseAuth?.viewerId) }

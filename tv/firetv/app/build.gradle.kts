@@ -127,6 +127,10 @@ val releaseKeyFile = if (releaseSigningConfigured == releaseSigningProperties.si
 }
 
 android {
+    // Unit tests run on the JVM: android.util.Log calls in failure paths return defaults instead of throwing.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     namespace = "com.protv.firetv"
     compileSdk = 37
 

@@ -138,6 +138,65 @@ class HomeController(private val repository: CatalogRepository?, private val api
         reloadToken++
     }
 
+    /** When the catalog on screen was last read, and when a background check was last tried (milliseconds). */
+    var catalogLoadedAtMillis = 0L
+        private set
+    private var lastRefreshAttemptMillis = 0L
+    private var loadedItems: List<CatalogItem>? = null
+    private var refreshing = false
+
+    /**
+     * Reads the catalog again in the background when [CatalogRefreshPolicy] says it is due. The screen never shows
+     * Loading, a failed check keeps the catalog already on screen, and an unchanged catalog changes nothing. When new
+     * titles arrive, the section, scroll positions and focused title are kept; if the focused title was withdrawn,
+     * focus moves to the first title. Returns true when the catalog on screen changed.
+     */
+    suspend fun refreshIfDue(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        val repository = repository ?: return false
+        if (refreshing || state !is HomeState.Loaded) return false
+        if (!CatalogRefreshPolicy.isDue(catalogLoadedAtMillis, lastRefreshAttemptMillis, nowMillis)) return false
+        refreshing = true
+        lastRefreshAttemptMillis = nowMillis
+        try {
+            val items = try {
+                repository.browse()
+            } catch (error: IOException) {
+                Log.w(TAG, "Catalog refresh failed; keeping the catalog on screen", error)
+                return false
+            } catch (error: HttpException) {
+                Log.w(TAG, "Catalog refresh failed; keeping the catalog on screen", error)
+                return false
+            } catch (error: SerializationException) {
+                Log.w(TAG, "Invalid catalog refresh; keeping the catalog on screen", error)
+                return false
+            } catch (error: IllegalArgumentException) {
+                Log.w(TAG, "Invalid catalog refresh; keeping the catalog on screen", error)
+                return false
+            }
+            catalogLoadedAtMillis = nowMillis
+            if (items == loadedItems) return false
+            val next = withContext(Dispatchers.Default) { buildLoadedState(items) }
+            if (state !is HomeState.Loaded) return false
+            loadedItems = items
+            val ids = next.rails.flatMap { rail -> rail.tiles.map { it.id } }.toSet()
+            val focused = focusedTileId
+            if (focused != null && focused !in ids) {
+                focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
+                focusedRailKey = null
+                restorePending = true
+            }
+            if (heroFocused && next.featured == null) {
+                heroFocused = false
+                restorePending = true
+            }
+            featuredIndex = if (next.featuredTitles.isEmpty()) 0 else featuredIndex.coerceAtMost(next.featuredTitles.lastIndex)
+            state = next
+            return true
+        } finally {
+            refreshing = false
+        }
+    }
+
     fun onHomeShown() {
         restorePending = true
     }
@@ -175,8 +234,10 @@ class HomeController(private val repository: CatalogRepository?, private val api
             return
         }
         state = HomeState.Loading
+        var lastBrowsed: List<CatalogItem>? = null
         val next = try {
             val items = repository.browse()
+            lastBrowsed = items
             withContext(Dispatchers.Default) { buildLoadedState(items) }
         } catch (error: IOException) {
             Log.e(TAG, "Network error loading catalog", error)
@@ -192,6 +253,8 @@ class HomeController(private val repository: CatalogRepository?, private val api
             HomeState.Failed
         }
         if (next is HomeState.Loaded) {
+            catalogLoadedAtMillis = System.currentTimeMillis()
+            loadedItems = lastBrowsed
             rowStates.clear()
             listState.requestScrollToItem(0)
             focusedTileId = next.rails.firstOrNull()?.tiles?.firstOrNull()?.id
