@@ -132,3 +132,22 @@ export function createWatchMeter({ player, now = () => performance.now() }) {
     },
   };
 }
+
+// Seconds left until a premiere, from the server's clock (never the device's), so every viewer's countdown agrees.
+export function countdownRemaining(premiereAt, clock, localNow = Date.now()) {
+  if (!clock || !premiereAt) return 0;
+  return Math.max(0, Math.ceil((Date.parse(premiereAt) - serverNow(clock, localNow)) / 1000));
+}
+
+export function formatCountdown(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = String(seconds % 60).padStart(2, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+}
+
+// The exact Eastern premiere time, e.g. "8:00 PM ET".
+export function formatPremiereTime(iso) {
+  return formatChannelTime(iso);
+}

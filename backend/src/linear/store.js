@@ -5,6 +5,7 @@ const { CHANNEL_ID, DEFAULT_AD_POLICY, DEFAULT_PRIMETIME, LinearValidationError,
 //   linearChannels/{channelId}                    channel settings and a schedule version used to serialize edits
 //   linearChannels/{channelId}/schedule/{entryId} schedule entries (UTC ISO times)
 //   linearRights/{title_<videoId>|series_<key>}   linear-rights evidence, separate from on-demand rights
+//   linearCreatives/{id}                          the channel's own commercials (spots), see creatives.js
 const lookbackMs = MAX_ENTRY_SECONDS * 1000;
 
 function defaultSettings() {
@@ -27,7 +28,8 @@ function readSettings(data = {}) {
     name: typeof data.name === 'string' && data.name.trim() ? data.name.trim() : defaults.name,
     status: data.status === 'public' ? 'public' : 'off',
     primetime: Array.isArray(data.primetime) ? data.primetime : defaults.primetime,
-    adPolicy: { ...defaults.adPolicy, ...(data.adPolicy || {}), insertion: 'not-active' },
+    // Breaks play the scheduled spots ("pods") chosen in Admin; no third-party ad server is involved.
+    adPolicy: { ...defaults.adPolicy, ...(data.adPolicy || {}), insertion: 'scheduled-spots' },
     updatedAt: data.updatedAt || null,
     updatedBy: data.updatedBy || null,
     ...(data.launchedAt ? { launchedAt: data.launchedAt, launchedBy: data.launchedBy || null } : {}),
@@ -159,10 +161,37 @@ class FirestoreLinearStore {
     const snapshot = await this.requireDb().collection('titleRightsEvidence').get();
     return new Map(snapshot.docs.map((doc) => [doc.data().videoId || doc.id, doc.data()]));
   }
+
+  async listCreatives() {
+    const snapshot = await this.requireDb().collection('linearCreatives').get();
+    return new Map(snapshot.docs.map((doc) => [doc.id, { ...doc.data(), id: doc.id }]));
+  }
+
+  async getCreative(id) {
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(String(id))) return null;
+    const snapshot = await this.requireDb().collection('linearCreatives').doc(id).get();
+    return snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null;
+  }
+
+  async getCreatives(ids) {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return new Map();
+    const db = this.requireDb();
+    const snapshots = await db.getAll(...unique.map((id) => db.collection('linearCreatives').doc(id)));
+    return new Map(snapshots.filter((snapshot) => snapshot.exists).map((snapshot) => [snapshot.id, { ...snapshot.data(), id: snapshot.id }]));
+  }
+
+  async saveCreative(id, record) {
+    const ref = this.requireDb().collection('linearCreatives').doc(id || crypto.randomUUID());
+    const { id: ignored, ...stored } = record;
+    await ref.set(stored);
+    return { ...stored, id: ref.id };
+  }
 }
 
 class MemoryLinearStore {
-  constructor({ videos = [], rights = {}, settings = {}, entries = [], evidence = {} } = {}) {
+  constructor({ videos = [], rights = {}, settings = {}, entries = [], evidence = {}, creatives = [] } = {}) {
+    this.creatives = new Map(creatives.map((creative) => [creative.id, { ...creative }]));
     this.settings = { ...settings };
     this.videos = new Map(videos.map((video) => [video.id, { ...video }]));
     this.rights = new Map(Object.entries(rights));
@@ -219,6 +248,21 @@ class MemoryLinearStore {
   async setRights(key, record) { this.rights.set(key, record); return record; }
 
   async listRightsEvidence() { return new Map(this.evidence); }
+
+  async listCreatives() { return new Map([...this.creatives].map(([id, creative]) => [id, { ...creative }])); }
+
+  async getCreative(id) { return this.creatives.has(id) ? { ...this.creatives.get(id) } : null; }
+
+  async getCreatives(ids) {
+    return new Map(ids.filter((id) => this.creatives.has(id)).map((id) => [id, { ...this.creatives.get(id) }]));
+  }
+
+  async saveCreative(id, record) {
+    const creativeId = id || crypto.randomUUID();
+    const { id: ignored, ...stored } = record;
+    this.creatives.set(creativeId, { ...stored, id: creativeId });
+    return { ...stored, id: creativeId };
+  }
 }
 
 module.exports = { FirestoreLinearStore, MemoryLinearStore, defaultSettings, readSettings };

@@ -120,19 +120,69 @@ Soon series record with no video and no contract reference.
     occurrence.
   - Re-running is safe: existing copies are reported as conflicts, never duplicated.
 
-## Commercials (not active)
+## Commercials (scheduled spots, 2026-11-21)
 
-Commercial breaks are schedule entries (15 s – 10 min) and show a PROtv card. Mid-program breaks are made by
-splitting a title into segments with "Start the video at".
+Breaks play PROtv's own commercials ("spots"). No third-party ad server is involved. Code: `backend/src/linear/creatives.js`;
+Admin → PROtv LIVE → **Commercials**.
 
-No ad is requested, served or counted on PROtv LIVE, and nothing is written to the ad measurement collections. The
-channel settings hold planned limits (`adPolicy`: break minutes per hour, breaks per program hour, viewer frequency cap)
-for a future ad decision service; `adPolicy.insertion` is always `not-active`.
+| Spot type | Use |
+| --- | --- |
+| PROtv promotion | Network promos |
+| Upcoming-show trailer | Upload one, or reuse a catalog trailer as is (no re-encoding; signed playback) |
+| Sponsor advertisement | Shown to viewers as "Sponsored · A message from {sponsor}" |
+| PROtv interstitial | Bumpers and idents between programs |
 
-To activate commercials later:
-1. Fill break entries from an ad decision service (for example Google IMA with VMAP, or server-side insertion).
-2. Reuse `frontend/src/ads/adMeasurement.js` for served and viewable impressions.
-3. Enforce `adPolicy`.
+- **Upload.** The admin browser sends the file straight to Mux (basic quality, public playback; 3 s – 3 min). The server
+  never handles video bytes. "Check processing" picks up the asset and its duration.
+- **Approval.** Each spot needs a rights statement saying who made or owns it and why PROtv may air it. Any edit
+  returns it to draft. Optional flight dates (Eastern days) limit when it can air. Retiring stops it immediately.
+- **Pods.** Each break, and each countdown's pre-premiere window, stores an exact list of spots. Every viewer sees the
+  same spot at the same second, and late joiners enter mid-spot.
+  - "Fill automatically" is deterministic: sponsors first, then trailers, then promos, rotated per slot. No spot
+    repeats within a break.
+  - A spot that cannot air at that moment (retired, outside its flight dates) keeps its time and shows the PROtv
+    "We'll be right back" card. The rest of the pod stays on schedule.
+- **Placement.** Spots play only in breaks and countdowns, never inside a program. Creator agreements forbid cutting
+  a work, so the Programming block tool puts breaks between programs only. Approving a break flags any clock hour above
+  `adPolicy.maxBreakMinutesPerHour`.
+- **Reporting.** `spot_start` and `spot_complete` events count once per visit, break and spot, only while that break is
+  on air. They go into `linearCreativeMetrics/{creativeId}_{date}_{shard}` and the daily `spotStarts`/`spotCompletes`.
+  Watch-time heartbeats are sent for programs only. Admin → Commercials → Commercial delivery shows starts,
+  completions and completion rate. These figures are separate from on-demand ad measurement.
+
+## Premiere countdowns
+
+A countdown is an ordinary schedule entry (`kind: countdown`, `forEntryId`) covering the 5, 10, 15 or 30 minutes
+before its program, so it shares the single authoritative schedule:
+- the same overlap checks, approval, guide and refresh timing apply
+- there is no separate countdown system, and it never releases anything
+
+**What viewers see.** The series or film name, the episode name (optional, on by default), Admin-chosen PROtv artwork
+(or the title's own poster once released), and "Premieres at 8:00 PM ET". The clock is computed from the server's time,
+so a wrong device clock or daylight saving cannot shift it.
+
+**Spots before the premiere.** Promos and sponsor spots may play until the final 60 seconds, with the clock in the
+corner. The last minute is always the full-screen clock.
+
+**At zero.** The client's schedule refresh, already timed to the premiere, switches to the program without a page reload.
+- Late viewers join it in progress.
+- An unreleased premiere shows "starting shortly" until the Creator Portal releases it.
+
+**When the countdown does not air.** It airs only while its program is approved, still starts exactly at the
+countdown's end, and is playable (or an approved premiere awaiting release). Otherwise the slot shows the holding
+screen, and Admin asks for the countdown to be re-created. Countdowns are not copied by "Repeat this week".
+
+## Holding screen
+
+An approved slot that cannot play when it airs shows "We'll be right back. Programming will continue shortly." with no
+title, artwork or playback, and re-checks every 15 s. Causes include rights withdrawn, a title pulled or a rights hold,
+and a countdown whose program moved. Gaps with nothing scheduled still show the off-air "Up next" card.
+
+## Programming blocks
+
+Admin → Schedule → Programming block creates a run of released, linear-cleared titles back to back from one Eastern
+start time, with an optional break between programs. The breaks are auto-filled with spots. All entries are drafts, and
+if any part fails, nothing is kept.
 
 ## Analytics (separate from on-demand views)
 

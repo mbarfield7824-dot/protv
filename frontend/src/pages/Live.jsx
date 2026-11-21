@@ -9,7 +9,9 @@ import { useAuth } from '../hooks/useAuth';
 import { getOrCreatePlaybackGuestId } from '../data/playbackTracking';
 import {
   HEARTBEAT_SECONDS,
+  countdownRemaining,
   createServerClock,
+  formatCountdown,
   createWatchMeter,
   formatChannelTime,
   guideByDay,
@@ -38,6 +40,7 @@ const LIVE_PLAYER_STYLE = {
 const doNotTrack = () => window.navigator.doNotTrack === '1' || window.doNotTrack === '1' || window.navigator.msDoNotTrack === '1';
 
 function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPlaying }) {
+  const spotId = item.spot?.creativeId || null;
   const playerRef = useRef(null);
   const [source] = useState(() => ({
     playbackId: item.playback.muxPlaybackId,
@@ -58,6 +61,12 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
     if (!player) return undefined;
     let programmatic = false;
     let started = false;
+    let completed = false;
+    const complete = () => {
+      if (completed || !spotId || !started) return;
+      completed = true;
+      track({ eventType: 'spot_complete', entryId, creativeId: spotId });
+    };
     const expected = () => livePosition(liveRef.current.playback, liveRef.current.clock);
     const goLive = () => {
       programmatic = true;
@@ -80,23 +89,25 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
       onProgramPlaying();
       if (started) return;
       started = true;
-      track({ eventType: 'video_start', entryId });
+      track(spotId ? { eventType: 'spot_start', entryId, creativeId: spotId } : { eventType: 'video_start', entryId });
     };
-    const onEnded = () => setFinished(true);
+    const onEnded = () => { complete(); setFinished(true); };
     const onError = () => {
       const code = player.error?.code === 2 ? 'network' : 'media';
       track({ eventType: 'error', entryId, code });
       onMediaError();
     };
     const meter = createWatchMeter({ player });
+    // Watch time is credited to programs only; commercials are measured by starts and completions.
     const heartbeat = window.setInterval(() => {
       const seconds = meter.take();
-      if (seconds >= 1) track({ eventType: 'heartbeat', entryId, seconds });
+      if (seconds >= 1 && !spotId) track({ eventType: 'heartbeat', entryId, seconds });
     }, HEARTBEAT_SECONDS * 1000);
     // Keeps every viewer on the schedule through buffering, sleep, slow devices and clock changes.
     const drift = window.setInterval(() => {
       const { playback, clock: current } = liveRef.current;
       if (segmentFinished(playback, current)) {
+        complete();
         player.pause();
         setFinished(true);
         return;
@@ -112,7 +123,7 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
     player.addEventListener('error', onError);
     return () => {
       const remainder = meter.take();
-      if (remainder >= 1) track({ eventType: 'heartbeat', entryId, seconds: remainder });
+      if (remainder >= 1 && !spotId) track({ eventType: 'heartbeat', entryId, seconds: remainder });
       meter.cleanup();
       window.clearInterval(heartbeat);
       window.clearInterval(drift);
@@ -124,7 +135,7 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
       player.removeEventListener('ended', onEnded);
       player.removeEventListener('error', onError);
     };
-  }, [entryId, onMediaError, onProgramPlaying, track]);
+  }, [entryId, onMediaError, onProgramPlaying, spotId, track]);
 
   const returnToLive = () => {
     const player = playerRef.current;
@@ -143,7 +154,11 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
         startTime={source.startTime}
         autoPlay="any"
         nohotkeys
-        metadata={{ video_id: item.videoId, video_title: item.title, player_name: 'PROtv LIVE web', custom_1: 'protv-live', custom_2: entryId }}
+        metadata={{
+          video_id: spotId ? `spot:${spotId}` : item.videoId,
+          video_title: item.spot ? item.spot.title : item.title,
+          player_name: 'PROtv LIVE web', custom_1: 'protv-live', custom_2: entryId, ...(spotId ? { custom_3: 'spot' } : {}),
+        }}
         accentColor="#4169E1"
         style={LIVE_PLAYER_STYLE}
       />
@@ -152,7 +167,12 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
           <span className="live-dot" aria-hidden="true" /> Return to LIVE
         </button>
       )}
-      {finished && (
+      {item.spot && (
+        <span className="live-spot-label" aria-label={`${item.spot.label}, ${item.spot.index} of ${item.spot.count}`}>
+          {item.spot.label} · {item.spot.index} of {item.spot.count}
+        </span>
+      )}
+      {finished && !item.spot && (
         <div className="live-slate live-slate--overlay" role="status">
           <p>Up next on PROtv LIVE</p>
           <span>The next program starts in a moment.</span>
@@ -162,8 +182,53 @@ function LiveProgram({ item, clock, track, onMediaError, onPlaying: onProgramPla
   );
 }
 
+// The premiere countdown: series, episode, artwork and the exact Eastern start time, with a clock driven by the
+// server's time. At zero the schedule refresh (already timed for the premiere) hands over to the program.
+function useCountdown(premiereAt, clock) {
+  const [remaining, setRemaining] = useState(() => countdownRemaining(premiereAt, clock));
+  useEffect(() => {
+    const tick = () => setRemaining(countdownRemaining(premiereAt, clock));
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [premiereAt, clock]);
+  return remaining;
+}
+
+function CountdownScreen({ item, clock }) {
+  const remaining = useCountdown(item.countdown.premiereAt, clock);
+  const artwork = item.countdown.artworkUrl;
+  return (
+    <div className="live-countdown" role="timer" aria-live="off" aria-label={`Premieres in ${formatCountdown(remaining)}`}
+      style={artwork ? { '--countdown-art': `url("${artwork.replace(/"/g, '%22')}")` } : undefined}>
+      <div className="live-countdown__backdrop" aria-hidden="true" />
+      <div className="live-countdown__content">
+        <p className="live-countdown__brand">PRO<span>tv</span> LIVE · {item.label}</p>
+        {artwork && <img className="live-countdown__poster" src={artwork} alt="" />}
+        <div className="live-countdown__copy">
+          <h2>{item.title}</h2>
+          {item.subtitle && <p className="live-countdown__episode">{item.subtitle}</p>}
+          <p className="live-countdown__time">Premieres at {formatChannelTime(item.countdown.premiereAt)}</p>
+          <p className="live-countdown__clock" aria-hidden="true">{remaining > 0 ? formatCountdown(remaining) : 'Starting now'}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CountdownBadge({ item, clock }) {
+  const remaining = useCountdown(item.countdown.premiereAt, clock);
+  return (
+    <div className="live-countdown-badge" role="timer" aria-label={`${item.title} premieres in ${formatCountdown(remaining)}`}>
+      <span>{item.title} premieres in</span>
+      <strong>{formatCountdown(remaining)}</strong>
+    </div>
+  );
+}
+
 function Slate({ item, next }) {
   const copy = {
+    holding: { eyebrow: 'PROtv LIVE', title: 'We\'ll be right back', body: 'Programming will continue shortly. Please stay tuned.' },
     'awaiting-release': { eyebrow: item.label || 'Premiere', title: item.title, body: 'The premiere is starting shortly. Stay tuned.' },
     break: { eyebrow: 'PROtv LIVE', title: 'We\'ll be right back', body: next ? `Up next: ${next.title} at ${formatChannelTime(next.startAt)}` : '' },
     'off-air': { eyebrow: 'PROtv LIVE', title: next ? `Up next: ${next.title}` : 'Programming will resume soon', body: next ? `${next.label} · ${formatChannelTime(next.startAt)}` : 'Check the guide for upcoming programs.' },
@@ -349,7 +414,7 @@ export default function Live() {
             {view.phase === 'error' && (
               <div className="live-slate" role="alert"><p>PROtv LIVE</p><h2>Reconnecting…</h2><span>{view.message}</span></div>
             )}
-            {nowItem?.state === 'playing' && nowItem.playback && askStillWatching && (
+            {nowItem?.playback && askStillWatching && (
               <div className="live-slate" role="alertdialog" aria-label="Are you still watching?">
                 <p>PROtv LIVE</p>
                 <h2>Are you still watching?</h2>
@@ -365,13 +430,24 @@ export default function Live() {
                 <button type="button" className="live-cta" onClick={retryPlayback}>Try again</button>
               </div>
             )}
-            {nowItem?.state === 'playing' && nowItem.playback && failedEntryId !== nowItem.entryId && !askStillWatching
-              ? <LiveProgram key={`${nowItem.entryId}:${generation}`} item={nowItem} clock={view.clock} track={track} onMediaError={handleMediaError} onPlaying={handlePlaying} />
-              : nowItem && !(nowItem.state === 'playing' && nowItem.playback) && <Slate item={nowItem} next={data.next} />}
+            {nowItem?.playback && nowItem.state !== 'playing' && failedEntryId === nowItem.entryId && (
+              <div className="live-slate" role="alert">
+                <p>PROtv LIVE</p>
+                <h2>We&rsquo;ll be right back</h2>
+                <button type="button" className="live-cta" onClick={retryPlayback}>Try again</button>
+              </div>
+            )}
+            {nowItem?.playback && failedEntryId !== nowItem.entryId && !askStillWatching
+              ? <LiveProgram key={`${nowItem.entryId}:${nowItem.spot?.index || 0}:${generation}`} item={nowItem} clock={view.clock} track={track} onMediaError={handleMediaError} onPlaying={handlePlaying} />
+              : nowItem?.kind === 'countdown' && !nowItem.playback
+                ? <CountdownScreen item={nowItem} clock={view.clock} />
+                : nowItem && !nowItem.playback && <Slate item={nowItem} next={data.next} />}
+            {nowItem?.kind === 'countdown' && nowItem.playback && !askStillWatching && <CountdownBadge item={nowItem} clock={view.clock} />}
             {reconnecting && view.phase === 'ready' && <p className="live-reconnecting" role="status">Reconnecting to the schedule…</p>}
           </div>
           <div className="live-now">
-            <p className="live-now__eyebrow">{nowItem?.state === 'playing' ? `On now · ${nowItem.label}` : 'PROtv LIVE'}</p>
+            <p className="live-now__eyebrow">{nowItem?.state === 'playing' ? `On now · ${nowItem.label}`
+              : nowItem?.kind === 'countdown' ? `${nowItem.label} · ${formatChannelTime(nowItem.countdown.premiereAt)}` : 'PROtv LIVE'}</p>
             <h1>{nowItem?.title || 'PROtv LIVE'}</h1>
             {nowItem?.subtitle && <p className="live-now__subtitle">{nowItem.subtitle}</p>}
             {nowItem?.startAt && <p className="live-now__time">{formatChannelTime(nowItem.startAt)} – {formatChannelTime(nowItem.endAt)}</p>}

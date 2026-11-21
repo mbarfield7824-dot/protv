@@ -8,11 +8,13 @@ const { zonedParts, channelLabel, channelLocalToUtc } = require('./time');
 //   linearChannelEventKeys/{hash}            de-duplication of tune-ins, starts and unique viewers
 //   linearChannelDailyMetrics/{date}_{shard} per Eastern-time day
 //   linearProgramMetrics/{entryId}_{shard}   per scheduled program
+//   linearCreativeMetrics/{creativeId}_{date}_{shard}  commercial (spot) starts and completions, per Eastern day
 const SHARDS = 10;
 const HEARTBEAT_MAX_SECONDS = 60;
 const MAX_ERRORS_PER_SESSION = 20;
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const EVENT_TYPES = new Set(['tune_in', 'video_start', 'heartbeat', 'error']);
+const EVENT_TYPES = new Set(['tune_in', 'video_start', 'heartbeat', 'error', 'spot_start', 'spot_complete']);
+const SPOT_EVENTS = new Set(['spot_start', 'spot_complete']);
 const ERROR_CODES = new Set(['network', 'manifest', 'media', 'token', 'schedule', 'other']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ENTRY_ID = /^[A-Za-z0-9_-]{1,200}$/;
@@ -21,7 +23,7 @@ class LinearEventError extends Error {}
 
 function validateLinearEvent(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new LinearEventError('An event object is required.');
-  const allowed = ['eventType', 'sessionId', 'guestId', 'entryId', 'seconds', 'code'];
+  const allowed = ['eventType', 'sessionId', 'guestId', 'entryId', 'seconds', 'code', 'creativeId'];
   if (Object.keys(body).some((key) => !allowed.includes(key))) throw new LinearEventError('The event contains unsupported fields.');
   if (!EVENT_TYPES.has(body.eventType)) throw new LinearEventError('Unsupported event type.');
   if (!UUID.test(String(body.sessionId || ''))) throw new LinearEventError('A valid session ID is required.');
@@ -30,6 +32,10 @@ function validateLinearEvent(body) {
     throw new LinearEventError('A program is required.');
   }
   if (body.entryId !== undefined && !ENTRY_ID.test(String(body.entryId))) throw new LinearEventError('The program ID is invalid.');
+  if (SPOT_EVENTS.has(body.eventType) && (!ENTRY_ID.test(String(body.entryId || '')) || !ENTRY_ID.test(String(body.creativeId || '')))) {
+    throw new LinearEventError('A spot event needs its break and spot.');
+  }
+  if (body.creativeId !== undefined && !SPOT_EVENTS.has(body.eventType)) throw new LinearEventError('Only spot events carry a spot.');
   if (body.eventType === 'heartbeat'
     && (!Number.isInteger(body.seconds) || body.seconds < 1 || body.seconds > HEARTBEAT_MAX_SECONDS)) {
     throw new LinearEventError(`Heartbeats report 1 to ${HEARTBEAT_MAX_SECONDS} watched seconds.`);
@@ -42,6 +48,7 @@ function validateLinearEvent(body) {
     ...(body.entryId ? { entryId: body.entryId } : {}),
     ...(body.eventType === 'heartbeat' ? { seconds: body.seconds } : {}),
     ...(body.eventType === 'error' ? { code: body.code } : {}),
+    ...(SPOT_EVENTS.has(body.eventType) ? { creativeId: body.creativeId } : {}),
   };
 }
 
@@ -57,6 +64,7 @@ const millis = (value) => (typeof value === 'number' ? value : value instanceof 
 function account(event, { session, eventKeyExists, viewerKeyExists, entry, now }) {
   const daily = {};
   const program = {};
+  const creative = {};
   let sessionUpdate = null;
   const result = { recorded: true };
   if (event.eventType === 'tune_in') {
@@ -73,6 +81,14 @@ function account(event, { session, eventKeyExists, viewerKeyExists, entry, now }
       daily.videoStarts = 1;
       program.videoStarts = 1;
       sessionUpdate = { lastCreditAt: now };
+    } else if (SPOT_EVENTS.has(event.eventType)) {
+      // Counted once per visit, break and spot, only while that break is on air.
+      if (!entry || !(entry.pod || []).some((spot) => spot.creativeId === event.creativeId)) return { result: { recorded: false, reason: 'not-on-air' } };
+      if (eventKeyExists) return { result: { recorded: false, duplicate: true } };
+      const field = event.eventType === 'spot_start' ? 'spotStarts' : 'spotCompletes';
+      daily[field] = 1;
+      creative[field === 'spotStarts' ? 'starts' : 'completes'] = 1;
+      sessionUpdate = {};
     } else if (event.eventType === 'heartbeat') {
       if (!entry) return { result: { recorded: false, reason: 'not-on-air' } };
       // Never credit more than the whole seconds that really passed since this session's last credit.
@@ -91,7 +107,7 @@ function account(event, { session, eventKeyExists, viewerKeyExists, entry, now }
       sessionUpdate = { errors: (session.errors || 0) + 1 };
     }
   }
-  return { result, daily, program, sessionUpdate };
+  return { result, daily, program, creative, sessionUpdate };
 }
 
 function programInfo(entry, title) {
@@ -124,12 +140,13 @@ class LinearAnalytics {
     const day = zonedParts(now).date;
     const db = this.db;
     const sessionRef = db.collection('linearChannelSessions').doc(event.sessionId);
-    const eventKey = this.digest(`${event.eventType}:${event.sessionId}:${event.entryId || ''}`);
+    const eventKey = this.digest(`${event.eventType}:${event.sessionId}:${event.entryId || ''}${event.creativeId ? `:${event.creativeId}` : ''}`);
     const eventKeyRef = db.collection('linearChannelEventKeys').doc(eventKey);
     const viewerRef = event.guestId ? db.collection('linearChannelEventKeys').doc(this.digest(`viewer:${day}:${event.guestId}`)) : null;
     const shard = this.shard();
     const dailyRef = db.collection('linearChannelDailyMetrics').doc(`${day}_${shard}`);
     const programRef = entry ? db.collection('linearProgramMetrics').doc(`${entry.id}_${shard}`) : null;
+    const creativeRef = event.creativeId ? db.collection('linearCreativeMetrics').doc(`${event.creativeId}_${day}_${shard}`) : null;
     const { FieldValue } = require('firebase-admin/firestore');
 
     return db.runTransaction(async (transaction) => {
@@ -150,9 +167,12 @@ class LinearAnalytics {
         ...Object.fromEntries(Object.entries(outcome.sessionUpdate).map(([key, value]) => [key, typeof value === 'number' && key !== 'errors' ? new Date(value) : value])),
         expiresAt,
       }, { merge: true });
-      if (['tune_in', 'video_start'].includes(event.eventType)) transaction.create(eventKeyRef, { expiresAt });
+      if (['tune_in', 'video_start', ...SPOT_EVENTS].includes(event.eventType)) transaction.create(eventKeyRef, { expiresAt });
       if (outcome.daily.uniqueViewers) transaction.create(viewerRef, { expiresAt: new Date(now + 2 * 86_400_000) });
       transaction.set(dailyRef, { date: day, ...increments(outcome.daily) }, { merge: true });
+      if (creativeRef && Object.keys(outcome.creative).length) {
+        transaction.set(creativeRef, { creativeId: event.creativeId, date: day, ...increments(outcome.creative) }, { merge: true });
+      }
       if (programRef && Object.keys(outcome.program).length) {
         transaction.set(programRef, { ...programInfo(entry, title), ...increments(outcome.program) }, { merge: true });
       }
@@ -170,13 +190,39 @@ class LinearAnalytics {
   }
 }
 
+// Commercial delivery per spot over Eastern dates: starts, completions and completion rate.
+LinearAnalytics.prototype.creativeReport = async function creativeReport({ from, to }) {
+  if (!this.db) throw new Error('PROtv LIVE analytics require Firestore.');
+  const snapshot = await this.db.collection('linearCreativeMetrics').where('date', '>=', from).where('date', '<=', to).get();
+  return summarizeCreatives(snapshot.docs.map((doc) => doc.data()), { from, to });
+};
+
+function summarizeCreatives(shards, { from, to }) {
+  const rows = new Map();
+  for (const shard of shards) {
+    const row = rows.get(shard.creativeId) || { creativeId: shard.creativeId, starts: 0, completes: 0, days: {} };
+    row.starts += Number(shard.starts) || 0;
+    row.completes += Number(shard.completes) || 0;
+    const day = row.days[shard.date] || { starts: 0, completes: 0 };
+    day.starts += Number(shard.starts) || 0;
+    day.completes += Number(shard.completes) || 0;
+    row.days[shard.date] = day;
+    rows.set(shard.creativeId, row);
+  }
+  return {
+    from, to,
+    creatives: [...rows.values()].map((row) => ({ ...row, completionRate: row.starts ? Math.round((row.completes / row.starts) * 100) / 100 : 0 })),
+    note: 'Spot plays on PROtv LIVE: a start is a viewer\'s player beginning the spot, a completion is it playing to the end. Administrators are excluded. Separate from on-demand ad measurement.',
+  };
+}
+
 // Programs that started on the given Eastern dates (8 PM ET is already the next day in UTC).
 function programRange(from, to) {
   const nextDay = new Date(Date.parse(`${to}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   return { fromIso: channelLocalToUtc(`${from}T00:00`), toIso: channelLocalToUtc(`${nextDay}T00:00`) };
 }
 
-const COUNTERS = ['tuneIns', 'uniqueViewers', 'videoStarts', 'watchSeconds', 'errors'];
+const COUNTERS = ['tuneIns', 'uniqueViewers', 'videoStarts', 'watchSeconds', 'errors', 'spotStarts', 'spotCompletes'];
 
 function summarize(dailyShards, programShards, { from, to }) {
   const days = new Map();
@@ -213,4 +259,4 @@ function summarize(dailyShards, programShards, { from, to }) {
   };
 }
 
-module.exports = { HEARTBEAT_MAX_SECONDS, LinearAnalytics, LinearEventError, account, programRange, summarize, validateLinearEvent };
+module.exports = { HEARTBEAT_MAX_SECONDS, LinearAnalytics, LinearEventError, account, programRange, summarize, summarizeCreatives, validateLinearEvent };

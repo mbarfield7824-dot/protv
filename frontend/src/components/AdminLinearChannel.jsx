@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { channelDate, channelDayLabel, channelMinutes, formatChannelTime } from '../data/linearChannel';
+import { BlockBuilder, BreakSpots, CommercialsTab, CountdownControl } from './AdminLinearCommercials';
 import '../styles/AdminLinear.css';
 
 const TABS = [
   { id: 'schedule', label: 'Schedule' },
+  { id: 'commercials', label: 'Commercials' },
   { id: 'rights', label: 'Linear rights' },
   { id: 'primetime', label: 'Primetime' },
   { id: 'analytics', label: 'Analytics' },
@@ -300,10 +302,18 @@ function ScheduleTab() {
                 </p>
               )}
               <IssueList issues={entry.issues} />
+              {entry.kind === 'break' && <BreakSpots entry={entry} onChanged={refresh} onError={setMessage} />}
+              {entry.kind === 'countdown' && (
+                <p className="linear-note">
+                  Leads into the program at {formatChannelTime(entry.endAt)}. The last minute is the full-screen clock.
+                  {entry.pod?.length ? ` Spots before it: ${entry.pod.map((spot) => spot.title).join(', ')}.` : ' No spots: the countdown screen shows throughout.'}
+                </p>
+              )}
               <div className="linear-actions">
                 {entry.status === 'draft' && <button type="button" className="admin-secondary admin-button-primary" disabled={entry.issues.blocking.length > 0} onClick={() => act(entry, 'approve')}>Approve for air</button>}
                 {entry.status === 'approved' && <button type="button" className="admin-secondary" onClick={() => act(entry, 'withdraw')}>Withdraw approval</button>}
-                <button type="button" className="admin-secondary" onClick={() => setEditing(entry)}>Edit</button>
+                {entry.kind !== 'countdown' && <button type="button" className="admin-secondary" onClick={() => setEditing(entry)}>Edit</button>}
+                {entry.kind === 'program' && entry.status !== 'aired' && <CountdownControl entry={entry} onChanged={refresh} onError={setMessage} />}
                 <button type="button" className="admin-secondary" onClick={() => act(entry, 'delete')}>Remove</button>
               </div>
             </article>
@@ -314,6 +324,7 @@ function ScheduleTab() {
               prefill={prefill?.date === date ? prefill : null}
               onSaved={() => { setEditing(null); setPrefill(null); void refresh(); }} onCancel={editing ? () => setEditing(null) : null} />
           )}
+          {programs.data && <BlockBuilder programs={programs.data.items} date={date} onCreated={refresh} />}
         </div>
       </div>
       <RepeatWeek key={week} sourceWeekOf={week} onApplied={refresh} />
@@ -620,9 +631,9 @@ function ChannelTab() {
         {error && <p className="admin-error" role="alert">{error}</p>}
       </article>
       <article className="admin-advertising__card">
-        <header><h3>Commercials</h3><span className="admin-status-pill">Not active</span></header>
-        <p>Commercial breaks can be placed in the schedule today (between programs, or mid-program by splitting a title into segments with &ldquo;Start the video at&rdquo;). Viewers see a PROtv &ldquo;We&rsquo;ll be right back&rdquo; card. No ad is requested, served or counted on PROtv LIVE until an ad decision service is connected and verified.</p>
-        {policy && <p className="linear-note">Planned limits: up to {policy.maxBreakMinutesPerHour} break minutes and {policy.maxBreaksPerProgramHour} breaks per program hour; at most {policy.viewerFrequencyCapPerHour} ads per viewer per hour.</p>}
+        <header><h3>Commercials</h3><span className="admin-status-pill is-on">Scheduled spots</span></header>
+        <p>Breaks play PROtv&rsquo;s own approved spots (Commercials tab) in the order chosen for each break, in sync for every viewer, then the PROtv &ldquo;We&rsquo;ll be right back&rdquo; card. No third-party ad server is involved. Spot starts and completions are reported in the Commercials tab, separately from on-demand ad measurement.</p>
+        {policy && <p className="linear-note">Limit: up to {policy.maxBreakMinutesPerHour} break minutes per clock hour (flagged when approving breaks). Planning figures: {policy.maxBreaksPerProgramHour} breaks per program hour, {policy.viewerFrequencyCapPerHour} spots per viewer per hour.</p>}
       </article>
       <article className="admin-advertising__card">
         <header><h3>TV apps</h3><span className="admin-status-pill">Web only</span></header>
@@ -643,6 +654,7 @@ export default function AdminLinearChannel() {
         ))}
       </div>
       {tab === 'schedule' && <ScheduleTab />}
+      {tab === 'commercials' && <CommercialsTab />}
       {tab === 'rights' && <RightsTab />}
       {tab === 'primetime' && <PrimetimeTab />}
       {tab === 'analytics' && <AnalyticsTab />}

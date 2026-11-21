@@ -19,10 +19,10 @@ const DEFAULT_PRIMETIME = [
   { weekday: 5, time: '20:00', seriesTitle: 'Sidepiece' },
 ];
 
-// Commercial breaks can be scheduled now; nothing is inserted into them yet. These limits are recorded for the
-// future ad decision service and are not enforced against any ad, because no ad is served.
+// Commercial breaks play the channel's own scheduled spots (creatives.js). maxBreakMinutesPerHour is checked when
+// breaks are approved (a warning); the other limits are recorded for planning.
 const DEFAULT_AD_POLICY = {
-  insertion: 'not-active',
+  insertion: 'scheduled-spots',
   maxBreakMinutesPerHour: 8,
   maxBreaksPerProgramHour: 3,
   viewerFrequencyCapPerHour: 4,
@@ -152,10 +152,7 @@ function approvalIssues(entry, video, rights, now = Date.now()) {
   const blocking = [];
   const warnings = [];
   if (ms(entry.endAt) <= now) blocking.push('This slot has already ended.');
-  if (entry.kind === 'break') {
-    warnings.push('Ad insertion is not active yet: viewers see a PROtv "We\'ll be right back" card for this break. No ad is served or counted.');
-    return { blocking, warnings };
-  }
+  if (entry.kind === 'break') return { blocking, warnings };
   if (!video) return { blocking: [...blocking, 'The title no longer exists in the catalog.'], warnings };
   if (!SCHEDULABLE_TYPES.has(video.contentType)) blocking.push('Only movies and TV episodes can air on PROtv LIVE.');
   const coverage = rightsCover(video, rights, ms(entry.startAt), ms(entry.endAt));

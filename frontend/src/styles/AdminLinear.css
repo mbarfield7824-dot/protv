@@ -123,3 +123,16 @@
   .linear-day { grid-template-columns: 1fr; }
   .linear-timeline { display: none; }
 }
+
+/* Commercials, break spots, countdowns and programming blocks */
+.linear-commercials { display: grid; gap: 20px; }
+.linear-spots { display: grid; gap: 12px; }
+.linear-pod ol, .linear-block-list { margin: 6px 0; padding-left: 20px; display: grid; gap: 4px; }
+.linear-pod li.is-unavailable { color: #ffb37a; }
+.linear-block-list li { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.linear-countdown-form { display: grid; gap: 8px; width: 100%; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; }
+.linear-form__row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.linear-radio { border: 0; padding: 0; display: grid; gap: 6px; }
+.linear-card { display: grid; gap: 10px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; }
+.linear-table { width: 100%; border-collapse: collapse; }
+.linear-table th, .linear-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); text-align: left; }

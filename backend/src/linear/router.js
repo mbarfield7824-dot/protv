@@ -2,6 +2,7 @@ const express = require('express');
 const { LinearValidationError } = require('./model');
 const { LinearNotFoundError } = require('./service');
 const { LinearEventError, validateLinearEvent } = require('./analytics');
+const { CreativeValidationError } = require('./creatives');
 
 const noStore = (req, res, next) => {
   res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
@@ -9,7 +10,9 @@ const noStore = (req, res, next) => {
 };
 
 function fail(res, error, context) {
-  if (error instanceof LinearValidationError || error instanceof LinearEventError) return res.status(400).json({ error: error.message });
+  if (error instanceof LinearValidationError || error instanceof LinearEventError || error instanceof CreativeValidationError) {
+    return res.status(400).json({ error: error.message });
+  }
   if (error instanceof LinearNotFoundError) return res.status(404).json({ error: error.message });
   console.error(`PROtv LIVE ${context} failed:`, error.message);
   return res.status(503).json({ error: 'PROtv LIVE is temporarily unavailable.' });
@@ -170,6 +173,90 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
       await record(req, 'primetime_draft', `Drafted primetime for the week of ${req.body?.weekOf}: ${results.filter((item) => item.created).length} of ${results.length} slots filled.`, { weekOf: req.body?.weekOf });
       return res.json({ items: results });
     } catch (error) { return fail(res, error, 'primetime draft'); }
+  });
+
+  // --- Commercials (spots), breaks, countdowns and programming blocks ---
+  // Direct uploads go from the Administrator's browser to Mux; only PROtv's own website may use the upload URL.
+  const uploadOrigin = (req) => {
+    const origin = String(req.get('Origin') || '');
+    return /^https:\/\/(www\.)?watchprotv\.com$/.test(origin) || /^http:\/\/localhost:\d+$/.test(origin) ? origin : 'https://watchprotv.com';
+  };
+
+  router.get('/creatives', async (req, res) => {
+    try { return res.json({ items: await service.listCreatives() }); } catch (error) { return fail(res, error, 'spots'); }
+  });
+
+  router.get('/creatives/trailer-sources', async (req, res) => {
+    try { return res.json({ items: await service.trailerSources() }); } catch (error) { return fail(res, error, 'trailer sources'); }
+  });
+
+  router.post('/creatives', async (req, res) => {
+    try {
+      const result = await service.createCreative(req.body || {}, actor(req), { corsOrigin: uploadOrigin(req) });
+      await record(req, 'creative_create', `Added spot "${result.creative.title}" (${result.creative.typeLabel}).`, { creativeId: result.creative.id, source: result.creative.source });
+      return res.status(201).json(result);
+    } catch (error) { return fail(res, error, 'spot create'); }
+  });
+
+  router.post('/creatives/:id/refresh', async (req, res) => {
+    try { return res.json(await service.refreshCreative(req.params.id)); } catch (error) { return fail(res, error, 'spot refresh'); }
+  });
+
+  router.patch('/creatives/:id', async (req, res) => {
+    try {
+      const creative = await service.updateCreative(req.params.id, req.body || {}, actor(req));
+      await record(req, 'creative_update', `Edited spot "${creative.title}"; it needs approval again.`, { creativeId: creative.id });
+      return res.json(creative);
+    } catch (error) { return fail(res, error, 'spot update'); }
+  });
+
+  router.post('/creatives/:id/approve', async (req, res) => {
+    try {
+      const creative = await service.approveCreative(req.params.id, { rightsConfirmation: req.body?.rightsConfirmation }, actor(req));
+      await record(req, 'creative_approve', `Approved spot "${creative.title}" for PROtv LIVE.`, { creativeId: creative.id, rightsConfirmation: creative.rightsConfirmation });
+      return res.json(creative);
+    } catch (error) { return fail(res, error, 'spot approval'); }
+  });
+
+  router.post('/creatives/:id/retire', async (req, res) => {
+    try {
+      const creative = await service.retireCreative(req.params.id, actor(req));
+      await record(req, 'creative_retire', `Retired spot "${creative.title}".`, { creativeId: creative.id });
+      return res.json(creative);
+    } catch (error) { return fail(res, error, 'spot retire'); }
+  });
+
+  router.get('/creatives/report', async (req, res) => {
+    const { from, to } = req.query;
+    if (!DATE.test(String(from || '')) || !DATE.test(String(to || '')) || from > to
+      || Date.parse(to) - Date.parse(from) > 92 * 86_400_000) {
+      return res.status(400).json({ error: 'Choose a date range (YYYY-MM-DD) of up to 92 days.' });
+    }
+    try { return res.json(await analytics.creativeReport({ from, to })); } catch (error) { return fail(res, error, 'spot report'); }
+  });
+
+  router.put('/schedule/:id/pod', async (req, res) => {
+    try {
+      const entry = await service.setBreakPod(req.params.id, { creativeIds: req.body?.creativeIds, autofill: req.body?.autofill === true }, actor(req));
+      await record(req, 'break_spots', `Set ${entry.pod.length} spot(s) in the break at ${entry.startLabel}; it needs approval again.`, { entryId: entry.id, pod: entry.pod.map((spot) => spot.creativeId) });
+      return res.json(entry);
+    } catch (error) { return fail(res, error, 'break spots'); }
+  });
+
+  router.post('/schedule/:id/countdown', async (req, res) => {
+    try {
+      const entry = await service.addCountdown(req.params.id, req.body || {}, actor(req));
+      await record(req, 'countdown_create', `Drafted a ${entry.countdown.minutes}-minute countdown before ${entry.endLabel}.`, { entryId: entry.id, forEntryId: entry.forEntryId });
+      return res.status(201).json(entry);
+    } catch (error) { return fail(res, error, 'countdown'); }
+  });
+
+  router.post('/blocks', async (req, res) => {
+    try {
+      const result = await service.buildBlock(req.body || {}, actor(req));
+      await record(req, 'block_create', `Drafted a programming block of ${result.created.length} entries from ${result.created[0]?.startLabel || ''}.`, { entryIds: result.created.map((entry) => entry.id) });
+      return res.status(201).json(result);
+    } catch (error) { return fail(res, error, 'programming block'); }
   });
 
   router.get('/analytics', async (req, res) => {

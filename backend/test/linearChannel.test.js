@@ -149,14 +149,17 @@ test('a premiere slot before an approved release time is refused', async () => {
   assert.deepEqual(onTime.issues.blocking, []);
 });
 
-test('withdrawn rights or an unpublished title take a program off the air immediately', async () => {
+test('withdrawn rights or an unpublished title take a program off the air immediately (holding screen)', async () => {
   const { clock, service, store } = setup({ settings: { status: 'public' } });
   await approved(service, { videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-01T07:00' });
   clock.now = NOW + 60_000;
   assert.equal((await service.channelState()).now.state, 'playing');
   await store.setRights('title_movie-1', { status: 'denied', basis: 'Licensor withdrew linear permission today.' });
   const after = await service.channelState();
-  assert.equal(after.now.state, 'off-air');
+  // The slot is still on the schedule but cannot play: a holding screen with no title details, no playback.
+  assert.equal(after.now.state, 'holding');
+  assert.equal(after.now.playback, undefined);
+  assert.equal(after.now.title, 'PROtv LIVE');
   assert.deepEqual(after.guide, []);
 });
 
@@ -167,7 +170,7 @@ test('signed titles receive a playback token; overlapping slots are refused; cha
   await assert.rejects(service.createEntry({ videoId: 'movie-1', programType: 'rerun', startAtLocal: '2026-12-01T08:00' }, 'a'), /overlaps/);
   const brk = await service.createEntry({ kind: 'break', durationSeconds: 120, afterEntryId: first.id }, 'a');
   assert.equal(brk.startAt, first.endAt);
-  assert.match(brk.issues.warnings.join(), /Ad insertion is not active/);
+  assert.match(brk.issues.warnings.join(), /No spots in this break/);
   await assert.rejects(service.createEntry({ kind: 'break', durationSeconds: 5, startAtLocal: '2026-12-01T18:00' }, 'a'), /15 seconds/);
 });
 
