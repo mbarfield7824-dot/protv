@@ -429,3 +429,15 @@ test('a primetime stand-in is repeated into the next week while other lineup slo
   assert.equal(copy.startAt, '2026-12-09T00:30:00.000Z');
   await assert.rejects(service.createEntry({ videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-02T09:00', standInFor: 'x' }, 'a'), /Name the series/);
 });
+
+test('repeating a week keeps back-to-back programs and breaks contiguous to the second', async () => {
+  const videos = [movie({ duration: 1128 }), movie({ id: 'movie-2', title: 'D.O.A.', muxPlaybackId: 'p2', duration: 3761 })];
+  const { service, store } = setup({ videos, rights: { 'title_movie-1': confirmed(), 'title_movie-2': confirmed() } });
+  const first = await approved(service, { videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-01T09:00' });
+  const pause = await approved(service, { kind: 'break', durationSeconds: 120, afterEntryId: first.id }, true);
+  await approved(service, { videoId: 'movie-2', programType: 'movie', afterEntryId: pause.id });
+  const result = await service.repeatWeek({ sourceWeekOf: '2026-11-30', targetWeekOf: '2026-12-07', apply: true }, 'a');
+  assert.equal(result.created, 3, JSON.stringify(result.items.map((item) => item.reason)));
+  const copies = [...store.entries.values()].filter((entry) => entry.origin === 'repeat').sort((a, b) => a.startAt.localeCompare(b.startAt));
+  assert.deepEqual(copies.map((entry) => entry.startAt), ['2026-12-08T14:00:00.000Z', '2026-12-08T14:18:48.000Z', '2026-12-08T14:20:48.000Z']);
+});

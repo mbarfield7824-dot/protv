@@ -622,13 +622,16 @@ function createLinearService({
     return { weekOf, days };
   }
 
+  // The same Eastern wall-clock time on another day, to the second: back-to-back entries rarely start on a whole minute.
   function localStart(iso, targetDate) {
     const local = `${targetDate}T${zonedParts(Date.parse(iso)).time}`;
+    const withinMinute = ((Date.parse(iso) % 60_000) + 60_000) % 60_000;
+    const shift = (utc) => (utc ? new Date(Date.parse(utc) + withinMinute).toISOString() : utc);
     try {
-      return channelLocalToUtc(local);
+      return shift(channelLocalToUtc(local));
     } catch (error) {
       if (!(error instanceof ChannelTimeError)) throw error;
-      if (/occurs twice/.test(error.message)) return channelLocalToUtc(local, { fold: 'first' });
+      if (/occurs twice/.test(error.message)) return shift(channelLocalToUtc(local, { fold: 'first' }));
       return null;
     }
   }
