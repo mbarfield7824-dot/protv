@@ -1,5 +1,6 @@
 const { isMusicFormat } = require('./music');
 const { releaseAllowed } = require('./releases');
+const { rightsHeld } = require('./rightsHolds');
 const {
   PODCAST_SHOW,
   PODCAST_EPISODE,
@@ -11,6 +12,7 @@ const {
 const VIEWS = new Set(['all', 'movies', 'documentaries', 'music']);
 
 function isViewerEligible(video, videos = []) {
+  if (rightsHeld(video)) return false;
   if (video?.contentType === 'SERIES') return false;
   if (video?.contentType === PODCAST_SHOW) return false;
   if (video?.contentType === PODCAST_EPISODE) {

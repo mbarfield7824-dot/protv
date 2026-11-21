@@ -3,6 +3,7 @@ const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
 const { eligibleForPlatform, platformFromRequest, platformPolicy } = require('./platformEligibility');
+const { androidAppRequest, deviceAppHeld } = require('./rightsHolds');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const {
   previewContent, contentMetadata, socialMetadata, previewEligible, publicArtworkUrl, ORIGIN,
@@ -54,7 +55,10 @@ function createCatalogRouter({
   // Without a request (the sitemap) the full public catalog is loaded.
   const load = async (req) => {
     const videos = await loadApproved();
-    return req ? eligibleForPlatform(videos, platformFromRequest(req)) : videos;
+    if (!req) return videos;
+    const eligible = eligibleForPlatform(videos, platformFromRequest(req));
+    // Device-app holds also cover the Android app, which otherwise keeps the website catalog.
+    return androidAppRequest(req) ? eligible.filter((video) => !deviceAppHeld(video)) : eligible;
   };
 
   // Responses differ by platform, so caches must key on the headers that pick it.

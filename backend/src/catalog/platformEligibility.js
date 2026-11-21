@@ -1,4 +1,5 @@
 // Platform eligibility for the shared viewer catalog.
+const { deviceAppHeld } = require('./rightsHolds');
 //
 // Fire TV is fail-closed: a Fire TV client sees only titles whose rights
 // evidence covers the copy PROtv streams (Group A in
@@ -66,7 +67,7 @@ const ROKU_REVIEWED_CREATOR_TITLE_IDS = new Set([
 // (tv/roku/store/ROKU-LAUNCH-CATALOG.md and backend/docs/roku-distribution-rights.md) or a signed Schedule naming
 // TV or PROtv apps, recorded as rokuCleared when the title is published. rokuHold withdraws a title whatever else applies.
 function rokuEligible(video) {
-  if (video.rokuHold === true) return false;
+  if (video.rokuHold === true || deviceAppHeld(video)) return false;
   return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || ROKU_REVIEWED_CREATOR_TITLE_IDS.has(video.id) || video.rokuCleared === true;
 }
 

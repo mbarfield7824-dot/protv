@@ -8,7 +8,7 @@ const ROKU_UA = 'Roku/DVP-14.0 (114.00E04114A)';
 const FIRE_TV = { 'User-Agent': 'okhttp/4.12.0', 'X-PROtv-Platform': 'firetv' };
 const CLEARED = 'gbcxmtl6mAHQeBxx8Dgs'; // Tears of Steel
 const HELD = 'IHkqDr5bGIY0Nw5Lhkky'; // Detour: replacement copy awaiting approval
-const HELD_EPISODE = '5FHvg3BEwBlk9qqNdZT5'; // One Step Beyond - The Storm
+const HELD_EPISODE = 'FOn1pIGiBKaUb89oE6Gm'; // Cavalcade of Stars (held on Fire TV, kept on the website)
 
 function title(id, overrides = {}) {
   return {
@@ -26,7 +26,7 @@ function title(id, overrides = {}) {
 const records = [
   title(CLEARED),
   title(HELD),
-  title(HELD_EPISODE, { contentType: 'EPISODE', seriesTitle: 'One Step Beyond', seasonNumber: 2, episodeNumber: 7 }),
+  title(HELD_EPISODE, { contentType: 'EPISODE', seriesTitle: 'Cavalcade of Stars', seasonNumber: 1, episodeNumber: 1 }),
 ];
 
 async function serve(context) {
