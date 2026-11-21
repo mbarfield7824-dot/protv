@@ -48,6 +48,17 @@ function rightsKeysFor(video) {
   return keys;
 }
 
+// A premiere scheduled before the Creator Portal has delivered its episode to PROtv (it arrives, private, about
+// 72 hours before release). Only a Creator Portal episode ID can be pending, only as a premiere, and only with its
+// series named: linear rights are then checked against that series. Until the episode exists and is released,
+// the slot shows the holding screen; it never reveals or plays anything.
+const PENDING_EPISODE_ID = /^creator_episode_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function pendingVideo(entry) {
+  if (!entry?.pendingSeriesTitle || !PENDING_EPISODE_ID.test(String(entry.videoId || ''))) return null;
+  return { id: entry.videoId, contentType: 'EPISODE', seriesTitle: entry.pendingSeriesTitle, pending: true };
+}
+
 function linearRightsFor(video, rights, at = Date.now()) {
   for (const key of rightsKeysFor(video)) {
     const record = rights.get(key);
@@ -153,6 +164,13 @@ function approvalIssues(entry, video, rights, now = Date.now()) {
   const warnings = [];
   if (ms(entry.endAt) <= now) blocking.push('This slot has already ended.');
   if (entry.kind === 'break') return { blocking, warnings };
+  if (!video && pendingVideo(entry)) {
+    const coverage = rightsCover(pendingVideo(entry), rights, ms(entry.startAt), ms(entry.endAt));
+    if (entry.programType !== 'premiere') blocking.push('Only a premiere can be scheduled before its episode is delivered.');
+    if (coverage.status !== 'confirmed') blocking.push(`Linear rights are not confirmed for the series "${entry.pendingSeriesTitle}".`);
+    warnings.push(`This episode has not been delivered to PROtv yet (the Creator Portal sends it privately about 72 hours before release). Until it is delivered and released, viewers see the holding screen; nothing is revealed or played early.`);
+    return { blocking, warnings };
+  }
   if (!video) return { blocking: [...blocking, 'The title no longer exists in the catalog.'], warnings };
   if (!SCHEDULABLE_TYPES.has(video.contentType)) blocking.push('Only movies and TV episodes can air on PROtv LIVE.');
   const coverage = rightsCover(video, rights, ms(entry.startAt), ms(entry.endAt));
@@ -286,6 +304,8 @@ module.exports = {
   linearRightsFor,
   normalizeSeriesTitle,
   overlaps,
+  PENDING_EPISODE_ID,
+  pendingVideo,
   pendingRelease,
   playableAt,
   publicItem,

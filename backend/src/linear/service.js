@@ -1,7 +1,7 @@
 const {
   CHANNEL_ID, LinearValidationError, PROGRAM_LABELS,
   airState, approvalIssues, entryFields, knownDuration, linearRightsFor, normalizeSeriesTitle, overlaps,
-  pendingRelease, playableAt, publicItem, rightsKeysFor, validateLineup, validateRightsInput,
+  pendingRelease, pendingVideo, PENDING_EPISODE_ID, playableAt, publicItem, rightsKeysFor, validateLineup, validateRightsInput,
 } = require('./model');
 const { channelLabel, channelLocalToUtc, channelWeekDates, ChannelTimeError, zonedParts } = require('./time');
 const { seriesKey } = require('../catalog/readModel');
@@ -40,7 +40,7 @@ function createLinearService({
     const [settings, entries] = await Promise.all([store.getSettings(), store.listEntries(fromIso, toIso)]);
     const approved = entries.filter((entry) => entry.status === 'approved');
     const videos = await store.getVideos(approved.map((entry) => entry.videoId).filter(Boolean));
-    const rights = await store.getRights([...videos.values()].flatMap(rightsKeysFor));
+    const rights = await store.getRights([...videos.values(), ...approved.map(pendingVideo).filter(Boolean)].flatMap(rightsKeysFor));
     const creatives = await store.getCreatives(approved.flatMap((entry) => (entry.pod || []).map((spot) => spot.creativeId)));
     const loaded = { loadedAt: at, settings, entries: approved, videos, rights, creatives };
     if (!fresh) cache = loaded;
@@ -225,7 +225,8 @@ function createLinearService({
     const programIds = entries.filter((entry) => entry.kind === 'countdown').map((entry) => entry.forEntryId).filter(Boolean);
     const programs = new Map((await Promise.all(programIds.map((id) => store.getEntry(id)))).filter(Boolean).map((entry) => [entry.id, entry]));
     const videos = await store.getVideos([...entries, ...programs.values()].map((entry) => entry.videoId).filter(Boolean));
-    const rights = await store.getRights([...videos.values()].flatMap(rightsKeysFor));
+    const pending = entries.map(pendingVideo).filter(Boolean);
+    const rights = await store.getRights([...videos.values(), ...pending].flatMap(rightsKeysFor));
     const creatives = await store.getCreatives(entries.flatMap((entry) => (entry.pod || []).map((spot) => spot.creativeId)));
     const settings = await store.getSettings();
     const at = now();
@@ -276,9 +277,11 @@ function createLinearService({
         typeLabel: entry.kind === 'break' ? 'Commercial break' : PROGRAM_LABELS[entry.programType],
         title: entry.kind === 'break' ? (entry.label || 'Commercial break') : video
           ? [video.contentType === 'EPISODE' ? video.seriesTitle : '', video.episodeTitle || video.title].filter(Boolean).join(' — ')
-          : 'Missing title',
+          : pendingVideo(entry) ? `${entry.pendingSeriesTitle} — new episode (not delivered to PROtv yet)` : 'Missing title',
         released: video ? playableAt(video, at) : false,
-        linearRights: video ? linearRightsFor(video, rights, Date.parse(entry.startAt)).status : null,
+        linearRights: video ? linearRightsFor(video, rights, Date.parse(entry.startAt)).status
+          : pendingVideo(entry) ? linearRightsFor(pendingVideo(entry), rights, Date.parse(entry.startAt)).status : null,
+        ...(pendingVideo(entry) && !video ? { pending: true } : {}),
         airState: entry.status === 'approved' ? airState(entry, video, rights, Math.max(at, Date.parse(entry.startAt))) : null,
         issues,
       };
@@ -314,10 +317,20 @@ function createLinearService({
     return previous.endAt;
   }
 
+  // A premiere for a Creator Portal episode that has not reached PROtv yet. Its series must be named.
+  function pendingFields(input) {
+    const seriesTitle = text(input?.pendingSeriesTitle, 200);
+    if (input?.programType !== 'premiere' || !PENDING_EPISODE_ID.test(String(input?.videoId || '')) || seriesTitle.length < 2) {
+      throw new LinearValidationError('That title is not in the PROtv catalog.');
+    }
+    if (!(Number(input.durationSeconds) > 0)) throw new LinearValidationError('Enter the episode length for a premiere that has not been delivered yet.');
+    return { pendingSeriesTitle: seriesTitle };
+  }
+
   async function createEntry(input, actorId) {
     const video = input?.kind === 'break' ? null : (await store.getVideos([String(input?.videoId || '')])).get(input?.videoId) || null;
-    if (input?.kind !== 'break' && !video) throw new LinearValidationError('That title is not in the PROtv catalog.');
-    const fields = entryFields(input, { video, previousEndAt: await resolveStart(input) });
+    const pendingExtra = input?.kind !== 'break' && !video ? pendingFields(input) : {};
+    const fields = { ...entryFields(input, { video, previousEndAt: await resolveStart(input) }), ...pendingExtra };
     if (Date.parse(fields.endAt) <= now()) throw new LinearValidationError('This slot would already have ended.');
     const timestamp = new Date(now()).toISOString();
     const created = await store.writeEntry(null, async () => ({
@@ -341,9 +354,10 @@ function createLinearService({
       label: existing.label, notes: existing.notes, ...input,
     };
     const video = merged.kind === 'break' ? null : (await store.getVideos([merged.videoId])).get(merged.videoId) || null;
-    if (merged.kind !== 'break' && !video) throw new LinearValidationError('That title is not in the PROtv catalog.');
+    const pendingExtra = merged.kind !== 'break' && !video
+      ? pendingFields({ ...merged, pendingSeriesTitle: merged.pendingSeriesTitle ?? existing.pendingSeriesTitle }) : {};
     const previousEndAt = (await resolveStart(merged)) || (merged.startAtLocal ? null : existing.startAt);
-    const fields = entryFields(merged, { video, previousEndAt });
+    const fields = { ...entryFields(merged, { video, previousEndAt }), ...pendingExtra };
     if (Date.parse(fields.endAt) <= now()) throw new LinearValidationError('This slot would already have ended.');
     if (existing.pod && podSeconds(existing.pod) > fields.durationSeconds) {
       throw new LinearValidationError(`The spots in this break run ${podSeconds(existing.pod)} s. Shorten them first, or keep the break at least that long.`);

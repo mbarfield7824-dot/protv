@@ -250,3 +250,55 @@ test('spot plays are counted separately, once per visit and spot, only while the
   const report = summarizeCreatives([{ creativeId: 's1', date: '2026-12-01', starts: 3, completes: 2 }, { creativeId: 's1', date: '2026-12-01', starts: 1 }], { from: '2026-12-01', to: '2026-12-01' });
   assert.deepEqual(report.creatives[0], { creativeId: 's1', starts: 4, completes: 2, days: { '2026-12-01': { starts: 4, completes: 2 } }, completionRate: 0.5 });
 });
+
+test('a premiere and its countdown can be configured before the episode reaches PROtv, and reveal nothing until release', async () => {
+  const EP = 'creator_episode_bb27d79d-b541-4c38-97f1-6514f016de31';
+  const seriesRights = { series_aXJvbmJvcm4: confirmed };
+  const { clock, service, store } = setup({ videos: [movie()], rights: { ...seriesRights, 'title_movie-1': confirmed } });
+  // Guard rails: only a Creator Portal episode, only as a premiere, only with its series and length.
+  await assert.rejects(service.createEntry({ videoId: 'not-a-creator-episode', programType: 'premiere', pendingSeriesTitle: 'Ironborn', durationSeconds: 80, startAtLocal: '2026-12-03T20:00' }, 'admin'), /not in the PROtv catalog/);
+  await assert.rejects(service.createEntry({ videoId: EP, programType: 'movie', pendingSeriesTitle: 'Ironborn', durationSeconds: 80, startAtLocal: '2026-12-03T20:00' }, 'admin'), /not in the PROtv catalog/);
+  await assert.rejects(service.createEntry({ videoId: EP, programType: 'premiere', durationSeconds: 80, startAtLocal: '2026-12-03T20:00' }, 'admin'), /not in the PROtv catalog/);
+  await assert.rejects(service.createEntry({ videoId: EP, programType: 'premiere', pendingSeriesTitle: 'Ironborn', startAtLocal: '2026-12-03T20:00' }, 'admin'), /episode length/);
+
+  const premiere = await service.createEntry({ videoId: EP, programType: 'premiere', pendingSeriesTitle: 'Ironborn', durationSeconds: 80, startAtLocal: '2026-12-03T20:00' }, 'admin');
+  assert.equal(premiere.pending, true);
+  assert.equal(premiere.linearRights, 'confirmed', 'checked against the Ironborn series rights');
+  assert.match(premiere.issues.warnings.join(), /not been delivered/);
+  await service.approveEntry(premiere.id, { acknowledgeWarnings: true }, 'admin');
+  const countdown = await service.addCountdown(premiere.id, { minutes: 10, artworkUrl: 'https://watchprotv.com/api/posters/ironborn.jpg' }, 'admin');
+  await service.approveEntry(countdown.id, { acknowledgeWarnings: true }, 'admin');
+  // The primetime drafter sees the slot as taken: no duplicate premiere.
+  assert.equal((await store.findEntriesByVideoIds([EP])).length, 1);
+
+  // Not delivered by air time: holding screens, no title, no playback.
+  clock.now = at('2026-12-04T00:55:00Z');
+  let state = await service.channelState();
+  assert.equal(state.now.state, 'holding');
+  assert.equal(JSON.stringify(state).includes('Ironborn'), false);
+
+  // Delivered privately (held): the countdown shows; still nothing playable.
+  store.videos.set(EP, heldEpisode({ id: EP, creatorEpisodeId: 'bb27d79d-b541-4c38-97f1-6514f016de31' }));
+  state = await service.channelState();
+  assert.equal(state.now.kind, 'countdown');
+  assert.equal(state.now.subtitle, 'S1 · E1 · Hell Has No Fury');
+  assert.equal(state.now.playback, undefined);
+  clock.now = at('2026-12-04T01:00:10Z');
+  state = await service.channelState();
+  assert.equal(state.now.state, 'awaiting-release');
+  assert.equal(state.now.playback, undefined);
+
+  // Released at 8 PM by the Creator Portal: viewers join in progress.
+  store.videos.set(EP, heldEpisode({ id: EP, creatorEpisodeId: 'bb27d79d', status: 'ready', approvalStatus: 'approved', releaseStatus: 'published', muxPlaybackId: 'iron-pb' }));
+  clock.now = at('2026-12-04T01:00:30Z');
+  state = await service.channelState();
+  assert.equal(state.now.state, 'playing');
+  assert.equal(state.now.playback.offsetSeconds, 30);
+});
+
+test('a pending premiere needs the series linear rights before it can be approved', async () => {
+  const { service } = setup({ videos: [movie()] });
+  const entry = await service.createEntry({ videoId: 'creator_episode_bb27d79d-b541-4c38-97f1-6514f016de31', programType: 'premiere', pendingSeriesTitle: 'Ironborn', durationSeconds: 80, startAtLocal: '2026-12-03T20:00' }, 'admin');
+  assert.match(entry.issues.blocking.join(), /not confirmed for the series "Ironborn"/);
+  await assert.rejects(service.approveEntry(entry.id, { acknowledgeWarnings: true }, 'admin'), /not confirmed for the series/);
+});
