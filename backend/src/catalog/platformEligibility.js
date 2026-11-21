@@ -53,7 +53,11 @@ function platformFromRequest(req) {
   const declared = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
   if (declared) return declared;
   // The released Roku app sends no platform header; Roku firmware identifies itself in the User-Agent.
-  return /^Roku\//i.test(req.get('User-Agent') || '') ? 'roku' : 'default';
+  const agent = req.get('User-Agent') || '';
+  if (/^Roku\//i.test(agent)) return 'roku';
+  // The released Android app (Google Play, com.protv.mobile 1.0.0) sends no platform header either. React Native
+  // on Android identifies requests as "<app label>/<version name>", which is "PROtv/1.0.0"; browsers never do.
+  return /^PROtv\/\d/.test(agent) ? 'android' : 'default';
 }
 
 // Live before publishing recorded rokuCleared; each signed agreement was read on 2026-11-02.
@@ -95,8 +99,17 @@ function samsungEligible(video, now = new Date()) {
   return expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
 }
 
+// Android (Google Play, United States only) follows the reviewed Roku rule: titles whose rights evidence covers
+// PROtv's device apps, and signed creator titles whose Schedule names TV or PROtv apps. Titles never cleared for any
+// app (podcast episodes, held scores and copies, unresolved television and cartoon rights) stay off Android.
+// androidHold withdraws a title from Android only, for titles still under review for app distribution.
+function androidEligible(video) {
+  return video?.androidHold !== true && rokuEligible(video);
+}
+
 function eligibleForPlatform(videos, platform, now = new Date()) {
   if (platform === 'roku') return videos.filter(rokuEligible);
+  if (platform === 'android') return videos.filter(androidEligible);
   if (platform === 'samsung') return videos.filter((video) => samsungEligible(video, now));
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
@@ -115,6 +128,7 @@ module.exports = {
   platformFromRequest,
   platformPolicy,
   eligibleForPlatform,
+  androidEligible,
   rokuEligible,
   samsungEligible,
 };
