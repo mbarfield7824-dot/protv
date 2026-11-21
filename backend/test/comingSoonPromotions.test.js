@@ -88,7 +88,9 @@ test('non-public targets never appear, and past premiere dates are not shown as 
 test('input validation: TBD, paired season/episode, safe artwork, no unknown status', () => {
   const base = { target: { kind: 'series', id: seriesKey('2212'), seasonNumber: 1, episodeNumber: 3 } };
   assert.equal(promotionInput({ ...base, premiereAt: '' }).premiereAt, null);
-  assert.equal(promotionInput({ ...base, premiereAt: '2099-03-01' }).premiereAt, '2099-03-01T00:00:00.000Z');
+  // A bare date is a date-only premiere on that Eastern calendar day (noon ET stands for the day; no time is set).
+  const dateOnly = promotionInput({ ...base, premiereAt: '2099-03-01' });
+  assert.deepEqual([dateOnly.premiereDate, dateOnly.premiereTime, dateOnly.premiereAt], ['2099-03-01', null, '2099-03-01T17:00:00.000Z']);
   assert.equal(promotionInput(base).status, 'hidden', 'new promotions start hidden unless published');
   assert.throws(() => promotionInput({ target: { kind: 'series', id: 'a', seasonNumber: 1 } }), /both/);
   assert.throws(() => promotionInput({ ...base, artworkUrl: 'javascript:alert(1)' }), /Artwork/);

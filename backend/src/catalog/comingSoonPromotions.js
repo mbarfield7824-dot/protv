@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { metadataAllowed, titleDetails, seriesDetails } = require('./details');
 const { seriesKey } = require('./readModel');
+const { EASTERN, PremiereInputError, premiereInput, promotionPremiere } = require('./premiereTime');
 
 // Coming Soon promotions: Administrator-managed promotional cards. A promotion targets either
 //   - an existing catalog title: an unreleased film or episode, a show, or one upcoming episode of a streaming show, or
@@ -62,11 +63,11 @@ function promotionInput(body = {}) {
   if (artworkUrl && !SITE_PATH.test(artworkUrl) && !/^https:\/\/[^\s"'<>]+$/.test(artworkUrl)) {
     throw new PromotionInputError('Artwork must be an uploaded image, an https:// link or a /path on watchprotv.com.');
   }
-  let premiereAt = null;
-  if (body.premiereAt !== undefined && body.premiereAt !== null && body.premiereAt !== '') {
-    const time = Date.parse(body.premiereAt);
-    if (typeof body.premiereAt !== 'string' || !Number.isFinite(time)) throw new PromotionInputError('Enter a valid premiere date or choose TBD.');
-    premiereAt = new Date(time).toISOString();
+  // A premiere date in Eastern time with an optional time on that date, or TBD (see premiereTime.js).
+  let premiere;
+  try { premiere = premiereInput(body); } catch (error) {
+    if (error instanceof PremiereInputError) throw new PromotionInputError(error.message);
+    throw error;
   }
   const status = body.status === undefined ? 'hidden' : body.status;
   if (!STATUSES.has(status)) throw new PromotionInputError('Status must be published or hidden.');
@@ -74,7 +75,8 @@ function promotionInput(body = {}) {
   if (!Number.isInteger(sortOrder) || Math.abs(sortOrder) > 9999) throw new PromotionInputError('Order must be a whole number.');
   return {
     target: cleanTarget, title, description: text(body.description, 1000, 'Description'),
-    artworkUrl, premiereAt, status, sortOrder, rightsConfirmed: body.rightsConfirmed === true,
+    artworkUrl, premiereAt: premiere?.premiereAt ?? null, premiereDate: premiere?.premiereDate ?? null,
+    premiereTime: premiere?.premiereTime ?? null, status, sortOrder, rightsConfirmed: body.rightsConfirmed === true,
   };
 }
 
@@ -253,6 +255,13 @@ class PromotionStore {
 
 const future = (value, now) => (value && Date.parse(value) > now ? value : null);
 
+// The Eastern date and time the Admin form edits, also for records saved before they were stored separately.
+function adminPremiere(promotion) {
+  let premiere = null;
+  try { premiere = promotionPremiere(promotion); } catch { premiere = null; }
+  return { premiereDate: premiere?.premiereDate ?? null, premiereTime: premiere?.premiereTime ?? null };
+}
+
 // A public catalog title's own trailer, never its full media.
 function catalogTrailer(records, id) {
   const record = id && records.find((item) => item.id === id);
@@ -276,14 +285,19 @@ function promotionTrailerSource(promotion, records, baseTrailerId) {
 //   live        - published, target public and unreleased: shown on the homepage
 //   hidden      - kept but switched off by an Administrator
 //   released    - the linked title is now streaming; retired automatically (the record is kept)
-//   premiered   - a title not linked to the catalog reached its premiere date; retired automatically (record kept)
+//   premiered   - a title not linked to the catalog reached its premiere (its time, or the end of a date-only premiere
+//                 day in Eastern time); retired automatically (record kept)
 //   unavailable - the linked title is not public on this platform (draft, rights, removed); nothing is shown
 function resolvePromotion(promotion, records, series, now = Date.now()) {
   const { target } = promotion;
   let base = null;
   let released = false;
+  let own = null;
+  try { own = promotionPremiere(promotion); } catch { own = null; }
+  // Still upcoming: before the premiere time, or before the end of a date-only premiere day.
+  const ownUpcoming = own && Date.parse(own.endsAt) > now ? own : null;
   if (target.kind === 'upcoming') {
-    released = Boolean(promotion.premiereAt) && Date.parse(promotion.premiereAt) <= now;
+    released = Boolean(own) && !ownUpcoming;
     base = {
       kind: 'upcoming', href: null, supersedes: null, title: promotion.title, description: '', artwork: '', categories: [],
       protvOriginal: false, premiereAt: null, contentType: UPCOMING_TYPES[target.contentType],
@@ -321,7 +335,12 @@ function resolvePromotion(promotion, records, series, now = Date.now()) {
       : promotion.status === 'published' ? 'live' : 'hidden';
   if (!base) return { state, card: null, supersedes: null, trailer: null };
   const trailer = promotionTrailerSource(promotion, records, base.trailerId);
-  const premiereAt = future(promotion.premiereAt, now) || (promotion.premiereAt ? null : future(base.premiereAt, now));
+  const premiereAt = ownUpcoming ? ownUpcoming.premiereAt : (own ? null : future(base.premiereAt, now));
+  // The card says whether a time was set, so a date-only premiere is never shown with an invented time.
+  const premiereParts = ownUpcoming ? {
+    premiereDate: ownUpcoming.premiereDate,
+    ...(ownUpcoming.premiereTime ? { premiereTime: ownUpcoming.premiereTime, premiereTimeZone: EASTERN } : {}),
+  } : {};
   return {
     state,
     supersedes: base.supersedes,
@@ -332,7 +351,7 @@ function resolvePromotion(promotion, records, series, now = Date.now()) {
       artwork: promotion.artworkUrl || base.artwork || '', categories: base.categories || [],
       comingSoon: true, protvOriginal: base.protvOriginal, trailerAvailable: Boolean(trailer),
       ...(base.contentType ? { contentType: base.contentType } : {}),
-      ...(premiereAt ? { premiereAt } : {}), promotion: true,
+      ...(premiereAt ? { premiereAt, ...premiereParts } : {}), promotion: true,
     },
   };
 }
@@ -476,7 +495,7 @@ function createAdminPromotionRouter({
       const [promotions, records] = await Promise.all([store.list(), loadRecords()]);
       const current = await Promise.all(promotions.map((promotion) => reconcile(promotion).catch(() => promotion)));
       const items = resolveAll(current, records).map(({ promotion, state, card }) => ({
-        ...promotion, state, preview: card, trailerStatus: trailerStatus(promotion, records),
+        ...promotion, ...adminPremiere(promotion), state, preview: card, trailerStatus: trailerStatus(promotion, records),
       }));
       return res.json({ items, targets: promotionTargets(records) });
     } catch (error) { return fail(res, error); }

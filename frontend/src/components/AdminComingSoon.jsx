@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import TrailerPlayer from './TrailerPlayer';
+import { premiereLabel } from '../utils/premiere';
 
 // Coming Soon promotions: promote an existing upcoming catalog title, or a new upcoming title that is not in the
 // catalog yet, with artwork, copy, a premiere date (or TBD) and an optional promotional trailer. Promotions only change
@@ -8,7 +9,7 @@ import TrailerPlayer from './TrailerPlayer';
 // automatically when the title is released (or, for a title not yet in the catalog, when its premiere date passes).
 const EMPTY = {
   source: 'catalog', targetKey: '', contentType: 'film', seasonNumber: '', episodeNumber: '', title: '', description: '',
-  artworkUrl: '', premiereDate: '', tbd: true, status: 'published', sortOrder: 0, rightsConfirmed: false,
+  artworkUrl: '', premiereDate: '', premiereTime: '', tbd: true, status: 'published', sortOrder: 0, rightsConfirmed: false,
 };
 const CONTENT_TYPES = [['film', 'Film'], ['series', 'Series'], ['documentary', 'Documentary'], ['episode', 'Episode']];
 const STATE_LABELS = {
@@ -19,9 +20,8 @@ const STATE_LABELS = {
   unavailable: 'Not public, so not shown',
 };
 const RIGHTS_TEXT = 'I confirm PROtv has the rights to publish this promotional artwork, description and trailer.';
-// Midday UTC keeps the chosen calendar day in Eastern time, which is how premiere dates are displayed.
-const toPremiereAt = (date) => (date ? `${date}T17:00:00.000Z` : null);
-const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) : '');
+// Premieres are a calendar date in Eastern time (ET, with daylight saving) and, optionally, a time on that date.
+// The server works out the exact moment; a date without a time lasts until the end of that day in Eastern time.
 const keyOf = (target) => `${target.kind}:${target.id}`;
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -34,7 +34,7 @@ function draftFrom(item) {
     seasonNumber: item.target.seasonNumber ? String(item.target.seasonNumber) : '',
     episodeNumber: item.target.episodeNumber ? String(item.target.episodeNumber) : '',
     title: item.title || '', description: item.description || '', artworkUrl: item.artworkUrl || '',
-    premiereDate: toDateInput(item.premiereAt), tbd: !item.premiereAt, status: item.status, sortOrder: item.sortOrder || 0,
+    premiereDate: item.premiereDate || '', premiereTime: item.premiereTime || '', tbd: !item.premiereDate, status: item.status, sortOrder: item.sortOrder || 0,
     rightsConfirmed: false,
   };
 }
@@ -114,7 +114,7 @@ export default function AdminComingSoon() {
     }
     return {
       target, title: draft.title, description: draft.description, artworkUrl: draft.artworkUrl,
-      premiereAt: draft.tbd ? null : toPremiereAt(draft.premiereDate), status: draft.status, sortOrder: Number(draft.sortOrder) || 0,
+      premiereDate: draft.tbd ? null : draft.premiereDate, premiereTime: draft.tbd || !draft.premiereTime ? null : draft.premiereTime, status: draft.status, sortOrder: Number(draft.sortOrder) || 0,
       rightsConfirmed: draft.rightsConfirmed, ...(selected ? { version: selected.version } : {}),
     };
   };
@@ -263,6 +263,12 @@ export default function AdminComingSoon() {
           {draft.artworkUrl && <img className="admin-coming-soon__preview" src={draft.artworkUrl} alt="Artwork preview" />}
           <label className="short-link-active"><input type="checkbox" checked={draft.tbd} onChange={field('tbd')} /> Premiere date TBD</label>
           {!draft.tbd && <label>Premiere date<input type="date" value={draft.premiereDate} onChange={field('premiereDate')} /></label>}
+          {!draft.tbd && (
+            <label>Premiere time, Eastern (optional)
+              <input type="time" value={draft.premiereTime} onChange={field('premiereTime')} />
+              <small>For example 8:00 PM for primetime. Leave blank to show the date only; the card then stays up until that day ends.</small>
+            </label>
+          )}
           <label>Order in the row<input type="number" value={draft.sortOrder} onChange={field('sortOrder')} /></label>
           <label>Status
             <select value={draft.status} onChange={field('status')}>
@@ -316,7 +322,7 @@ export default function AdminComingSoon() {
             <h4>{item.preview?.title || item.title || item.target.id} <small>{STATE_LABELS[item.state] || item.state}</small></h4>
             <p>
               {item.target.kind === 'upcoming' ? `New ${item.preview?.contentType || 'title'} (not in the catalog yet) · ` : ''}
-              {item.premiereAt ? `Premieres ${new Date(item.premiereAt).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}` : 'Premiere date TBD'}
+              {premiereLabel(item)}
               {' · '}{trailerLabel(item)}
               {item.preview?.href ? <> &middot; <a href={item.preview.href} target="_blank" rel="noreferrer">{item.preview.href}</a></> : null}
             </p>

@@ -127,8 +127,55 @@ test('promoting an upcoming episode of a streaming show needs the rights confirm
   await submit();
   await settle();
   assert.deepEqual(saved[0][1].target, { kind: 'series', id: 'MjIxMg', seasonNumber: '1', episodeNumber: '4' });
-  assert.equal(saved[0][1].premiereAt, '2026-12-05T17:00:00.000Z');
+  assert.equal(saved[0][1].premiereDate, '2026-12-05');
+  assert.equal(saved[0][1].premiereTime, null, 'no time is assigned when none was entered');
   assert.equal(saved[0][1].rightsConfirmed, true);
+});
+
+test('a primetime premiere is saved as an Eastern date and the 8:00 PM the Administrator entered', async () => {
+  const saved = [];
+  api.getComingSoonPromotions = async () => ({ items: [], targets });
+  api.saveComingSoonPromotion = async (id, body) => { saved.push([id, body]); return { ...body, id: 'promo-new', version: 1 }; };
+  await mount();
+  await setValue(labelled('What to promote'), 'series:MjIxMg');
+  await setValue(labelled('Season'), '1');
+  await setValue(labelled('Episode'), '4');
+  await act(async () => labelled('Premiere date TBD').click());
+  await setValue(document.querySelector('.admin-coming-soon input[type="date"]'), '2026-12-03');
+  await setValue(document.querySelector('.admin-coming-soon input[type="time"]'), '20:00');
+  await act(async () => labelled('I confirm PROtv has the rights').click());
+  await submit();
+  await settle();
+  assert.equal(saved[0][1].premiereDate, '2026-12-03');
+  assert.equal(saved[0][1].premiereTime, '20:00');
+  assert.equal('premiereAt' in saved[0][1], false, 'the server works out the instant in Eastern time');
+});
+
+test('editing an older date-only promotion keeps it date-only, and TBD clears both date and time', async () => {
+  const saved = [];
+  const legacy = {
+    id: 'promo-old', version: 2, status: 'published', state: 'live', target: { kind: 'upcoming', contentType: 'series' },
+    title: 'Ironborn', description: '', artworkUrl: '', premiereAt: '2026-12-03T17:00:00.000Z', premiereDate: '2026-12-03', premiereTime: null,
+    preview: { title: 'Ironborn', contentType: 'Series', premiereAt: '2026-12-03T17:00:00.000Z', premiereDate: '2026-12-03' }, trailerStatus: { status: 'empty' },
+  };
+  api.getComingSoonPromotions = async () => ({ items: [legacy], targets });
+  api.saveComingSoonPromotion = async (id, body) => { saved.push([id, body]); return { ...legacy, ...body }; };
+  await mount();
+  assert.match(document.querySelector('.admin-coming-soon__list').textContent, /Premieres Dec 3, 2026 · No trailer/);
+  await act(async () => button('Edit').click());
+  assert.equal(document.querySelector('.admin-coming-soon input[type="date"]').value, '2026-12-03');
+  assert.equal(document.querySelector('.admin-coming-soon input[type="time"]').value, '');
+  await act(async () => labelled('I confirm PROtv has the rights').click());
+  await submit();
+  await settle();
+  assert.equal(saved[0][1].premiereDate, '2026-12-03');
+  assert.equal(saved[0][1].premiereTime, null);
+  await act(async () => labelled('Premiere date TBD').click());
+  await act(async () => labelled('I confirm PROtv has the rights').click());
+  await submit();
+  await settle();
+  assert.equal(saved[1][1].premiereDate, null);
+  assert.equal(saved[1][1].premiereTime, null);
 });
 
 test('a new upcoming title (not in the catalog) is created with a title and content type, then gets an uploaded trailer', async () => {

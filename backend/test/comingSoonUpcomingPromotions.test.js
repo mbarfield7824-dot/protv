@@ -81,8 +81,10 @@ test('a new upcoming title needs a title and a content type, and creates no cata
 test('an unlinked upcoming title retires automatically once its premiere date passes, keeping the record', () => {
   const promotion = { ...promotionInput(upcomingInput({ premiereAt: '2030-01-01T17:00:00.000Z' })), id: 'dated' };
   assert.equal(resolvePromotion(promotion, [], [], Date.parse('2029-12-31T00:00:00Z')).state, 'live');
-  assert.equal(resolvePromotion(promotion, [], [], Date.parse('2030-01-02T00:00:00Z')).state, 'premiered');
-  assert.deepEqual(withPromotions([], [promotion], [], Date.parse('2030-01-02T00:00:00Z')), []);
+  // A date-only premiere lasts the whole Eastern day: still up at 7 PM ET (00:00 UTC), retired at midnight ET.
+  assert.equal(resolvePromotion(promotion, [], [], Date.parse('2030-01-02T00:00:00Z')).state, 'live');
+  assert.equal(resolvePromotion(promotion, [], [], Date.parse('2030-01-02T05:00:00Z')).state, 'premiered');
+  assert.deepEqual(withPromotions([], [promotion], [], Date.parse('2030-01-02T05:00:00Z')), []);
   const tbd = { ...promotionInput(upcomingInput()), id: 'tbd' };
   assert.equal(resolvePromotion(tbd, [], [], Date.parse('2099-01-01T00:00:00Z')).state, 'live', 'TBD never retires by date');
 });
