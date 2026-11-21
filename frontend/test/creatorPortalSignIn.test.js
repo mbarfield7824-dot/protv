@@ -137,7 +137,7 @@ test('sending the verification email confirms where it went and blocks an immedi
   assert.deepEqual(sent, ['verify-send']);
   const notice = document.querySelector('.creator-verification-notice').textContent;
   assert.match(notice, /creator@example\.invalid/);
-  assert.match(notice, /noreply@protv-2f48e\.firebaseapp\.com/);
+  assert.match(notice, /noreply@watchprotv\.com/);
   assert.match(notice, /Spam or Junk/);
   assert.match(notice, /do not need to create another one/);
   const resend = button('Resend available in');

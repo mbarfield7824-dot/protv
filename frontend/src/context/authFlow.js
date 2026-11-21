@@ -104,7 +104,7 @@ export async function createAccount({
 // An accepted request means Firebase queued the email; it does not prove the email reached the inbox, so the messages
 // below say "sent" from PROtv's side and tell the creator where to look.
 export const VERIFY_RESEND_COOLDOWN_MS = 60000;
-export const VERIFY_SENDER = 'noreply@protv-2f48e.firebaseapp.com';
+export const VERIFY_SENDER = 'noreply@watchprotv.com';
 // After the creator opens the link, Firebase's confirmation page offers a "Continue" button back to the portal sign-in.
 export const VERIFY_CONTINUE_URL = 'https://watchprotv.com/creators/portal';
 export const verificationActionSettings = { url: VERIFY_CONTINUE_URL };
