@@ -401,3 +401,31 @@ test('HTTP: an Administrator previews, schedules, approves and is excluded from 
   assert.equal((await call('/admin/linear/analytics?from=2026-12-01&to=2027-06-01')).status, 400);
   assert.deepEqual(audits.map((event) => event.type), ['linear.schedule_create', 'linear.schedule_approve']);
 });
+
+test('a new rights decision keeps the earlier decisions for the audit history', async () => {
+  const { service, store } = setup({ videos: [movie()], rights: {} });
+  await service.setRights('title_movie-1', { status: 'confirmed', basis: 'Owner recorded public domain rights.' }, 'owner');
+  const withdrawn = await service.setRights('title_movie-1', { status: 'denied', basis: 'Withdrawn: music and copyright evidence unresolved.' }, 'admin');
+  assert.equal(withdrawn.status, 'denied');
+  assert.equal(withdrawn.history.length, 1);
+  assert.equal(withdrawn.history[0].status, 'confirmed');
+  assert.equal(withdrawn.history[0].recordedBy, 'owner');
+  const again = await service.setRights('title_movie-1', { status: 'denied', basis: 'Still withdrawn after a second review.' }, 'admin');
+  assert.deepEqual(again.history.map((item) => item.status), ['denied', 'confirmed']);
+  assert.equal(again.history[0].history, undefined);
+  assert.equal((await store.getRights(['title_movie-1'])).get('title_movie-1').history.length, 2);
+});
+
+test('a primetime stand-in is repeated into the next week while other lineup slots stay open', async () => {
+  const videos = [movie(), movie({ id: 'movie-2', title: 'D.O.A.', muxPlaybackId: 'p2', duration: 4500 })];
+  const { service, store } = setup({ videos, rights: { 'title_movie-1': confirmed(), 'title_movie-2': confirmed() } });
+  const standIn = await approved(service, { videoId: 'movie-2', programType: 'movie', startAtLocal: '2026-12-01T19:30', standInFor: 'Dreadheads' });
+  assert.equal((await store.getEntry(standIn.id)).standInFor, 'Dreadheads');
+  const preview = await service.repeatWeek({ sourceWeekOf: '2026-11-30', targetWeekOf: '2026-12-07' }, 'a');
+  assert.equal(preview.planned, 1);
+  await service.repeatWeek({ sourceWeekOf: '2026-11-30', targetWeekOf: '2026-12-07', apply: true }, 'a');
+  const copy = [...store.entries.values()].find((entry) => entry.origin === 'repeat');
+  assert.equal(copy.standInFor, 'Dreadheads');
+  assert.equal(copy.startAt, '2026-12-09T00:30:00.000Z');
+  await assert.rejects(service.createEntry({ videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-02T09:00', standInFor: 'x' }, 'a'), /Name the series/);
+});

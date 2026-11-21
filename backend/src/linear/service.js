@@ -327,10 +327,19 @@ function createLinearService({
     return { pendingSeriesTitle: seriesTitle };
   }
 
+  // A program that fills a primetime lineup slot while its series is not ready. Repeating a week copies stand-ins
+  // (other lineup slots stay open for new episodes); remove the stand-in once the series' episode is scheduled.
+  function standInFields(input) {
+    if (input?.kind === 'break' || input?.standInFor === undefined || input?.standInFor === null || input?.standInFor === '') return {};
+    const series = text(input.standInFor, 200);
+    if (series.length < 2) throw new LinearValidationError('Name the series this program stands in for.');
+    return { standInFor: series };
+  }
+
   async function createEntry(input, actorId) {
     const video = input?.kind === 'break' ? null : (await store.getVideos([String(input?.videoId || '')])).get(input?.videoId) || null;
     const pendingExtra = input?.kind !== 'break' && !video ? pendingFields(input) : {};
-    const fields = { ...entryFields(input, { video, previousEndAt: await resolveStart(input) }), ...pendingExtra };
+    const fields = { ...entryFields(input, { video, previousEndAt: await resolveStart(input) }), ...pendingExtra, ...standInFields(input) };
     if (Date.parse(fields.endAt) <= now()) throw new LinearValidationError('This slot would already have ended.');
     const timestamp = new Date(now()).toISOString();
     const created = await store.writeEntry(null, async () => ({
@@ -472,7 +481,14 @@ function createLinearService({
     if (typeof key !== 'string' || !/^(title|series)_[A-Za-z0-9_-]{1,300}$/.test(key)) {
       throw new LinearValidationError('Unknown rights record.');
     }
-    const record = { ...validateRightsInput(input), recordedBy: actorId, recordedAt: new Date(now()).toISOString() };
+    // A new decision never erases the old one: earlier decisions are kept (newest first) for the audit history.
+    const previous = (await store.getRights([key])).get(key) || null;
+    const { history: earlier = [], ...previousDecision } = previous || {};
+    const history = previous ? [previousDecision, ...(Array.isArray(earlier) ? earlier : [])].slice(0, 25) : [];
+    const record = {
+      ...validateRightsInput(input), recordedBy: actorId, recordedAt: new Date(now()).toISOString(),
+      ...(history.length ? { history } : {}),
+    };
     await store.setRights(key, record);
     invalidate();
     return { key, ...record };
@@ -660,7 +676,8 @@ function createLinearService({
           ...(entry.kind === 'break' && entry.pod ? { pod: entry.pod } : {}),
         };
         if (Date.parse(candidate.startAt) <= at) { item.reason = 'This time has already passed.'; continue; }
-        if (entry.origin === 'primetime' || lineupStarts.some((slotStart) => Date.parse(candidate.startAt) <= slotStart && slotStart < Date.parse(candidate.endAt))) {
+        if (entry.standInFor) candidate.standInFor = entry.standInFor;
+        if (!entry.standInFor && (entry.origin === 'primetime' || lineupStarts.some((slotStart) => Date.parse(candidate.startAt) <= slotStart && slotStart < Date.parse(candidate.endAt)))) {
           item.reason = 'Primetime lineup slot left open for new episodes (use Draft this week).'; continue;
         }
         const issues = approvalIssues(candidate, video, rights, at);

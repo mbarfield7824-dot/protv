@@ -292,7 +292,7 @@ function ScheduleTab() {
               <header>
                 <span className={`admin-status-pill ${entry.status === 'approved' ? 'is-on' : ''}`}>{entry.status === 'approved' ? 'Approved' : 'Draft'}</span>
                 <strong>{formatChannelTime(entry.startAt)}–{formatChannelTime(entry.endAt)}</strong>
-                <span>{entry.typeLabel}{entry.origin === 'primetime' ? ' · from primetime lineup' : ''}</span>
+                <span>{entry.typeLabel}{entry.origin === 'primetime' ? ' · from primetime lineup' : ''}{entry.standInFor ? ` · stand-in for ${entry.standInFor}` : ''}</span>
               </header>
               <h4>{entry.title}</h4>
               {entry.kind === 'program' && (
@@ -458,6 +458,9 @@ function RightsTab() {
           </p>
         )}
         {item.record && <p className="linear-note">Recorded {item.record.status} {item.record.recordedAt?.slice(0, 10)}: {item.record.basis}</p>}
+        {item.record?.history?.map((earlier, index) => (
+          <p key={`${earlier.recordedAt}-${index}`} className="linear-note linear-note--history">Earlier: {earlier.status} {earlier.recordedAt?.slice(0, 10)}: {earlier.basis}</p>
+        ))}
         {!item.record && item.agreement && (
           <p className={`linear-finding is-${item.agreement.finding}`}>
             {item.agreement.finding === 'supports' ? 'Agreement review: the signed wording supports linear streaming. Record decision is pre-filled for your confirmation. ' : 'Agreement review: '}
