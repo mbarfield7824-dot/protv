@@ -447,7 +447,7 @@ export default function Live() {
             {data.channel.simulated ? 'Administrator TEST MODE at a simulated time.' : 'Administrator preview.'} PROtv LIVE is {data.channel.status === 'public' ? 'public' : 'not public yet'}.
           </p>
         )}
-        {testMode && <LiveTestPanel clock={view.phase === 'ready' ? view.clock : null} actualServerTime={data?.channel?.actualServerTime} onJump={jumpTo} />}
+        {testMode && isAdmin && !adminLoading && <LiveTestPanel clock={view.phase === 'ready' ? view.clock : null} actualServerTime={data?.channel?.actualServerTime} onJump={jumpTo} />}
         <section className="live-stage" aria-label="PROtv LIVE">
           <div className="live-stage__screen">
             <span className="live-badge" aria-label="Live channel"><span className="live-dot" aria-hidden="true" />LIVE</span>
