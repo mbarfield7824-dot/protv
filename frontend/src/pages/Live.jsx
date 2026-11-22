@@ -21,8 +21,11 @@ import {
   retryDelay,
   seekAllowed,
   segmentFinished,
+  serverNow,
   stillWatchingDue,
 } from '../data/linearChannel';
+import { clampTestTime } from '../data/linearTestMode';
+import LiveTestPanel from '../components/LiveTestPanel';
 import '../styles/Live.css';
 
 // Seeking, skipping and speed controls are hidden: PROtv LIVE plays what is on now, like television.
@@ -245,7 +248,11 @@ function Slate({ item, next }) {
 export default function Live() {
   const [searchParams] = useSearchParams();
   const preview = searchParams.get('preview') === '1';
-  const { user, loading: authLoading } = useAuth();
+  // Administrator test mode (/live?test=1): the same player and schedule engine at a simulated moment, for this tab only.
+  const testMode = searchParams.get('test') === '1';
+  const { user, loading: authLoading, isAdmin, adminLoading } = useAuth();
+  const clockRef = useRef(null);
+  const jumpRef = useRef(null);
   const [view, setView] = useState({ phase: 'loading' });
   const [reconnecting, setReconnecting] = useState(false);
   const [generation, setGeneration] = useState(0);
@@ -255,20 +262,27 @@ export default function Live() {
   const tunedInRef = useRef(false);
 
   const track = useCallback((event) => {
-    if (doNotTrack()) return;
+    if (testMode || doNotTrack()) return;
     const guestId = getOrCreatePlaybackGuestId();
     // Sequential, so the server always sees the tune-in before a start or heartbeat from the same visit.
     queueRef.current = queueRef.current
       .then(() => api.recordLinearEvent({ ...event, sessionId, guestId }))
       .catch(() => {});
-  }, [sessionId]);
+  }, [sessionId, testMode]);
 
   useEffect(() => {
-    document.title = 'PROtv LIVE';
-  }, []);
+    document.title = testMode ? 'PROtv LIVE · Test mode' : 'PROtv LIVE';
+  }, [testMode]);
 
   useEffect(() => {
-    if (authLoading) return undefined;
+    if (authLoading || (testMode && (adminLoading || !isAdmin))) return undefined;
+    // In test mode each refresh asks for the channel at the simulated moment: a pending jump, or the simulated clock.
+    const testTime = () => {
+      const jump = jumpRef.current;
+      jumpRef.current = null;
+      if (jump !== null) return jump;
+      return clockRef.current ? serverNow(clockRef.current) : Date.now();
+    };
     let disposed = false;
     let timer;
     let attempt = 0;
@@ -279,9 +293,12 @@ export default function Live() {
       controller = new AbortController();
       const requestStartedAt = Date.now();
       try {
-        const data = await api.getLinearChannel({ preview, signal: controller.signal });
+        const data = testMode
+          ? await api.getLinearTestChannel({ at: clampTestTime(testTime()), signal: controller.signal })
+          : await api.getLinearChannel({ preview, signal: controller.signal });
         if (disposed) return;
         const clock = createServerClock({ serverTimeMs: data.serverTimeMs, requestStartedAt, responseReceivedAt: Date.now() });
+        clockRef.current = clock;
         attempt = 0;
         setView({ phase: 'ready', data, clock });
         setReconnecting(false);
@@ -316,7 +333,14 @@ export default function Live() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onOnline);
     };
-  }, [authLoading, preview, track, user]);
+  }, [adminLoading, authLoading, isAdmin, preview, testMode, track, user]);
+
+  // A test button: jump the simulated moment and restart the player there.
+  const jumpTo = useCallback((ms) => {
+    jumpRef.current = clampTestTime(ms);
+    setGeneration((value) => value + 1);
+    void loadRef.current();
+  }, []);
 
   const recoveryRef = useRef({ attempts: 0, timer: null });
   const [failedEntryId, setFailedEntryId] = useState(null);
@@ -382,6 +406,20 @@ export default function Live() {
     void loadRef.current();
   };
 
+  if (testMode && !authLoading && !adminLoading && !isAdmin) {
+    return (
+      <ProTVShell>
+        <ProTVHeader />
+        <main className="live-page live-page--state">
+          <h1>PROtv LIVE test mode</h1>
+          <p>Test mode is for PROtv Administrators. Sign in with an Administrator account to use it.</p>
+          <Link className="live-cta" to="/live">Watch PROtv LIVE</Link>
+        </main>
+        <ProTVFooter />
+      </ProTVShell>
+    );
+  }
+
   if (view.phase === 'unavailable') {
     return (
       <ProTVShell>
@@ -405,8 +443,11 @@ export default function Live() {
       <ProTVHeader />
       <main className="live-page">
         {data?.channel?.preview && (
-          <p className="live-preview" role="note">Administrator preview. PROtv LIVE is {data.channel.status === 'public' ? 'public' : 'not public yet'}.</p>
+          <p className="live-preview" role="note">
+            {data.channel.simulated ? 'Administrator TEST MODE at a simulated time.' : 'Administrator preview.'} PROtv LIVE is {data.channel.status === 'public' ? 'public' : 'not public yet'}.
+          </p>
         )}
+        {testMode && <LiveTestPanel clock={view.phase === 'ready' ? view.clock : null} actualServerTime={data?.channel?.actualServerTime} onJump={jumpTo} />}
         <section className="live-stage" aria-label="PROtv LIVE">
           <div className="live-stage__screen">
             <span className="live-badge" aria-label="Live channel"><span className="live-dot" aria-hidden="true" />LIVE</span>

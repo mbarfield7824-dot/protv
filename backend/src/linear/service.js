@@ -17,6 +17,9 @@ const GUIDE_HOURS = 24;
 // Rights withdrawals and unpublishing take effect within this time; admin edits clear it immediately on that instance.
 const CACHE_MS = 30_000;
 const LAUNCH_CONFIRMATION = 'LAUNCH PROtv LIVE';
+// Administrator test mode may simulate any moment from one day ago to 35 days ahead (the schedule's planning range).
+const TEST_PAST_MS = 86_400_000;
+const TEST_AHEAD_MS = 35 * 86_400_000;
 const text = (value, max = 2000) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 
 class LinearNotFoundError extends Error {}
@@ -119,9 +122,17 @@ function createLinearService({
     };
   }
 
-  async function channelState({ preview = false } = {}) {
-    const at = now();
-    const { settings, entries, videos, rights, creatives } = await loadWindow(at);
+  // simulatedAt (Administrator test mode only) evaluates the same schedule, rights and spots at another moment. It reads
+  // a fresh window that is never stored in the shared viewer cache, writes nothing, and requires preview.
+  async function channelState({ preview = false, simulatedAt } = {}) {
+    const actual = now();
+    const simulated = simulatedAt !== undefined;
+    if (simulated && !preview) throw new LinearValidationError('Simulated time is only available in Administrator preview.');
+    if (simulated && (!Number.isFinite(simulatedAt) || simulatedAt < actual - TEST_PAST_MS || simulatedAt > actual + TEST_AHEAD_MS)) {
+      throw new LinearValidationError('Choose a test time from one day ago to 35 days ahead.');
+    }
+    const at = simulated ? simulatedAt : actual;
+    const { settings, entries, videos, rights, creatives } = await loadWindow(at, { fresh: simulated });
     if (settings.status !== 'public' && !preview) throw new LinearNotFoundError('PROtv LIVE is not available.');
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
     const all = entries
@@ -189,7 +200,11 @@ function createLinearService({
     }
     const horizon = at + GUIDE_HOURS * 3_600_000;
     return {
-      channel: { id: CHANNEL_ID, name: settings.name, timeZone: settings.timeZone, status: settings.status, ...(preview ? { preview: true } : {}) },
+      channel: {
+        id: CHANNEL_ID, name: settings.name, timeZone: settings.timeZone, status: settings.status,
+        ...(preview ? { preview: true } : {}),
+        ...(simulated ? { simulated: true, actualServerTime: new Date(actual).toISOString() } : {}),
+      },
       serverTime: new Date(at).toISOString(),
       serverTimeMs: at,
       now: nowItem,

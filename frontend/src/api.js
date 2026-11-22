@@ -260,6 +260,16 @@ export const api = {
     return response;
   },
 
+  // Administrator test mode: the channel as it would be at a simulated moment, for this signed-in Administrator only.
+  async getLinearTestChannel({ at, signal } = {}) {
+    const res = await fetch(`${API_URL}/admin/linear/test/channel?at=${encodeURIComponent(String(Math.round(at)))}`, {
+      headers: await authenticatedHeaders(), cache: 'no-store', signal,
+    });
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'PROtv LIVE test mode is unavailable.'), { status: res.status });
+    return response;
+  },
+
   async recordLinearEvent(event) {
     const res = await fetch(`${API_URL}/v1/linear/events`, {
       method: 'POST', headers: await authenticatedHeaders(), body: JSON.stringify(event), keepalive: true,

@@ -92,6 +92,15 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
     try { return res.json({ items: await service.listSchedule({ from: req.query.from, to: req.query.to }) }); } catch (error) { return fail(res, error, 'schedule'); }
   });
 
+  // Test mode: the channel exactly as viewers would receive it at a chosen moment, for this Administrator only.
+  // It reads the approved schedule and never changes it, the broadcast clock, the viewer cache or analytics.
+  router.get('/test/channel', async (req, res) => {
+    try {
+      const at = /^\d{13}$/.test(String(req.query.at || '')) ? Number(req.query.at) : NaN;
+      return res.json(await service.channelState({ preview: true, simulatedAt: at }));
+    } catch (error) { return fail(res, error, 'test channel'); }
+  });
+
   router.get('/operations', async (req, res) => {
     try {
       res.set('Cache-Control', 'no-store');
