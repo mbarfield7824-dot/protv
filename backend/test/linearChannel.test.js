@@ -441,3 +441,92 @@ test('repeating a week keeps back-to-back programs and breaks contiguous to the 
   const copies = [...store.entries.values()].filter((entry) => entry.origin === 'repeat').sort((a, b) => a.startAt.localeCompare(b.startAt));
   assert.deepEqual(copies.map((entry) => entry.startAt), ['2026-12-08T14:00:00.000Z', '2026-12-08T14:18:48.000Z', '2026-12-08T14:20:48.000Z']);
 });
+
+// A movie that fills a whole day exactly, so a template week can be fully approved in a few entries.
+const dayMovie = (id) => movie({ id, title: `Day ${id}`, duration: 86_400 });
+
+async function approvedTemplateWeek(service, store, mondayDate) {
+  for (const date of channelWeekDates(mondayDate)) {
+    const id = `day-${date}`;
+    store.videos.set(id, dayMovie(id));
+    store.rights.set(`title_${id}`, confirmed());
+  }
+  for (const date of channelWeekDates(mondayDate)) {
+    for (const time of ['00:00', '08:00', '16:00']) {
+      const entry = await service.createEntry({ videoId: `day-${date}`, programType: 'movie', startAtLocal: `${date}T${time}`, durationSeconds: 28_800 }, 'admin-uid');
+      await service.approveEntry(entry.id, { acknowledgeWarnings: true }, 'admin-uid');
+    }
+  }
+}
+
+test('a draft week can be copied as drafts to prepare a template; nothing it creates is approved', async () => {
+  const { service, store } = setup();
+  await service.createEntry({ videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-02T09:00' }, 'admin-uid');
+  const result = await service.repeatWeek({ sourceWeekOf: '2026-11-30', targetWeekOf: '2026-12-28', apply: true, includeDrafts: true, asDraft: true }, 'admin-uid');
+  assert.equal(result.created, 1);
+  const copy = [...store.entries.values()].find((entry) => entry.startAt === '2026-12-30T14:00:00.000Z');
+  assert.equal(copy.status, 'draft');
+  assert.equal(copy.approvedAt, null);
+  await assert.rejects(service.repeatWeek({ sourceWeekOf: '2026-12-28', targetWeekOf: '2026-12-07', apply: false }, 'admin-uid'), /after the source week/);
+  await assert.rejects(service.repeatWeek({ sourceWeekOf: '2026-12-28', targetWeekOf: '2026-12-28', anyTarget: true }, 'admin-uid'), /onto itself/);
+});
+
+test('auto-continue is off by default, needs an approved template, fills weeks ahead once, and never overwrites premieres', async () => {
+  const { service, store, clock } = setup({ settings: { primetime: [] } });
+  assert.deepEqual(await service.autoContinue(), { ran: false, reason: 'Auto-continue is off.' });
+  await assert.rejects(service.updateSettings({ autoContinue: { enabled: true, templateWeekOf: '2026-12-28' } }, 'admin-uid'), /0% of the week/);
+  await approvedTemplateWeek(service, store, '2026-12-28');
+  // An existing premiere in a future week is kept; the template copy at that time is skipped.
+  await approved(service, { videoId: 'movie-1', programType: 'premiere', startAtLocal: '2026-12-16T02:00' }, true);
+  const saved = await service.updateSettings({ autoContinue: { enabled: true, templateWeekOf: '2026-12-28', weeksAhead: 3 } }, 'admin-uid');
+  assert.equal(saved.autoContinue.enabled, true);
+  assert.equal(saved.status, 'off', 'auto-continue never changes the channel status');
+
+  const first = await service.autoContinue();
+  assert.equal(first.ran, true);
+  assert.deepEqual(first.weeks.map((week) => week.weekOf), ['2026-11-30', '2026-12-07', '2026-12-14', '2026-12-21']);
+  const wed = first.weeks.find((week) => week.weekOf === '2026-12-14');
+  assert.equal(wed.skipped, 1, 'the Wednesday copy conflicts with the premiere and is skipped');
+  const premiere = [...store.entries.values()].filter((entry) => entry.programType === 'premiere');
+  assert.equal(premiere.length, 1);
+  const copies = [...store.entries.values()].filter((entry) => entry.origin === 'repeat');
+  assert.ok(copies.every((entry) => entry.status === 'approved' && entry.startAt > new Date(NOW).toISOString()));
+
+  const again = await service.autoContinue();
+  assert.deepEqual(again.weeks, [], 'weeks already filled are not copied again');
+
+  clock.now = Date.parse('2026-12-08T12:00:00Z');
+  const later = await service.autoContinue();
+  assert.deepEqual(later.weeks.map((week) => week.weekOf), [], 'the template week itself is never copied onto');
+  clock.now = Date.parse('2027-01-05T12:00:00Z');
+  const next = await service.autoContinue();
+  assert.deepEqual(next.weeks.map((week) => week.weekOf), ['2027-01-04', '2027-01-11', '2027-01-18', '2027-01-25']);
+
+  // Rights withdrawn for a template title: its copies are skipped, not aired.
+  store.rights.set('title_day-2027-01-03', { status: 'denied', basis: 'Withdrawn in writing.' });
+  clock.now = Date.parse('2027-01-12T12:00:00Z');
+  const withdrawn = await service.autoContinue();
+  assert.equal(withdrawn.weeks[0].weekOf, '2027-02-01');
+  assert.equal(withdrawn.weeks[0].created, 18);
+  assert.equal(withdrawn.weeks[0].skipped, 3);
+});
+
+test('the auto-continue cron refuses without the configured secret', async () => {
+  const { createLinearCronHandler } = require('../src/linear/router');
+  const calls = [];
+  const handler = createLinearCronHandler({ service: { autoContinue: async () => { calls.push(1); return { ran: false }; } }, secret: () => 's3cret' });
+  const unset = createLinearCronHandler({ service: { autoContinue: async () => ({}) }, secret: () => '' });
+  const app = express();
+  app.get('/cron', handler);
+  app.get('/unset', unset);
+  const server = app.listen(0);
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    assert.equal((await fetch(`${base}/unset`)).status, 503);
+    assert.equal((await fetch(`${base}/cron`)).status, 401);
+    assert.equal((await fetch(`${base}/cron`, { headers: { Authorization: 'Bearer wrong' } })).status, 401);
+    const ok = await fetch(`${base}/cron`, { headers: { Authorization: 'Bearer s3cret' } });
+    assert.equal(ok.status, 200);
+    assert.equal(calls.length, 1);
+  } finally { server.close(); }
+});

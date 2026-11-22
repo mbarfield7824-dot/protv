@@ -520,9 +520,91 @@ function createLinearService({
       patch.status = input.status;
       if (input.status === 'public') Object.assign(patch, { launchedAt: patch.updatedAt, launchedBy: actorId });
     }
+    if (input.autoContinue !== undefined) patch.autoContinue = await autoContinueSettings(input.autoContinue, actorId, patch.updatedAt);
     const saved = await store.saveSettings(patch);
     invalidate();
     return saved;
+  }
+
+  // --- Auto-continue ----------------------------------------------------------
+  // Keeps PROtv LIVE on the air without weekly maintenance: once a day it copies the approved template week onto each
+  // week up to `weeksAhead` weeks ahead that it has not filled before. It uses Repeat week, so every copy is re-checked
+  // for rights and release at its new time, nothing already scheduled (premieres included) is overwritten, countdowns
+  // are not copied, and primetime lineup slots stay open unless the template has a stand-in there. Only approved
+  // template entries are copied, and only after the Administrator switches it on.
+  const AUTO_CONTINUE_MIN_COVERAGE = 0.95;
+
+  async function templateCoverage(weekOf) {
+    const bounds = weekBounds(weekOf);
+    const entries = (await store.listEntries(bounds.from, bounds.to)).filter((entry) => entry.status === 'approved');
+    const from = Date.parse(bounds.from);
+    const to = Date.parse(bounds.to);
+    let covered = 0;
+    let cursor = from;
+    for (const entry of entries.sort((left, right) => left.startAt.localeCompare(right.startAt))) {
+      const start = Math.max(cursor, Date.parse(entry.startAt));
+      const end = Math.min(to, Date.parse(entry.endAt));
+      if (end > start) covered += end - start;
+      cursor = Math.max(cursor, end);
+    }
+    return { approvedEntries: entries.length, share: covered / (to - from) };
+  }
+
+  async function autoContinueSettings(input, actorId, timestamp) {
+    const current = (await store.getSettings()).autoContinue;
+    const next = { ...current, updatedAt: timestamp, updatedBy: actorId };
+    if (input.templateWeekOf !== undefined) {
+      weekBounds(String(input.templateWeekOf));
+      if (input.templateWeekOf !== current.templateWeekOf) next.filledWeeks = [];
+      next.templateWeekOf = input.templateWeekOf;
+    }
+    if (input.weeksAhead !== undefined) {
+      const weeksAhead = Number(input.weeksAhead);
+      if (!Number.isInteger(weeksAhead) || weeksAhead < 1 || weeksAhead > 4) throw new LinearValidationError('Keep 1 to 4 weeks scheduled ahead.');
+      next.weeksAhead = weeksAhead;
+    }
+    if (input.enabled !== undefined) next.enabled = input.enabled === true;
+    if (next.enabled) {
+      if (!next.templateWeekOf) throw new LinearValidationError('Choose the template week first.');
+      const coverage = await templateCoverage(next.templateWeekOf);
+      if (coverage.share < AUTO_CONTINUE_MIN_COVERAGE) {
+        throw new LinearValidationError(`Only ${Math.round(coverage.share * 100)}% of the week of ${next.templateWeekOf} is approved. Approve the template week before switching auto-continue on.`);
+      }
+    }
+    return next;
+  }
+
+  function mondayOf(at) {
+    const date = zonedParts(at).date;
+    const base = Date.parse(`${date}T12:00:00Z`);
+    return new Date(base - ((new Date(base).getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+  }
+
+  async function autoContinue(actorId = 'auto-continue') {
+    const current = await store.getSettings();
+    const config = current.autoContinue;
+    if (!config.enabled || !config.templateWeekOf) return { ran: false, reason: 'Auto-continue is off.' };
+    const at = now();
+    const coverage = await templateCoverage(config.templateWeekOf);
+    const timestamp = new Date(at).toISOString();
+    if (coverage.share < AUTO_CONTINUE_MIN_COVERAGE) {
+      const lastRun = { at: timestamp, weeks: [], problem: `The template week is only ${Math.round(coverage.share * 100)}% approved; nothing was copied.` };
+      await store.saveSettings({ autoContinue: { ...config, lastRunAt: timestamp, lastRun } });
+      return { ran: false, reason: lastRun.problem };
+    }
+    const thisMonday = mondayOf(at);
+    const filled = new Set(config.filledWeeks);
+    const weeks = [];
+    for (let offset = 0; offset <= config.weeksAhead; offset += 1) {
+      const weekOf = new Date(Date.parse(`${thisMonday}T12:00:00Z`) + offset * 7 * 86_400_000).toISOString().slice(0, 10);
+      if (weekOf === config.templateWeekOf || filled.has(weekOf)) continue;
+      const result = await repeatWeek({ sourceWeekOf: config.templateWeekOf, targetWeekOf: weekOf, weeks: 1, apply: true, anyTarget: true }, actorId);
+      filled.add(weekOf);
+      weeks.push({ weekOf, created: result.created, skipped: result.skipped });
+    }
+    const lastRun = { at: timestamp, weeks };
+    await store.saveSettings({ autoContinue: { ...config, filledWeeks: [...filled].sort().slice(-60), lastRunAt: timestamp, lastRun } });
+    return { ran: true, ...lastRun };
   }
 
   // Drafts one week of the primetime lineup. It never approves anything and never changes a release time:
@@ -639,15 +721,23 @@ function createLinearService({
   // Copies a week's approved programming onto later weeks at the same Eastern wall-clock times. Each copy is checked
   // against the rules at its new time (rights, release, overlaps) and created approved only if it passes; drafts are
   // not copied, premieres repeat as reruns, and primetime lineup slots stay open for new episodes.
-  async function repeatWeek({ sourceWeekOf, targetWeekOf, weeks = 1, apply = false, keepPrimetimeOpen = true } = {}, actorId) {
+  // includeDrafts/asDraft copy a week's drafts as new drafts (used to prepare a template week for review); a copy made
+  // that way is never approved. A template week may also be copied onto earlier weeks (anyTarget), never onto itself.
+  async function repeatWeek({
+    sourceWeekOf, targetWeekOf, weeks = 1, apply = false, keepPrimetimeOpen = true, includeDrafts = false, asDraft = false, anyTarget = false,
+  } = {}, actorId) {
     const count = Number(weeks);
     if (!Number.isInteger(count) || count < 1 || count > 4) throw new LinearValidationError('Repeat for 1 to 4 weeks.');
     const source = weekBounds(sourceWeekOf);
     const firstTarget = weekBounds(targetWeekOf);
-    if (Date.parse(firstTarget.from) <= Date.parse(source.from)) throw new LinearValidationError('Choose a target week after the source week.');
+    if (anyTarget ? firstTarget.from === source.from : Date.parse(firstTarget.from) <= Date.parse(source.from)) {
+      throw new LinearValidationError(anyTarget ? 'A week cannot be copied onto itself.' : 'Choose a target week after the source week.');
+    }
+    const draftCopy = asDraft === true;
     const at = now();
     const [currentSettings, sourceEntries] = await Promise.all([store.getSettings(), store.listEntries(source.from, source.to)]);
-    const originals = sourceEntries.filter((entry) => entry.status === 'approved' && entry.startAt >= source.from && entry.startAt < source.to);
+    const originals = sourceEntries.filter((entry) => (entry.status === 'approved' || (includeDrafts === true && entry.status === 'draft'))
+      && entry.startAt >= source.from && entry.startAt < source.to);
     if (originals.length > 500) throw new LinearValidationError('That week has too many entries to repeat at once.');
     const videos = await store.getVideos(originals.map((entry) => entry.videoId).filter(Boolean));
     const rights = await store.getRights([...videos.values()].flatMap(rightsKeysFor));
@@ -656,6 +746,7 @@ function createLinearService({
     for (let week = 0; week < count; week += 1) {
       const targetMonday = new Date(Date.parse(`${targetWeekOf}T12:00:00Z`) + week * 7 * 86_400_000).toISOString().slice(0, 10);
       const target = weekBounds(targetMonday);
+      if (target.from === source.from) continue;
       const occupied = (await store.listEntries(target.from, target.to)).map((entry) => ({ ...entry }));
       const lineupStarts = keepPrimetimeOpen ? currentSettings.primetime.map((slot) => {
         try { return Date.parse(channelLocalToUtc(`${target.dates[(slot.weekday + 6) % 7]}T${slot.time}`)); } catch { return null; }
@@ -694,8 +785,9 @@ function createLinearService({
           try {
             const { id: ignored, ...fields } = candidate;
             const stored = await store.writeEntry(null, async () => ({
-              ...fields, channelId: CHANNEL_ID, status: 'approved', origin: 'repeat', repeatedFrom: entry.id,
-              createdBy: actorId, createdAt: timestamp, updatedAt: timestamp, approvedBy: actorId, approvedAt: timestamp,
+              ...fields, channelId: CHANNEL_ID, status: draftCopy ? 'draft' : 'approved', origin: 'repeat', repeatedFrom: entry.id,
+              createdBy: actorId, createdAt: timestamp, updatedAt: timestamp,
+              approvedBy: draftCopy ? null : actorId, approvedAt: draftCopy ? null : timestamp,
             }));
             item.entryId = stored.id;
             created += 1;
@@ -958,7 +1050,7 @@ function createLinearService({
   }
 
   return {
-    addCountdown, approveCreative, approveEntry, buildBlock, channelState, createCreative, createEntry, deleteEntry,
+    addCountdown, approveCreative, autoContinue, approveEntry, buildBlock, channelState, createCreative, createEntry, deleteEntry,
     draftPrimetimeWeek, entryOnAir, invalidate, listCreatives, listSchedule, previewCreative, programs, refreshCreative, repeatWeek,
     retireCreative, rightsReview, setBreakPod, trailerSources, setRights, settings, status, updateCreative, updateEntry, updateSettings,
     weekCoverage, withdrawEntry,

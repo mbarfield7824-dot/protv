@@ -33,6 +33,23 @@ function readSettings(data = {}) {
     updatedAt: data.updatedAt || null,
     updatedBy: data.updatedBy || null,
     ...(data.launchedAt ? { launchedAt: data.launchedAt, launchedBy: data.launchedBy || null } : {}),
+    autoContinue: readAutoContinue(data.autoContinue),
+  };
+}
+
+// Keeps the channel on the air: copies an approved template week onto upcoming weeks. Off unless the Administrator
+// switches it on.
+function readAutoContinue(value = {}) {
+  const weeksAhead = Number(value?.weeksAhead);
+  return {
+    enabled: value?.enabled === true,
+    templateWeekOf: typeof value?.templateWeekOf === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.templateWeekOf) ? value.templateWeekOf : null,
+    weeksAhead: Number.isInteger(weeksAhead) && weeksAhead >= 1 && weeksAhead <= 4 ? weeksAhead : 3,
+    filledWeeks: Array.isArray(value?.filledWeeks) ? value.filledWeeks.filter((week) => typeof week === 'string').slice(-60) : [],
+    lastRunAt: value?.lastRunAt || null,
+    lastRun: value?.lastRun || null,
+    updatedAt: value?.updatedAt || null,
+    updatedBy: value?.updatedBy || null,
   };
 }
 

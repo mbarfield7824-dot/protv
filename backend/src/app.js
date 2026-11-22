@@ -79,6 +79,7 @@ app.use(`${apiPrefix}/admin/live`, createAdminLiveRouter());
 const linearChannel = createLinearRouters();
 app.use(`${apiPrefix}/v1/linear`, linearChannel.publicRouter);
 app.use(`${apiPrefix}/admin/linear`, linearChannel.adminRouter);
+app.get(`${apiPrefix}/cron/linear-continue`, linearChannel.cronHandler);
 // Mounted before the users router so the existing favorites/progress routes are untouched.
 app.use(`${apiPrefix}/users/me/deletion-request`, createAccountDeletionRequestRouter());
 app.use(`${apiPrefix}/users`, userRoutes);

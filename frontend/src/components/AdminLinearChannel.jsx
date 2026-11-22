@@ -596,6 +596,61 @@ function AnalyticsTab() {
   );
 }
 
+function AutoContinueCard({ settings, onSaved }) {
+  const config = settings?.autoContinue;
+  const [templateWeekOf, setTemplateWeekOf] = useState(config?.templateWeekOf || '');
+  const [weeksAhead, setWeeksAhead] = useState(String(config?.weeksAhead || 3));
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!config) return null;
+  const save = async (enabled) => {
+    if (enabled && !window.confirm(`Every day, copy the approved programming of the week of ${templateWeekOf} onto the next ${weeksAhead} weeks? Copies are created approved and will air once the channel is public. Rights and release are re-checked for every copy, and nothing already scheduled is replaced.`)) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      await api.adminLinear('settings', { method: 'PUT', body: { autoContinue: { templateWeekOf, weeksAhead: Number(weeksAhead), enabled } } });
+      await onSaved();
+    } catch (reason) { setMessage(reason.message); } finally { setBusy(false); }
+  };
+  const runNow = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await api.adminLinear('auto-continue/run', { method: 'POST', body: {} });
+      setMessage(result.ran ? `Copied onto ${result.weeks.length} week(s).` : result.reason);
+      await onSaved();
+    } catch (reason) { setMessage(reason.message); } finally { setBusy(false); }
+  };
+  const last = config.lastRun;
+  return (
+    <article className="admin-advertising__card">
+      <header>
+        <h3>Auto-continue</h3>
+        <span className={`admin-status-pill ${config.enabled ? 'is-on' : ''}`}>{config.enabled ? 'On' : 'Off'}</span>
+      </header>
+      <p>Keeps PROtv LIVE on the air without weekly upkeep. Once a day it copies the approved template week onto every upcoming week it has not filled yet. Each copy is re-checked for linear rights and release at its new time, anything already scheduled (premieres included) is kept, countdowns are not copied, and primetime lineup slots stay open unless the template has a stand-in there.</p>
+      <div className="linear-form__row">
+        <label>Template week (Monday)<input type="date" value={templateWeekOf} disabled={config.enabled} onChange={(event) => setTemplateWeekOf(event.target.value)} /></label>
+        <label>Weeks kept scheduled ahead
+          <select value={weeksAhead} disabled={config.enabled} onChange={(event) => setWeeksAhead(event.target.value)}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select>
+        </label>
+      </div>
+      <div className="linear-actions">
+        {config.enabled
+          ? <button type="button" className="admin-secondary" disabled={busy} onClick={() => save(false)}>Switch off</button>
+          : <button type="button" className="admin-secondary admin-button-primary" disabled={busy || !templateWeekOf} onClick={() => save(true)}>Switch on</button>}
+        {config.enabled && <button type="button" className="admin-secondary" disabled={busy} onClick={runNow}>Run now</button>}
+      </div>
+      {last && (
+        <p className="linear-note">
+          Last run {new Date(last.at).toLocaleString()}: {last.problem || (last.weeks.length ? last.weeks.map((week) => `week of ${week.weekOf}: ${week.created} copied, ${week.skipped} skipped`).join('; ') : 'nothing new to fill')}.
+        </p>
+      )}
+      {message && <p className="linear-note" role="status">{message}</p>}
+    </article>
+  );
+}
+
 function ChannelTab() {
   const [settings, reload] = useAsync(() => api.adminLinear('settings'), 'settings');
   const [confirmation, setConfirmation] = useState('');
@@ -633,6 +688,7 @@ function ChannelTab() {
         )}
         {error && <p className="admin-error" role="alert">{error}</p>}
       </article>
+      {settings.data && <AutoContinueCard key={settings.data.autoContinue?.updatedAt || 'auto'} settings={settings.data} onSaved={reload} />}
       <article className="admin-advertising__card">
         <header><h3>Commercials</h3><span className="admin-status-pill is-on">Scheduled spots</span></header>
         <p>Breaks play PROtv&rsquo;s own approved spots (Commercials tab) in the order chosen for each break, in sync for every viewer, then the PROtv &ldquo;We&rsquo;ll be right back&rdquo; card. No third-party ad server is involved. Spot starts and completions are reported in the Commercials tab, separately from on-demand ad measurement.</p>

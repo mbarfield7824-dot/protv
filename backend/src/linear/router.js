@@ -92,6 +92,16 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
     try { return res.json({ items: await service.listSchedule({ from: req.query.from, to: req.query.to }) }); } catch (error) { return fail(res, error, 'schedule'); }
   });
 
+  router.post('/auto-continue/run', async (req, res) => {
+    try {
+      const result = await service.autoContinue(actor(req));
+      if (result.ran) {
+        await record(req, 'auto_continue', `Auto-continue copied the template week onto ${result.weeks.length} week(s).`, { weeks: result.weeks });
+      }
+      return res.json(result);
+    } catch (error) { return fail(res, error, 'auto-continue'); }
+  });
+
   router.get('/coverage', async (req, res) => {
     try { return res.json(await service.weekCoverage(String(req.query.weekOf || ''))); } catch (error) { return fail(res, error, 'coverage'); }
   });
@@ -102,6 +112,8 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
       const result = await service.repeatWeek({
         sourceWeekOf: body.sourceWeekOf, targetWeekOf: body.targetWeekOf, weeks: body.weeks ?? 1,
         apply: body.apply === true, keepPrimetimeOpen: body.keepPrimetimeOpen !== false,
+        includeDrafts: body.includeDrafts === true, asDraft: body.asDraft === true || body.includeDrafts === true,
+        anyTarget: body.anyTarget === true,
       }, actor(req));
       if (result.applied) {
         await record(req, 'schedule_repeat', `Repeated the week of ${body.sourceWeekOf} from ${body.targetWeekOf} for ${body.weeks ?? 1} week(s): ${result.created} approved, ${result.skipped} skipped.`,
@@ -298,6 +310,9 @@ function createLinearRouters(dependencies = {}) {
       authenticate: dependencies.authenticate || require('../middleware/auth').verifyOptionalToken,
       clientAddress: dependencies.clientAddress || require('../reports/clientAddress').reportingClientAddress,
     }),
+    cronHandler: createLinearCronHandler({
+      service, audit: dependencies.audit || ((event) => require('../adminBot/adminAudit').logAdminEvent(event)),
+    }),
     adminRouter: createAdminLinearRouter({
       service, analytics,
       verifyAdmin: dependencies.verifyAdmin || require('../middleware/auth').verifyAdmin,
@@ -306,4 +321,24 @@ function createLinearRouters(dependencies = {}) {
   };
 }
 
-module.exports = { createAdminLinearRouter, createLinearRouter, createLinearRouters };
+// Daily Vercel cron (vercel.json). Vercel sends "Authorization: Bearer $CRON_SECRET"; without the secret set, it refuses.
+function createLinearCronHandler({ service, secret = () => process.env.CRON_SECRET, audit } = {}) {
+  return async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const expected = secret();
+    if (!expected) return res.status(503).json({ error: 'Auto-continue is not configured.' });
+    if (req.get('Authorization') !== `Bearer ${expected}`) return res.status(401).json({ error: 'Not authorized.' });
+    try {
+      const result = await service.autoContinue('auto-continue');
+      if (result.ran && audit) {
+        await audit({ type: 'linear.auto_continue', actorId: 'auto-continue', message: `Auto-continue copied the template week onto ${result.weeks.length} week(s).`, details: { weeks: result.weeks } }).catch(() => {});
+      }
+      return res.json(result);
+    } catch (error) {
+      console.error('[linear] auto-continue failed', error);
+      return res.status(500).json({ error: 'Auto-continue failed.' });
+    }
+  };
+}
+
+module.exports = { createAdminLinearRouter, createLinearCronHandler, createLinearRouter, createLinearRouters };

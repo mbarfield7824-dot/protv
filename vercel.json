@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/cron/linear-continue", "schedule": "0 10 * * *" }
+  ],
   "installCommand": "npm ci && cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
