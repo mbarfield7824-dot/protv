@@ -302,3 +302,18 @@ test('a pending premiere needs the series linear rights before it can be approve
   assert.match(entry.issues.blocking.join(), /not confirmed for the series "Ironborn"/);
   await assert.rejects(service.approveEntry(entry.id, { acknowledgeWarnings: true }, 'admin'), /not confirmed for the series/);
 });
+
+test('the Administrator can watch a draft spot before approving it; nothing airs or is counted', async () => {
+  const { service, store } = setup({ creatives: [
+    spot('d1', { status: 'draft' }),
+    spot('t1', { status: 'draft', source: 'catalog-trailer', playbackPolicy: 'signed', muxPlaybackId: 'trailer-pb', durationSeconds: 92.4 }),
+    spot('p1', { status: 'draft', muxPlaybackId: null }),
+  ] });
+  const upload = await service.previewCreative('d1');
+  assert.deepEqual(upload, { id: 'd1', title: 'Spot d1', muxPlaybackId: 'pb-d1' });
+  const trailer = await service.previewCreative('t1');
+  assert.equal(trailer.playbackToken, 'token:trailer-pb:92.4');
+  await assert.rejects(service.previewCreative('p1'), /not processed/);
+  await assert.rejects(service.previewCreative('missing'), /not found/);
+  assert.equal(store.creatives.get('d1').status, 'draft', 'watching does not approve');
+});

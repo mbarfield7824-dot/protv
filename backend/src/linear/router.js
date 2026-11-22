@@ -202,6 +202,13 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
     try { return res.json(await service.refreshCreative(req.params.id)); } catch (error) { return fail(res, error, 'spot refresh'); }
   });
 
+  router.get('/creatives/:id/preview', async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await service.previewCreative(req.params.id));
+    } catch (error) { return fail(res, error, 'spot preview'); }
+  });
+
   router.patch('/creatives/:id', async (req, res) => {
     try {
       const creative = await service.updateCreative(req.params.id, req.body || {}, actor(req));

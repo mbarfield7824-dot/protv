@@ -820,6 +820,18 @@ function createLinearService({
     return describeCreative(saved);
   }
 
+  // Lets the Administrator watch a spot (draft or approved) in Admin before deciding. Nothing is aired or counted.
+  async function previewCreative(id) {
+    const creative = await requireCreative(id);
+    const playbackId = String(creative.muxPlaybackId || '').trim();
+    if (!playbackId) throw new CreativeValidationError('The video is not processed yet. Use "Check processing" first.');
+    const signed = creative.playbackPolicy === 'signed';
+    return {
+      id: creative.id, title: creative.title, muxPlaybackId: playbackId,
+      ...(signed ? { playbackToken: await signPlaybackToken(playbackId, Number(creative.durationSeconds) || 0) } : {}),
+    };
+  }
+
   async function approveCreative(id, { rightsConfirmation } = {}, actorId) {
     const creative = await requireCreative(id);
     const statement = text(rightsConfirmation, 1000);
@@ -947,7 +959,7 @@ function createLinearService({
 
   return {
     addCountdown, approveCreative, approveEntry, buildBlock, channelState, createCreative, createEntry, deleteEntry,
-    draftPrimetimeWeek, entryOnAir, invalidate, listCreatives, listSchedule, programs, refreshCreative, repeatWeek,
+    draftPrimetimeWeek, entryOnAir, invalidate, listCreatives, listSchedule, previewCreative, programs, refreshCreative, repeatWeek,
     retireCreative, rightsReview, setBreakPod, trailerSources, setRights, settings, status, updateCreative, updateEntry, updateSettings,
     weekCoverage, withdrawEntry,
   };

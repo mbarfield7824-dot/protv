@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import MuxPlayer from '@mux/mux-player-react';
 import { api } from '../api';
 import { channelDate, formatChannelTime } from '../data/linearChannel';
 
@@ -11,6 +12,35 @@ const TYPES = [
 ];
 const COUNTDOWN_MINUTES = [5, 10, 15, 30];
 const seconds = (value) => `${Math.round(Number(value) || 0)} s`;
+
+// Plays a spot inside Admin so it can be reviewed before approval. Watching it here never airs it or records an impression.
+function SpotPreview({ spot, onClose }) {
+  const [state, setState] = useState({ loading: true, data: null, error: '' });
+  useEffect(() => {
+    let active = true;
+    api.adminLinear(`creatives/${encodeURIComponent(spot.id)}/preview`)
+      .then((data) => { if (active) setState({ loading: false, data, error: '' }); })
+      .catch((error) => { if (active) setState({ loading: false, data: null, error: error.message }); });
+    return () => { active = false; };
+  }, [spot.id]);
+  return (
+    <div className="linear-spot-preview">
+      {state.loading && <p className="linear-note">Loading the video…</p>}
+      {state.error && <p className="linear-issue linear-issue--warning">{state.error}</p>}
+      {state.data && (
+        <MuxPlayer
+          playbackId={state.data.muxPlaybackId}
+          {...(state.data.playbackToken ? { tokens: { playback: state.data.playbackToken } } : {})}
+          streamType="on-demand"
+          autoPlay
+          metadata={{ video_title: `Admin preview: ${spot.title}` }}
+          style={{ width: '100%', maxWidth: 640, aspectRatio: '16 / 9' }}
+        />
+      )}
+      <button type="button" className="admin-secondary" onClick={onClose}>Close video</button>
+    </div>
+  );
+}
 
 function useLoad(loader) {
   const [state, setState] = useState({ loading: true, data: null, error: '' });
@@ -140,6 +170,7 @@ function SpotReport() {
 export function CommercialsTab() {
   const [spots, reload] = useLoad(() => api.adminLinear('creatives'));
   const [message, setMessage] = useState('');
+  const [watching, setWatching] = useState(null);
   const act = async (spot, action) => {
     setMessage('');
     try {
@@ -183,7 +214,9 @@ export function CommercialsTab() {
             </p>
             {spot.rightsConfirmation && <p className="linear-note">Rights: {spot.rightsConfirmation}</p>}
             {spot.status !== 'approved' && spot.problems.map((problem) => <p key={problem} className="linear-issue linear-issue--warning">{problem}</p>)}
+            {watching === spot.id && <SpotPreview spot={spot} onClose={() => setWatching(null)} />}
             <div className="linear-actions">
+              {spot.muxPlaybackId && watching !== spot.id && <button type="button" className="admin-secondary" onClick={() => setWatching(spot.id)}>Watch</button>}
               {spot.source === 'upload' && !spot.muxPlaybackId && <button type="button" className="admin-secondary" onClick={() => act(spot, 'refresh')}>Check processing</button>}
               {spot.status === 'draft' && <button type="button" className="admin-secondary admin-button-primary" disabled={spot.problems.length > 0} onClick={() => act(spot, 'approve')}>Approve</button>}
               {spot.status !== 'retired' && <button type="button" className="admin-secondary" onClick={() => act(spot, 'retire')}>Retire</button>}
