@@ -593,3 +593,30 @@ test('auto-continue records a failed week, retries it on the next run, and repor
   assert.equal(second.weeks[0].created + second.weeks[0].skipped, 21, 'the retry skips the copies the failed run already wrote');
   assert.ok(Number.isInteger(second.gapsAhead));
 });
+
+test('auto-continue closes a few seconds left before an existing countdown by lengthening its own copied break', async () => {
+  const { service, store } = setup({ settings: { primetime: [] } });
+  await approvedTemplateWeek(service, store, '2026-12-28');
+  // Template Thursday Dec 31 evening: replace the 16:00 slot with program → break → stand-in → program.
+  const thu = [...store.entries.values()].find((entry) => entry.startAt === '2026-12-31T21:00:00.000Z');
+  store.entries.delete(thu.id);
+  const put = (id, fields) => store.entries.set(id, { id, channelId: 'protv-live', status: 'approved', origin: 'manual', sourceStartSeconds: 0, ...fields,
+    endAt: new Date(Date.parse(fields.startAt) + fields.durationSeconds * 1000).toISOString() });
+  put('t-a', { kind: 'program', programType: 'movie', videoId: 'day-2026-12-31', startAt: '2026-12-31T21:00:00.000Z', durationSeconds: 13_668 });
+  put('t-b', { kind: 'break', startAt: '2027-01-01T00:47:48.000Z', durationSeconds: 120 });
+  put('t-c', { kind: 'program', programType: 'movie', videoId: 'day-2026-12-31', startAt: '2027-01-01T00:49:48.000Z', durationSeconds: 900, standInFor: 'Ironborn' });
+  put('t-d', { kind: 'program', programType: 'movie', videoId: 'day-2026-12-31', startAt: '2027-01-01T01:04:48.000Z', durationSeconds: 10_512 });
+  // Target Thursday Dec 10: an Ironborn countdown and premiere already hold 7:50–8:05 PM.
+  put('iron-cd', { kind: 'countdown', startAt: '2026-12-11T00:50:00.000Z', durationSeconds: 600, forEntryId: 'iron-pr' });
+  put('iron-pr', { kind: 'program', programType: 'movie', videoId: 'movie-1', startAt: '2026-12-11T01:00:00.000Z', durationSeconds: 288 });
+  await service.updateSettings({ autoContinue: { enabled: true, templateWeekOf: '2026-12-28', weeksAhead: 3 } }, 'admin-uid');
+  const run = await service.autoContinue();
+  const dec7 = run.weeks.find((week) => week.weekOf === '2026-12-07');
+  assert.equal(dec7.gapsClosed, 1);
+  const copiedBreak = [...store.entries.values()].find((entry) => entry.origin === 'repeat' && entry.startAt === '2026-12-11T00:47:48.000Z');
+  assert.equal(copiedBreak.durationSeconds, 132);
+  assert.equal(copiedBreak.endAt, '2026-12-11T00:50:00.000Z', 'the break now meets the countdown');
+  assert.equal(copiedBreak.status, 'approved');
+  assert.ok(![...store.entries.values()].some((entry) => entry.origin === 'repeat' && entry.startAt === '2026-12-11T00:49:48.000Z'), 'the stand-in is skipped where the premiere is');
+  assert.equal(store.entries.get('iron-cd').durationSeconds, 600, 'the countdown is untouched');
+});

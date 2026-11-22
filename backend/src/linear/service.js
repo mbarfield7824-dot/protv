@@ -1,4 +1,5 @@
 const {
+  BREAK_MAX_SECONDS,
   CHANNEL_ID, LinearValidationError, PROGRAM_LABELS,
   airState, approvalIssues, entryFields, knownDuration, linearRightsFor, normalizeSeriesTitle, overlaps,
   pendingRelease, pendingVideo, PENDING_EPISODE_ID, playableAt, publicItem, rightsKeysFor, validateLineup, validateRightsInput,
@@ -600,8 +601,9 @@ function createLinearService({
       if (weekOf === config.templateWeekOf || filled.has(weekOf)) continue;
       try {
         const result = await repeatWeek({ sourceWeekOf: config.templateWeekOf, targetWeekOf: weekOf, weeks: 1, apply: true, anyTarget: true }, actorId);
+        const healed = await closeShortGaps(weekOf, actorId);
         filled.add(weekOf);
-        weeks.push({ weekOf, created: result.created, skipped: result.skipped });
+        weeks.push({ weekOf, created: result.created, skipped: result.skipped, gapsClosed: healed });
       } catch (error) {
         // Not marked filled, so the next run retries this week. Copies already written stay; a retry skips them as conflicts.
         console.error('[linear] auto-continue week failed', weekOf, error);
@@ -619,6 +621,33 @@ function createLinearService({
   }
 
   const AUTO_CONTINUE_HORIZON_DAYS = 21;
+  const SHORT_GAP_SECONDS = 300;
+
+  // A template copy skipped because something else already holds that time (a premiere, a countdown) can leave a
+  // few seconds between a copied break and the next entry. Auto-continue lengthens such a break it created itself
+  // (never a program, never past the 10-minute break limit) so the channel stays continuous; the PROtv card and the
+  // break's own spots fill the extra time. Larger gaps are left alone and reported.
+  async function closeShortGaps(weekOf, actorId) {
+    const bounds = weekBounds(weekOf);
+    const entries = (await store.listEntries(bounds.from, bounds.to))
+      .filter((entry) => entry.status === 'approved').sort((left, right) => left.startAt.localeCompare(right.startAt));
+    let closed = 0;
+    for (let index = 0; index < entries.length - 1; index += 1) {
+      const entry = entries[index];
+      const following = entries[index + 1];
+      const gap = (Date.parse(following.startAt) - Date.parse(entry.endAt)) / 1000;
+      if (!(gap > 0 && gap <= SHORT_GAP_SECONDS) || entry.kind !== 'break' || entry.origin !== 'repeat') continue;
+      if (entry.durationSeconds + gap > BREAK_MAX_SECONDS) continue;
+      if (Date.parse(entry.startAt) <= now()) continue;
+      const durationSeconds = Math.round(entry.durationSeconds + gap);
+      await store.writeEntry(entry.id, async (current) => ({
+        ...current, durationSeconds, endAt: following.startAt, updatedAt: new Date(now()).toISOString(), updatedBy: actorId,
+        notes: `${current.notes || ''} Lengthened by ${Math.round(gap)} s to meet ${channelLabel(following.startAt)}.`.trim(),
+      }));
+      closed += 1;
+    }
+    return closed;
+  }
 
   // On-air time from `at` for `days`: approved slots that will actually play (rights confirmed, title released, or a
   // premiere awaiting its episode, which shows the holding screen). Anything else is a gap.
