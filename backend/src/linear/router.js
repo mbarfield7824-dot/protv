@@ -92,6 +92,25 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
     try { return res.json({ items: await service.listSchedule({ from: req.query.from, to: req.query.to }) }); } catch (error) { return fail(res, error, 'schedule'); }
   });
 
+  router.get('/operations', async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await service.operations({ cronConfigured: Boolean(process.env.CRON_SECRET) }));
+    } catch (error) { return fail(res, error, 'operations'); }
+  });
+
+  router.post('/schedule/approve-range', async (req, res) => {
+    try {
+      const body = req.body || {};
+      const result = await service.approveRange({ from: body.from, to: body.to, dryRun: body.dryRun === true }, actor(req));
+      if (!result.dryRun && result.approved) {
+        await record(req, 'schedule_bulk_approve', `Bulk-approved ${result.approved} entries from ${result.from} to ${result.to}; ${result.exceptions.length} left as drafts.`,
+          { from: result.from, to: result.to, approved: result.approved, exceptions: result.exceptions.map((item) => ({ id: item.id, reason: item.reason })) });
+      }
+      return res.json(result);
+    } catch (error) { return fail(res, error, 'bulk approval'); }
+  });
+
   router.post('/auto-continue/run', async (req, res) => {
     try {
       const result = await service.autoContinue(actor(req));

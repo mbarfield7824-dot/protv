@@ -598,13 +598,152 @@ function createLinearService({
     for (let offset = 0; offset <= config.weeksAhead; offset += 1) {
       const weekOf = new Date(Date.parse(`${thisMonday}T12:00:00Z`) + offset * 7 * 86_400_000).toISOString().slice(0, 10);
       if (weekOf === config.templateWeekOf || filled.has(weekOf)) continue;
-      const result = await repeatWeek({ sourceWeekOf: config.templateWeekOf, targetWeekOf: weekOf, weeks: 1, apply: true, anyTarget: true }, actorId);
-      filled.add(weekOf);
-      weeks.push({ weekOf, created: result.created, skipped: result.skipped });
+      try {
+        const result = await repeatWeek({ sourceWeekOf: config.templateWeekOf, targetWeekOf: weekOf, weeks: 1, apply: true, anyTarget: true }, actorId);
+        filled.add(weekOf);
+        weeks.push({ weekOf, created: result.created, skipped: result.skipped });
+      } catch (error) {
+        // Not marked filled, so the next run retries this week. Copies already written stay; a retry skips them as conflicts.
+        console.error('[linear] auto-continue week failed', weekOf, error);
+        weeks.push({ weekOf, error: error instanceof LinearValidationError ? error.message : 'The week could not be copied; it will be retried.' });
+      }
     }
-    const lastRun = { at: timestamp, weeks };
+    const ahead = await coverageAhead(at, AUTO_CONTINUE_HORIZON_DAYS);
+    const lastRun = {
+      at: timestamp, weeks, failed: weeks.filter((week) => week.error).length,
+      coveredThrough: ahead.coveredThrough, gapsAhead: ahead.gaps.length, firstGaps: ahead.gaps.slice(0, 5),
+    };
     await store.saveSettings({ autoContinue: { ...config, filledWeeks: [...filled].sort().slice(-60), lastRunAt: timestamp, lastRun } });
+    invalidate();
     return { ran: true, ...lastRun };
+  }
+
+  const AUTO_CONTINUE_HORIZON_DAYS = 21;
+
+  // On-air time from `at` for `days`: approved slots that will actually play (rights confirmed, title released, or a
+  // premiere awaiting its episode, which shows the holding screen). Anything else is a gap.
+  async function coverageAhead(at, days, described = null) {
+    const horizon = at + days * 86_400_000;
+    const list = described || await describeEntries(await store.listEntries(new Date(at).toISOString(), new Date(horizon).toISOString()));
+    const onAir = list.filter((entry) => entry.status === 'approved' && (entry.airState !== 'unavailable' || entry.pending))
+      .map((entry) => [Date.parse(entry.startAt), Date.parse(entry.endAt)]).sort((left, right) => left[0] - right[0]);
+    const gaps = [];
+    let cursor = at;
+    for (const [start, end] of onAir) {
+      if (end <= cursor) continue;
+      if (start > cursor) gaps.push({ startAt: new Date(cursor).toISOString(), endAt: new Date(Math.min(start, horizon)).toISOString() });
+      cursor = Math.max(cursor, end);
+      if (cursor >= horizon) break;
+    }
+    if (cursor < horizon) gaps.push({ startAt: new Date(cursor).toISOString(), endAt: new Date(horizon).toISOString() });
+    const coveredThrough = gaps.length ? gaps[0].startAt : new Date(horizon).toISOString();
+    return { from: new Date(at).toISOString(), to: new Date(horizon).toISOString(), gaps, coveredThrough };
+  }
+
+  // --- Bulk approval ----------------------------------------------------------
+  // Approves the drafts that start in a range through the same per-entry approval (rights, release, timing, spots),
+  // programs and breaks first and countdowns last, so a countdown follows its premiere. An entry that fails any check
+  // stays a draft and is reported with its reason. Ranges are short (one Eastern day per call from Admin) to keep each
+  // request well inside the server time limit.
+  const BULK_MAX_DAYS = 8;
+
+  async function approveRange({ from, to, dryRun = false } = {}, actorId) {
+    const fromMs = Date.parse(from);
+    const toMs = Date.parse(to);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs || toMs - fromMs > BULK_MAX_DAYS * 86_400_000) {
+      throw new LinearValidationError(`Choose a range of up to ${BULK_MAX_DAYS} days.`);
+    }
+    const drafts = (await store.listEntries(new Date(fromMs).toISOString(), new Date(toMs).toISOString()))
+      .filter((entry) => entry.status === 'draft' && Date.parse(entry.startAt) >= fromMs && Date.parse(entry.startAt) < toMs);
+    const ordered = [...drafts.filter((entry) => entry.kind !== 'countdown'), ...drafts.filter((entry) => entry.kind === 'countdown')];
+    const described = new Map((await describeEntries(ordered)).map((entry) => [entry.id, entry]));
+    const inRange = new Set(ordered.map((entry) => entry.id));
+    const approved = [];
+    const exceptions = [];
+    const warnings = {};
+    for (const entry of ordered) {
+      const view = described.get(entry.id);
+      const label = { id: entry.id, kind: entry.kind, startAt: entry.startAt, startLabel: view?.startLabel || channelLabel(entry.startAt), title: view?.title || '' };
+      for (const warning of view?.issues?.warnings || []) {
+        const key = warning.replace(/\d+ of \d+ s/, 'N of M s');
+        warnings[key] = (warnings[key] || 0) + 1;
+      }
+      if (dryRun) {
+        const blocking = (view?.issues?.blocking || []).filter((message) => !(entry.kind === 'countdown'
+          && /Approve the program first/.test(message) && inRange.has(entry.forEntryId) && !exceptions.some((item) => item.id === entry.forEntryId)));
+        if (blocking.length) exceptions.push({ ...label, reason: blocking.join(' ') });
+        else approved.push(label);
+        continue;
+      }
+      try {
+        await approveEntry(entry.id, { acknowledgeWarnings: true }, actorId);
+        approved.push(label);
+      } catch (error) {
+        if (!(error instanceof LinearValidationError)) throw error;
+        exceptions.push({ ...label, reason: error.message });
+      }
+    }
+    return { dryRun: Boolean(dryRun), from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString(), drafts: drafts.length, approved: approved.length, exceptions, warnings };
+  }
+
+  // --- Operations summary ------------------------------------------------------
+  // One read for the Admin dashboard: what is on air, automation status, coverage and problems in the next 21 days.
+  async function operations({ cronConfigured = false } = {}) {
+    const at = now();
+    const days = AUTO_CONTINUE_HORIZON_DAYS;
+    const horizon = at + days * 86_400_000;
+    const settings = await store.getSettings();
+    const entries = await store.listEntries(new Date(at).toISOString(), new Date(horizon).toISOString());
+    const described = await describeEntries(entries);
+    const ahead = await coverageAhead(at, days, described);
+    const approvedUnplayable = described.filter((entry) => entry.status === 'approved' && entry.kind === 'program' && entry.airState === 'unavailable' && !entry.pending);
+    const draftsBlocked = described.filter((entry) => entry.status === 'draft' && entry.issues?.blocking?.length);
+    const videos = await store.getVideos(entries.map((entry) => entry.videoId).filter(Boolean));
+    const rights = await store.getRights([...videos.values()].flatMap(rightsKeysFor));
+    const expiring = new Map();
+    for (const video of videos.values()) {
+      for (const key of rightsKeysFor(video)) {
+        const record = rights.get(key);
+        if (record?.status === 'confirmed' && record.expiresAt && Date.parse(record.expiresAt) < horizon + 30 * 86_400_000) {
+          expiring.set(video.id, { videoId: video.id, title: video.title, expiresAt: record.expiresAt });
+        }
+      }
+    }
+    let nowNext = null;
+    try {
+      const state = await channelState({ preview: true });
+      const label = (item) => item?.title || item?.program?.title || item?.countdown?.seriesTitle || (item?.kind === 'break' ? 'Commercial break' : '');
+      nowNext = {
+        now: state.now ? { state: state.now.state, kind: state.now.kind, title: label(state.now), startAt: state.now.startAt, endAt: state.now.endAt } : null,
+        next: state.guide.filter((item) => !item.onNow).slice(0, 4).map((item) => ({ startAt: item.startAt, startLabel: item.startLabel, title: label(item), kind: item.kind })),
+      };
+    } catch (error) {
+      nowNext = { error: error.message };
+    }
+    const nextRun = new Date(at);
+    nextRun.setUTCHours(10, 0, 0, 0);
+    if (nextRun.getTime() <= at) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+    const breaks = described.filter((entry) => entry.kind === 'break');
+    return {
+      at: new Date(at).toISOString(),
+      channelStatus: settings.status,
+      autoContinue: { ...settings.autoContinue, cronConfigured, nextRunAt: settings.autoContinue.enabled && cronConfigured ? nextRun.toISOString() : null },
+      coverage: { days, coveredThrough: ahead.coveredThrough, gaps: ahead.gaps.slice(0, 20), gapCount: ahead.gaps.length },
+      counts: {
+        entries: described.length,
+        approved: described.filter((entry) => entry.status === 'approved').length,
+        drafts: described.filter((entry) => entry.status === 'draft').length,
+        breaks: breaks.length,
+        breaksWithSpots: breaks.filter((entry) => entry.pod?.length).length,
+      },
+      problems: {
+        approvedUnplayable: approvedUnplayable.slice(0, 20).map((entry) => ({ id: entry.id, startLabel: entry.startLabel, title: entry.title, airState: entry.airState })),
+        draftsBlocked: draftsBlocked.slice(0, 20).map((entry) => ({ id: entry.id, startLabel: entry.startLabel, title: entry.title, reason: entry.issues.blocking.join(' ') })),
+        draftsBlockedCount: draftsBlocked.length,
+        rightsExpiring: [...expiring.values()].sort((left, right) => left.expiresAt.localeCompare(right.expiresAt)),
+      },
+      nowNext,
+    };
   }
 
   // Drafts one week of the primetime lineup. It never approves anything and never changes a release time:
@@ -1050,7 +1189,7 @@ function createLinearService({
   }
 
   return {
-    addCountdown, approveCreative, autoContinue, approveEntry, buildBlock, channelState, createCreative, createEntry, deleteEntry,
+    addCountdown, approveCreative, approveRange, autoContinue, operations, approveEntry, buildBlock, channelState, createCreative, createEntry, deleteEntry,
     draftPrimetimeWeek, entryOnAir, invalidate, listCreatives, listSchedule, previewCreative, programs, refreshCreative, repeatWeek,
     retireCreative, rightsReview, setBreakPod, trailerSources, setRights, settings, status, updateCreative, updateEntry, updateSettings,
     weekCoverage, withdrawEntry,

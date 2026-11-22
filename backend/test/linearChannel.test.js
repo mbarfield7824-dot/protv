@@ -530,3 +530,66 @@ test('the auto-continue cron refuses without the configured secret', async () =>
     assert.equal(calls.length, 1);
   } finally { server.close(); }
 });
+
+test('bulk approval uses the per-entry checks, approves premieres before their countdowns, and reports every exception', async () => {
+  const { service, store } = setup({ videos: [movie(), movie({ id: 'movie-2', title: 'No rights' })] });
+  const program = await service.createEntry({ videoId: 'movie-1', programType: 'premiere', startAtLocal: '2026-12-03T20:00' }, 'admin-uid');
+  const countdown = await service.addCountdown(program.id, { minutes: 10 }, 'admin-uid');
+  const brk = await service.createEntry({ kind: 'break', afterEntryId: program.id, durationSeconds: 120 }, 'admin-uid');
+  const blocked = await service.createEntry({ videoId: 'movie-2', programType: 'movie', startAtLocal: '2026-12-03T09:00' }, 'admin-uid');
+  const range = { from: '2026-12-03T05:00:00.000Z', to: '2026-12-04T05:00:00.000Z' };
+
+  const dry = await service.approveRange({ ...range, dryRun: true }, 'admin-uid');
+  assert.equal(dry.approved, 3, 'the countdown counts as approvable because its premiere is in the same run');
+  assert.deepEqual(dry.exceptions.map((item) => item.id), [blocked.id]);
+  assert.ok([...store.entries.values()].every((entry) => entry.status === 'draft'), 'a dry run changes nothing');
+
+  const result = await service.approveRange(range, 'admin-uid');
+  assert.equal(result.approved, 3);
+  assert.equal(result.exceptions.length, 1);
+  assert.match(result.exceptions[0].reason, /rights are not confirmed/);
+  for (const id of [program.id, countdown.id, brk.id]) assert.equal(store.entries.get(id).status, 'approved');
+  assert.equal(store.entries.get(blocked.id).status, 'draft', 'an entry that fails a check stays a draft');
+  const again = await service.approveRange(range, 'admin-uid');
+  assert.equal(again.approved, 0, 'approved entries are not touched again');
+  await assert.rejects(service.approveRange({ from: range.from, to: '2026-12-20T05:00:00.000Z' }, 'admin-uid'), /up to 8 days/);
+});
+
+test('the operations summary shows coverage gaps, blocked drafts, expiring rights and the automation status', async () => {
+  const { service, clock } = setup({ rights: { 'title_movie-1': confirmed({ expiresAt: '2026-12-20T04:59:59.999Z' }) } });
+  clock.now = Date.parse('2026-12-01T12:00:00Z');
+  await approved(service, { videoId: 'movie-1', programType: 'movie', startAtLocal: '2026-12-01T07:00' }, true);
+  const ops = await service.operations({ cronConfigured: false });
+  assert.equal(ops.channelStatus, 'off');
+  assert.equal(ops.coverage.days, 21);
+  assert.equal(ops.coverage.coveredThrough, '2026-12-01T13:32:00.000Z', 'covered until the movie ends');
+  assert.equal(ops.counts.approved, 1);
+  assert.equal(ops.problems.rightsExpiring[0].videoId, 'movie-1');
+  assert.equal(ops.autoContinue.enabled, false);
+  assert.equal(ops.autoContinue.nextRunAt, null, 'no next run while off or without the cron secret');
+  assert.equal(ops.nowNext.now.title, 'His Girl Friday');
+});
+
+test('auto-continue records a failed week, retries it on the next run, and reports gaps ahead', async () => {
+  const { service, store } = setup({ settings: { primetime: [] } });
+  await approvedTemplateWeek(service, store, '2026-12-28');
+  await service.updateSettings({ autoContinue: { enabled: true, templateWeekOf: '2026-12-28', weeksAhead: 3 } }, 'admin-uid');
+  const original = store.writeEntry.bind(store);
+  let failOnce = true;
+  store.writeEntry = async (id, update) => {
+    const result = await original(id, update);
+    if (failOnce && result.origin === 'repeat' && result.startAt.startsWith('2026-12-1')) { failOnce = false; throw new Error('Firestore unavailable'); }
+    return result;
+  };
+  const first = await service.autoContinue();
+  assert.equal(first.failed, 1);
+  const failedWeek = first.weeks.find((week) => week.error);
+  assert.match(failedWeek.error, /retried/);
+  assert.ok(!(await store.getSettings()).autoContinue.filledWeeks.includes(failedWeek.weekOf));
+  store.writeEntry = original;
+  const second = await service.autoContinue();
+  assert.deepEqual(second.weeks.map((week) => week.weekOf), [failedWeek.weekOf]);
+  assert.equal(second.failed, 0);
+  assert.equal(second.weeks[0].created + second.weeks[0].skipped, 21, 'the retry skips the copies the failed run already wrote');
+  assert.ok(Number.isInteger(second.gapsAhead));
+});

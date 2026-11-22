@@ -5,6 +5,7 @@ import { BlockBuilder, BreakSpots, CommercialsTab, CountdownControl } from './Ad
 import '../styles/AdminLinear.css';
 
 const TABS = [
+  { id: 'operations', label: 'Operations' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'commercials', label: 'Commercials' },
   { id: 'rights', label: 'Linear rights' },
@@ -702,8 +703,150 @@ function ChannelTab() {
   );
 }
 
+// Midnight Eastern of a YYYY-MM-DD date, as UTC (EST or EDT).
+function easternMidnight(date) {
+  for (const hours of [5, 4]) {
+    const candidate = new Date(`${date}T0${hours}:00:00.000Z`);
+    const local = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(candidate);
+    if (local.replace(',', '') === `${date} 00:00`) return candidate.toISOString();
+  }
+  throw new Error(`Cannot find midnight Eastern for ${date}.`);
+}
+
+const nextDate = (date) => new Date(Date.parse(`${date}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+const when = (iso) => (iso ? `${channelDayLabel(iso)} ${formatChannelTime(iso)} ET` : '—');
+
+// Approves every draft in a date range, one Eastern day per request, through the same checks as a single approval.
+function BulkApprove({ onDone }) {
+  const [fromDate, setFromDate] = useState(todayEastern());
+  const [toDate, setToDate] = useState(todayEastern());
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const run = async (dryRun) => {
+    if (toDate < fromDate) { setError('The last day is before the first day.'); return; }
+    if (!dryRun && !window.confirm(`Approve every draft from ${fromDate} to ${toDate} (Eastern) that passes the approval checks? Approved programming airs once the channel is public.`)) return;
+    setBusy(true);
+    setError('');
+    const total = { approved: 0, drafts: 0, exceptions: [], warnings: {} };
+    try {
+      for (let date = fromDate; date <= toDate; date = nextDate(date)) {
+        setProgress(`${dryRun ? 'Checking' : 'Approving'} ${date}…`);
+        const response = await api.adminLinear('schedule/approve-range', { method: 'POST', body: { from: easternMidnight(date), to: easternMidnight(nextDate(date)), dryRun } });
+        total.approved += response.approved;
+        total.drafts += response.drafts;
+        total.exceptions.push(...response.exceptions);
+        for (const [key, count] of Object.entries(response.warnings || {})) total.warnings[key] = (total.warnings[key] || 0) + count;
+      }
+      setResult({ ...total, dryRun });
+      if (!dryRun) await onDone();
+    } catch (reason) {
+      setError(reason.message);
+    } finally {
+      setBusy(false);
+      setProgress('');
+    }
+  };
+  return (
+    <article className="admin-advertising__card">
+      <header><h3>Approve a date range</h3></header>
+      <p className="linear-note">Runs the normal approval checks (linear rights, release, timing, spots) on every draft that starts in the range. Premieres are approved before their countdowns. Anything that fails stays a draft and is listed below.</p>
+      <div className="linear-form__row">
+        <label>First day (Eastern)<input type="date" value={fromDate} onChange={(event) => { setFromDate(event.target.value); setResult(null); }} /></label>
+        <label>Last day (Eastern)<input type="date" value={toDate} onChange={(event) => { setToDate(event.target.value); setResult(null); }} /></label>
+      </div>
+      <div className="linear-actions">
+        <button type="button" className="admin-secondary" disabled={busy} onClick={() => run(true)}>Check</button>
+        <button type="button" className="admin-secondary admin-button-primary" disabled={busy || !result?.dryRun} onClick={() => run(false)}>Approve {result?.dryRun ? result.approved : ''} entries</button>
+      </div>
+      {progress && <p className="linear-note" role="status">{progress}</p>}
+      {error && <p className="admin-error" role="alert">{error}</p>}
+      {result && (
+        <>
+          <p className="linear-note">{result.dryRun ? `${result.approved} of ${result.drafts} drafts pass the checks.` : `${result.approved} approved.`} {result.exceptions.length} cannot be approved.</p>
+          {Object.keys(result.warnings).length > 0 && (
+            <ul className="linear-results">{Object.entries(result.warnings).map(([warning, count]) => <li key={warning}>{count}× {warning}</li>)}</ul>
+          )}
+          {result.exceptions.length > 0 && (
+            <ul className="linear-results">{result.exceptions.map((item) => <li key={item.id} className="is-skipped"><strong>{item.startLabel}</strong> · {item.title || item.kind} — {item.reason}</li>)}</ul>
+          )}
+        </>
+      )}
+    </article>
+  );
+}
+
+function OperationsTab() {
+  const [ops, reload] = useAsync(() => api.adminLinear('operations'), 'operations');
+  const [message, setMessage] = useState('');
+  const runNow = async () => {
+    setMessage('');
+    try {
+      const result = await api.adminLinear('auto-continue/run', { method: 'POST', body: {} });
+      setMessage(result.ran ? `Auto-continue ran: ${result.weeks.length} week(s) filled, ${result.failed || 0} failed.` : result.reason);
+      await reload();
+    } catch (reason) { setMessage(reason.message); }
+  };
+  const data = ops.data;
+  if (ops.error) return <p className="admin-error" role="alert">{ops.error}</p>;
+  if (!data) return <p className="linear-note">Loading…</p>;
+  const auto = data.autoContinue;
+  const last = auto.lastRun;
+  const problems = data.problems;
+  return (
+    <div className="linear-channel">
+      <article className="admin-advertising__card">
+        <header><h3>On air now</h3><span className={`admin-status-pill ${data.channelStatus === 'public' ? 'is-on' : ''}`}>{data.channelStatus === 'public' ? 'Public' : 'Off (not public)'}</span></header>
+        {data.nowNext?.error ? <p className="linear-note">{data.nowNext.error}</p> : (
+          <>
+            <p><strong>{data.nowNext?.now?.title || 'Nothing approved right now (holding screen)'}</strong>{data.nowNext?.now?.endAt ? ` · until ${when(data.nowNext.now.endAt)}` : ''}</p>
+            {(data.nowNext?.next || []).length > 0 && <ul className="linear-results">{data.nowNext.next.map((item) => <li key={item.startAt}>{when(item.startAt)} · {item.title}</li>)}</ul>}
+          </>
+        )}
+        <button type="button" className="admin-secondary" onClick={reload}>Refresh</button>
+      </article>
+      <article className="admin-advertising__card">
+        <header><h3>Next {data.coverage.days} days</h3><span className={`admin-status-pill ${data.coverage.gapCount === 0 ? 'is-on' : ''}`}>{data.coverage.gapCount === 0 ? 'Fully covered' : `${data.coverage.gapCount} gap(s)`}</span></header>
+        <p>Approved programming that will play runs continuously until <strong>{when(data.coverage.coveredThrough)}</strong>.</p>
+        <p className="linear-note">{data.counts.approved} approved, {data.counts.drafts} drafts. {data.counts.breaksWithSpots} of {data.counts.breaks} breaks have spots; the PROtv card fills the rest of each break.</p>
+        {data.coverage.gaps.length > 0 && <ul className="linear-results">{data.coverage.gaps.map((gap) => <li key={gap.startAt} className="is-skipped">Gap {when(gap.startAt)} → {when(gap.endAt)}</li>)}</ul>}
+      </article>
+      <article className="admin-advertising__card">
+        <header><h3>Problems</h3><span className={`admin-status-pill ${problems.approvedUnplayable.length + problems.draftsBlockedCount + problems.rightsExpiring.length === 0 ? 'is-on' : ''}`}>{problems.approvedUnplayable.length + problems.draftsBlockedCount + problems.rightsExpiring.length === 0 ? 'None' : 'Review'}</span></header>
+        {problems.approvedUnplayable.length > 0 && (
+          <><p className="linear-issue linear-issue--blocking">Approved but will not play (viewers see the holding screen):</p>
+            <ul className="linear-results">{problems.approvedUnplayable.map((item) => <li key={item.id}>{item.startLabel} · {item.title} ({item.airState})</li>)}</ul></>
+        )}
+        {problems.draftsBlockedCount > 0 && (
+          <><p className="linear-issue linear-issue--warning">{problems.draftsBlockedCount} draft(s) cannot be approved yet:</p>
+            <ul className="linear-results">{problems.draftsBlocked.map((item) => <li key={item.id}>{item.startLabel} · {item.title} — {item.reason}</li>)}</ul></>
+        )}
+        {problems.rightsExpiring.length > 0 && (
+          <><p className="linear-issue linear-issue--warning">Linear rights ending soon (slots after the end date are refused):</p>
+            <ul className="linear-results">{problems.rightsExpiring.map((item) => <li key={item.videoId}>{item.title} — rights end {when(item.expiresAt)}</li>)}</ul></>
+        )}
+        {problems.approvedUnplayable.length + problems.draftsBlockedCount + problems.rightsExpiring.length === 0 && <p className="linear-note">No scheduling, rights or media problems in this period.</p>}
+      </article>
+      <article className="admin-advertising__card">
+        <header><h3>Automation</h3><span className={`admin-status-pill ${auto.enabled && auto.cronConfigured ? 'is-on' : ''}`}>{auto.enabled ? (auto.cronConfigured ? 'Running daily' : 'On, daily job not configured') : 'Off'}</span></header>
+        <p>Template week: {auto.templateWeekOf || 'not chosen'} · keeps {auto.weeksAhead} weeks ahead · next run {auto.nextRunAt ? when(auto.nextRunAt) : '—'}.</p>
+        {!auto.cronConfigured && <p className="linear-issue linear-issue--warning">The daily job needs the CRON_SECRET setting in Vercel. Until it is set, use Run now.</p>}
+        {last && <p className="linear-note">Last run {when(last.at)}: {last.problem || `${(last.weeks || []).length} week(s) filled, ${last.failed || 0} failed, ${last.gapsAhead ?? '?'} gap(s) ahead`}.</p>}
+        {(last?.weeks || []).filter((week) => week.error).map((week) => <p key={week.weekOf} className="linear-issue linear-issue--blocking">Week of {week.weekOf}: {week.error}</p>)}
+        <div className="linear-actions">
+          <button type="button" className="admin-secondary" disabled={!auto.enabled} onClick={runNow}>Run now</button>
+        </div>
+        {message && <p className="linear-note" role="status">{message}</p>}
+        <p className="linear-note">Switch automation on or off, or change the template, in the Channel tab. To pull something off the air, use Withdraw approval on the Schedule tab, or take the channel off the air in the Channel tab.</p>
+      </article>
+      <BulkApprove onDone={reload} />
+    </div>
+  );
+}
+
 export default function AdminLinearChannel() {
-  const [tab, setTab] = useState('schedule');
+  const [tab, setTab] = useState('operations');
   return (
     <section className="admin-linear" aria-labelledby="admin-linear-title">
       <h2 id="admin-linear-title">PROtv LIVE</h2>
@@ -712,6 +855,7 @@ export default function AdminLinearChannel() {
           <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} className={tab === item.id ? 'is-active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
         ))}
       </div>
+      {tab === 'operations' && <OperationsTab />}
       {tab === 'schedule' && <ScheduleTab />}
       {tab === 'commercials' && <CommercialsTab />}
       {tab === 'rights' && <RightsTab />}
