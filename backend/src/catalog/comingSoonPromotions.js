@@ -375,6 +375,57 @@ function withPromotions(items, promotions, records, now = Date.now()) {
   return [...live.map((result) => result.card), ...items.filter((item) => !replaced.has(item.id))];
 }
 
+// Coming Soon for the Roku app: the same live promotions and automatic listings as the website, resolved against the
+// titles Roku may carry (`records` is already Roku-filtered, so a promotion for a title Roku cannot carry is
+// "unavailable" and left out). Cards are promotional metadata only: no links, no playback. A trailer counts as
+// available only when it belongs to a title Roku carries; an upcoming production's own uploaded trailer has no Roku
+// clearance and is never offered. Artwork is absolute HTTPS, and premiere wording is worked out here in Eastern time,
+// with "Premiere Date TBD" when no date is set.
+const DEVICE_ORIGIN = 'https://watchprotv.com';
+const easternDate = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN, weekday: 'long', month: 'long', day: 'numeric' });
+const easternShort = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN, month: 'short', day: 'numeric' });
+const easternTime = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN, hour: 'numeric', minute: '2-digit' });
+
+function deviceArtwork(value) {
+  const url = typeof value === 'string' ? value.trim() : '';
+  if (/^https:\/\//i.test(url)) return url;
+  if (/^\/(?!\/)[A-Za-z0-9._~/-]{1,300}$/.test(url)) return `${DEVICE_ORIGIN}${url}`;
+  return '';
+}
+
+function devicePremiere(card) {
+  const at = card.premiereAt ? new Date(card.premiereAt) : null;
+  if (!at || !Number.isFinite(at.getTime())) return { premiereLabel: 'Premiere Date TBD', premiereShort: 'Date TBD' };
+  // A promotion saved with a date and no time is a whole Eastern day: never show an invented time.
+  const dateOnly = card.promotion === true && Boolean(card.premiereDate) && !card.premiereTime;
+  const day = easternDate.format(at);
+  return {
+    premiereAt: card.premiereAt,
+    premiereLabel: dateOnly ? `Premieres ${day}` : `Premieres ${day} at ${easternTime.format(at)} ET`,
+    premiereShort: `Premieres ${easternShort.format(at)}`,
+  };
+}
+
+function rokuComingSoon(items, promotions, records, now = Date.now()) {
+  const live = resolveAll(promotions, records, now).filter((result) => result.state === 'live');
+  const replaced = new Set(live.map((result) => result.supersedes).filter(Boolean));
+  const cards = [
+    ...live.map((result) => ({ ...result.card, trailerAvailable: Boolean(result.trailer) && result.promotion.target.kind !== 'upcoming' })),
+    ...items.filter((item) => !replaced.has(item.id)),
+  ];
+  return cards.map((card) => ({
+    id: card.id,
+    kind: card.kind,
+    ...(card.contentType ? { contentType: card.contentType } : {}),
+    title: card.title,
+    description: card.description || '',
+    artwork: deviceArtwork(card.artwork),
+    ...devicePremiere(card),
+    trailerAvailable: Boolean(card.trailerAvailable),
+    promotion: card.promotion === true,
+  }));
+}
+
 // The trailer a visitor may play from a live promotional card (website only). Null when there is none to show.
 function livePromotionTrailer(promotions, records, id, now = Date.now()) {
   const promotion = promotions.find((item) => item.id === id);
@@ -634,6 +685,6 @@ function createAdminPromotionRouter({
 }
 
 module.exports = {
-  PromotionStore, PromotionInputError, promotionInput, resolvePromotion, withPromotions, promotionTargets, livePromotionTrailer,
+  PromotionStore, PromotionInputError, promotionInput, resolvePromotion, withPromotions, rokuComingSoon, promotionTargets, livePromotionTrailer,
   createAdminPromotionRouter, defaultPromotionStore, SEED_MIGRATIONS, UPCOMING_TYPES,
 };

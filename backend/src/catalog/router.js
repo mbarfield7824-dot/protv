@@ -15,7 +15,7 @@ const text = (value) => (typeof value === 'string' ? value.trim() : '');
 const { signPlayback } = require('../mux');
 const { metadataAllowed, titleDetails, seriesDetails, comingSoonCatalog, originalsCatalog } = require('./details');
 const { defaultSlugRegistry, publicPathsFor } = require('./slugs');
-const { defaultPromotionStore, withPromotions, livePromotionTrailer } = require('./comingSoonPromotions');
+const { defaultPromotionStore, withPromotions, rokuComingSoon, livePromotionTrailer } = require('./comingSoonPromotions');
 
 // TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
 // so their responses stay exactly as they were.
@@ -93,12 +93,15 @@ function createCatalogRouter({
     try {
       const { records } = await withPaths(await load(req));
       const items = comingSoonCatalog(records);
-      // Administrator promotions are website cards; TV and mobile apps keep their existing response.
-      if (DEVICE_PLATFORMS.has(platformFromRequest(req))) return res.json({ items });
+      const platform = platformFromRequest(req);
+      // Administrator promotions are website cards; the other TV and mobile apps keep their existing response.
+      // Roku (1.1.0 and later) gets the promotions too, resolved against the titles Roku may carry.
+      if (DEVICE_PLATFORMS.has(platform) && platform !== 'roku') return res.json({ items });
       let promotions = [];
       try { promotions = await promotionStore.list(); } catch (error) {
         console.error('Coming Soon promotions unavailable; showing automatic listings only:', error.message);
       }
+      if (platform === 'roku') return res.json({ items: rokuComingSoon(items, promotions, records), policy: 'roku-coming-soon-v1' });
       return res.json({ items: withPromotions(items, promotions, records) });
     } catch (error) {
       console.error('Failed to load Coming Soon titles:', error);
