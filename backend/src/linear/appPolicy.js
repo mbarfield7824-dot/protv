@@ -8,26 +8,29 @@
 // governs that app's on-demand catalog allows it (catalog/platformEligibility.js and catalog/rightsHolds.js), on top of
 // the channel's own linear-rights check. A premiere that has not been delivered yet is never shown to an app, because
 // its clearance can only be read from the delivered title. Fire TV and iOS are deliberately not listed.
-const { rokuEligible, samsungEligible } = require('../catalog/platformEligibility');
+const { rokuEligible, samsungEligible, samsungView } = require('../catalog/platformEligibility');
 const { deviceAppHeld, rightsHeld } = require('../catalog/rightsHolds');
 
 const APP_POLICIES = new Map([
   ['roku', { platform: 'roku', policy: 'roku-live-v1', allows: (video) => rokuEligible(video) }],
-  ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at) => samsungEligible(video, new Date(at)) }],
+  // Samsung also applies the viewer's territory (U.S.-only tier) and plays U.S.-only titles only by signed playback ID.
+  ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at, territory) => samsungEligible(video, new Date(at), territory), view: samsungView }],
   // The Google Play app's on-demand catalog is the website catalog less device-app holds; LIVE follows the same rule.
   ['android', { platform: 'android', policy: 'android-live-v1', allows: (video) => !deviceAppHeld(video) }],
 ]);
 
 // The app's policy, or null when that app has no PROtv LIVE feed.
-function appPolicy(platform) {
-  return APP_POLICIES.get(String(platform || '').trim().toLowerCase()) || null;
+// territory (catalog/territory.js) is the viewer's; unknown denies every country-limited title.
+function appPolicy(platform, territory = null) {
+  const app = APP_POLICIES.get(String(platform || '').trim().toLowerCase()) || null;
+  return app ? { ...app, territory } : null;
 }
 
 // Whether a scheduled program's title may air in an app. A missing (undelivered) title is never allowed.
 function appAllows(app, video, at) {
   if (!app || !video || video.pending === true) return false;
   if (rightsHeld(video)) return false;
-  return app.allows(video, at) === true;
+  return app.allows(video, at, app.territory || null) === true;
 }
 
 module.exports = { APP_POLICIES, appAllows, appPolicy };

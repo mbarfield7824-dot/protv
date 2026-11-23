@@ -62,6 +62,8 @@ function createLinearService({
     if (app && entry.kind !== 'break' && slot.state !== 'unavailable' && !appAllows(app, slot.video, at)) {
       return { ...slot, state: 'restricted' };
     }
+    // An app may receive its own view of an allowed title (Samsung: U.S.-only titles carry only a signed playback ID).
+    if (app?.view && slot.video) return { ...slot, video: app.view(slot.video) };
     return slot;
   }
 

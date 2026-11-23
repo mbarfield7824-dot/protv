@@ -4,6 +4,7 @@ const { LinearNotFoundError } = require('./service');
 const { LinearEventError, validateLinearEvent } = require('./analytics');
 const { CreativeValidationError } = require('./creatives');
 const { appPolicy } = require('./appPolicy');
+const { requestTerritory } = require('../catalog/territory');
 const { platformFromRequest } = require('../catalog/platformEligibility');
 
 const requestedPlatform = (req) => {
@@ -47,7 +48,7 @@ function createLinearRouter({ service, analytics, authenticate, rateLimit, clien
   router.get('/channel', authenticate, async (req, res) => {
     try {
       const platform = requestedPlatform(req);
-      const app = platform === 'default' ? null : appPolicy(platform);
+      const app = platform === 'default' ? null : appPolicy(platform, requestTerritory(req));
       if (platform !== 'default' && !app) {
         return res.status(404).json({ error: 'PROtv LIVE is not available in this app yet.', code: 'LIVE_PLATFORM_UNSUPPORTED' });
       }
@@ -115,7 +116,7 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
       const at = /^\d{13}$/.test(String(req.query.at || '')) ? Number(req.query.at) : NaN;
       // Optional ?platform= shows what that app would show at the simulated moment.
       const platform = typeof req.query.platform === 'string' ? req.query.platform.trim().toLowerCase() : '';
-      const app = platform ? appPolicy(platform) : null;
+      const app = platform ? appPolicy(platform, requestTerritory(req)) : null;
       if (platform && !app) return res.status(400).json({ error: 'That app has no PROtv LIVE policy.' });
       return res.json(await service.channelState({ preview: true, simulatedAt: at, app }));
     } catch (error) { return fail(res, error, 'test channel'); }

@@ -1,5 +1,6 @@
 // Platform eligibility for the shared viewer catalog.
 const { deviceAppHeld } = require('./rightsHolds');
+const { inUnitedStates } = require('./territory');
 //
 // Fire TV is fail-closed: a Fire TV client sees only titles whose rights
 // evidence covers the copy PROtv streams (Group A in
@@ -97,16 +98,37 @@ const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
   ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0, worldwide
 ]);
 
-function samsungEligible(video, now = new Date()) {
+// U.S.-only Samsung tier (DEVELOPMENT, docs/samsung-us-territory-2026-11-23.md). Titles whose rights or public-domain
+// finding cover the United States only. Each one plays on Samsung only when ALL of these hold: the request is
+// geolocated to the United States (catalog/territory.js; unknown is denied), its cutoff has not passed, and the title
+// has a signed Mux playback ID, which replaces the public one in every Samsung response (catalog, playback and LIVE)
+// so a stream can only be opened with a short-lived token. Empty until counsel confirms each entry: nothing here is
+// playable on Samsung today.
+const SAMSUNG_US_ONLY_TITLE_EXPIRY = new Map([]);
+
+const SIGNED_PLAYBACK_ID = /^[A-Za-z0-9]{10,128}$/;
+const withinCutoff = (expiresOn, now) => expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
+
+function samsungEligible(video, now = new Date(), territory = null, { usOnly = SAMSUNG_US_ONLY_TITLE_EXPIRY } = {}) {
   if (!video || video.samsungHold === true) return false;
   const expiresOn = SAMSUNG_LAUNCH_TITLE_EXPIRY.get(video.id);
-  if (expiresOn === undefined) return false;
-  return expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
+  if (expiresOn !== undefined) return withinCutoff(expiresOn, now);
+  const usCutoff = usOnly.get(video.id);
+  if (usCutoff === undefined) return false;
+  return inUnitedStates(territory) && withinCutoff(usCutoff, now) && SIGNED_PLAYBACK_ID.test(String(video.muxSignedPlaybackId || ''));
 }
 
-function eligibleForPlatform(videos, platform, now = new Date()) {
+// What Samsung receives for an eligible title: a U.S.-only title carries only its signed playback ID, never the public one.
+function samsungView(video, { usOnly = SAMSUNG_US_ONLY_TITLE_EXPIRY } = {}) {
+  if (!video || SAMSUNG_LAUNCH_TITLE_EXPIRY.has(video.id) || !usOnly.has(video.id)) return video;
+  return { ...video, muxPlaybackId: video.muxSignedPlaybackId, muxPlaybackPolicy: 'signed' };
+}
+
+function eligibleForPlatform(videos, platform, now = new Date(), territory = null, options = {}) {
   if (platform === 'roku') return videos.filter(rokuEligible);
-  if (platform === 'samsung') return videos.filter((video) => samsungEligible(video, now));
+  if (platform === 'samsung') {
+    return videos.filter((video) => samsungEligible(video, now, territory, options)).map((video) => samsungView(video, options));
+  }
   if (platform !== 'firetv') return videos;
   return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
 }
@@ -120,7 +142,9 @@ function platformPolicy(platform) {
 module.exports = {
   FIRETV_LAUNCH_TITLE_IDS,
   SAMSUNG_LAUNCH_TITLE_EXPIRY,
+  SAMSUNG_US_ONLY_TITLE_EXPIRY,
   SAMSUNG_POLICY,
+  samsungView,
   platformFromRequest,
   platformPolicy,
   eligibleForPlatform,
