@@ -85,8 +85,13 @@ test('Samsung cutoffs are inclusive UTC dates and samsungHold withdraws a title'
   assert.deepEqual(eligibleForPlatform([caesar], 'samsung', new Date('2030-01-01T00:00:00Z')), []);
 });
 
-test('Samsung allowlist holds exactly the eight worldwide app-scope clearances', () => {
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 8);
+test('Samsung allowlist holds exactly the thirteen worldwide app-scope clearances', () => {
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 13);
+  // Agreements executed 2026-11-18/19 run 24 months from signing; the U.S.-only grants and U.S. public-domain findings stay out.
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47'), '2028-11-17');
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90'), '2028-11-18');
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has(US_ONLY_GRANT), false);
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has(US_PUBLIC_DOMAIN), false);
   for (const [, cutoff] of SAMSUNG_LAUNCH_TITLE_EXPIRY) {
     assert.ok(cutoff === null || /^\d{4}-\d{2}-\d{2}$/.test(cutoff));
   }

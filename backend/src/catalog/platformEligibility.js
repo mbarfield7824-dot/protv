@@ -84,6 +84,13 @@ const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
   ['creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', '2028-11-03'], // CAESAR III JUDGEMENT: other PROtv-controlled platforms, worldwide
   ['creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', '2028-11-03'], // Curtain Call: other PROtv-controlled platforms, worldwide
   ['creator_20752565-9909-4c2b-9f53-c9719ca26769', null], // The Lost Camp: PROtv platform and associated applications, worldwide
+  // Executed 2026-11-18/19 (read 2026-11-23, docs/samsung-live-catalog-2026-11-23.md). Each grant's Schedule names
+  // future PROtv connected-TV apps (the 2212 season agreement names Samsung smart TVs); 24-month terms from signing.
+  ['creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', '2028-11-17'], // Three Thirty: STD6040-v1 e1f7a31c, worldwide
+  ['creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', '2028-11-17'], // 2212 (film): CUSTOM-v1 fa57d968, worldwide where Licensor holds rights
+  ['creator_08283e5a-f35c-402e-9639-50e1711a5d67', '2028-11-17'], // You Did Me Dirty, You Reap What You Sow: CUSTOM-v1 ab9730ab, same territory
+  ['creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90', '2028-11-18'], // 2212 S1 "Concrete": Season Agreement f936d40d, Samsung named
+  ['creator_episode_dfad5c66-a17d-41d3-9ebf-6da60fada4fa', '2028-11-18'], // 2212 S1 "Death Before Dishonor": f936d40d
   ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0, worldwide
   ['sCWQqVE5WIoNNN5wAGQ2', null], // Sintel: CC BY 3.0, worldwide
   ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0, worldwide
