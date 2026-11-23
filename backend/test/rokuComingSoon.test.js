@@ -39,20 +39,31 @@ const dreadPromo = { id: 'dread', status: 'published', target: { kind: 'series',
 const hidden = { ...sidePeace, id: 'hidden', status: 'hidden', title: 'Hidden Show' };
 const promotions = [episode3, ironborn, sidePeace, westside, dreadPromo, hidden];
 
-test('Roku gets the live promotions for titles Roku may carry and for upcoming productions, never for others', () => {
-  const items = rokuComingSoon(comingSoonCatalog(rokuRecords), promotions, rokuRecords, NOW);
-  // The website still shows Dread Head (not Roku-cleared); Roku never does, neither its promotion nor its automatic card.
-  // Everything else appears in the website's own order (the Administrator's order, then soonest premiere).
+const roku = (overrides = {}) => rokuComingSoon({ promotions, promoRecords: records, streamingRecords: rokuRecords, now: NOW, ...overrides });
+
+test('promotional eligibility: Roku lists every unreleased production the website promotes, Dread Head included', () => {
+  const items = roku();
   const website = withPromotions(comingSoonCatalog(records), promotions, records, NOW).map((item) => item.title);
-  assert.deepEqual(items.map((item) => item.title), website.filter((title) => title !== 'Dread Head'));
-  assert.deepEqual(items.map((item) => item.title), ['2212 · Episode 3: C-Fluid', 'Ironborn', 'Side Peace', 'Westside High']);
-  assert.ok(website.includes('Dread Head'));
-  assert.ok(!JSON.stringify(items).includes('Dread'));
+  assert.deepEqual(items.map((item) => item.title), website, 'same cards, same order as the website');
+  assert.deepEqual(items.map((item) => item.title), ['2212 · Episode 3: C-Fluid', 'Dread Head', 'Ironborn', 'Side Peace', 'Westside High']);
   assert.ok(!JSON.stringify(items).includes('Hidden Show'), 'hidden promotions stay hidden');
+  // The automatic Dread Head listing (no promotion) is also a card.
+  const automatic = rokuComingSoon({ promotions: [], promoRecords: records, streamingRecords: rokuRecords, now: NOW });
+  assert.deepEqual(automatic.map((item) => item.title), ['Dread Head']);
+  assert.equal(automatic[0].premiereLabel, 'Premiere Date TBD', 'no premiere on the record: TBD, never invented');
 });
 
-test('Roku cards are promotional only: absolute HTTPS artwork, Eastern premiere wording, TBD, no links or playback', () => {
-  const items = rokuComingSoon(comingSoonCatalog(rokuRecords), promotions, rokuRecords, NOW);
+test('only unreleased productions are promoted, and device-app holds stay out', () => {
+  const releasedFilm = playable({ id: 'web_only_film', contentType: 'MOVIE', title: 'Released Web Film' });
+  const held = { ...dread, id: 'creator_3af7527e-f093-41e3-a52e-b4586d315481', title: 'ITAN Coming', seriesTitle: 'ITAN Coming', comingSoonProjectId: 'itan' };
+  const all = [...records, releasedFilm];
+  const items = rokuComingSoon({ promotions: [], promoRecords: all.filter((video) => video.id !== held.id), streamingRecords: eligibleForPlatform(all, 'roku'), now: NOW });
+  assert.ok(!items.some((item) => item.title === 'Released Web Film'), 'a released title Roku cannot stream is never a card');
+  assert.ok(!items.some((item) => item.title === 'ITAN Coming'));
+});
+
+test('Roku cards are promotional only: absolute HTTPS artwork, Eastern premiere wording, TBD, no links, playback or episodes', () => {
+  const items = roku();
   const byTitle = Object.fromEntries(items.map((item) => [item.title, item]));
   assert.deepEqual(byTitle.Ironborn, {
     id: 'promo-iron', kind: 'upcoming', contentType: 'Series', title: 'Ironborn', description: 'A new series.',
@@ -60,29 +71,29 @@ test('Roku cards are promotional only: absolute HTTPS artwork, Eastern premiere 
     premiereLabel: 'Premieres Thursday, December 3 at 8:00 PM ET', premiereShort: 'Premieres Dec 3', trailerAvailable: false, promotion: true,
   });
   assert.equal(byTitle['Side Peace'].premiereLabel, 'Premieres Friday, December 4', 'a date-only premiere never gets an invented time');
-  assert.equal(byTitle['Side Peace'].premiereShort, 'Premieres Dec 4');
   const episode = byTitle['2212 · Episode 3: C-Fluid'];
   assert.equal(episode.artwork, 'https://watchprotv.com/coming-soon/2212-episode-3-c-fluid.jpg', 'site-relative artwork made absolute');
   assert.equal(episode.premiereLabel, 'Premiere Date TBD');
-  assert.equal(episode.premiereShort, 'Date TBD');
-  assert.equal(episode.premiereAt, undefined);
+  assert.equal(byTitle['Dread Head'].artwork, 'https://watchprotv.com/api/posters/d.jpg');
+  assert.equal(byTitle['Dread Head'].premiereLabel, 'Premiere Date TBD');
   for (const item of items) {
-    assert.equal(item.href, undefined);
-    assert.doesNotMatch(JSON.stringify(item), /muxPlayback|playbackId|public-id|trailer"\s*:\s*\{|west-trailer/);
+    assert.deepEqual(Object.keys(item).filter((key) => !['id', 'kind', 'contentType', 'title', 'description', 'artwork', 'premiereAt', 'premiereLabel', 'premiereShort', 'trailerAvailable', 'promotion'].includes(key)), []);
+    assert.doesNotMatch(JSON.stringify(item), /muxPlayback|playbackId|public-id|dread-trailer|west-trailer|episodes|href/);
   }
 });
 
-test('a trailer is offered on Roku only when it belongs to a title Roku carries', () => {
-  const items = rokuComingSoon(comingSoonCatalog(rokuRecords), promotions, rokuRecords, NOW);
-  const westside = items.find((item) => item.title === 'Westside High');
-  assert.equal(westside.trailerAvailable, false, 'an upcoming production\'s uploaded trailer has no Roku clearance');
-  const websiteWest = withPromotions([], promotions, records, NOW).find((item) => item.title === 'Westside High');
-  assert.equal(websiteWest.trailerAvailable, true, 'the website keeps offering it');
-  // A promotion for the Roku-cleared 2212 show with a trailer from that show's own episode is offered.
+test('streaming eligibility stays separate: a trailer is offered on Roku only for a title Roku carries', () => {
+  const items = roku();
+  assert.equal(items.find((item) => item.title === 'Dread Head').trailerAvailable, false, 'Dread Head is not cleared for Roku: no trailer');
+  assert.equal(items.find((item) => item.title === 'Westside High').trailerAvailable, false, 'an upcoming production\'s upload has no Roku clearance');
+  const website = withPromotions(comingSoonCatalog(records), promotions, records, NOW);
+  assert.equal(website.find((item) => item.title === 'Dread Head').trailerAvailable, true, 'the website keeps its trailer');
+  assert.equal(website.find((item) => item.title === 'Westside High').trailerAvailable, true);
+  // A promotion for the Roku-cleared 2212 show, using that show's own episode trailer, is offered.
   const withTrailer = { ...episode3, trailer: { source: 'title', titleId: 'creator_episode_1' } };
   const trailered = [{ ...ep1, trailerStatus: 'ready', trailerPlaybackId: 'ep1-trailer' }, ep2];
-  const roku = eligibleForPlatform(trailered, 'roku');
-  assert.equal(rokuComingSoon([], [withTrailer], roku, NOW)[0].trailerAvailable, true);
+  const offered = rokuComingSoon({ promotions: [withTrailer], promoRecords: trailered, streamingRecords: eligibleForPlatform(trailered, 'roku'), now: NOW });
+  assert.equal(offered[0].trailerAvailable, true);
 });
 
 async function serve(t, router) {
@@ -99,6 +110,7 @@ test('only Roku gets the new response; the website and the other apps are unchan
   const roku = await call({ 'User-Agent': 'Roku/DVP-14.0 (14.0.0.4210-46)' });
   assert.equal(roku.policy, 'roku-coming-soon-v1');
   assert.ok(roku.items.some((item) => item.title === 'Ironborn'));
+  assert.ok(roku.items.some((item) => item.title === 'Dread Head' && item.trailerAvailable === false), 'Dread Head promoted on Roku, without its trailer');
   const website = await call();
   assert.equal(website.policy, undefined);
   assert.deepEqual(website.items, JSON.parse(JSON.stringify(withPromotions(comingSoonCatalog(records), promotions, records))));

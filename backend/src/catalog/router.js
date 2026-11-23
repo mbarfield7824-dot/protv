@@ -95,13 +95,17 @@ function createCatalogRouter({
       const items = comingSoonCatalog(records);
       const platform = platformFromRequest(req);
       // Administrator promotions are website cards; the other TV and mobile apps keep their existing response.
-      // Roku (1.1.0 and later) gets the promotions too, resolved against the titles Roku may carry.
+      // Roku (1.1.0 and later) gets the promotions too: promotional cards for every unreleased production the website
+      // promotes, with trailers only for titles Roku may carry (see rokuComingSoon).
       if (DEVICE_PLATFORMS.has(platform) && platform !== 'roku') return res.json({ items });
       let promotions = [];
       try { promotions = await promotionStore.list(); } catch (error) {
         console.error('Coming Soon promotions unavailable; showing automatic listings only:', error.message);
       }
-      if (platform === 'roku') return res.json({ items: rokuComingSoon(items, promotions, records), policy: 'roku-coming-soon-v1' });
+      if (platform === 'roku') {
+        const promoRecords = (await withPaths((await loadApproved()).filter((video) => !deviceAppHeld(video)))).records;
+        return res.json({ items: rokuComingSoon({ promotions, promoRecords, streamingRecords: records }), policy: 'roku-coming-soon-v1' });
+      }
       return res.json({ items: withPromotions(items, promotions, records) });
     } catch (error) {
       console.error('Failed to load Coming Soon titles:', error);

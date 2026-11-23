@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { metadataAllowed, titleDetails, seriesDetails } = require('./details');
+const { comingSoonCatalog, metadataAllowed, titleDetails, seriesDetails } = require('./details');
 const { seriesKey } = require('./readModel');
 const { EASTERN, PremiereInputError, premiereInput, promotionPremiere } = require('./premiereTime');
 
@@ -375,12 +375,16 @@ function withPromotions(items, promotions, records, now = Date.now()) {
   return [...live.map((result) => result.card), ...items.filter((item) => !replaced.has(item.id))];
 }
 
-// Coming Soon for the Roku app: the same live promotions and automatic listings as the website, resolved against the
-// titles Roku may carry (`records` is already Roku-filtered, so a promotion for a title Roku cannot carry is
-// "unavailable" and left out). Cards are promotional metadata only: no links, no playback. A trailer counts as
-// available only when it belongs to a title Roku carries; an upcoming production's own uploaded trailer has no Roku
-// clearance and is never offered. Artwork is absolute HTTPS, and premiere wording is worked out here in Eastern time,
-// with "Premiere Date TBD" when no date is set.
+// Coming Soon for the Roku app. Promotional eligibility and streaming eligibility are kept apart (owner decision
+// 2026-11-23):
+//   - Promotional: every unreleased production the website promotes gets a card (poster, title, description,
+//     premiere), whether or not Roku may stream it yet. `promoRecords` is the website's public catalog less device-app
+//     holds. Only unreleased listings qualify: a promotion retires when its title is released, and automatic listings
+//     are Coming Soon titles only.
+//   - Streaming: cards never carry playback, links or episodes. A trailer is flagged only when the same card also
+//     resolves against `streamingRecords` (the titles Roku may carry) with a trailer, and not for an upcoming
+//     production's own upload, which has no Roku clearance.
+// Artwork is absolute HTTPS, and premiere wording is worked out here in Eastern time, "Premiere Date TBD" when unset.
 const DEVICE_ORIGIN = 'https://watchprotv.com';
 const easternDate = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN, weekday: 'long', month: 'long', day: 'numeric' });
 const easternShort = new Intl.DateTimeFormat('en-US', { timeZone: EASTERN, month: 'short', day: 'numeric' });
@@ -406,12 +410,18 @@ function devicePremiere(card) {
   };
 }
 
-function rokuComingSoon(items, promotions, records, now = Date.now()) {
-  const live = resolveAll(promotions, records, now).filter((result) => result.state === 'live');
+function rokuComingSoon({ promotions, promoRecords, streamingRecords, now = Date.now() }) {
+  const live = resolveAll(promotions, promoRecords, now).filter((result) => result.state === 'live');
   const replaced = new Set(live.map((result) => result.supersedes).filter(Boolean));
+  // Trailers: only where the card also stands on Roku's own titles.
+  const rokuPromoTrailers = new Set(resolveAll(promotions, streamingRecords, now)
+    .filter((result) => result.state === 'live' && result.trailer && result.promotion.target.kind !== 'upcoming')
+    .map((result) => result.promotion.id));
+  const rokuListingTrailers = new Set(comingSoonCatalog(streamingRecords).filter((item) => item.trailerAvailable).map((item) => item.id));
   const cards = [
-    ...live.map((result) => ({ ...result.card, trailerAvailable: Boolean(result.trailer) && result.promotion.target.kind !== 'upcoming' })),
-    ...items.filter((item) => !replaced.has(item.id)),
+    ...live.map((result) => ({ ...result.card, trailerAvailable: rokuPromoTrailers.has(result.promotion.id) })),
+    ...comingSoonCatalog(promoRecords).filter((item) => !replaced.has(item.id))
+      .map((item) => ({ ...item, trailerAvailable: rokuListingTrailers.has(item.id) })),
   ];
   return cards.map((card) => ({
     id: card.id,
