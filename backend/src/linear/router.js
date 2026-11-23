@@ -3,6 +3,13 @@ const { LinearValidationError } = require('./model');
 const { LinearNotFoundError } = require('./service');
 const { LinearEventError, validateLinearEvent } = require('./analytics');
 const { CreativeValidationError } = require('./creatives');
+const { appPolicy } = require('./appPolicy');
+const { platformFromRequest } = require('../catalog/platformEligibility');
+
+const requestedPlatform = (req) => {
+  const query = typeof req.query.platform === 'string' ? req.query.platform.trim().toLowerCase() : '';
+  return query ? query.slice(0, 40) : platformFromRequest(req);
+};
 
 const noStore = (req, res, next) => {
   res.set({ 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'no-store' });
@@ -34,10 +41,19 @@ function createLinearRouter({ service, analytics, authenticate, rateLimit, clien
     }
   });
 
+  // The website sends no platform and gets the full channel, exactly as before. A device app names itself (?platform=,
+  // X-PROtv-Platform, or Roku's User-Agent) and gets the same schedule filtered by its own content eligibility; an app
+  // without a PROtv LIVE policy gets nothing.
   router.get('/channel', authenticate, async (req, res) => {
     try {
-      const preview = req.query.preview === '1' && req.user?.admin === true;
-      return res.json(await service.channelState({ preview }));
+      const platform = requestedPlatform(req);
+      const app = platform === 'default' ? null : appPolicy(platform);
+      if (platform !== 'default' && !app) {
+        return res.status(404).json({ error: 'PROtv LIVE is not available in this app yet.', code: 'LIVE_PLATFORM_UNSUPPORTED' });
+      }
+      if (app) res.vary('X-PROtv-Platform');
+      const preview = !app && req.query.preview === '1' && req.user?.admin === true;
+      return res.json(await service.channelState({ preview, app }));
     } catch (error) {
       return fail(res, error, 'channel');
     }
@@ -97,7 +113,11 @@ function createAdminLinearRouter({ service, analytics, verifyAdmin, audit }) {
   router.get('/test/channel', async (req, res) => {
     try {
       const at = /^\d{13}$/.test(String(req.query.at || '')) ? Number(req.query.at) : NaN;
-      return res.json(await service.channelState({ preview: true, simulatedAt: at }));
+      // Optional ?platform= shows what that app would show at the simulated moment.
+      const platform = typeof req.query.platform === 'string' ? req.query.platform.trim().toLowerCase() : '';
+      const app = platform ? appPolicy(platform) : null;
+      if (platform && !app) return res.status(400).json({ error: 'That app has no PROtv LIVE policy.' });
+      return res.json(await service.channelState({ preview: true, simulatedAt: at, app }));
     } catch (error) { return fail(res, error, 'test channel'); }
   });
 

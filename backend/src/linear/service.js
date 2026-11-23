@@ -7,6 +7,7 @@ const {
 const { channelLabel, channelLocalToUtc, channelWeekDates, ChannelTimeError, zonedParts } = require('./time');
 const { seriesKey } = require('../catalog/readModel');
 const { agreementFinding } = require('./agreementReview');
+const { appAllows } = require('./appPolicy');
 const {
   COUNTDOWN_CLOCK_SECONDS, COUNTDOWN_MINUTES, CREATIVE_LABELS, CreativeValidationError,
   approvalProblems, autofillPod, creativeAirable, creativeFields, podSeconds, publicSpot, spotAt, spotSeconds, validatePod,
@@ -55,7 +56,16 @@ function createLinearService({
 
   // A countdown airs only while its program is approved, still starts exactly when the countdown ends, and will
   // actually play (released, or an approved premiere awaiting release). Otherwise viewers get a holding screen.
-  function slotState(entry, byId, videos, rights, at) {
+  function slotState(entry, byId, videos, rights, at, app = null) {
+    const slot = baseSlotState(entry, byId, videos, rights, at);
+    // A device app sees a slot it is not cleared for as a branded fallback (see appPolicy.js); breaks are PROtv's own.
+    if (app && entry.kind !== 'break' && slot.state !== 'unavailable' && !appAllows(app, slot.video, at)) {
+      return { ...slot, state: 'restricted' };
+    }
+    return slot;
+  }
+
+  function baseSlotState(entry, byId, videos, rights, at) {
     if (entry.kind === 'countdown') {
       const program = byId.get(entry.forEntryId);
       const video = program?.videoId ? videos.get(program.videoId) : null;
@@ -65,6 +75,15 @@ function createLinearService({
     }
     const video = entry.videoId ? videos.get(entry.videoId) : null;
     return { video, state: airState(entry, video, rights, at) };
+  }
+
+  // What an app shows for a slot it is not cleared for: PROtv LIVE branding only, never the program's details.
+  function restrictedItem(entry, onAir) {
+    return {
+      entryId: entry.id, kind: 'restricted', state: onAir ? 'restricted' : 'scheduled', label: 'PROtv LIVE', title: 'PROtv LIVE',
+      subtitle: onAir ? 'This program is not available in this app. PROtv LIVE continues with the next program.' : 'More PROtv programming',
+      startAt: entry.startAt, endAt: entry.endAt, startLabel: channelLabel(entry.startAt), durationSeconds: entry.durationSeconds,
+    };
   }
 
   // The spot of a break or countdown pod on air now, with playback details only if the spot may air. A spot that
@@ -124,7 +143,7 @@ function createLinearService({
 
   // simulatedAt (Administrator test mode only) evaluates the same schedule, rights and spots at another moment. It reads
   // a fresh window that is never stored in the shared viewer cache, writes nothing, and requires preview.
-  async function channelState({ preview = false, simulatedAt } = {}) {
+  async function channelState({ preview = false, simulatedAt, app = null } = {}) {
     const actual = now();
     const simulated = simulatedAt !== undefined;
     if (simulated && !preview) throw new LinearValidationError('Simulated time is only available in Administrator preview.');
@@ -137,7 +156,7 @@ function createLinearService({
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
     const all = entries
       .filter((entry) => Date.parse(entry.endAt) > at)
-      .map((entry) => ({ entry, ...slotState(entry, byId, videos, rights, at) }));
+      .map((entry) => ({ entry, ...slotState(entry, byId, videos, rights, at, app) }));
     const slots = all.filter((slot) => slot.state !== 'unavailable');
     // An approved slot that cannot play right now (rights withdrawn, title pulled, countdown without its program)
     // shows a holding screen with no title details, instead of silently skipping to the next program.
@@ -148,6 +167,7 @@ function createLinearService({
     // A future slot shows full details only when its title is already public; it is not "playing" yet.
     const listed = (slot) => {
       const { entry, video, state } = slot;
+      if (state === 'restricted') return restrictedItem(entry, entry === current?.entry);
       if (entry.kind === 'countdown') {
         const item = countdownItem(entry, slot);
         const live = entry === current?.entry;
@@ -169,6 +189,9 @@ function createLinearService({
         kind: 'off-air', state: 'off-air', title: 'PROtv LIVE',
         subtitle: next ? `Up next: ${channelLabel(next.entry.startAt)}` : 'Programming will resume soon.',
       };
+    } else if (current.state === 'restricted') {
+      nowItem = restrictedItem(current.entry, true);
+      refreshAt = Math.min(Date.parse(current.entry.endAt), at + 60_000);
     } else if (current.entry.kind === 'countdown' || current.entry.kind === 'break') {
       const { entry } = current;
       const countdown = entry.kind === 'countdown';
@@ -204,6 +227,8 @@ function createLinearService({
         id: CHANNEL_ID, name: settings.name, timeZone: settings.timeZone, status: settings.status,
         ...(preview ? { preview: true } : {}),
         ...(simulated ? { simulated: true, actualServerTime: new Date(actual).toISOString() } : {}),
+        // Names the app policy that filtered this feed, so a fail-closed app can refuse an unfiltered one.
+        ...(app ? { platform: app.platform, policy: app.policy } : {}),
       },
       serverTime: new Date(at).toISOString(),
       serverTimeMs: at,
