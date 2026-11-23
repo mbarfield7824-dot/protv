@@ -85,8 +85,9 @@ test('Samsung cutoffs are inclusive UTC dates and samsungHold withdraws a title'
   assert.deepEqual(eligibleForPlatform([caesar], 'samsung', new Date('2030-01-01T00:00:00Z')), []);
 });
 
-test('Samsung allowlist holds exactly the thirteen worldwide app-scope clearances', () => {
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 13);
+test('Samsung allowlist holds exactly the twelve worldwide app-scope clearances', () => {
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 12);
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), false, 'TV-MA exceeds the 16+ Samsung store rating');
   // Agreements executed 2026-11-18/19 run 24 months from signing; the U.S.-only grants and U.S. public-domain findings stay out.
   assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47'), '2028-11-17');
   assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90'), '2028-11-18');

@@ -88,7 +88,8 @@ const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
   // future PROtv connected-TV apps (the 2212 season agreement names Samsung smart TVs); 24-month terms from signing.
   ['creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', '2028-11-17'], // Three Thirty: STD6040-v1 e1f7a31c, worldwide
   ['creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', '2028-11-17'], // 2212 (film): CUSTOM-v1 fa57d968, worldwide where Licensor holds rights
-  ['creator_08283e5a-f35c-402e-9639-50e1711a5d67', '2028-11-17'], // You Did Me Dirty, You Reap What You Sow: CUSTOM-v1 ab9730ab, same territory
+  // Not yet: You Did Me Dirty, You Reap What You Sow (CUSTOM-v1 ab9730ab, rights otherwise clear) is rated TV-MA, above
+  // the Samsung app's 16+ store rating; add it only once the Samsung listing carries an 18+ rating.
   ['creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90', '2028-11-18'], // 2212 S1 "Concrete": Season Agreement f936d40d, Samsung named
   ['creator_episode_dfad5c66-a17d-41d3-9ebf-6da60fada4fa', '2028-11-18'], // 2212 S1 "Death Before Dishonor": f936d40d
   ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0, worldwide

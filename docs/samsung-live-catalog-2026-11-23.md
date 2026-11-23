@@ -24,7 +24,7 @@ Branch `feature/samsung-live-catalog`. Not deployed.
 | --- | --- | --- | --- | --- |
 | Three Thirty | STD6040-v1, SignWell e1f7a31c, signed 2026-11-18 | Worldwide | Website, Android, Roku, Fire TV and any later PROtv app, "including future connected-TV and mobile apps" | 2028-11-17 |
 | 2212 (film) | CUSTOM-v1, fa57d968, 2026-11-18 | Worldwide, limited to countries where Licensor holds the rights | Same as Three Thirty | 2028-11-17 |
-| You Did Me Dirty, You Reap What You Sow | CUSTOM-v1, ab9730ab, 2026-11-18 | Same as 2212 | Same as Three Thirty | 2028-11-17 |
+| You Did Me Dirty, You Reap What You Sow | CUSTOM-v1, ab9730ab, 2026-11-18 | Same as 2212 | Same as Three Thirty | **Held**: TV-MA, above the 16+ Samsung store rating |
 | 2212 S1 "Concrete" | Season Agreement f936d40d, 2026-11-19 | Same as 2212 | Names "the PROtv apps for Roku, Amazon Fire TV and Samsung smart TVs" | 2028-11-18 |
 | 2212 S1 "Death Before Dishonor" | Season Agreement f936d40d | Same | Same | 2028-11-18 |
 
