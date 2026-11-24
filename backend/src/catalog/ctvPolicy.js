@@ -32,6 +32,9 @@ const RATING_AGE = Object.freeze({
 const DEFAULT_STANDARD = 'element-review';
 
 const day = (date) => date.toISOString().slice(0, 10);
+// A territory-limited title's signed Mux playback ID: on the catalog record, or recorded with its rights entry (added to
+// the existing Mux asset; no re-upload). Tokens for it are signed per request by the server.
+const signedIdFor = (video, entry) => String((video && video.muxSignedPlaybackId) || (entry && entry.signedPlaybackId) || '');
 
 function evaluate(video, platformId, { now = new Date(), territory = null, standard = DEFAULT_STANDARD, rights = registry } = {}) {
   const platform = PLATFORMS[platformId];
@@ -53,7 +56,7 @@ function evaluate(video, platformId, { now = new Date(), territory = null, stand
     if (!platform.storeTerritories.every((country) => country === 'US')) deny.push('store-not-us-only');
     if (!inUnitedStates(territory)) deny.push('viewer-not-confirmed-in-us');
     if (!platform.signedPlayback) deny.push('platform-cannot-play-signed-streams');
-    if (!/^[A-Za-z0-9]{10,128}$/.test(String(video.muxSignedPlaybackId || ''))) deny.push('no-signed-playback-id');
+    if (!/^[A-Za-z0-9]{10,128}$/.test(signedIdFor(video, entry))) deny.push('no-signed-playback-id');
   } else if (entry.territory !== 'WORLDWIDE') deny.push('territory-unknown');
 
   // Maturity: the title's rating must fit the store classification the app is published under.
@@ -85,9 +88,9 @@ function evaluate(video, platformId, { now = new Date(), territory = null, stand
 }
 
 // What an app receives for an eligible U.S.-only title: only the signed playback ID, never the public one.
-function ctvView(video, decision) {
+function ctvView(video, decision, { rights = registry } = {}) {
   if (!decision || !decision.usOnly) return video;
-  return { ...video, muxPlaybackId: video.muxSignedPlaybackId, muxPlaybackPolicy: 'signed' };
+  return { ...video, muxPlaybackId: signedIdFor(video, rights[video.id]), muxPlaybackPolicy: 'signed' };
 }
 
 module.exports = { PLATFORMS, RATING_AGE, DEFAULT_STANDARD, evaluate, ctvView, registry };

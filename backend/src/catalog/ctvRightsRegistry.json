@@ -150,7 +150,8 @@
   "services": "all-protv-apps",
   "signer": "confirmed",
   "rating": null,
-  "master": "untraced"
+  "master": "untraced",
+  "signedPlaybackId": "xBr3cD5NsLK1e8nJUo1jfKnUVYYJGKi8BrWBQaNb3Ws"
  },
  "creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47": {
   "kind": "agreement",
@@ -176,7 +177,8 @@
   "signer": "confirmed",
   "rating": null,
   "note": "12 months from first public availability; end date conservative",
-  "master": "untraced"
+  "master": "untraced",
+  "signedPlaybackId": "007IYI3t12IvQCwyVuywnTSS01UstoMUw00jnUShb012I5k"
  },
  "creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f": {
   "kind": "agreement",
