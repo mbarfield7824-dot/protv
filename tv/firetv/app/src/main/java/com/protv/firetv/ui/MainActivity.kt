@@ -26,12 +26,15 @@ import com.protv.firetv.account.ViewerAccountController
 import com.protv.firetv.account.DeviceWatchProgressStore
 import com.protv.firetv.BuildConfig
 import com.protv.firetv.data.api.CatalogApiClient
+import com.protv.firetv.data.api.FeatureApiClient
+import com.protv.firetv.playback.LiveScreen
 import com.protv.firetv.playback.PlaybackApiClient
 import com.protv.firetv.playback.PlayerScreen
 import com.protv.firetv.playback.RemoteKeyDispatcher
 import com.protv.firetv.ui.home.CatalogRefreshPolicy
 import com.protv.firetv.ui.home.HomeController
 import com.protv.firetv.ui.home.HomeState
+import com.protv.firetv.ui.home.HomeDestination
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
@@ -42,6 +45,8 @@ private data class SelectedTitle(
     val title: String,
     val resumePositionSeconds: Double?,
     val attribution: String? = null,
+    val trailerTitleId: String? = null,
+    val trailerPromotionId: String? = null,
 )
 
 class MainActivity : ComponentActivity() {
@@ -60,6 +65,7 @@ class MainActivity : ComponentActivity() {
         val apiBaseUrl = BuildConfig.API_BASE_URL
         val catalog = if (apiBaseUrl.isBlank()) null else CatalogApiClient.create(apiBaseUrl)
         val playback = if (apiBaseUrl.isBlank()) null else PlaybackApiClient.create(apiBaseUrl)
+        val features = if (apiBaseUrl.isBlank()) null else FeatureApiClient.create(apiBaseUrl)
         val deviceSessions = if (apiBaseUrl.isBlank()) null else DeviceSessionApiClient.create(apiBaseUrl)
         val viewerAccountRepository =
             if (apiBaseUrl.isBlank()) null else ViewerAccountApiClient.create(apiBaseUrl)
@@ -71,7 +77,7 @@ class MainActivity : ComponentActivity() {
         )
         val pendingSessionStore = PendingDeviceSessionStore(applicationContext)
         setContent {
-            val home = remember { HomeController(catalog, apiBaseUrl) }
+            val home = remember { HomeController(catalog, apiBaseUrl, features) }
             val scope = rememberCoroutineScope()
             val accountLink = remember {
                 DeviceLinkController(
@@ -119,6 +125,8 @@ class MainActivity : ComponentActivity() {
                     titleId = selection.id,
                     title = selection.title,
                     attribution = selection.attribution,
+                    trailerTitleId = selection.trailerTitleId,
+                    trailerPromotionId = selection.trailerPromotionId,
                     startPositionSeconds = selection.resumePositionSeconds,
                     repository = playback,
                     isSignedIn = accountLabel != null,
@@ -148,6 +156,12 @@ class MainActivity : ComponentActivity() {
                     firebaseAuth = firebaseAuth,
                     onClose = { accountScreenOpen = false },
                 )
+            } else if (home.destination == HomeDestination.Live && features != null) {
+                LiveScreen(
+                    repository = features,
+                    remoteKeys = remoteKeys,
+                    onExit = { home.selectDestination(HomeDestination.Home) },
+                )
             } else {
                 ProTvScreen(
                     controller = home,
@@ -163,6 +177,16 @@ class MainActivity : ComponentActivity() {
                     viewerAccountState = viewerAccount.state,
                     onAccountRetry = { scope.launch { viewerAccount.load() } },
                     onRefreshClick = home::retry,
+                    onLive = { home.selectDestination(HomeDestination.Live) },
+                    onTrailer = { tile ->
+                        selectedTitle = SelectedTitle(
+                            id = tile.id,
+                            title = tile.title,
+                            resumePositionSeconds = null,
+                            trailerTitleId = tile.trailerTitleId,
+                            trailerPromotionId = tile.promotionId,
+                        )
+                    },
                 )
             }
         }

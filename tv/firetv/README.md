@@ -31,6 +31,12 @@ encrypted with an Android Keystore key. The QR code contains only the public
 activation URL; viewers enter the displayed code on the website. The app remains
 usable for guest browsing and playback.
 
+PROtv LIVE uses the fail-closed `firetv-live-v1` channel response. The app preserves the
+master schedule, replaces uncleared slots with a branded holding card, and polls the guide,
+Now Playing and commercial boundaries without permitting seeking. Coming Soon uses
+`firetv-coming-soon-v1`; unreleased cards never become on-demand Play actions, and trailer
+playback is exposed only when the Fire TV-filtered backend authorizes the trailer.
+
 ## Catalog/progress service compatibility
 
 The premium home requires the additive publication-date projection in

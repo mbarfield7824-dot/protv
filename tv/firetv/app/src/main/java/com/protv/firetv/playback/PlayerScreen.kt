@@ -88,15 +88,21 @@ fun PlayerScreen(
     overlayOpen: Boolean = false,
     /** Creative Commons credit; shown as playback starts and whenever the controls are up. */
     attribution: String? = null,
+    trailerTitleId: String? = null,
+    trailerPromotionId: String? = null,
 ) {
     BackHandler(enabled = !overlayOpen, onBack = onExit)
     val scope = rememberCoroutineScope()
     var retry by remember { mutableIntStateOf(0) }
     var controlsVisible by remember(titleId, retry) { mutableStateOf(false) }
-    val state by produceState<PlaybackState>(PlaybackState.Loading, titleId, retry) {
+    val trailer = trailerTitleId != null || trailerPromotionId != null
+    val state by produceState<PlaybackState>(PlaybackState.Loading, titleId, retry, trailerTitleId, trailerPromotionId) {
         value = PlaybackState.Loading
         try {
-            value = PlaybackState.Ready(repository.hlsUrl(titleId))
+            value = PlaybackState.Ready(
+                if (trailer) repository.trailerHlsUrl(trailerTitleId, trailerPromotionId)
+                else repository.hlsUrl(titleId),
+            )
         } catch (error: IOException) {
             Log.e("PROtvPlayback", "Network error loading playback (${error.javaClass.simpleName})")
             value = PlaybackState.Failed
@@ -124,7 +130,7 @@ fun PlayerScreen(
                     title = title,
                     onRetry = { retry++ },
                     startPositionSeconds = startPositionSeconds,
-                    onProgressUpdate = onProgressUpdate,
+                    onProgressUpdate = if (trailer) { _, _ -> } else onProgressUpdate,
                     remoteKeys = remoteKeys,
                     active = !overlayOpen,
                     onControlsVisibleChange = { controlsVisible = it },
@@ -141,7 +147,7 @@ fun PlayerScreen(
             }
             // During playback the account action appears only with the player controls, so a hidden
             // overlay can never hold focus and swallow Select.
-            val showAccountAction = !overlayOpen && (state !is PlaybackState.Ready || controlsVisible)
+            val showAccountAction = !trailer && !overlayOpen && (state !is PlaybackState.Ready || controlsVisible)
             if (showAccountAction) Column(
                 modifier = Modifier.align(Alignment.TopEnd).padding(24.dp),
                 horizontalAlignment = Alignment.End,

@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import com.protv.firetv.account.ViewerAccountState
 import com.protv.firetv.data.api.CatalogItem
 import com.protv.firetv.data.api.CatalogRepository
+import com.protv.firetv.data.api.ComingSoonItem
+import com.protv.firetv.data.api.FeatureRepository
 import com.protv.firetv.data.api.artworkModel
 import com.protv.firetv.data.api.descriptionText
 import com.protv.firetv.data.api.creditsText
@@ -40,6 +42,12 @@ class HomeTile(
     val category: String = "",
     val addedAt: Long? = null,
     val progressFraction: Float? = null,
+    val comingSoon: Boolean = false,
+    val description: String = "",
+    val premiereLabel: String? = null,
+    val trailerAvailable: Boolean = false,
+    val promotionId: String? = null,
+    val trailerTitleId: String? = null,
     /** Prefer a full-height poster tile when dedicated catalog poster artwork exists. */
     val posterStyle: Boolean = false,
 )
@@ -94,7 +102,11 @@ sealed interface HomeState {
  * so returning from playback restores the same screen without reloading.
  */
 @Stable
-class HomeController(private val repository: CatalogRepository?, private val apiBaseUrl: String) {
+class HomeController(
+    private val repository: CatalogRepository?,
+    private val apiBaseUrl: String,
+    private val featureRepository: FeatureRepository? = null,
+) {
     var destination by mutableStateOf(HomeDestination.Home)
         private set
     var navigationToken by mutableIntStateOf(0)
@@ -143,6 +155,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         private set
     private var lastRefreshAttemptMillis = 0L
     private var loadedItems: List<CatalogItem>? = null
+    private var loadedComingSoon: List<ComingSoonItem> = emptyList()
     private var refreshing = false
 
     /**
@@ -175,7 +188,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
             }
             catalogLoadedAtMillis = nowMillis
             if (items == loadedItems) return false
-            val next = withContext(Dispatchers.Default) { buildLoadedState(items) }
+            val next = withContext(Dispatchers.Default) { buildLoadedState(items, loadedComingSoon) }
             if (state !is HomeState.Loaded) return false
             loadedItems = items
             val ids = next.rails.flatMap { rail -> rail.tiles.map { it.id } }.toSet()
@@ -238,7 +251,22 @@ class HomeController(private val repository: CatalogRepository?, private val api
         val next = try {
             val items = repository.browse()
             lastBrowsed = items
-            withContext(Dispatchers.Default) { buildLoadedState(items) }
+            loadedComingSoon = try {
+                featureRepository?.comingSoon().orEmpty()
+            } catch (error: IOException) {
+                Log.w(TAG, "Coming Soon is unavailable; keeping the catalog on screen", error)
+                emptyList()
+            } catch (error: HttpException) {
+                Log.w(TAG, "Coming Soon request failed; keeping the catalog on screen", error)
+                emptyList()
+            } catch (error: SerializationException) {
+                Log.w(TAG, "Invalid Coming Soon response; keeping the catalog on screen", error)
+                emptyList()
+            } catch (error: IllegalArgumentException) {
+                Log.w(TAG, "Coming Soon policy failed closed", error)
+                emptyList()
+            }
+            withContext(Dispatchers.Default) { buildLoadedState(items, loadedComingSoon) }
         } catch (error: IOException) {
             Log.e(TAG, "Network error loading catalog", error)
             HomeState.Failed
@@ -266,7 +294,7 @@ class HomeController(private val repository: CatalogRepository?, private val api
         state = next
     }
 
-    private fun buildLoadedState(items: List<CatalogItem>): HomeState.Loaded {
+    private fun buildLoadedState(items: List<CatalogItem>, upcoming: List<ComingSoonItem>): HomeState.Loaded {
         val featuredTitles = selectFeaturedTitles(items).map { item ->
             HomeFeatured(
                 tile = tile(item, showCategory = false),
@@ -287,13 +315,36 @@ class HomeController(private val repository: CatalogRepository?, private val api
         val attributions = items.mapNotNull { item ->
             attributionText(item.descriptionText, item.creditsText)?.let { item.id to it }
         }.toMap()
-        return HomeState.Loaded(buildHomeRails(items), featuredTitles.firstOrNull(), featuredTitles, attributions)
+        return HomeState.Loaded(buildHomeRails(items, upcoming), featuredTitles.firstOrNull(), featuredTitles, attributions)
     }
 
-    private fun buildHomeRails(items: List<CatalogItem>): List<HomeRail> =
-        buildCategoryRails(items).map { rail ->
+    private fun buildHomeRails(items: List<CatalogItem>, upcoming: List<ComingSoonItem>): List<HomeRail> =
+        buildList {
+            addAll(buildCategoryRails(items).map { rail ->
             HomeRail(rail.key, rail.title, rail.items.map { item -> tile(item, rail.showItemCategory) })
+            })
+            if (upcoming.isNotEmpty()) {
+                add(HomeRail("coming-soon", "Coming Soon", upcoming.map(::comingSoonTile)))
+            }
         }
+
+    private fun comingSoonTile(item: ComingSoonItem) = HomeTile(
+        id = item.id,
+        title = item.title,
+        meta = item.premiereLabel ?: item.premiereShort ?: "Premiere date TBD",
+        artwork = item.artwork.trim().takeIf(String::isNotEmpty),
+        artworkCacheKey = "protv-coming-soon:${item.id}",
+        fallbackArtwork = null,
+        searchText = item.description,
+        contentType = item.contentType ?: item.kind.uppercase(),
+        comingSoon = true,
+        description = item.description,
+        premiereLabel = item.premiereLabel ?: item.premiereShort,
+        trailerAvailable = item.trailerAvailable,
+        promotionId = item.promotionId,
+        trailerTitleId = item.trailerTitleId,
+        posterStyle = true,
+    )
 
     private fun tile(item: CatalogItem, showCategory: Boolean): HomeTile {
         val artwork = try {

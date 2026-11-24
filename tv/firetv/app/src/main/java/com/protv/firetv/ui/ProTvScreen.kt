@@ -74,6 +74,8 @@ fun ProTvScreen(
     viewerAccountState: ViewerAccountState = ViewerAccountState(),
     onAccountRetry: () -> Unit = {},
     onRefreshClick: () -> Unit = {},
+    onLive: () -> Unit = {},
+    onTrailer: (HomeTile) -> Unit = {},
 ) {
     LaunchedEffect(controller) { controller.onHomeShown() }
     var showExitDialog by remember { mutableStateOf(false) }
@@ -111,6 +113,8 @@ fun ProTvScreen(
                     onAccountClick = onAccountClick,
                     onAccountRetry = onAccountRetry,
                     onRefreshClick = onRefreshClick,
+                    onLive = onLive,
+                    onTrailer = onTrailer,
                     onOpenDrawer = openDrawer,
                     drawerOpen = drawerOpen || searchOpen,
                     catalogLoading = state == HomeState.Loading,

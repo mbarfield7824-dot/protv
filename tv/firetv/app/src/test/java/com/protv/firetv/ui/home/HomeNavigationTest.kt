@@ -36,7 +36,7 @@ class HomeNavigationTest {
         val live = listOf(HomeRail("drama", "Drama", listOf(tile("film", "MOVIE"), tile("episode", "EPISODE"))))
         assertEquals(
             listOf(
-                HomeDestination.Home, HomeDestination.Movies, HomeDestination.TV, HomeDestination.ContinueWatching,
+                HomeDestination.Home, HomeDestination.Live, HomeDestination.Movies, HomeDestination.TV, HomeDestination.ContinueWatching,
                 HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
             ),
             visibleDestinations(live),
@@ -49,7 +49,7 @@ class HomeNavigationTest {
         val moviesOnly = listOf(HomeRail("drama", "Drama", listOf(tile("film", "MOVIE"))))
         assertEquals(
             listOf(
-                HomeDestination.Home, HomeDestination.Movies, HomeDestination.ContinueWatching,
+                HomeDestination.Home, HomeDestination.Live, HomeDestination.Movies, HomeDestination.ContinueWatching,
                 HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
             ),
             visibleDestinations(moviesOnly),
@@ -58,14 +58,21 @@ class HomeNavigationTest {
 
     @Test
     fun contentDependentSectionsReturnWhenTheCatalogHasTitles() {
-        assertEquals(HomeDestination.entries, visibleDestinations(catalog))
+        assertEquals(HomeDestination.entries.filter { it != HomeDestination.ComingSoon }, visibleDestinations(catalog))
+    }
+
+    @Test
+    fun comingSoonReturnsWhenItsRailIsAvailable() {
+        val withComingSoon = catalog + HomeRail("coming-soon", "Coming Soon", listOf(tile("premiere", "SERIES")))
+        assertTrue(HomeDestination.ComingSoon in visibleDestinations(withComingSoon))
+        assertEquals("premiere", destinationRails(withComingSoon, HomeDestination.ComingSoon).single().tiles.single().id)
     }
 
     @Test
     fun personalAndCoreSectionsStayVisibleEvenWhenEmpty() {
         val visible = visibleDestinations(emptyList())
         for (destination in listOf(
-            HomeDestination.Home, HomeDestination.Movies, HomeDestination.ContinueWatching,
+            HomeDestination.Home, HomeDestination.Live, HomeDestination.Movies, HomeDestination.ContinueWatching,
             HomeDestination.MyList, HomeDestination.Search, HomeDestination.Settings,
         )) {
             assertTrue("$destination should stay visible", destination in visible)

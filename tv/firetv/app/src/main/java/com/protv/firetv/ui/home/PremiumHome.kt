@@ -76,6 +76,8 @@ fun PremiumHome(
     onAccountClick: () -> Unit,
     onAccountRetry: () -> Unit,
     onRefreshClick: () -> Unit,
+    onLive: () -> Unit,
+    onTrailer: (HomeTile) -> Unit,
     onOpenDrawer: (FocusRequester) -> Unit,
     drawerOpen: Boolean,
     catalogLoading: Boolean = false,
@@ -86,6 +88,7 @@ fun PremiumHome(
     val playRequester = remember { FocusRequester() }
     val settingsRequester = remember { FocusRequester() }
     val emptyRequester = remember { FocusRequester() }
+    val liveRequester = remember { FocusRequester() }
     var emptyFocused by remember { mutableStateOf(false) }
     val rowRequesters = remember(visibleRails.map { it.key }) {
         visibleRails.associate { it.key to FocusRequester() }
@@ -194,6 +197,12 @@ fun PremiumHome(
                                         playRequester.requestFocus()
                                     }
                                 }
+                                Button(
+                                    onClick = onLive,
+                                    modifier = Modifier.padding(start = 20.dp, bottom = 10.dp)
+                                        .focusRequester(liveRequester).openDrawerOnLeft(liveRequester, onOpenDrawer),
+                                    colors = ProTvButtons.primary(),
+                                ) { Text("Watch PROtv LIVE") }
                             } else {
                                 Text(destination.label, color = ProTvColors.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(start = 20.dp, top = 26.dp, bottom = 12.dp))
@@ -252,7 +261,10 @@ fun PremiumHome(
                                     itemsIndexed(rail.tiles, key = { _, tile -> tile.id }) { tileIndex, tile ->
                                         val requester = if (tileIndex == 0) rowRequesters.getValue(rail.key) else remember { FocusRequester() }
                                         ContentCard(
-                                            tile, requester, { controller.onTileFocused(tile.id, rail.key) }, { onSelect(tile.withResumeFrom(rails)) },
+                                            tile, requester, { controller.onTileFocused(tile.id, rail.key) }, {
+                                                if (tile.comingSoon) info = tile.comingSoonInfo()
+                                                else onSelect(tile.withResumeFrom(rails))
+                                            },
                                             (if (tileIndex == 0) Modifier.openDrawerOnLeft(requester, onOpenDrawer) else Modifier).focusProperties {
                                                 if (railIndex == 0 && showHero) up = playRequester
                                             },
@@ -274,15 +286,37 @@ fun PremiumHome(
         }
     }
     info?.let { title ->
-        TitleInfo(title, onClose = { info = null }, onPlay = { info = null; onSelect(title.tile.withResumeFrom(rails)) })
+        TitleInfo(
+            title,
+            onClose = { info = null },
+            onPlay = if (title.tile.comingSoon) null else {
+                { info = null; onSelect(title.tile.withResumeFrom(rails)) }
+            },
+            onTrailer = if (title.tile.comingSoon && title.tile.trailerAvailable) {
+                { info = null; onTrailer(title.tile) }
+            } else null,
+        )
     }
 }
+
+private fun HomeTile.comingSoonInfo() = HomeFeatured(
+    tile = this,
+    displayTitle = title,
+    description = description.ifBlank { "No synopsis is available yet." },
+    metadata = listOfNotNull(premiereLabel ?: meta),
+    stillUrl = null,
+)
 
 private fun HomeTile.withResumeFrom(rails: List<HomeRail>): HomeTile =
     rails.firstOrNull { it.key == "continue-watching" }?.tiles?.firstOrNull { it.id == id } ?: this
 
 @Composable
-private fun TitleInfo(featured: HomeFeatured, onClose: () -> Unit, onPlay: () -> Unit) {
+private fun TitleInfo(
+    featured: HomeFeatured,
+    onClose: () -> Unit,
+    onPlay: (() -> Unit)?,
+    onTrailer: (() -> Unit)? = null,
+) {
     val requester = remember { FocusRequester() }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -296,8 +330,15 @@ private fun TitleInfo(featured: HomeFeatured, onClose: () -> Unit, onPlay: () ->
                 maxLines = 7, overflow = TextOverflow.Ellipsis)
             featured.attribution?.let { Text(it, color = ProTvColors.Muted, fontSize = 13.sp) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onPlay, modifier = Modifier.focusRequester(requester), colors = ProTvButtons.primary()) { Text("Play") }
-                Button(onClick = onClose, colors = ProTvButtons.secondary()) { Text("Close") }
+                onTrailer?.let {
+                    Button(onClick = it, modifier = Modifier.focusRequester(requester), colors = ProTvButtons.primary()) { Text("Watch Trailer") }
+                }
+                onPlay?.let {
+                    Button(onClick = it, modifier = if (onTrailer == null) Modifier.focusRequester(requester) else Modifier,
+                        colors = ProTvButtons.primary()) { Text("Play") }
+                }
+                Button(onClick = onClose, modifier = if (onPlay == null && onTrailer == null) Modifier.focusRequester(requester) else Modifier,
+                    colors = ProTvButtons.secondary()) { Text("Close") }
             }
         }
         LaunchedEffect(Unit) { withFrameNanos { }; requester.requestFocus() }
@@ -317,6 +358,8 @@ internal fun NavigationGlyph(destination: HomeDestination) {
                 drawPath(roof, color, style = stroke)
                 drawRect(color, Offset(size.width * .2f, size.height * .4f), androidx.compose.ui.geometry.Size(size.width * .6f, size.height * .6f), style = stroke)
             }
+            HomeDestination.Live -> { drawCircle(color, size.width * .45f, style = stroke); line(.38f, .5f, .62f, .5f); line(.5f, .38f, .5f, .62f) }
+            HomeDestination.ComingSoon -> { drawCircle(color, size.width * .38f, style = stroke); line(.5f, .2f, .5f, .52f); line(.5f, .52f, .68f, .65f) }
             HomeDestination.Search -> { drawCircle(color, size.width * .3f, Offset(size.width * .4f, size.height * .4f), style = stroke); line(.65f, .65f, 1f, 1f) }
             HomeDestination.MyList -> { line(.1f, .5f, .9f, .5f); line(.5f, .1f, .5f, .9f) }
             HomeDestination.ContinueWatching -> { drawCircle(color, size.width * .43f, style = stroke); line(.5f, .2f, .5f, .5f); line(.5f, .5f, .75f, .65f) }

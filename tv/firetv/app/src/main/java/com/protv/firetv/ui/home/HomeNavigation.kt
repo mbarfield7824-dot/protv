@@ -2,6 +2,8 @@ package com.protv.firetv.ui.home
 
 enum class HomeDestination(val label: String) {
     Home("Home"),
+    Live("PROtv LIVE"),
+    ComingSoon("Coming Soon"),
     Movies("Movies"),
     TV("TV"),
     Music("Music"),
@@ -16,7 +18,7 @@ enum class HomeDestination(val label: String) {
 /** Catalog sections that only appear in the drawer once the catalog has titles for them. */
 // TV is included: the Fire TV launch catalog has no episodes yet.
 private val ContentDependentDestinations =
-    setOf(HomeDestination.TV, HomeDestination.Music, HomeDestination.Podcasts, HomeDestination.NewReleases)
+    setOf(HomeDestination.TV, HomeDestination.Music, HomeDestination.Podcasts, HomeDestination.NewReleases, HomeDestination.ComingSoon)
 
 fun visibleDestinations(rails: List<HomeRail>): List<HomeDestination> =
     HomeDestination.entries.filter { it !in ContentDependentDestinations || destinationRails(rails, it).isNotEmpty() }
@@ -33,6 +35,7 @@ fun destinationRails(rails: List<HomeRail>, destination: HomeDestination): List<
         }
         HomeDestination.ContinueWatching -> rails.filter { it.key == "continue-watching" }
         HomeDestination.MyList -> rails.filter { it.key == "my-list" }
+        HomeDestination.ComingSoon -> rails.filter { it.key == "coming-soon" }
         HomeDestination.NewReleases -> if (recent.isEmpty()) emptyList() else listOf(HomeRail("new-releases", "New Releases", recent))
         HomeDestination.Movies, HomeDestination.TV, HomeDestination.Music, HomeDestination.Podcasts ->
             catalog.mapNotNull { rail ->
