@@ -124,8 +124,20 @@ function samsungView(video, { usOnly = SAMSUNG_US_ONLY_TITLE_EXPIRY } = {}) {
   return { ...video, muxPlaybackId: video.muxSignedPlaybackId, muxPlaybackPolicy: 'signed' };
 }
 
+// Apple apps use the shared connected-TV policy (catalog/ctvPolicy.js): fail closed, territory-aware, signed-only for
+// U.S.-limited titles. Required lazily so the policy's registry loads only when an Apple app asks.
+const APPLE_PLATFORMS = new Set(['ios', 'appletv']);
+function appleEligible(videos, platform, now, territory) {
+  const { evaluate, ctvView } = require('./ctvPolicy');
+  return videos.flatMap((video) => {
+    const decision = evaluate(video, platform, { now, territory });
+    return decision.eligible ? [ctvView(video, decision)] : [];
+  });
+}
+
 function eligibleForPlatform(videos, platform, now = new Date(), territory = null, options = {}) {
   if (platform === 'roku') return videos.filter(rokuEligible);
+  if (APPLE_PLATFORMS.has(platform)) return appleEligible(videos, platform, now, territory);
   if (platform === 'samsung') {
     return videos.filter((video) => samsungEligible(video, now, territory, options)).map((video) => samsungView(video, options));
   }
@@ -136,10 +148,12 @@ function eligibleForPlatform(videos, platform, now = new Date(), territory = nul
 // Responses that applied a platform's own rights policy name it, so a fail-closed client can refuse a
 // catalog that was not filtered for it (for example, a backend deployed before that client existed).
 function platformPolicy(platform) {
-  return platform === 'samsung' ? SAMSUNG_POLICY : null;
+  if (platform === 'samsung') return SAMSUNG_POLICY;
+  return APPLE_PLATFORMS.has(platform) ? `${platform}-rights-v1` : null;
 }
 
 module.exports = {
+  APPLE_PLATFORMS,
   FIRETV_LAUNCH_TITLE_IDS,
   SAMSUNG_LAUNCH_TITLE_EXPIRY,
   SAMSUNG_US_ONLY_TITLE_EXPIRY,

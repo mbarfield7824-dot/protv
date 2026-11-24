@@ -20,7 +20,7 @@ const { defaultPromotionStore, withPromotions, rokuComingSoon, livePromotionTrai
 
 // TV and mobile apps read the catalog by internal ID (view=all, /titles/:id, playback) and never receive slugs,
 // so their responses stay exactly as they were.
-const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios', 'samsung']);
+const DEVICE_PLATFORMS = new Set(['roku', 'firetv', 'android', 'ios', 'appletv', 'samsung']);
 const websiteRequest = (req) => !DEVICE_PLATFORMS.has(platformFromRequest(req)) && req.query.view !== 'all';
 // Only clients with their own rights policy (Samsung) receive this field; every other response is unchanged.
 const withPolicy = (req, body) => {
@@ -98,14 +98,16 @@ function createCatalogRouter({
       // Administrator promotions are website cards; the other TV and mobile apps keep their existing response.
       // Roku (1.1.0 and later) gets the promotions too: promotional cards for every unreleased production the website
       // promotes, with trailers only for titles Roku may carry (see rokuComingSoon).
-      if (DEVICE_PLATFORMS.has(platform) && platform !== 'roku') return res.json({ items });
+      const promotional = platform === 'roku' || platform === 'ios' || platform === 'appletv';
+      if (DEVICE_PLATFORMS.has(platform) && !promotional) return res.json({ items });
       let promotions = [];
       try { promotions = await promotionStore.list(); } catch (error) {
         console.error('Coming Soon promotions unavailable; showing automatic listings only:', error.message);
       }
-      if (platform === 'roku') {
+      if (promotional) {
         const promoRecords = (await withPaths((await loadApproved()).filter((video) => !deviceAppHeld(video)))).records;
-        return res.json({ items: rokuComingSoon({ promotions, promoRecords, streamingRecords: records }), policy: 'roku-coming-soon-v1' });
+        const cards = rokuComingSoon({ promotions, promoRecords, streamingRecords: records });
+        return res.json(platform === 'roku' ? { items: cards, policy: 'roku-coming-soon-v1' } : withPolicy(req, { items: cards }));
       }
       return res.json({ items: withPromotions(items, promotions, records) });
     } catch (error) {

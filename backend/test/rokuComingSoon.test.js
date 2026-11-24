@@ -114,7 +114,7 @@ test('only Roku gets the new response; the website and the other apps are unchan
   const website = await call();
   assert.equal(website.policy, undefined);
   assert.deepEqual(website.items, JSON.parse(JSON.stringify(withPromotions(comingSoonCatalog(records), promotions, records))));
-  for (const platform of ['samsung', 'firetv', 'ios']) {
+  for (const platform of ['samsung', 'firetv']) {
     const other = await call({ 'X-PROtv-Platform': platform });
     assert.equal(other.policy, undefined, platform);
     assert.ok(!JSON.stringify(other.items).includes('Ironborn'), `${platform} keeps the automatic listings only`);

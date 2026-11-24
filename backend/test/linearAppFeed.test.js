@@ -65,11 +65,13 @@ const view = (service, clock, iso, platform) => {
 };
 const leaks = (item, title) => JSON.stringify(item).includes(title);
 
-test('app policies are fail-closed: only Roku, Samsung and Android have a feed, Fire TV and iOS do not', () => {
+test('app policies are fail-closed: Roku, Samsung, Android and the Apple apps have a feed, Fire TV does not', () => {
   assert.equal(appPolicy('roku').policy, 'roku-live-v1');
   assert.equal(appPolicy('SAMSUNG').policy, 'samsung-live-v1');
   assert.equal(appPolicy('android').policy, 'android-live-v1');
-  for (const platform of ['firetv', 'ios', 'tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
+  assert.equal(appPolicy('ios').policy, 'ios-live-v1');
+  assert.equal(appPolicy('appletv').policy, 'appletv-live-v1');
+  for (const platform of ['firetv', 'tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
   const roku = appPolicy('roku');
   assert.equal(appAllows(roku, videos[0], NOW), true);
   assert.equal(appAllows(roku, videos[2], NOW), false, 'not on the Roku list');
@@ -204,7 +206,7 @@ test('the channel route selects the app feed by ?platform=, X-PROtv-Platform or 
     assert.equal(roku.body.channel.policy, 'roku-live-v1');
     assert.equal(roku.body.now.kind, 'restricted');
   }
-  for (const platform of ['firetv', 'ios', 'something']) {
+  for (const platform of ['firetv', 'something']) {
     const refused = await call(`/v1/linear/channel?platform=${platform}`);
     assert.equal(refused.status, 404, platform);
     assert.equal(refused.body.code, 'LIVE_PLATFORM_UNSUPPORTED');

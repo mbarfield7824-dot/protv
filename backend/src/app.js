@@ -31,6 +31,16 @@ const app = express();
 const apiPrefix = process.env.VERCEL ? '/api' : '';
 
 app.use(cors());
+// Apple apps refuse catalog, My List and progress responses unless the server says it applied their rights policy
+// (the catalog is filtered by catalog/ctvPolicy.js; My List and progress hold only IDs the app resolves against it).
+app.use((req, res, next) => {
+  const platform = String(req.get('X-PROtv-Platform') || '').trim().toLowerCase();
+  if ((platform === 'ios' || platform === 'appletv')
+    && /^\/(api\/)?(v1\/catalog|users\/me\/(favorites|progress))(\/|$|\?)/.test(req.originalUrl)) {
+    res.set('X-PROtv-Platform-Policy', `${platform}-rights-v1`);
+  }
+  next();
+});
 const reportRouters = createReportRouters();
 app.use(`${apiPrefix}/reports`, reportRouters.publicRouter);
 app.use(`${apiPrefix}/admin/reports`, reportRouters.adminRouter);

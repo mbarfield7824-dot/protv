@@ -16,8 +16,10 @@ const { inUnitedStates } = require('./territory');
 const PLATFORMS = Object.freeze({
   roku: { id: 'roku', storeTerritories: ['US'], maxAge: 18, signedPlayback: true, hold: 'rokuHold' },
   samsung: { id: 'samsung', storeTerritories: ['US'], maxAge: 16, signedPlayback: true, hold: 'samsungHold' },
-  // Profiles to fill in before those apps use the policy (their store ratings are not chosen yet).
-  appletv: { id: 'appletv', storeTerritories: ['US'], maxAge: null, signedPlayback: true, hold: 'appleTvHold' },
+  // Apple apps (iPhone/iPad and Apple TV): App Store availability United States only, age rating 18+.
+  ios: { id: 'ios', storeTerritories: ['US'], maxAge: 18, signedPlayback: true, hold: 'appleHold' },
+  appletv: { id: 'appletv', storeTerritories: ['US'], maxAge: 18, signedPlayback: true, hold: 'appleHold' },
+  // Profile to fill in before Fire TV uses the policy (its store rating is not chosen yet).
   firetv: { id: 'firetv', storeTerritories: ['US'], maxAge: null, signedPlayback: true, hold: 'firetvHold' },
 });
 
@@ -58,7 +60,7 @@ function evaluate(video, platformId, { now = new Date(), territory = null, stand
   const age = entry.rating ? RATING_AGE[entry.rating] : undefined;
   if (entry.rating && age === undefined) deny.push('rating-unrecognized');
   else if (age !== undefined && (platform.maxAge === null || age > platform.maxAge)) deny.push('rating-exceeds-platform');
-  else if (age === undefined) review.push('rating-unconfirmed');
+  else if (age === undefined && platform.maxAge !== 18) review.push('rating-unconfirmed');
 
   if (entry.kind === 'agreement') {
     if (entry.signer === 'unconfirmed') deny.push('signer-authority-unconfirmed');

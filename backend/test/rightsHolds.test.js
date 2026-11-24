@@ -50,7 +50,7 @@ test('a device-app hold removes the title from Roku and the Android app only', a
   assert.equal((await get(`/titles/${ITAN}/playback`, ANDROID)).status, 404);
   assert.equal((await get(`/titles/${ITAN}/playback`, BROWSER)).status, 200);
   // A client that declares its platform is not treated as the Android app.
-  assert.ok((await ids(await get('?view=all', { ...ANDROID, 'X-PROtv-Platform': 'ios' }))).includes(ITAN));
+  assert.ok(!(await ids(await get('?view=all', { ...ANDROID, 'X-PROtv-Platform': 'ios' }))).includes(ITAN), 'iOS uses its own fail-closed policy');
 });
 
 test('Android otherwise keeps the website catalog and Coming Soon response', async (context) => {

@@ -126,7 +126,7 @@ test('public Coming Soon shows the migrated card on the website only, and surviv
     const web = await (await fetch(`${site.url}/coming-soon`)).json();
     assert.deepEqual(web.items.map((item) => item.title), ['2212 · Episode 3: C-Fluid', 'Dread Head']);
     // Roku 1.1.0 gets promotional cards by owner decision (2026-11-23); see rokuComingSoon.test.js.
-    for (const platform of ['firetv', 'samsung', 'android', 'ios']) {
+    for (const platform of ['firetv', 'samsung', 'android']) {
       const device = await (await fetch(`${site.url}/coming-soon`, { headers: { 'X-PROtv-Platform': platform } })).json();
       assert.equal(device.items.some((item) => item.promotion), false, `${platform} response is unchanged`);
     }

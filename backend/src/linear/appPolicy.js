@@ -17,6 +17,15 @@ const APP_POLICIES = new Map([
   ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at, territory) => samsungEligible(video, new Date(at), territory), view: samsungView }],
   // The Google Play app's on-demand catalog is the website catalog less device-app holds; LIVE follows the same rule.
   ['android', { platform: 'android', policy: 'android-live-v1', allows: (video) => !deviceAppHeld(video) }],
+  // Apple apps: the shared connected-TV policy (fail closed, territory-aware, signed-only for U.S.-limited titles).
+  ...['ios', 'appletv'].map((platform) => [platform, {
+    platform, policy: `${platform}-live-v1`,
+    allows: (video, at, territory) => require('../catalog/ctvPolicy').evaluate(video, platform, { now: new Date(at), territory }).eligible,
+    view: (video) => {
+      const { evaluate, ctvView } = require('../catalog/ctvPolicy');
+      return ctvView(video, evaluate(video, platform, { now: new Date(), territory: { country: 'US', reason: 'ip' } }));
+    },
+  }]),
 ]);
 
 // The app's policy, or null when that app has no PROtv LIVE feed.

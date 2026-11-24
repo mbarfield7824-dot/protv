@@ -57,7 +57,9 @@ test('territory-limited titles: U.S. store, U.S. viewer and a signed stream, or 
 test('maturity: the rating must fit each store classification; unknown ratings are flagged', () => {
   assert.deepEqual(run(agreement({ rating: 'TV-MA' }), 'roku').deny, []);
   assert.ok(run(agreement({ rating: 'TV-MA' }), 'samsung').deny.includes('rating-exceeds-platform'));
-  assert.ok(run(agreement({ rating: 'TV-14' }), 'appletv').deny.includes('rating-exceeds-platform'), 'no store rating chosen yet');
+  assert.ok(run(agreement({ rating: 'TV-14' }), 'firetv').deny.includes('rating-exceeds-platform'), 'no store rating chosen yet');
+  assert.deepEqual(run(agreement({ rating: 'TV-MA' }), 'ios').deny, [], 'Apple apps are rated 18+');
+  assert.deepEqual(run(agreement({ rating: null }), 'appletv').review, [], 'every rating fits an 18+ app');
   assert.ok(run(agreement({ rating: 'X-99' })).deny.includes('rating-unrecognized'));
   assert.ok(run(agreement({ rating: null })).review.includes('rating-unconfirmed'));
 });
