@@ -3,6 +3,7 @@ const { db, getApprovedVideos, getAllVideosAdmin } = require('../firebase');
 const { browse, playableCatalog, podcastCatalog, seriesCatalog } = require('./readModel');
 const { catalogSitemap } = require('./sitemap');
 const { eligibleForPlatform, platformFromRequest, platformPolicy } = require('./platformEligibility');
+const { requestTerritory } = require('./territory');
 const { androidAppRequest, deviceAppHeld } = require('./rightsHolds');
 const { loadTitleTemplate, titleHtml } = require('./titleHtml');
 const {
@@ -56,7 +57,7 @@ function createCatalogRouter({
   const load = async (req) => {
     const videos = await loadApproved();
     if (!req) return videos;
-    const eligible = eligibleForPlatform(videos, platformFromRequest(req));
+    const eligible = eligibleForPlatform(videos, platformFromRequest(req), new Date(), requestTerritory(req));
     // Device-app holds also cover the Android app, which otherwise keeps the website catalog.
     return androidAppRequest(req) ? eligible.filter((video) => !deviceAppHeld(video)) : eligible;
   };
