@@ -11,6 +11,10 @@ const RIGHTS_HOLD_TITLE_IDS = new Map([
   ['v_1789872561270_i3svw5cbz', "Merrie Melodies short (1932): title song renewed (R236180), protected through 2027"],
   ['biitnhJJnBvHGFx8TJZC', 'Body and Soul (1925): every available copy carries a commissioned modern score'],
   ['5FHvg3BEwBlk9qqNdZT5', 'One Step Beyond - The Storm: CBS catalog assignment and series renewals'],
+  // Owner-authorized temporary holds (2026-11-23), reversible: Documents/PROtv-Legal-Review/
+  // Rights-Exceptions-and-Stream-Protection-2026-11-23.md. Their LIVE slots air the holding card; schedule unchanged.
+  ['6h3blkiA6LTeLv66jj1v', 'Murder in Harlem (1935): copyright unresolved; one source copy is licensed CC BY-NC-ND (non-commercial), PROtv streams with ads'],
+  ['creator_89303465-51e3-46bb-bd21-ff5ed2db2c49', 'Dead Air: agreement requires the signer\'s authority to be confirmed before issuance; not yet confirmed'],
 ]);
 
 // Contractual prerequisite unmet: withheld from PROtv's device apps (Roku and the Android app) until the evidence the
