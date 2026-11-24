@@ -1,5 +1,11 @@
 # PROtv LIVE — scheduled linear channel
 
+Apple iPhone/iPad and Apple TV clients have a separate optional `appleSchedule` lineup. It is used only for those
+`ios` and `appletv` feeds, after the normal Apple and linear-rights checks; the website and every other platform
+continue to read the master `schedule`. If an Apple lineup is not present or is not on air, the service keeps the
+master-schedule fail-closed fallback. The Apple lineup is generated only from titles already eligible for Apple and
+confirmed for scheduled linear streaming.
+
 One web channel, `/live`, where viewers watch whatever is scheduled now, like television. It runs 24/7 from the
 schedule, using existing Mux on-demand assets with no live encoder, and stays **off** until an Owner or Administrator
 launches it from Admin → Programming → PROtv LIVE → Channel.

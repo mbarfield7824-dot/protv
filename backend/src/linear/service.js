@@ -33,26 +33,34 @@ function createLinearService({
   mux = null,
 } = {}) {
   const muxApi = () => mux || require('../mux');
-  let cache = null;
+  const cache = new Map();
 
   // Viewer requests share one short-lived read of the schedule, titles and rights. Air-time eligibility is still
   // evaluated against the current clock on every request; held titles have no playback ID to leak from a cache.
   // The window reaches five minutes back so analytics can still attribute events from a program that just ended.
-  async function loadWindow(at, { fresh = false } = {}) {
-    if (!fresh && cache && at - cache.loadedAt < cacheMs && cache.loadedAt <= at) return cache;
+  async function loadWindow(at, { fresh = false, app = null } = {}) {
+    const cacheKey = app && ['ios', 'appletv'].includes(app.platform) ? 'apple' : 'master';
+    const cached = cache.get(cacheKey);
+    if (!fresh && cached && at - cached.loadedAt < cacheMs && cached.loadedAt <= at) return cached;
     const fromIso = new Date(at - 5 * 60_000).toISOString();
     const toIso = new Date(at + (GUIDE_HOURS + 2) * 3_600_000).toISOString();
-    const [settings, entries] = await Promise.all([store.getSettings(), store.listEntries(fromIso, toIso)]);
+    const [settings, masterEntries] = await Promise.all([store.getSettings(), store.listEntries(fromIso, toIso)]);
+    const appleEntries = cacheKey === 'apple' && typeof store.listAppleEntries === 'function'
+      ? await store.listAppleEntries(fromIso, toIso)
+      : [];
+    const entries = appleEntries.some((entry) => Date.parse(entry.startAt) <= at && Date.parse(entry.endAt) > at)
+      ? appleEntries
+      : masterEntries;
     const approved = entries.filter((entry) => entry.status === 'approved');
     const videos = await store.getVideos(approved.map((entry) => entry.videoId).filter(Boolean));
     const rights = await store.getRights([...videos.values(), ...approved.map(pendingVideo).filter(Boolean)].flatMap(rightsKeysFor));
     const creatives = await store.getCreatives(approved.flatMap((entry) => (entry.pod || []).map((spot) => spot.creativeId)));
     const loaded = { loadedAt: at, settings, entries: approved, videos, rights, creatives };
-    if (!fresh) cache = loaded;
+    if (!fresh) cache.set(cacheKey, loaded);
     return loaded;
   }
 
-  function invalidate() { cache = null; }
+  function invalidate() { cache.clear(); }
 
   // A countdown airs only while its program is approved, still starts exactly when the countdown ends, and will
   // actually play (released, or an approved premiere awaiting release). Otherwise viewers get a holding screen.
@@ -153,7 +161,7 @@ function createLinearService({
       throw new LinearValidationError('Choose a test time from one day ago to 35 days ahead.');
     }
     const at = simulated ? simulatedAt : actual;
-    const { settings, entries, videos, rights, creatives } = await loadWindow(at, { fresh: simulated });
+    const { settings, entries, videos, rights, creatives } = await loadWindow(at, { fresh: simulated, app });
     if (settings.status !== 'public' && !preview) throw new LinearNotFoundError('PROtv LIVE is not available.');
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
     const all = entries

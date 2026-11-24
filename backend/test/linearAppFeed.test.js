@@ -152,6 +152,36 @@ test('Samsung uses its own narrower list; Android follows its catalog less devic
   assert.equal((await view(service, clock, '2026-12-01T14:30:00Z')).now.title, 'ITAN', 'the website listing is unchanged');
 });
 
+test('Apple uses an approved alternate lineup without changing the master schedule', async () => {
+  const clock = { now: at('2026-12-01T13:30:00Z') };
+  const master = [{
+    id: 'master-uncleared', kind: 'program', videoId: UNCLEARED, programType: 'movie', status: 'approved',
+    startAt: '2026-12-01T13:01:00.000Z', endAt: '2026-12-01T14:01:00.000Z', durationSeconds: 3600,
+    sourceStartSeconds: 0, label: '', channelId: 'protv-live',
+  }];
+  const alternate = [{
+    id: 'apple-cleared', kind: 'program', videoId: SAMSUNG_FILM, programType: 'movie', status: 'approved',
+    startAt: '2026-12-01T13:00:00.000Z', endAt: '2026-12-01T13:09:56.000Z', durationSeconds: 596,
+    sourceStartSeconds: 0, label: '', channelId: 'protv-live',
+  }];
+  const rights = Object.fromEntries(videos.map((video) => [`title_${video.id}`, confirmed]));
+  const store = new MemoryLinearStore({ videos, rights, settings: { status: 'public' }, entries: master, appleEntries: alternate });
+  const service = createLinearService({ store, now: () => clock.now, cacheMs: 0 });
+  const before = await store.listEntries('2026-12-01T00:00:00Z', '2026-12-02T00:00:00Z');
+
+  const apple = await view(service, clock, '2026-12-01T13:05:00Z', 'ios');
+  assert.equal(apple.channel.policy, 'ios-live-v1');
+  assert.equal(apple.now.title, 'Big Buck Bunny');
+  assert.equal(apple.now.entryId, 'apple-cleared');
+  assert.equal(apple.now.playback.muxPlaybackId, `pb-${SAMSUNG_FILM}`);
+  assert.equal(apple.now.playback.offsetSeconds, 300);
+
+  const website = await view(service, clock, '2026-12-01T13:05:00Z');
+  assert.equal(website.now.title, 'Website Only Feature');
+  assert.equal(website.now.entryId, 'master-uncleared');
+  assert.deepEqual(await store.listEntries('2026-12-01T00:00:00Z', '2026-12-02T00:00:00Z'), before);
+});
+
 test('a premiere reaches an app only when the delivered title is cleared for it', async () => {
   const { service, clock } = setup();
   await schedule(service);

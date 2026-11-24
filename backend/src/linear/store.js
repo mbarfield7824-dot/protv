@@ -72,6 +72,8 @@ class FirestoreLinearStore {
 
   scheduleRef() { return this.channelRef().collection('schedule'); }
 
+  appleScheduleRef() { return this.channelRef().collection('appleSchedule'); }
+
   async getSettings() {
     const snapshot = await this.channelRef().get();
     return readSettings(snapshot.exists ? snapshot.data() : {});
@@ -84,6 +86,16 @@ class FirestoreLinearStore {
 
   async listEntries(fromIso, toIso) {
     const snapshot = await this.scheduleRef()
+      .where('startAt', '>=', new Date(Date.parse(fromIso) - lookbackMs).toISOString())
+      .where('startAt', '<', toIso)
+      .orderBy('startAt')
+      .get();
+    return snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
+      .filter((entry) => Date.parse(entry.endAt) > Date.parse(fromIso));
+  }
+
+  async listAppleEntries(fromIso, toIso) {
+    const snapshot = await this.appleScheduleRef()
       .where('startAt', '>=', new Date(Date.parse(fromIso) - lookbackMs).toISOString())
       .where('startAt', '<', toIso)
       .orderBy('startAt')
@@ -207,12 +219,15 @@ class FirestoreLinearStore {
 }
 
 class MemoryLinearStore {
-  constructor({ videos = [], rights = {}, settings = {}, entries = [], evidence = {}, creatives = [] } = {}) {
+  constructor({
+    videos = [], rights = {}, settings = {}, entries = [], appleEntries = [], evidence = {}, creatives = [],
+  } = {}) {
     this.creatives = new Map(creatives.map((creative) => [creative.id, { ...creative }]));
     this.settings = { ...settings };
     this.videos = new Map(videos.map((video) => [video.id, { ...video }]));
     this.rights = new Map(Object.entries(rights));
     this.entries = new Map(entries.map((entry) => [entry.id, { ...entry }]));
+    this.appleEntries = new Map(appleEntries.map((entry) => [entry.id, { ...entry }]));
     this.evidence = new Map(Object.entries(evidence));
     this.reads = 0;
   }
@@ -224,6 +239,14 @@ class MemoryLinearStore {
   async listEntries(fromIso, toIso) {
     this.reads += 1;
     return [...this.entries.values()]
+      .filter((entry) => Date.parse(entry.endAt) > Date.parse(fromIso) && entry.startAt < toIso)
+      .sort((left, right) => left.startAt.localeCompare(right.startAt))
+      .map((entry) => ({ ...entry }));
+  }
+
+  async listAppleEntries(fromIso, toIso) {
+    this.reads += 1;
+    return [...this.appleEntries.values()]
       .filter((entry) => Date.parse(entry.endAt) > Date.parse(fromIso) && entry.startAt < toIso)
       .sort((left, right) => left.startAt.localeCompare(right.startAt))
       .map((entry) => ({ ...entry }));
