@@ -14,6 +14,7 @@ const ROKU_FILM = 'LiMNMZWXBxJj3LoP73kU'; // His Girl Friday: Roku and Fire TV r
 const SAMSUNG_FILM = 'hKPU3JNJ4faWLgWE6ZSq'; // Big Buck Bunny: on every app's list
 const UNCLEARED = 'web-only-film'; // on no app list
 const ITAN = 'creator_3af7527e-f093-41e3-a52e-b4586d315481'; // device-app hold
+const UNITED = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'; // U.S.-only, signed Apple LIVE override
 const film = (id, title, overrides = {}) => ({
   id, contentType: 'MOVIE', title, description: `${title} synopsis`, thumbnailUrl: `https://img/${id}.jpg`, approvalStatus: 'approved',
   status: 'ready', muxPlaybackId: `pb-${id}`, duration: 3600, ...overrides,
@@ -180,6 +181,39 @@ test('Apple uses an approved alternate lineup without changing the master schedu
   assert.equal(website.now.title, 'Website Only Feature');
   assert.equal(website.now.entryId, 'master-uncleared');
   assert.deepEqual(await store.listEntries('2026-12-01T00:00:00Z', '2026-12-02T00:00:00Z'), before);
+});
+
+test('Apple can use a U.S.-only signed linear rights override without changing the master feed', async () => {
+  const clock = { now: at('2026-12-01T13:30:00Z') };
+  const united = film(UNITED, 'UNITED NATIONS', { duration: 4115, muxSignedPlaybackId: 'SignedUnited00000001' });
+  const master = [{
+    id: 'master-united', kind: 'program', videoId: UNITED, programType: 'movie', status: 'approved',
+    startAt: '2026-12-01T13:00:00.000Z', endAt: '2026-12-01T14:08:35.000Z', durationSeconds: 4115,
+    sourceStartSeconds: 0, label: '', channelId: 'protv-live',
+  }];
+  const alternate = [{ ...master[0], id: 'apple-united' }];
+  const rights = {
+    [`title_${UNITED}`]: { status: 'denied', basis: 'The master feed is not geofenced.' },
+    [`apple_title_${UNITED}`]: {
+      status: 'confirmed', territory: 'US', signedPlaybackRequired: true,
+      basis: 'Executed agreement permits U.S. Apple apps with signed playback.',
+    },
+  };
+  const store = new MemoryLinearStore({ videos: [united], rights, settings: { status: 'public' }, entries: master, appleEntries: alternate });
+  const service = createLinearService({
+    store, now: () => clock.now, cacheMs: 0, signPlaybackToken: async (id) => `token:${id}`,
+  });
+
+  clock.now = at('2026-12-01T13:30:00Z');
+  const us = appPolicy('ios', { country: 'US', reason: 'ip' });
+  const apple = await service.channelState({ app: us });
+  assert.equal(apple.now.title, 'UNITED NATIONS');
+  assert.equal(apple.now.playback.muxPlaybackId, 'SignedUnited00000001');
+  assert.equal(apple.now.playback.playbackToken, 'token:SignedUnited00000001');
+
+  clock.now = at('2026-12-01T13:30:00Z');
+  const website = await service.channelState();
+  assert.equal(website.now.kind, 'holding', 'the global denial still applies to the master schedule');
 });
 
 test('a premiere reaches an app only when the delivered title is cleared for it', async () => {

@@ -14,6 +14,8 @@ const {
 } = require('./creatives');
 
 const GUIDE_HOURS = 24;
+const APPLE_PLATFORMS = new Set(['ios', 'appletv']);
+const appleLinearRightsKey = (id) => `apple_title_${id}`;
 // A 24/7 schedule reads ~150 documents per refresh; 30 s keeps that to a few dollars a month per busy server instance.
 // Rights withdrawals and unpublishing take effect within this time; admin edits clear it immediately on that instance.
 const CACHE_MS = 30_000;
@@ -39,7 +41,7 @@ function createLinearService({
   // evaluated against the current clock on every request; held titles have no playback ID to leak from a cache.
   // The window reaches five minutes back so analytics can still attribute events from a program that just ended.
   async function loadWindow(at, { fresh = false, app = null } = {}) {
-    const cacheKey = app && ['ios', 'appletv'].includes(app.platform) ? 'apple' : 'master';
+    const cacheKey = app && APPLE_PLATFORMS.has(app.platform) ? 'apple' : 'master';
     const cached = cache.get(cacheKey);
     if (!fresh && cached && at - cached.loadedAt < cacheMs && cached.loadedAt <= at) return cached;
     const fromIso = new Date(at - 5 * 60_000).toISOString();
@@ -48,12 +50,27 @@ function createLinearService({
     const appleEntries = cacheKey === 'apple' && typeof store.listAppleEntries === 'function'
       ? await store.listAppleEntries(fromIso, toIso)
       : [];
-    const entries = appleEntries.some((entry) => Date.parse(entry.startAt) <= at && Date.parse(entry.endAt) > at)
+    const usingAppleSchedule = appleEntries.some((entry) => Date.parse(entry.startAt) <= at && Date.parse(entry.endAt) > at);
+    const entries = usingAppleSchedule
       ? appleEntries
       : masterEntries;
     const approved = entries.filter((entry) => entry.status === 'approved');
     const videos = await store.getVideos(approved.map((entry) => entry.videoId).filter(Boolean));
-    const rights = await store.getRights([...videos.values(), ...approved.map(pendingVideo).filter(Boolean)].flatMap(rightsKeysFor));
+    const rightsKeys = [...videos.values(), ...approved.map(pendingVideo).filter(Boolean)].flatMap(rightsKeysFor);
+    if (usingAppleSchedule && app?.territory?.country === 'US') {
+      rightsKeys.push(...[...videos.values()].map((video) => appleLinearRightsKey(video.id)));
+    }
+    const rights = await store.getRights(rightsKeys);
+    if (usingAppleSchedule && app?.territory?.country === 'US') {
+      for (const video of videos.values()) {
+        const override = rights.get(appleLinearRightsKey(video.id));
+        if (override?.status === 'confirmed'
+          && override.territory === 'US'
+          && override.signedPlaybackRequired === true) {
+          rights.set(`title_${video.id}`, override);
+        }
+      }
+    }
     const creatives = await store.getCreatives(approved.flatMap((entry) => (entry.pod || []).map((spot) => spot.creativeId)));
     const loaded = { loadedAt: at, settings, entries: approved, videos, rights, creatives };
     if (!fresh) cache.set(cacheKey, loaded);

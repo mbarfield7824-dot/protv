@@ -24,11 +24,20 @@ async function main() {
   const [catalog, rights, creatives] = await Promise.all([store.listCatalog(), store.listRights(), store.listCreatives()]);
   const apple = appPolicy('ios', { country: 'US', reason: 'admin' });
   const at = new Date(startMs);
+  const linearRights = (video) => {
+    const override = rights.get(`apple_title_${video.id}`);
+    if (override?.status === 'confirmed'
+      && override.territory === 'US'
+      && override.signedPlaybackRequired === true) {
+      return override;
+    }
+    return linearRightsFor(video, rights, startMs);
+  };
   const programs = catalog.filter((video) => (
     video.approvalStatus === 'approved'
       && video.status === 'ready'
       && appAllows(apple, video, startMs)
-      && linearRightsFor(video, rights, startMs).status === 'confirmed'
+      && linearRights(video).status === 'confirmed'
       && knownDuration(video) > 0
   )).sort((left, right) => {
     const priority = ['creator_613e215e-709f-48ee-91bb-b225d8da4a33'];
