@@ -95,10 +95,9 @@ function createCatalogRouter({
       const { records } = await withPaths(await load(req));
       const items = comingSoonCatalog(records);
       const platform = platformFromRequest(req);
-      // Administrator promotions are website cards; the other TV and mobile apps keep their existing response.
-      // Roku (1.1.0 and later) gets the promotions too: promotional cards for every unreleased production the website
-      // promotes, with trailers only for titles Roku may carry (see rokuComingSoon).
-      const promotional = platform === 'roku' || platform === 'ios' || platform === 'appletv';
+      // Roku and Fire TV receive administrator promotions, but trailers remain limited to titles the platform may
+      // stream. Apple uses the same presentation filter with its own catalog policy.
+      const promotional = platform === 'roku' || platform === 'firetv' || platform === 'ios' || platform === 'appletv';
       if (DEVICE_PLATFORMS.has(platform) && !promotional) return res.json({ items });
       let promotions = [];
       try { promotions = await promotionStore.list(); } catch (error) {
@@ -107,7 +106,9 @@ function createCatalogRouter({
       if (promotional) {
         const promoRecords = (await withPaths((await loadApproved()).filter((video) => !deviceAppHeld(video)))).records;
         const cards = rokuComingSoon({ promotions, promoRecords, streamingRecords: records });
-        return res.json(platform === 'roku' ? { items: cards, policy: 'roku-coming-soon-v1' } : withPolicy(req, { items: cards }));
+        if (platform === 'roku') return res.json({ items: cards, policy: 'roku-coming-soon-v1' });
+        if (platform === 'firetv') return res.json({ items: cards, policy: 'firetv-coming-soon-v1' });
+        return res.json(withPolicy(req, { items: cards }));
       }
       return res.json({ items: withPromotions(items, promotions, records) });
     } catch (error) {

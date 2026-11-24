@@ -66,13 +66,14 @@ const view = (service, clock, iso, platform) => {
 };
 const leaks = (item, title) => JSON.stringify(item).includes(title);
 
-test('app policies are fail-closed: Roku, Samsung, Android and the Apple apps have a feed, Fire TV does not', () => {
+test('app policies are fail-closed: Roku, Samsung, Fire TV, Android and the Apple apps have their own feeds', () => {
+  assert.equal(appPolicy('firetv').policy, 'firetv-live-v1');
   assert.equal(appPolicy('roku').policy, 'roku-live-v1');
   assert.equal(appPolicy('SAMSUNG').policy, 'samsung-live-v1');
   assert.equal(appPolicy('android').policy, 'android-live-v1');
   assert.equal(appPolicy('ios').policy, 'ios-live-v1');
   assert.equal(appPolicy('appletv').policy, 'appletv-live-v1');
-  for (const platform of ['firetv', 'tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
+  for (const platform of ['tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
   const roku = appPolicy('roku');
   assert.equal(appAllows(roku, videos[0], NOW), true);
   assert.equal(appAllows(roku, videos[2], NOW), false, 'not on the Roku list');
@@ -270,12 +271,14 @@ test('the channel route selects the app feed by ?platform=, X-PROtv-Platform or 
     assert.equal(roku.body.channel.policy, 'roku-live-v1');
     assert.equal(roku.body.now.kind, 'restricted');
   }
-  for (const platform of ['firetv', 'something']) {
+  for (const platform of ['something']) {
     const refused = await call(`/v1/linear/channel?platform=${platform}`);
     assert.equal(refused.status, 404, platform);
     assert.equal(refused.body.code, 'LIVE_PLATFORM_UNSUPPORTED');
   }
-  assert.equal((await call('/v1/linear/channel', { 'X-PROtv-Platform': 'firetv' })).status, 404);
+  const firetv = await call('/v1/linear/channel', { 'X-PROtv-Platform': 'firetv' });
+  assert.equal(firetv.status, 200);
+  assert.equal(firetv.body.channel.policy, 'firetv-live-v1');
 });
 
 test('an app never gets the Administrator preview, so an off channel stays off in every app', async (t) => {
@@ -290,5 +293,5 @@ test('an app never gets the Administrator preview, so an off channel stays off i
   assert.equal(simulated.status, 200);
   assert.equal(simulated.body.now.kind, 'restricted');
   assert.equal(simulated.body.channel.policy, 'roku-live-v1');
-  assert.equal((await admin(`/admin/linear/test/channel?at=${at('2026-12-01T13:30:00Z')}&platform=firetv`)).status, 400);
+  assert.equal((await admin(`/admin/linear/test/channel?at=${at('2026-12-01T13:30:00Z')}&platform=firetv`)).status, 200);
 });

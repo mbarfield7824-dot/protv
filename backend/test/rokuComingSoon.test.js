@@ -66,7 +66,7 @@ test('Roku cards are promotional only: absolute HTTPS artwork, Eastern premiere 
   const items = roku();
   const byTitle = Object.fromEntries(items.map((item) => [item.title, item]));
   assert.deepEqual(byTitle.Ironborn, {
-    id: 'promo-iron', kind: 'upcoming', contentType: 'Series', title: 'Ironborn', description: 'A new series.',
+    id: 'promo-iron', promotionId: 'iron', kind: 'upcoming', contentType: 'Series', title: 'Ironborn', description: 'A new series.',
     artwork: 'https://watchprotv.com/api/posters/title-iron.jpg', premiereAt: '2026-12-04T01:00:00.000Z',
     premiereLabel: 'Premieres Thursday, December 3 at 8:00 PM ET', premiereShort: 'Premieres Dec 3', trailerAvailable: false, promotion: true,
   });
@@ -77,7 +77,7 @@ test('Roku cards are promotional only: absolute HTTPS artwork, Eastern premiere 
   assert.equal(byTitle['Dread Head'].artwork, 'https://watchprotv.com/api/posters/d.jpg');
   assert.equal(byTitle['Dread Head'].premiereLabel, 'Premiere Date TBD');
   for (const item of items) {
-    assert.deepEqual(Object.keys(item).filter((key) => !['id', 'kind', 'contentType', 'title', 'description', 'artwork', 'premiereAt', 'premiereLabel', 'premiereShort', 'trailerAvailable', 'promotion'].includes(key)), []);
+    assert.deepEqual(Object.keys(item).filter((key) => !['id', 'promotionId', 'trailerTitleId', 'kind', 'contentType', 'title', 'description', 'artwork', 'premiereAt', 'premiereLabel', 'premiereShort', 'trailerAvailable', 'promotion'].includes(key)), []);
     assert.doesNotMatch(JSON.stringify(item), /muxPlayback|playbackId|public-id|dread-trailer|west-trailer|episodes|href/);
   }
 });
@@ -105,7 +105,7 @@ async function serve(t, router) {
   return async (headers = {}) => (await fetch(`http://127.0.0.1:${server.address().port}/coming-soon`, { headers })).json();
 }
 
-test('only Roku gets the new response; the website and the other apps are unchanged', async (t) => {
+test('Roku and Fire TV get promotional responses while the website and other apps are unchanged', async (t) => {
   const call = await serve(t, createCatalogRouter({ loadApproved: async () => records, promotionStore: { list: async () => promotions } }));
   const roku = await call({ 'User-Agent': 'Roku/DVP-14.0 (14.0.0.4210-46)' });
   assert.equal(roku.policy, 'roku-coming-soon-v1');
@@ -114,7 +114,11 @@ test('only Roku gets the new response; the website and the other apps are unchan
   const website = await call();
   assert.equal(website.policy, undefined);
   assert.deepEqual(website.items, JSON.parse(JSON.stringify(withPromotions(comingSoonCatalog(records), promotions, records))));
-  for (const platform of ['samsung', 'firetv']) {
+  const firetv = await call({ 'X-PROtv-Platform': 'firetv' });
+  assert.equal(firetv.policy, 'firetv-coming-soon-v1');
+  assert.ok(firetv.items.some((item) => item.title === 'Ironborn'));
+  assert.ok(firetv.items.some((item) => item.title === 'Dread Head' && item.trailerAvailable === false));
+  for (const platform of ['samsung']) {
     const other = await call({ 'X-PROtv-Platform': platform });
     assert.equal(other.policy, undefined, platform);
     assert.ok(!JSON.stringify(other.items).includes('Ironborn'), `${platform} keeps the automatic listings only`);

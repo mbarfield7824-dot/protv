@@ -426,12 +426,14 @@ function rokuComingSoon({ promotions, promoRecords, streamingRecords, now = Date
   return cards.map((card) => ({
     id: card.id,
     kind: card.kind,
+    ...(card.promotionId ? { promotionId: card.promotionId } : {}),
     ...(card.contentType ? { contentType: card.contentType } : {}),
     title: card.title,
     description: card.description || '',
     artwork: deviceArtwork(card.artwork),
     ...devicePremiere(card),
     trailerAvailable: Boolean(card.trailerAvailable),
+    ...(card.trailerTitleId ? { trailerTitleId: card.trailerTitleId } : {}),
     promotion: card.promotion === true,
   }));
 }

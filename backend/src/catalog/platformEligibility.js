@@ -47,6 +47,11 @@ function clearedEpisode(video) {
     || (video.contentType === 'SERIES' && Boolean(video.creatorSeriesProjectId) && video.firetvCleared === true);
 }
 
+function firetvEligible(video) {
+  if (!video || video.firetvHold === true || deviceAppHeld(video)) return false;
+  return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video);
+}
+
 // Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
 // send X-PROtv-Platform: firetv; older sideloaded builds, Roku, the website and
 // Android send nothing and are unchanged. The header is self-declared, so this
@@ -142,7 +147,7 @@ function eligibleForPlatform(videos, platform, now = new Date(), territory = nul
     return videos.filter((video) => samsungEligible(video, now, territory, options)).map((video) => samsungView(video, options));
   }
   if (platform !== 'firetv') return videos;
-  return videos.filter((video) => FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video));
+  return videos.filter(firetvEligible);
 }
 
 // Responses that applied a platform's own rights policy name it, so a fail-closed client can refuse a
@@ -162,6 +167,7 @@ module.exports = {
   platformFromRequest,
   platformPolicy,
   eligibleForPlatform,
+  firetvEligible,
   rokuEligible,
   samsungEligible,
 };

@@ -143,6 +143,7 @@ function seriesCard(series) {
     ...(series.premiereAt ? { premiereAt: series.premiereAt } : {}),
     ...(series.airingSchedule ? { airingSchedule: series.airingSchedule } : {}),
     trailerAvailable: Boolean(series.trailerAvailable),
+    ...(series.trailerAvailable && series.trailerTitleId ? { trailerTitleId: series.trailerTitleId } : {}),
   };
 }
 
@@ -154,6 +155,7 @@ function filmCard(detail) {
     comingSoon: Boolean(detail.comingSoon), watchAvailable: Boolean(detail.watchAvailable), protvOriginal: Boolean(detail.protvOriginal),
     ...(detail.releaseAt && !detail.watchAvailable ? { premiereAt: detail.releaseAt } : {}),
     trailerAvailable: Boolean(detail.trailerAvailable),
+    ...(detail.trailerAvailable ? { trailerTitleId: detail.id } : {}),
   };
 }
 
