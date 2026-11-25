@@ -97,6 +97,8 @@ const marketing = createMarketingRouters();
 app.use(`${apiPrefix}/admin/marketing`, marketing.adminRouter);
 app.use(`${apiPrefix}/marketing`, marketing.publicRouter);
 app.get(`${apiPrefix}/integrations/marketing/dispatch`, marketing.dispatchHandler);
+// PROtv Social Studio (studio PC) fetches approved Facebook/Instagram posts and reports results (signed).
+app.use(`${apiPrefix}/integrations/pss`, marketing.pssRouter);
 // Mounted before the users router so the existing favorites/progress routes are untouched.
 app.use(`${apiPrefix}/users/me/deletion-request`, createAccountDeletionRequestRouter());
 app.use(`${apiPrefix}/users`, userRoutes);

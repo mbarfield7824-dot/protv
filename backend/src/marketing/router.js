@@ -58,6 +58,7 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   router.get('/posts', handle('post list', () => service.listPosts()));
   router.post('/posts', handle('post', (req) => service.createPost(req.body || {}, actor(req))));
   router.post('/posts/:id/approve', handle('post approval', (req) => service.approvePost(req.params.id, actor(req))));
+  router.post('/posts/:id/test', handle('publishing test', (req) => service.testPost(req.params.id, actor(req))));
   router.post('/posts/:id/publish', handle('publishing', (req) => service.publishPost(req.params.id, actor(req))));
   router.post('/posts/:id/manual', handle('manual post', (req) => service.recordManualPost(req.params.id, req.body || {}, actor(req))));
   router.post('/posts/:id/cancel', handle('post', (req) => service.cancelPost(req.params.id, actor(req))));
@@ -143,6 +144,7 @@ function createMarketingRouters(dependencies = {}) {
     adminRouter: createAdminMarketingRouter({ service, loadCatalog, verifyAdmin: dependencies.verifyAdmin || require('../middleware/auth').verifyAdmin }),
     publicRouter: createPublicMarketingRouter({ service, rateLimit, clientAddress: require('../reports/clientAddress').reportingClientAddress }),
     dispatchHandler: createDispatchHandler({ service }),
+    pssRouter: require('./pss').createPssRouter({ service }),
   };
 }
 

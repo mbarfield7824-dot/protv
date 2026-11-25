@@ -401,7 +401,10 @@ function Calendar() {
           <tr key={post.id}><td>{label(post.platform)}</td><td className="ms-caption">{post.caption}</td><td>{et(post.scheduledAt)}</td><td><Status value={post.status} />{post.error && <div className="ms-bad">{post.error}</div>}{post.receipt?.url && <a href={post.receipt.url} target="_blank" rel="noreferrer">View</a>}</td>
             <td className="ms-actions">
               {['draft', 'held', 'failed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={() => action.run(post.id, () => call(`posts/${post.id}/approve`, { method: 'POST' }).then(reload))}>Approve</button>}
-              {['approved'].includes(post.status) && <button type="button" className="ms-primary" onClick={() => action.run(post.id, () => call(`posts/${post.id}/publish`, { method: 'POST' }).then(reload))}>Publish now</button>}
+              {['approved', 'test-passed'].includes(post.status) && <button type="button" className="ms-primary" onClick={() => { if (!['facebook', 'instagram'].includes(post.platform) || window.confirm(`Publish this post publicly to ${post.platform} through PROtv Social Studio?`)) action.run(post.id, () => call(`posts/${post.id}/publish`, { method: 'POST' }).then(reload)); }}>{['facebook', 'instagram'].includes(post.platform) ? 'Publish via PSS' : 'Publish now'}</button>}
+              {['facebook', 'instagram'].includes(post.platform) && ['approved', 'test-passed', 'failed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={() => action.run(post.id, () => call(`posts/${post.id}/test`, { method: 'POST' }).then(reload), 'Queued a non-public test for PROtv Social Studio.')}>Test via PSS (not public)</button>}
+              {['queued-pss', 'publishing-pss'].includes(post.status) && <span className="ms-muted">Waiting for PROtv Social Studio{post.mode === 'test' ? ' (test)' : ''}</span>}
+              {post.status === 'test-passed' && post.receipt?.note && <span className="ms-good">{post.receipt.note}</span>}
               {post.status === 'ready-for-manual' && <button type="button" className="ms-secondary" onClick={() => { navigator.clipboard?.writeText(post.caption); const url = window.prompt('Caption copied. After posting, paste the post address:'); if (url) action.run(post.id, () => call(`posts/${post.id}/manual`, { method: 'POST', body: { url } }).then(reload)); }}>Manual handoff</button>}
               {!post.receipt && post.status !== 'cancelled' && <button type="button" className="ms-link" onClick={() => action.run(post.id, () => call(`posts/${post.id}/cancel`, { method: 'POST' }).then(reload))}>Withdraw</button>}
             </td></tr>))}</tbody></table>
@@ -422,12 +425,14 @@ function Accounts() {
       <div className="ms-grid2">{(data || []).map((item) => (
         <section key={item.id} className="ms-card">
           <div className="ms-row ms-between"><h4>{item.name}</h4><Status value={item.state} /></div>
-          {item.account && <p>Connected: {item.account.label}</p>}
+          {item.account && <p>{item.via ? `Connected in ${item.via}: ` : 'Connected: '}{item.account.label}{item.via ? ` · ${item.account.online ? 'PSS online' : `PSS last seen ${et(item.account.lastSeenAt)}`}` : ''}</p>}
+          {item.via && item.account?.expiresAt && <p className="ms-muted">Meta connection valid until {et(item.account.expiresAt)}; reconnect in PROtv Social Studio before then.</p>}
+          {item.via && !item.account && <p className="ms-muted">Open PROtv Social Studio on the studio PC and turn on its Marketing Studio link.</p>}
           {item.missingSettings?.length > 0 && <p className="ms-muted">Needs server settings: {item.missingSettings.join(', ')} (PROtv's developer app for this platform).</p>}
           {item.review && <p className="ms-muted">{item.review}</p>}
           <p className="ms-muted">Without connection: {item.draftRoute}.</p>
           <div className="ms-row">
-            {item.id !== 'manual' && item.state !== 'connected' && <button type="button" className="ms-primary" disabled={item.state === 'not-configured'} onClick={() => action.run(item.id, async () => { const { url } = await call(`accounts/${item.id}/connect`, { method: 'POST' }); window.location.assign(url); })}>Connect</button>}
+            {item.id !== 'manual' && !item.via && item.state !== 'connected' && <button type="button" className="ms-primary" disabled={item.state === 'not-configured'} onClick={() => action.run(item.id, async () => { const { url } = await call(`accounts/${item.id}/connect`, { method: 'POST' }); window.location.assign(url); })}>Connect</button>}
             {item.state === 'connected' && <button type="button" className="ms-secondary" onClick={() => action.run(item.id, () => call(`accounts/${item.id}/disconnect`, { method: 'POST' }).then(reload))}>Disconnect</button>}
           </div>
         </section>))}</div>

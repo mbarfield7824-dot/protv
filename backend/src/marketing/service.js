@@ -9,6 +9,7 @@ const rights = require('./rights');
 const social = require('./social');
 const ads = require('./ads');
 const analytics = require('./analytics');
+const { PSS_PLATFORMS } = require('./pss');
 
 class MarketingError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
 
@@ -400,10 +401,12 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   // Publishes one approved post through its official connector (idempotent: a post with a receipt is never re-sent).
   async function publishPost(id, actor) {
     const post = await requireRecord('posts', id, 'Post');
-    if (post.receipt) return post;
-    if (!['approved', 'scheduled'].includes(post.status)) throw new MarketingError('Only an approved post can be published.');
+    if (post.receipt && !post.receipt.test) return post; // published: never sent again
+    if (!['approved', 'scheduled', 'test-passed'].includes(post.status)) throw new MarketingError('Only an approved post can be published.');
     if (post.campaignId) { const campaign = await store.get('campaigns', post.campaignId); if (!campaign || !['approved', 'active'].includes(campaign.status)) throw new MarketingError('Its campaign is not approved or is paused.'); }
     if (post.platform === 'manual') return store.put('posts', id, { ...post, status: 'ready-for-manual', updatedAt: stamp() });
+    // Facebook and Instagram publish only through PROtv Social Studio (PROtv's single Meta publisher).
+    if (PSS_PLATFORMS.has(post.platform)) return queueForPss({ ...post, receipt: null }, actor, 'publish');
     const tokens = await accountTokens(post.platform);
     if (!tokens) {
       await log(actor, 'post_handoff', `The ${post.platform} account is not connected; the post moved to manual handoff.`, { postId: id });
@@ -425,6 +428,79 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       return store.put('posts', id, { ...post, status: retry ? post.status : 'failed', attempts, error: error.message, nextAttemptAt: retry ? iso(now() + 2 ** attempts * 60_000) : null, updatedAt: stamp() });
     }
   }
+  // ---------------------------------------------------------------- PROtv Social Studio (PSS) publishing
+  async function pssState() { return store.get('settings', 'pss'); }
+  async function queueForPss(post, actor, mode) {
+    const pss = await pssState();
+    if (!pss) {
+      await log(actor, 'post_handoff', `PROtv Social Studio has not linked yet; the ${post.platform} post moved to manual handoff.`, { postId: post.id });
+      return store.put('posts', post.id, { ...post, status: 'ready-for-manual', error: 'PROtv Social Studio is not linked yet; post it manually from the handoff package.', updatedAt: stamp() });
+    }
+    if (!post.assetId) throw new MarketingError('Attach an approved video first.');
+    await log(actor, mode === 'test' ? 'post_pss_test' : 'post_pss_queue', `${mode === 'test' ? 'Queued a non-public test of' : 'Queued'} the ${post.platform} post for PROtv Social Studio.`, { postId: post.id });
+    return store.put('posts', post.id, { ...post, mode, status: 'queued-pss', queuedAt: stamp(), error: '', updatedAt: stamp() });
+  }
+  // A non-public end-to-end test of an approved post: Facebook receives an unpublished Page video; Instagram processes
+  // the Reel without publishing it.
+  async function testPost(id, actor) {
+    const post = await requireRecord('posts', id, 'Post');
+    if (!PSS_PLATFORMS.has(post.platform)) throw new MarketingError('Tests run through PROtv Social Studio (Facebook and Instagram).');
+    if (post.receipt && !post.receipt.test) throw new MarketingError('This post was already published.');
+    if (!['approved', 'scheduled', 'test-passed', 'failed'].includes(post.status)) throw new MarketingError('Approve the post first.');
+    if (post.campaignId) { const campaign = await store.get('campaigns', post.campaignId); if (!campaign || !['approved', 'active'].includes(campaign.status)) throw new MarketingError('Its campaign is not approved or is paused.'); }
+    return queueForPss({ ...post, receipt: null }, actor, 'test');
+  }
+  // The media PSS hands to Meta: the original render, a Hype Clip export, or Mux's stored master (prepared on request).
+  async function mediaUrlFor(asset) {
+    if (asset.renderJobId && portal.configured()) return portal.fileUrl('render', asset.renderJobId, { ttlMs: 6 * 3600_000 });
+    if (asset.hypeClipJobId && portal.configured()) return portal.fileUrl('hype', asset.hypeClipJobId, { ttlMs: 6 * 3600_000 });
+    if (!mux || !asset.muxAssetId) return null;
+    const current = await mux.getAsset(asset.muxAssetId);
+    if (current?.master?.status === 'ready' && current.master.url) return current.master.url;
+    if (current?.master_access !== 'temporary') await mux.enableMasterAccess(asset.muxAssetId);
+    return null; // preparing: offered on a later poll
+  }
+  async function pssHeartbeat(status) {
+    const previous = await pssState();
+    await store.put('settings', 'pss', { ...status, lastSeenAt: stamp(), linkedAt: previous?.linkedAt || stamp() });
+    if (!previous) await log('pss', 'pss_link', `PROtv Social Studio linked (${status.page?.name || 'no Page'} / @${status.instagram?.username || 'no Instagram'}).`, {});
+    return { ok: true };
+  }
+  async function pssQueue() {
+    const items = [];
+    for (const post of (await store.list('posts', { where: { status: 'queued-pss' } })).slice(0, 10)) {
+      if (post.campaignId) { const campaign = await store.get('campaigns', post.campaignId); if (!campaign || !['approved', 'active'].includes(campaign.status)) continue; }
+      const asset = post.assetId ? await store.get('assets', post.assetId) : null;
+      if (!asset || asset.status !== 'approved') continue;
+      const mediaUrl = await mediaUrlFor(asset);
+      if (!mediaUrl) continue;
+      items.push({ id: post.id, platform: post.platform, mode: post.mode === 'test' ? 'test' : 'publish', caption: post.caption, title: post.title || '', mediaUrl, format: asset.format || '' });
+    }
+    for (const post of await store.list('posts', { where: { status: 'publishing-pss' } })) {
+      if (Date.parse(post.claimedAt || 0) < now() - 30 * 60_000) await store.put('posts', post.id, { ...post, status: 'needs-check', error: 'PROtv Social Studio did not report back. Check the account before retrying.', updatedAt: stamp() });
+    }
+    return { items };
+  }
+  async function pssClaim(id) {
+    const post = await requireRecord('posts', id, 'Post');
+    if (post.status !== 'queued-pss') throw new MarketingError('This post is not waiting for PROtv Social Studio.', 409);
+    await store.put('posts', id, { ...post, status: 'publishing-pss', claimedAt: stamp(), updatedAt: stamp() });
+    return { claimed: true };
+  }
+  async function pssResult(id, outcome) {
+    const post = await requireRecord('posts', id, 'Post');
+    const status = String(outcome.status || '');
+    const at = stamp();
+    const receipt = { via: 'PROtv Social Studio', platformPostId: text(outcome.postId, 80), url: /^https:\/\//.test(String(outcome.permalink || '')) ? outcome.permalink : null, at, note: text(outcome.note, 300) };
+    let next;
+    if (status === 'published') next = { status: 'published', receipt: { ...receipt, state: 'published' }, error: '' };
+    else if (status === 'test-uploaded' || status === 'test-container-ready') next = { status: 'test-passed', receipt: { ...receipt, state: status, test: true }, error: '' };
+    else if (status === 'unknown') next = { status: 'needs-check', error: text(outcome.message, 500) || 'Meta may have received this post. Check the account before retrying.' };
+    else next = { status: 'failed', error: text(outcome.message, 500) || 'Publishing failed.' };
+    await log('pss', `post_pss_${next.status}`, `PROtv Social Studio reported the ${post.platform} post: ${next.status}${next.error ? ` (${next.error})` : ''}.`, { postId: id, platformPostId: receipt.platformPostId });
+    return store.put('posts', id, { ...post, ...next, attempts: (post.attempts || 0) + 1, updatedAt: at });
+  }
+
   async function dispatchDue(actor = 'scheduler') {
     const due = (await store.list('posts', { where: { status: 'scheduled' } })).filter((post) => post.scheduledAt && Date.parse(post.scheduledAt) <= now() && (!post.nextAttemptAt || Date.parse(post.nextAttemptAt) <= now()));
     const results = [];
@@ -460,9 +536,23 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   // ---------------------------------------------------------------- social accounts
   async function accounts() {
     const saved = new Map((await store.list('accounts')).map((account) => [account.id, account]));
-    return Object.keys(social.PLATFORMS).map((id) => social.platformStatus(id, saved.get(id === 'instagram' ? 'facebook' : id)));
+    const pss = await pssState();
+    const seenRecently = Boolean(pss) && Date.parse(pss.lastSeenAt) > now() - 15 * 60_000;
+    return Object.keys(social.PLATFORMS).map((id) => {
+      if (!PSS_PLATFORMS.has(id)) return social.platformStatus(id, saved.get(id));
+      const ready = id === 'facebook' ? pss?.facebookReady : pss?.instagramReady;
+      return {
+        id, name: id === 'facebook' ? 'Facebook Page' : 'Instagram professional account', via: 'PROtv Social Studio',
+        state: !pss ? 'not-linked' : pss.reauthRequired || !pss.connected ? 'reconnect-in-pss' : ready ? 'connected' : 'select-account-in-pss',
+        account: pss ? { label: id === 'facebook' ? pss.page?.name : `@${pss.instagram?.username}`, expiresAt: pss.connectionExpiresAt, lastSeenAt: pss.lastSeenAt, online: seenRecently } : null,
+        review: '', missingSettings: [], scopes: [],
+        draftRoute: seenRecently ? 'Publishes through PROtv Social Studio' : 'Publishes when PROtv Social Studio is next open on the studio PC; until then posts wait in the queue',
+        publishes: ['video', 'reel'],
+      };
+    });
   }
   async function startConnect(platform, redirectUri, actor) {
+    if (PSS_PLATFORMS.has(platform)) throw new MarketingError('Facebook and Instagram are connected in PROtv Social Studio. Reconnect there if needed; Marketing Studio publishes through it.', 409);
     const status = social.platformStatus(platform, null);
     if (status.state === 'not-configured') throw new MarketingError(`${status.name} needs PROtv's developer app settings first: ${status.missingSettings.join(', ')}.`, 503);
     const crypto = require('node:crypto');
@@ -638,7 +728,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     async cancelRender(id, format, actor) { const commercial = await requireRecord('commercials', id, 'Commercial'); const render = commercial.renders[format]; if (!render) throw new MarketingError('No such render.'); await portal.cancelRender(render.jobId); await log(actor, 'commercial_cancel', `Cancelled the ${format} render of "${commercial.title}".`, { commercialId: id }); return refreshCommercial(id); },
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
     listAssets, importHypeClip, downloadAsset,
-    createPost, approvePost, publishPost, dispatchDue, recordManualPost, sevenDayPlan, listPosts: () => store.list('posts'),
+    createPost, approvePost, publishPost, testPost, dispatchDue, recordManualPost, sevenDayPlan, pssHeartbeat, pssQueue, pssClaim, pssResult, pssState, listPosts: () => store.list('posts'),
     async cancelPost(id, actor) { const post = await requireRecord('posts', id, 'Post'); if (post.receipt) throw new MarketingError('This post was already published.'); await log(actor, 'post_cancel', `Withdrew the ${post.platform} post.`, { postId: id }); return store.put('posts', id, { ...post, status: 'cancelled', updatedAt: stamp() }); },
     accounts, startConnect, finishConnect, disconnect,
     createAd, adAction, listAds: () => store.list('ads'),

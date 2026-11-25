@@ -215,10 +215,10 @@ test('social connectors: not configured without app credentials; tokens sealed; 
     const sealed = social.seal({ access: 'secret-token' });
     assert.ok(!sealed.includes('secret-token'));
     assert.deepEqual(social.unseal(sealed), { access: 'secret-token' });
-    process.env.META_APP_ID = 'app'; process.env.META_APP_SECRET = 'sec';
+    process.env.GOOGLE_CLIENT_ID = 'cid'; process.env.GOOGLE_CLIENT_SECRET = 'sec';
     const { service } = harness();
-    const { url } = await service.startConnect('facebook', 'https://watchprotv.com/api/marketing/oauth/facebook/callback', 'a');
-    assert.match(url, /facebook\.com\/v21\.0\/dialog\/oauth/);
+    const { url } = await service.startConnect('youtube', 'https://watchprotv.com/api/marketing/oauth/youtube/callback', 'a');
+    assert.match(url, /accounts\.google\.com\/o\/oauth2\/v2\/auth/);
     await assert.rejects(service.finishConnect({ state: 'forged', code: 'x' }), /expired/);
   } finally { process.env = saved; }
 });
@@ -277,4 +277,54 @@ test('downloads: the original render when the worker holds it, otherwise the Mux
   const ready = await local.service.downloadAsset('as_local', 'owner');
   assert.deepEqual([ready.status, ready.url], ['ready', 'https://master.mux.com/first.mp4']);
   await assert.rejects(local.service.downloadAsset('missing', 'owner'), /Asset not found/);
+});
+
+test('Facebook and Instagram publish only through PROtv Social Studio: queue, claim once, results, test mode', async () => {
+  const { service, store } = harness();
+  const campaign = await service.createCampaign({ name: 'PSS flow', type: 'network-awareness', platforms: ['facebook', 'instagram'] }, 'a');
+  await service.transitionCampaign(campaign.id, 'approve', 'owner');
+  await store.put('assets', 'as_w', { title: 'Spot', format: 'widescreen', renderJobId: 'job-w', status: 'approved' });
+  const fb = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_w' }, 'a');
+  await service.approvePost(fb.id, 'a');
+  assert.equal((await service.publishPost(fb.id, 'a')).status, 'ready-for-manual', 'PSS not linked yet: manual handoff, nothing sent');
+  await store.put('posts', fb.id, { ...(await store.get('posts', fb.id)), status: 'approved', error: '' });
+  await service.pssHeartbeat({ connected: true, facebookReady: true, instagramReady: true, page: { id: 'p', name: 'PROtv' }, instagram: { id: 'i', username: 'watchprotv' } });
+  const accounts = await service.accounts();
+  assert.deepEqual(accounts.filter((item) => ['facebook', 'instagram'].includes(item.id)).map((item) => [item.state, item.via, item.account.label]), [['connected', 'PROtv Social Studio', 'PROtv'], ['connected', 'PROtv Social Studio', '@watchprotv']]);
+  await assert.rejects(service.startConnect('facebook', 'https://x', 'a'), /connected in PROtv Social Studio/);
+  assert.equal((await service.testPost(fb.id, 'a')).status, 'queued-pss');
+  const queue = await service.pssQueue();
+  assert.deepEqual(queue.items.map((item) => [item.id, item.platform, item.mode]), [[fb.id, 'facebook', 'test']]);
+  assert.match(queue.items[0].mediaUrl, /^https:\/\/portal\.test\/render\/job-w/);
+  assert.deepEqual(await service.pssClaim(fb.id), { claimed: true });
+  await assert.rejects(service.pssClaim(fb.id), /not waiting/, 'a post is claimed only once');
+  const tested = await service.pssResult(fb.id, { status: 'test-uploaded', postId: 'v123', note: 'unpublished' });
+  assert.equal(tested.status, 'test-passed');
+  assert.equal(tested.receipt.test, true);
+  assert.equal((await service.publishPost(fb.id, 'a')).status, 'queued-pss', 'after a test, the real publish still goes through PSS');
+  await service.pssClaim(fb.id);
+  const live = await service.pssResult(fb.id, { status: 'published', postId: 'v124', permalink: 'https://www.facebook.com/p/videos/v124' });
+  assert.equal(live.status, 'published');
+  assert.equal(live.receipt.url, 'https://www.facebook.com/p/videos/v124');
+  assert.equal((await service.publishPost(fb.id, 'a')).receipt.platformPostId, 'v124', 'a published post is never sent again');
+  const ig = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_w' }, 'a');
+  await service.approvePost(ig.id, 'a');
+  await service.publishPost(ig.id, 'a');
+  await service.pssClaim(ig.id);
+  assert.equal((await service.pssResult(ig.id, { status: 'unknown', message: 'timeout' })).status, 'needs-check', 'uncertain: never retried automatically');
+});
+
+test('PSS endpoints require a valid signature', async (context) => {
+  const { createPssRouter, pssSignature } = require('../src/marketing/pss');
+  const app = express();
+  app.use(express.json());
+  app.use('/integrations/pss', createPssRouter({ service: { pssHeartbeat: async () => ({ ok: true }), pssQueue: async () => ({ items: [] }) }, secret: () => 'k'.repeat(43) }));
+  const server = app.listen(0, '127.0.0.1');
+  context.after(() => server.close());
+  await new Promise((resolve) => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/integrations/pss/queue`;
+  assert.equal((await fetch(url)).status, 401);
+  const ts = String(Date.now());
+  assert.equal((await fetch(url, { headers: { 'X-PROtv-PSS-Timestamp': ts, 'X-PROtv-PSS-Signature': pssSignature('k'.repeat(43), 'GET', '/integrations/pss/queue', ts, '') } })).status, 200);
+  assert.equal((await fetch(url, { headers: { 'X-PROtv-PSS-Timestamp': ts, 'X-PROtv-PSS-Signature': pssSignature('wrong'.repeat(9), 'GET', '/integrations/pss/queue', ts, '') } })).status, 401);
 });
