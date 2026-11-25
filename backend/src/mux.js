@@ -116,6 +116,12 @@ async function waitForAssetReady({ uploadId, assetId, timeoutMs = 15 * 60 * 1000
   throw new Error('Mux is still processing the movie. Run the Admin Bot again to resume publishing.');
 }
 
+// A downloadable MP4 of the stored master for 24 hours (Mux turns it off again by itself). Used by Marketing Studio
+// downloads when no original file is held elsewhere.
+async function enableMasterAccess(assetId) {
+  return mux.video.assets.updateMasterAccess(assetId, { master_access: 'temporary' });
+}
+
 /** Extracts the public playback ID from a Mux asset object, if ready. */
 function getPlaybackId(asset, policy = 'public') {
   const playbackIds = asset?.playback_ids || [];
@@ -186,6 +192,7 @@ module.exports = {
   deleteAsset,
   getAsset,
   getPlaybackId,
+  enableMasterAccess,
   requirePlaybackSigning,
   signPlayback,
   uploadLocalFile,

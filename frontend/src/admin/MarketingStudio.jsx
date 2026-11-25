@@ -158,6 +158,51 @@ function NewCommercial({ onCreated, sponsorMode = false }) {
   );
 }
 
+// Downloads a library video: the original render when the worker holds it, otherwise Mux's master copy (prepared on
+// request, usually within a minute). The file is saved under a readable name when the browser allows it.
+function DownloadButton({ assetId, label: text = 'Download MP4' }) {
+  const [state, setState] = useState({ busy: false, note: '', error: '' });
+  const start = async () => {
+    setState({ busy: true, note: 'Preparing the download…', error: '' });
+    try {
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const result = await call(`assets/${encodeURIComponent(assetId)}/download`, { method: 'POST' });
+        if (result.status === 'ready') {
+          try {
+            const response = await fetch(result.url);
+            if (!response.ok) throw new Error('direct');
+            const blob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = result.name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+            setState({ busy: false, note: `Downloaded ${result.name}. ${result.source}.`, error: '' });
+          } catch {
+            window.open(result.url, '_blank', 'noopener');
+            setState({ busy: false, note: `Opened in a new tab: if it plays instead of saving, use the player's ⋮ menu → Download. ${result.source}.`, error: '' });
+          }
+          return;
+        }
+        setState({ busy: true, note: result.source || 'Preparing the download…', error: '' });
+        await new Promise((resolve) => { setTimeout(resolve, 4000); });
+      }
+      setState({ busy: false, note: '', error: 'The download is taking longer than usual. Try again in a few minutes.' });
+    } catch (failure) {
+      setState({ busy: false, note: '', error: failure.message });
+    }
+  };
+  return (
+    <div className="ms-download">
+      <button type="button" className="ms-secondary" onClick={start} disabled={state.busy}>{state.busy ? 'Preparing…' : text}</button>
+      {state.note && <span className="ms-muted">{state.note}</span>}
+      {state.error && <span className="ms-bad">{state.error}</span>}
+    </div>
+  );
+}
+
 function RenderCard({ format, render }) {
   if (!render) return null;
   const ready = render.asset?.playbackId && render.asset.status === 'ready';
@@ -166,6 +211,7 @@ function RenderCard({ format, render }) {
       <div className="ms-row ms-between"><strong>{format === 'widescreen' ? '16:9' : format === 'vertical' ? '9:16' : '1:1'} · {render.destination === 'live' ? 'LIVE master (−24 LUFS)' : 'Social (−14 LUFS)'}</strong><Status value={ready ? 'ready' : render.status} /></div>
       {!ready && render.status !== 'failed' && <div className="ms-progress"><span style={{ width: `${render.progress || 2}%` }} /><em>{render.stage || 'queued'}</em></div>}
       {render.error && <p className="ms-notice ms-notice--error">{render.error}</p>}
+      {ready && render.assetRecordId && <DownloadButton assetId={render.assetRecordId} label={`Download ${format === 'widescreen' ? '16:9' : format === 'vertical' ? '9:16' : '1:1'} MP4`} />}
       {ready && <MuxPlayer playbackId={render.asset.playbackId} streamType="on-demand" metadata={{ video_title: `Marketing preview ${format}` }} style={{ width: '100%', aspectRatio: format === 'vertical' ? '9 / 16' : format === 'square' ? '1 / 1' : '16 / 9', maxHeight: format === 'vertical' ? 560 : undefined }} />}
       {render.validation && (
         <dl className="ms-specs">
@@ -492,6 +538,7 @@ function Assets({ hypeOnly = false }) {
         <section key={asset.id} className="ms-card ms-asset">
           {asset.playbackId ? <MuxPlayer playbackId={asset.playbackId} streamType="on-demand" style={{ width: '100%', aspectRatio: asset.format === 'vertical' ? '9 / 16' : '16 / 9', maxHeight: 420 }} /> : <div className="ms-beat-card">Processing</div>}
           <h4>{asset.title}</h4><Status value={asset.status} />
+          {asset.playbackId && <DownloadButton assetId={asset.id} />}
           <p className="ms-muted">{asset.source}{asset.durationSeconds ? ` · ${asset.durationSeconds} s` : ''}</p>
           {asset.provenance?.length > 0 && <details><summary>Footage provenance</summary><ul className="ms-bullets">{asset.provenance.map((item, index) => <li key={index}>{item.title} at {Math.round(item.startSeconds)} s ({item.seconds} s)</li>)}</ul></details>}
         </section>))}</div>}

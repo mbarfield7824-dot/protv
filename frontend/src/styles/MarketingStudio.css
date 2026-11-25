@@ -85,3 +85,4 @@
   .ms-table { display: block; overflow-x: auto; }
   .ms-row:not(.ms-between) { flex-wrap: wrap; }
 }
+.ms-download { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

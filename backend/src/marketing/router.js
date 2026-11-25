@@ -52,6 +52,7 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   });
 
   router.get('/assets', handle('asset list', () => service.listAssets()));
+  router.post('/assets/:id/download', handle('download', (req) => service.downloadAsset(req.params.id, actor(req))));
   router.post('/assets/hype-clips/:jobId/import', handle('Hype Clip import', (req) => service.importHypeClip(req.params.jobId, actor(req))));
 
   router.get('/posts', handle('post list', () => service.listPosts()));

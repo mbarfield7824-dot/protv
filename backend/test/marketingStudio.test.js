@@ -254,3 +254,27 @@ test('portal requests are signed; the dispatcher accepts only a valid signature 
   assert.equal((await fetch(url, { headers: { Authorization: 'Bearer cron' } })).status, 200);
   assert.equal((await fetch(url, { headers: { 'X-PROtv-Marketing-Timestamp': timestamp, 'X-PROtv-Marketing-Signature': 'f'.repeat(64) } })).status, 401);
 });
+
+test('downloads: the original render when the worker holds it, otherwise the Mux master (prepared once, then ready)', async () => {
+  const { service, store, renders } = harness();
+  await store.put('assets', 'as_render', { title: 'Spot', format: 'widescreen', renderJobId: 'job-1', muxAssetId: 'asset-r', status: 'approved' });
+  renders.set('job-1', { status: 'ready' });
+  const original = await service.downloadAsset('as_render', 'owner');
+  assert.equal(original.status, 'ready');
+  assert.match(original.url, /^https:\/\/portal\.test\/render\/job-1/);
+  assert.match(original.source, /Original render/);
+  assert.match(original.name, /^PROtv-Spot-widescreen\.mp4$/);
+  await store.put('assets', 'as_hype', { title: 'Clip', format: 'vertical', hypeClipJobId: 'hype-9', status: 'approved' });
+  assert.match((await service.downloadAsset('as_hype', 'owner')).url, /\/hype\/hype-9/);
+  const muxState = { master_access: 'none', master: null };
+  let enabled = 0;
+  const local = harness({ mux: { getAsset: async () => muxState, enableMasterAccess: async () => { enabled += 1; muxState.master_access = 'temporary'; muxState.master = { status: 'preparing' }; } } });
+  await local.store.put('assets', 'as_local', { title: 'First', format: 'vertical', muxAssetId: 'asset-local', status: 'approved' });
+  assert.equal((await local.service.downloadAsset('as_local', 'owner')).status, 'preparing');
+  assert.equal((await local.service.downloadAsset('as_local', 'owner')).status, 'preparing');
+  assert.equal(enabled, 1, 'Mux is asked once, not on every poll');
+  muxState.master = { status: 'ready', url: 'https://master.mux.com/first.mp4' };
+  const ready = await local.service.downloadAsset('as_local', 'owner');
+  assert.deepEqual([ready.status, ready.url], ['ready', 'https://master.mux.com/first.mp4']);
+  await assert.rejects(local.service.downloadAsset('missing', 'owner'), /Asset not found/);
+});

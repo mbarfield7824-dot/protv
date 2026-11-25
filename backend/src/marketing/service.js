@@ -280,6 +280,36 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     await log(actor, 'sponsor_approval', `Recorded sponsor ${approved ? 'approval' : 'change request'} for "${commercial.title}".`, { commercialId: id, by });
     return store.put('commercials', id, { ...commercial, sponsor, updatedAt: stamp() });
   }
+  // A download link for a library video: the original render (or Hype Clip export) from the worker when it is held
+  // there, otherwise Mux's stored master copy, which Mux prepares on request and keeps downloadable for 24 hours.
+  async function downloadAsset(id, actor) {
+    const asset = await requireRecord('assets', id, 'Asset');
+    const name = `PROtv-${slug(asset.title).slice(0, 40) || 'video'}-${asset.format || 'video'}.mp4`;
+    if (asset.renderJobId && portal.configured()) {
+      const status = await portal.renderStatus(asset.renderJobId).catch(() => null);
+      if (status?.status === 'ready') {
+        await log(actor, 'asset_download', `Downloaded "${asset.title}" (original render).`, { assetId: id });
+        return { status: 'ready', url: portal.fileUrl('render', asset.renderJobId, { ttlMs: 3600_000, download: true }), name, source: 'Original render from the PROtv render worker (link valid 1 hour)' };
+      }
+    }
+    if (asset.hypeClipJobId && portal.configured()) {
+      await log(actor, 'asset_download', `Downloaded "${asset.title}" (Hype Clip export).`, { assetId: id });
+      return { status: 'ready', url: portal.fileUrl('hype', asset.hypeClipJobId, { ttlMs: 3600_000, download: true }), name, source: 'Hype Clip Studio export (link valid 1 hour)' };
+    }
+    if (!mux || !asset.muxAssetId) throw new MarketingError('This video has no downloadable copy.', 404);
+    const current = await mux.getAsset(asset.muxAssetId);
+    if (current?.master?.status === 'ready' && current.master.url) {
+      await log(actor, 'asset_download', `Downloaded "${asset.title}" (Mux master copy).`, { assetId: id });
+      return { status: 'ready', url: current.master.url, name, source: 'Mux master copy (link valid up to 24 hours)' };
+    }
+    if (current?.master?.status === 'errored') throw new MarketingError('Mux could not prepare a download of this video.', 502);
+    if (current?.master_access !== 'temporary') {
+      await mux.enableMasterAccess(asset.muxAssetId);
+      await log(actor, 'asset_download_prepare', `Asked Mux to prepare a download of "${asset.title}".`, { assetId: id });
+    }
+    return { status: 'preparing', name, source: 'Mux is preparing the MP4 (usually under a minute)' };
+  }
+
   // Hands an approved 16:9 commercial to the existing PROtv LIVE inventory as a DRAFT spot (no timeline change).
   async function registerForLive(id, { flightStart = null, flightEnd = null } = {}, actor) {
     const commercial = await requireRecord('commercials', id, 'Commercial');
@@ -605,7 +635,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     listCommercials: () => store.list('commercials'), getCommercial: (id) => requireRecord('commercials', id, 'Commercial'),
     async cancelRender(id, format, actor) { const commercial = await requireRecord('commercials', id, 'Commercial'); const render = commercial.renders[format]; if (!render) throw new MarketingError('No such render.'); await portal.cancelRender(render.jobId); await log(actor, 'commercial_cancel', `Cancelled the ${format} render of "${commercial.title}".`, { commercialId: id }); return refreshCommercial(id); },
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
-    listAssets, importHypeClip,
+    listAssets, importHypeClip, downloadAsset,
     createPost, approvePost, publishPost, dispatchDue, recordManualPost, sevenDayPlan, listPosts: () => store.list('posts'),
     async cancelPost(id, actor) { const post = await requireRecord('posts', id, 'Post'); if (post.receipt) throw new MarketingError('This post was already published.'); await log(actor, 'post_cancel', `Withdrew the ${post.platform} post.`, { postId: id }); return store.put('posts', id, { ...post, status: 'cancelled', updatedAt: stamp() }); },
     accounts, startConnect, finishConnect, disconnect,
