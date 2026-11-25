@@ -7,11 +7,12 @@
 // Fail-closed: an app gets a feed only if it is listed here, and a program reaches it only when the same rule that
 // governs that app's on-demand catalog allows it (catalog/platformEligibility.js and catalog/rightsHolds.js), on top of
 // the channel's own linear-rights check. A premiere that has not been delivered yet is never shown to an app, because
-// its clearance can only be read from the delivered title. Fire TV and iOS are deliberately not listed.
-const { rokuEligible, samsungEligible, samsungView } = require('../catalog/platformEligibility');
+// its clearance can only be read from the delivered title.
+const { firetvEligible, rokuEligible, samsungEligible, samsungView } = require('../catalog/platformEligibility');
 const { deviceAppHeld, rightsHeld } = require('../catalog/rightsHolds');
 
 const APP_POLICIES = new Map([
+  ['firetv', { platform: 'firetv', policy: 'firetv-live-v1', allows: (video) => firetvEligible(video) }],
   ['roku', { platform: 'roku', policy: 'roku-live-v1', allows: (video) => rokuEligible(video) }],
   // Samsung also applies the viewer's territory (U.S.-only tier) and plays U.S.-only titles only by signed playback ID.
   ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at, territory) => samsungEligible(video, new Date(at), territory), view: samsungView }],

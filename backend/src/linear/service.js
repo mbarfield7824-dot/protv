@@ -14,8 +14,6 @@ const {
 } = require('./creatives');
 
 const GUIDE_HOURS = 24;
-const APPLE_PLATFORMS = new Set(['ios', 'appletv']);
-const appleLinearRightsKey = (id) => `apple_title_${id}`;
 // A 24/7 schedule reads ~150 documents per refresh; 30 s keeps that to a few dollars a month per busy server instance.
 // Rights withdrawals and unpublishing take effect within this time; admin edits clear it immediately on that instance.
 const CACHE_MS = 30_000;
@@ -40,37 +38,17 @@ function createLinearService({
   // Viewer requests share one short-lived read of the schedule, titles and rights. Air-time eligibility is still
   // evaluated against the current clock on every request; held titles have no playback ID to leak from a cache.
   // The window reaches five minutes back so analytics can still attribute events from a program that just ended.
-  async function loadWindow(at, { fresh = false, app = null } = {}) {
-    const cacheKey = app && APPLE_PLATFORMS.has(app.platform) ? 'apple' : 'master';
+  async function loadWindow(at, { fresh = false } = {}) {
+    const cacheKey = 'master';
     const cached = cache.get(cacheKey);
     if (!fresh && cached && at - cached.loadedAt < cacheMs && cached.loadedAt <= at) return cached;
     const fromIso = new Date(at - 5 * 60_000).toISOString();
     const toIso = new Date(at + (GUIDE_HOURS + 2) * 3_600_000).toISOString();
-    const [settings, masterEntries] = await Promise.all([store.getSettings(), store.listEntries(fromIso, toIso)]);
-    const appleEntries = cacheKey === 'apple' && typeof store.listAppleEntries === 'function'
-      ? await store.listAppleEntries(fromIso, toIso)
-      : [];
-    const usingAppleSchedule = appleEntries.some((entry) => Date.parse(entry.startAt) <= at && Date.parse(entry.endAt) > at);
-    const entries = usingAppleSchedule
-      ? appleEntries
-      : masterEntries;
+    const [settings, entries] = await Promise.all([store.getSettings(), store.listEntries(fromIso, toIso)]);
     const approved = entries.filter((entry) => entry.status === 'approved');
     const videos = await store.getVideos(approved.map((entry) => entry.videoId).filter(Boolean));
     const rightsKeys = [...videos.values(), ...approved.map(pendingVideo).filter(Boolean)].flatMap(rightsKeysFor);
-    if (usingAppleSchedule && app?.territory?.country === 'US') {
-      rightsKeys.push(...[...videos.values()].map((video) => appleLinearRightsKey(video.id)));
-    }
     const rights = await store.getRights(rightsKeys);
-    if (usingAppleSchedule && app?.territory?.country === 'US') {
-      for (const video of videos.values()) {
-        const override = rights.get(appleLinearRightsKey(video.id));
-        if (override?.status === 'confirmed'
-          && override.territory === 'US'
-          && override.signedPlaybackRequired === true) {
-          rights.set(`title_${video.id}`, override);
-        }
-      }
-    }
     const creatives = await store.getCreatives(approved.flatMap((entry) => (entry.pod || []).map((spot) => spot.creativeId)));
     const loaded = { loadedAt: at, settings, entries: approved, videos, rights, creatives };
     if (!fresh) cache.set(cacheKey, loaded);
@@ -178,7 +156,7 @@ function createLinearService({
       throw new LinearValidationError('Choose a test time from one day ago to 35 days ahead.');
     }
     const at = simulated ? simulatedAt : actual;
-    const { settings, entries, videos, rights, creatives } = await loadWindow(at, { fresh: simulated, app });
+    const { settings, entries, videos, rights, creatives } = await loadWindow(at, { fresh: simulated });
     if (settings.status !== 'public' && !preview) throw new LinearNotFoundError('PROtv LIVE is not available.');
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
     const all = entries

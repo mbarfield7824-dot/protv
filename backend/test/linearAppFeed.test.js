@@ -66,13 +66,14 @@ const view = (service, clock, iso, platform) => {
 };
 const leaks = (item, title) => JSON.stringify(item).includes(title);
 
-test('app policies are fail-closed: Roku, Samsung, Android and the Apple apps have a feed, Fire TV does not', () => {
+test('app policies are fail-closed: Roku, Samsung, Fire TV, Android and the Apple apps have their own feeds', () => {
+  assert.equal(appPolicy('firetv').policy, 'firetv-live-v1');
   assert.equal(appPolicy('roku').policy, 'roku-live-v1');
   assert.equal(appPolicy('SAMSUNG').policy, 'samsung-live-v1');
   assert.equal(appPolicy('android').policy, 'android-live-v1');
   assert.equal(appPolicy('ios').policy, 'ios-live-v1');
   assert.equal(appPolicy('appletv').policy, 'appletv-live-v1');
-  for (const platform of ['firetv', 'tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
+  for (const platform of ['tvos', 'default', '', undefined]) assert.equal(appPolicy(platform), null, String(platform));
   const roku = appPolicy('roku');
   assert.equal(appAllows(roku, videos[0], NOW), true);
   assert.equal(appAllows(roku, videos[2], NOW), false, 'not on the Roku list');
@@ -153,7 +154,7 @@ test('Samsung uses its own narrower list; Android follows its catalog less devic
   assert.equal((await view(service, clock, '2026-12-01T14:30:00Z')).now.title, 'ITAN', 'the website listing is unchanged');
 });
 
-test('Apple uses an approved alternate lineup without changing the master schedule', async () => {
+test('Apple uses the master entry and preserves its exact airtime', async () => {
   const clock = { now: at('2026-12-01T13:30:00Z') };
   const master = [{
     id: 'master-uncleared', kind: 'program', videoId: UNCLEARED, programType: 'movie', status: 'approved',
@@ -172,18 +173,18 @@ test('Apple uses an approved alternate lineup without changing the master schedu
 
   const apple = await view(service, clock, '2026-12-01T13:05:00Z', 'ios');
   assert.equal(apple.channel.policy, 'ios-live-v1');
-  assert.equal(apple.now.title, 'Big Buck Bunny');
-  assert.equal(apple.now.entryId, 'apple-cleared');
-  assert.equal(apple.now.playback.muxPlaybackId, `pb-${SAMSUNG_FILM}`);
-  assert.equal(apple.now.playback.offsetSeconds, 300);
+  assert.equal(apple.now.entryId, 'master-uncleared');
+  assert.equal(apple.now.kind, 'restricted');
 
   const website = await view(service, clock, '2026-12-01T13:05:00Z');
   assert.equal(website.now.title, 'Website Only Feature');
   assert.equal(website.now.entryId, 'master-uncleared');
+  assert.equal(website.now.startsAt, apple.now.startsAt);
+  assert.equal(website.now.endsAt, apple.now.endsAt);
   assert.deepEqual(await store.listEntries('2026-12-01T00:00:00Z', '2026-12-02T00:00:00Z'), before);
 });
 
-test('Apple can use a U.S.-only signed linear rights override without changing the master feed', async () => {
+test('Apple cannot bypass the worldwide master linear-rights decision with an old override', async () => {
   const clock = { now: at('2026-12-01T13:30:00Z') };
   const united = film(UNITED, 'UNITED NATIONS', { duration: 4115, muxSignedPlaybackId: 'SignedUnited00000001' });
   const master = [{
@@ -207,13 +208,16 @@ test('Apple can use a U.S.-only signed linear rights override without changing t
   clock.now = at('2026-12-01T13:30:00Z');
   const us = appPolicy('ios', { country: 'US', reason: 'ip' });
   const apple = await service.channelState({ app: us });
-  assert.equal(apple.now.title, 'UNITED NATIONS');
-  assert.equal(apple.now.playback.muxPlaybackId, 'SignedUnited00000001');
-  assert.equal(apple.now.playback.playbackToken, 'token:SignedUnited00000001');
+  assert.equal(apple.now.entryId, 'master-united');
+  assert.equal(apple.now.kind, 'holding');
+  assert.ok(!apple.now.playback);
 
   clock.now = at('2026-12-01T13:30:00Z');
   const website = await service.channelState();
   assert.equal(website.now.kind, 'holding', 'the global denial still applies to the master schedule');
+  assert.equal(website.now.entryId, apple.now.entryId);
+  assert.equal(website.now.startsAt, apple.now.startsAt);
+  assert.equal(website.now.endsAt, apple.now.endsAt);
 });
 
 test('a premiere reaches an app only when the delivered title is cleared for it', async () => {
@@ -270,12 +274,14 @@ test('the channel route selects the app feed by ?platform=, X-PROtv-Platform or 
     assert.equal(roku.body.channel.policy, 'roku-live-v1');
     assert.equal(roku.body.now.kind, 'restricted');
   }
-  for (const platform of ['firetv', 'something']) {
+  for (const platform of ['something']) {
     const refused = await call(`/v1/linear/channel?platform=${platform}`);
     assert.equal(refused.status, 404, platform);
     assert.equal(refused.body.code, 'LIVE_PLATFORM_UNSUPPORTED');
   }
-  assert.equal((await call('/v1/linear/channel', { 'X-PROtv-Platform': 'firetv' })).status, 404);
+  const firetv = await call('/v1/linear/channel', { 'X-PROtv-Platform': 'firetv' });
+  assert.equal(firetv.status, 200);
+  assert.equal(firetv.body.channel.policy, 'firetv-live-v1');
 });
 
 test('an app never gets the Administrator preview, so an off channel stays off in every app', async (t) => {
@@ -290,5 +296,5 @@ test('an app never gets the Administrator preview, so an off channel stays off i
   assert.equal(simulated.status, 200);
   assert.equal(simulated.body.now.kind, 'restricted');
   assert.equal(simulated.body.channel.policy, 'roku-live-v1');
-  assert.equal((await admin(`/admin/linear/test/channel?at=${at('2026-12-01T13:30:00Z')}&platform=firetv`)).status, 400);
+  assert.equal((await admin(`/admin/linear/test/channel?at=${at('2026-12-01T13:30:00Z')}&platform=firetv`)).status, 200);
 });
