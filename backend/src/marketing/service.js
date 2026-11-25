@@ -284,7 +284,9 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   // there, otherwise Mux's stored master copy, which Mux prepares on request and keeps downloadable for 24 hours.
   async function downloadAsset(id, actor) {
     const asset = await requireRecord('assets', id, 'Asset');
-    const name = `PROtv-${slug(asset.title).slice(0, 40) || 'video'}-${asset.format || 'video'}.mp4`;
+    const base = String(asset.title || 'video').split(' · ')[0].normalize('NFD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').slice(0, 60) || 'video';
+    const shape = { widescreen: '16x9', vertical: '9x16', square: '1x1' }[asset.format] || 'video';
+    const name = `PROtv-${base}-${shape}.mp4`;
     if (asset.renderJobId && portal.configured()) {
       const status = await portal.renderStatus(asset.renderJobId).catch(() => null);
       if (status?.status === 'ready') {

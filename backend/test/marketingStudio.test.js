@@ -257,13 +257,13 @@ test('portal requests are signed; the dispatcher accepts only a valid signature 
 
 test('downloads: the original render when the worker holds it, otherwise the Mux master (prepared once, then ready)', async () => {
   const { service, store, renders } = harness();
-  await store.put('assets', 'as_render', { title: 'Spot', format: 'widescreen', renderJobId: 'job-1', muxAssetId: 'asset-r', status: 'approved' });
+  await store.put('assets', 'as_render', { title: 'Spot · 16:9 (PROtv LIVE / YouTube)', format: 'widescreen', renderJobId: 'job-1', muxAssetId: 'asset-r', status: 'approved' });
   renders.set('job-1', { status: 'ready' });
   const original = await service.downloadAsset('as_render', 'owner');
   assert.equal(original.status, 'ready');
   assert.match(original.url, /^https:\/\/portal\.test\/render\/job-1/);
   assert.match(original.source, /Original render/);
-  assert.match(original.name, /^PROtv-Spot-widescreen\.mp4$/);
+  assert.equal(original.name, 'PROtv-Spot-16x9.mp4');
   await store.put('assets', 'as_hype', { title: 'Clip', format: 'vertical', hypeClipJobId: 'hype-9', status: 'approved' });
   assert.match((await service.downloadAsset('as_hype', 'owner')).url, /\/hype\/hype-9/);
   const muxState = { master_access: 'none', master: null };
