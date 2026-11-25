@@ -93,6 +93,7 @@ test('the registry is complete and well formed for every connected-TV title on r
   }
   // Facts verified 2026-11-23.
   assert.equal(registry['creator_89303465-51e3-46bb-bd21-ff5ed2db2c49'].signer, 'unconfirmed', 'Dead Air');
-  assert.equal(registry['creator_613e215e-709f-48ee-91bb-b225d8da4a33'].territory, 'US', 'The Thirst');
+  assert.equal(registry['creator_613e215e-709f-48ee-91bb-b225d8da4a33'].territory, 'WORLDWIDE', 'The Thirst: Addendum F');
+  assert.equal(registry['creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'].territory, 'US', 'UNITED NATIONS');
   assert.equal(registry['creator_08283e5a-f35c-402e-9639-50e1711a5d67'].rating, 'TV-MA', 'You Did Me Dirty');
 });

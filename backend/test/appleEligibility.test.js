@@ -6,7 +6,7 @@ const { createCatalogRouter } = require('../src/catalog/router');
 
 const ALTC = 'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9'; // signed agreement, worldwide, all PROtv apps
 const YDMD = 'creator_08283e5a-f35c-402e-9639-50e1711a5d67'; // TV-MA: fits Apple's 18+ rating
-const THIRST = 'creator_613e215e-709f-48ee-91bb-b225d8da4a33'; // U.S.-only grant
+const THIRST = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'; // UNITED NATIONS: U.S.-only grant (The Thirst became worldwide under Addendum F)
 const HIS_GIRL = 'LiMNMZWXBxJj3LoP73kU'; // U.S. public domain, element review not done
 const HARLEM = '6h3blkiA6LTeLv66jj1v'; // rights hold
 const UNKNOWN = 'web-only-title'; // no rights record

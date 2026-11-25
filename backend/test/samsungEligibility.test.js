@@ -13,7 +13,7 @@ const SAMSUNG = { 'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleW
 const CC_BY = 'gbcxmtl6mAHQeBxx8Dgs'; // Tears of Steel: CC BY 3.0, worldwide
 const SIGNED = 'creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f'; // CAESAR III JUDGEMENT, cutoff 2028-11-03
 const US_PUBLIC_DOMAIN = 'LiMNMZWXBxJj3LoP73kU'; // His Girl Friday: U.S. finding only (Roku/Fire TV cleared)
-const US_ONLY_GRANT = 'creator_613e215e-709f-48ee-91bb-b225d8da4a33'; // The Thirst: U.S.-only grant (Roku cleared)
+const US_ONLY_GRANT = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'; // UNITED NATIONS: U.S.-only grant (Roku cleared)
 const ROKU_FLAGGED = 'creator_roku-only';
 
 function title(id, overrides = {}) {
@@ -85,8 +85,9 @@ test('Samsung cutoffs are inclusive UTC dates and samsungHold withdraws a title'
   assert.deepEqual(eligibleForPlatform([caesar], 'samsung', new Date('2030-01-01T00:00:00Z')), []);
 });
 
-test('Samsung allowlist holds exactly the twelve worldwide app-scope clearances', () => {
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 12);
+test('Samsung allowlist holds exactly the thirteen worldwide app-scope clearances', () => {
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 13);
+  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_613e215e-709f-48ee-91bb-b225d8da4a33'), '2027-10-25', 'The Thirst: Addendum F');
   assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), false, 'TV-MA exceeds the 16+ Samsung store rating');
   // Agreements executed 2026-11-18/19 run 24 months from signing; the U.S.-only grants and U.S. public-domain findings stay out.
   assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47'), '2028-11-17');

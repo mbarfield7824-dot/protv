@@ -87,7 +87,7 @@ const REVIEWED_AGREEMENTS = {
     finding: "supports",
     agreementReference: "f2068214-d3f4-4171-b09b-9bcdefd4f527 (replacement agreement, signed 2026-10-26)",
     basis: "The replacement agreement licenses streaming on PROtv and its associated applications; no on-demand-only limitation.",
-    caution: "United States only. PROtv LIVE has no playback geofence, the same position as on demand.",
+    caution: "Superseded 2026-11-25: Addendum F (SignWell 92fac4b5, executed 2026-11-22) grants Scheduled Streaming on PROtv LIVE, worldwide, on all PROtv Properties; Schedule 4 lists no exclusions.",
   },
   // Dead Air: reviewed 2026-11-21 from the signed wording in the Creator Portal.
   "creator_89303465-51e3-46bb-bd21-ff5ed2db2c49": {

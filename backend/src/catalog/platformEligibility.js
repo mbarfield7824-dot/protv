@@ -47,9 +47,23 @@ function clearedEpisode(video) {
     || (video.contentType === 'SERIES' && Boolean(video.creatorSeriesProjectId) && video.firetvCleared === true);
 }
 
+// Creator titles whose executed agreements name Amazon Fire TV or grant every PROtv app, worldwide (read 2026-11-23 and
+// 2026-11-25; docs/rights-reconciliation-2026-11-25.md). U.S.-only grants (UNITED NATIONS) stay off until Fire TV has a
+// territory check; TV-MA titles stay off until Fire TV's store rating is confirmed. Holds always win.
+const FIRETV_CREATOR_TITLE_IDS = new Set([
+  'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', // A Long Time Coming: STD6040-v1 3e9c05e3 + Addendum C, names Amazon Fire TV
+  'creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', // Three Thirty: STD6040-v1 e1f7a31c + Addendum C, names Amazon Fire TV
+  'creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', // 2212 (film): CUSTOM-v1 fa57d968 + Addendum B, names Amazon Fire TV
+  'creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', // It's a Double Date a Classic: 1a959a6f s.1, "including connected-TV" apps, worldwide
+  'creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', // CAESAR III JUDGEMENT: 59a9f315 + Addendum A-2, all PROtv Properties
+  'creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', // Curtain Call: d2bf0097 + Addendum A-2, all PROtv Properties
+  'creator_ffb0df98-37f2-4ced-ba92-f03df9a65790', // Aunt Tut: STD6040-v1 a20f8f4b, names Amazon Fire TV
+  'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: f2068214 + Addendum F, worldwide, all PROtv Properties
+]);
+
 function firetvEligible(video) {
   if (!video || video.firetvHold === true || deviceAppHeld(video)) return false;
-  return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video);
+  return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || FIRETV_CREATOR_TITLE_IDS.has(video.id) || clearedEpisode(video);
 }
 
 // Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
@@ -65,7 +79,7 @@ function platformFromRequest(req) {
 
 // Live before publishing recorded rokuCleared; each signed agreement was read on 2026-11-02.
 const ROKU_REVIEWED_CREATOR_TITLE_IDS = new Set([
-  'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: replacement agreement, PROtv platform and associated applications, worldwide
+  'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: replacement agreement (U.S.), widened to worldwide by Addendum F (92fac4b5, executed 2026-11-22)
   'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6', // UNITED NATIONS: Schedule B naming TV apps
 ]);
 
@@ -94,6 +108,7 @@ const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
   // future PROtv connected-TV apps (the 2212 season agreement names Samsung smart TVs); 24-month terms from signing.
   ['creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', '2028-11-17'], // Three Thirty: STD6040-v1 e1f7a31c, worldwide
   ['creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', '2028-11-17'], // 2212 (film): CUSTOM-v1 fa57d968, worldwide where Licensor holds rights
+  ['creator_613e215e-709f-48ee-91bb-b225d8da4a33', '2027-10-25'], // The Thirst: Addendum F (92fac4b5, executed 2026-11-22) widens f2068214 to worldwide, all PROtv Properties; Original Term
   // Not yet: You Did Me Dirty, You Reap What You Sow (CUSTOM-v1 ab9730ab, rights otherwise clear) is rated TV-MA, above
   // the Samsung app's 16+ store rating; add it only once the Samsung listing carries an 18+ rating.
   ['creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90', '2028-11-18'], // 2212 S1 "Concrete": Season Agreement f936d40d, Samsung named
@@ -158,6 +173,7 @@ function platformPolicy(platform) {
 }
 
 module.exports = {
+  FIRETV_CREATOR_TITLE_IDS,
   APPLE_PLATFORMS,
   FIRETV_LAUNCH_TITLE_IDS,
   SAMSUNG_LAUNCH_TITLE_EXPIRY,

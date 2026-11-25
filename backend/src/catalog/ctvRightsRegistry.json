@@ -143,10 +143,10 @@
  "creator_613e215e-709f-48ee-91bb-b225d8da4a33": {
   "kind": "agreement",
   "title": "The Thirst",
-  "agreement": "f2068214",
+  "agreement": "f2068214 + Addendum F 92fac4b5 (executed 2026-11-22)",
   "signed": "2026-10-26",
   "ends": "2027-10-25",
-  "territory": "US",
+  "territory": "WORLDWIDE",
   "services": "all-protv-apps",
   "signer": "confirmed",
   "rating": null,

@@ -59,11 +59,23 @@ test('an explicit platform header and caching both respect the platform', async 
   assert.match(response.headers.get('vary'), /X-PROtv-Platform/);
 });
 
-test('both reviewed creator films stay on Roku and off the Fire TV launch list', () => {
+test('both reviewed creator films stay on Roku; on Fire TV only the worldwide one (The Thirst, Addendum F)', () => {
   const { eligibleForPlatform } = require('../src/catalog/platformEligibility');
   const films = ['creator_613e215e-709f-48ee-91bb-b225d8da4a33', 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'].map((id) => title(id));
   assert.equal(eligibleForPlatform(films, 'roku').length, 2);
-  assert.equal(eligibleForPlatform(films, 'firetv').length, 0);
+  assert.deepEqual(eligibleForPlatform(films, 'firetv').map((v) => v.id), ['creator_613e215e-709f-48ee-91bb-b225d8da4a33'], 'UNITED NATIONS stays off Fire TV (U.S.-only)');
+});
+
+test('Fire TV carries the creator titles whose executed agreements cover it; holds and TV-MA stay off', () => {
+  const { eligibleForPlatform, FIRETV_CREATOR_TITLE_IDS } = require('../src/catalog/platformEligibility');
+  assert.equal(FIRETV_CREATOR_TITLE_IDS.size, 8);
+  const ids = [...FIRETV_CREATOR_TITLE_IDS, 'creator_08283e5a-f35c-402e-9639-50e1711a5d67'];
+  const out = eligibleForPlatform(ids.map((id) => title(id)), 'firetv').map((v) => v.id);
+  assert.deepEqual(out.sort(), [...FIRETV_CREATOR_TITLE_IDS].sort());
+  assert.ok(!out.includes('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), 'You Did Me Dirty (TV-MA)');
+  // Rights holds (Dead Air, Murder in Harlem) are removed by the shared viewer and LIVE checks before any platform rule.
+  assert.equal(require('../src/catalog/readModel').isViewerEligible(title('creator_89303465-51e3-46bb-bd21-ff5ed2db2c49', { approvalStatus: 'approved', status: 'ready', muxPlaybackId: 'pbDeadAir' })), false);
+  assert.equal(eligibleForPlatform([title('creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', { firetvHold: true })], 'firetv').length, 0, 'a Fire TV hold wins');
 });
 
 test('Roku series lists contain only cleared released episodes', async (context) => {
