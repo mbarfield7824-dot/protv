@@ -90,6 +90,13 @@ const linearChannel = createLinearRouters();
 app.use(`${apiPrefix}/v1/linear`, linearChannel.publicRouter);
 app.use(`${apiPrefix}/admin/linear`, linearChannel.adminRouter);
 app.get(`${apiPrefix}/cron/linear-continue`, linearChannel.cronHandler);
+// PROtv Marketing Studio (Administrators), anonymous campaign measurement, platform OAuth returns, and the publishing
+// dispatcher (called by the portal render worker every few minutes, signed with the shared publishing secret).
+const { createMarketingRouters } = require('./marketing/router');
+const marketing = createMarketingRouters();
+app.use(`${apiPrefix}/admin/marketing`, marketing.adminRouter);
+app.use(`${apiPrefix}/marketing`, marketing.publicRouter);
+app.get(`${apiPrefix}/integrations/marketing/dispatch`, marketing.dispatchHandler);
 // Mounted before the users router so the existing favorites/progress routes are untouched.
 app.use(`${apiPrefix}/users/me/deletion-request`, createAccountDeletionRequestRouter());
 app.use(`${apiPrefix}/users`, userRoutes);

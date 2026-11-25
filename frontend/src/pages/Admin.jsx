@@ -17,6 +17,7 @@ import { validateEpisodeMetadata } from '../admin/episodeMetadata';
 import { api } from '../api';
 import { CATEGORY_SUBGENRES, MUSIC_FORMAT_OPTIONS, UPLOAD_CATEGORY_OPTIONS } from '../data/categories';
 import { useAuth } from '../hooks/useAuth';
+import MarketingStudio from '../admin/MarketingStudio';
 import '../styles/Admin.css';
 import '../styles/AdminContent.css';
 import '../styles/AdminTools.css';
@@ -26,7 +27,7 @@ const BULK_UPLOAD_CONCURRENCY = 3;
 export default function Admin() {
   const { user, loading, isAdmin, adminLoading, openAuthModal } = useAuth();
   const { hash } = useLocation();
-  const initialMode = hash === '#mmwf' ? 'mmwf' : hash === '#short-links' ? 'short-links' : hash === '#coming-soon' ? 'coming-soon' : 'overview';
+  const initialMode = hash === '#mmwf' ? 'mmwf' : hash === '#short-links' ? 'short-links' : hash === '#coming-soon' ? 'coming-soon' : hash === '#marketing-studio' ? 'marketing-studio' : 'overview';
   const [mode, setMode] = useState(initialMode);
   const [visitedModes, setVisitedModes] = useState(initialMode === 'overview' ? [] : [initialMode]);
   const [resetVersion, setResetVersion] = useState(0);
@@ -1041,6 +1042,7 @@ export default function Admin() {
         {visitedModes.includes('assistant') && <div hidden={mode !== 'assistant'}><AdminAssistantPanel /></div>}
         {visitedModes.includes('short-links') && <div hidden={mode !== 'short-links'}><AdminShortLinks /></div>}
         {visitedModes.includes('coming-soon') && <div hidden={mode !== 'coming-soon'}><AdminComingSoon /></div>}
+        {visitedModes.includes('marketing-studio') && <div hidden={mode !== 'marketing-studio'}><MarketingStudio /></div>}
     </AdminCommandCenter>
   );
 }

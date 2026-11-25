@@ -1,0 +1,87 @@
+/* PROtv Marketing Studio: dark cinematic workspace, metallic silver and electric blue (brand tokens from index.css). */
+.ms-root { --ms-bg: var(--protv-black, #05070b); --ms-panel: #0b1322; --ms-panel-2: #0f1b32; --ms-line: var(--protv-border, rgba(148, 163, 184, 0.22));
+  --ms-text: #e8edf5; --ms-muted: var(--protv-muted, #94a3b8); --ms-blue: var(--protv-electric-blue, #4d9bff); --ms-silver: var(--protv-silver, #c5cfdc);
+  color: var(--ms-text); background: radial-gradient(1200px 500px at 10% -10%, rgba(30, 144, 255, 0.14), transparent 60%), var(--ms-bg);
+  border-radius: 16px; padding: 20px; display: grid; grid-template-columns: 240px minmax(0, 1fr); grid-template-areas: 'header header' 'nav main'; gap: 18px; }
+.ms-header { grid-area: header; display: flex; align-items: center; gap: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--ms-line); }
+.ms-header img { height: 54px; filter: drop-shadow(0 0 14px rgba(30, 144, 255, 0.45)); }
+.ms-header h2 { margin: 0; font-size: 1.6rem; letter-spacing: 0.04em; background: linear-gradient(180deg, #fff, #9aa6b8 60%, #fff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ms-header p { margin: 2px 0 0; color: var(--ms-blue); letter-spacing: 0.18em; font-size: 0.75rem; text-transform: uppercase; }
+.ms-nav { grid-area: nav; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 12px; align-self: start; }
+.ms-nav button { text-align: left; background: transparent; color: var(--ms-silver); border: 1px solid transparent; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; }
+.ms-nav button:hover { background: rgba(77, 155, 255, 0.08); }
+.ms-nav button.is-active { background: linear-gradient(90deg, rgba(30, 144, 255, 0.25), rgba(30, 144, 255, 0.05)); border-color: rgba(77, 155, 255, 0.45); color: #fff; }
+.ms-main { grid-area: main; min-width: 0; }
+.ms-stack { display: flex; flex-direction: column; gap: 16px; }
+.ms-card { background: linear-gradient(180deg, var(--ms-panel-2), var(--ms-panel)); border: 1px solid var(--ms-line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
+.ms-card h3, .ms-card h4 { margin: 0 0 8px; color: #fff; }
+.ms-sub { margin: 12px 0; }
+.ms-muted { color: var(--ms-muted); font-size: 0.9rem; }
+.ms-good { color: #6ee7a8; } .ms-bad { color: #fca5a5; }
+.ms-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ms-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ms-row { display: flex; gap: 10px; align-items: center; } .ms-wrap { flex-wrap: wrap; } .ms-between { justify-content: space-between; }
+.ms-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ms-kpi { text-align: left; background: var(--ms-panel); border: 1px solid var(--ms-line); border-radius: 12px; padding: 12px 14px; color: var(--ms-text); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.ms-kpi span { color: var(--ms-muted); font-size: 0.8rem; } .ms-kpi strong { font-size: 1.6rem; color: #fff; } .ms-kpi em { color: var(--ms-blue); font-style: normal; font-size: 0.8rem; }
+.ms-primary, .ms-secondary, .ms-danger { border-radius: 10px; padding: 8px 14px; font: inherit; cursor: pointer; border: 1px solid transparent; }
+.ms-primary { background: linear-gradient(180deg, #2aa8ff, #1677ff); color: #fff; box-shadow: 0 0 18px rgba(30, 144, 255, 0.35); }
+.ms-secondary { background: rgba(197, 207, 220, 0.08); color: var(--ms-silver); border-color: var(--ms-line); }
+.ms-danger { background: rgba(239, 68, 68, 0.15); color: #fecaca; border-color: rgba(239, 68, 68, 0.5); }
+.ms-primary:disabled, .ms-secondary:disabled, .ms-danger:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.ms-link { background: none; border: 0; padding: 0; color: var(--ms-blue); cursor: pointer; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.ms-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ms-chip { background: rgba(77, 155, 255, 0.1); border: 1px solid rgba(77, 155, 255, 0.35); color: var(--ms-silver); border-radius: 999px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; }
+.ms-root input, .ms-root select { background: #070c17; color: var(--ms-text); border: 1px solid var(--ms-line); border-radius: 8px; padding: 8px 10px; font: inherit; min-width: 0; }
+.ms-row input { flex: 1; }
+.ms-form { display: flex; flex-direction: column; gap: 10px; }
+.ms-form label { display: flex; flex-direction: column; gap: 4px; color: var(--ms-silver); font-size: 0.85rem; }
+.ms-form fieldset { border: 1px solid var(--ms-line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ms-inline { flex-direction: row !important; flex-wrap: wrap; }
+.ms-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.ms-notice { background: rgba(77, 155, 255, 0.1); border: 1px solid rgba(77, 155, 255, 0.35); border-radius: 10px; padding: 8px 12px; margin: 0; }
+.ms-notice--error { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.45); color: #fecaca; }
+.ms-status { display: inline-block; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(148, 163, 184, 0.15); color: var(--ms-silver); margin-left: 6px; white-space: nowrap; }
+.ms-status--approved, .ms-status--ready, .ms-status--published, .ms-status--connected, .ms-status--active { background: rgba(16, 185, 129, 0.18); color: #86efac; }
+.ms-status--failed, .ms-status--rejected, .ms-status--render-failed, .ms-status--expired { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+.ms-status--in-review, .ms-status--scheduled, .ms-status--rendering, .ms-status--queued, .ms-status--ready-for-manual, .ms-status--prepared { background: rgba(77, 155, 255, 0.18); color: #bfdbfe; }
+.ms-status--not-configured, .ms-status--not-connected, .ms-status--held, .ms-status--paused { background: rgba(234, 179, 8, 0.15); color: #fde68a; }
+.ms-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.ms-table th { text-align: left; color: var(--ms-muted); font-weight: 600; border-bottom: 1px solid var(--ms-line); padding: 8px 6px; }
+.ms-table td { border-bottom: 1px solid rgba(148, 163, 184, 0.1); padding: 8px 6px; vertical-align: top; }
+.ms-caption { max-width: 380px; white-space: pre-wrap; } .ms-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ms-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ms-list li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); padding-bottom: 6px; }
+.ms-list li span { color: var(--ms-muted); font-size: 0.85rem; text-align: right; }
+.ms-bullets { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.ms-mono { font-family: ui-monospace, Consolas, monospace; font-size: 0.78rem; word-break: break-all; color: var(--ms-silver); }
+.ms-specs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 8px 0 0; font-size: 0.85rem; }
+.ms-specs dt { color: var(--ms-muted); } .ms-specs dd { margin: 0; }
+.ms-beats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.ms-beat { background: #070c17; border: 1px solid var(--ms-line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; }
+.ms-beat img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
+.ms-beat-card { aspect-ratio: 16 / 9; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(135deg, #03060d, #0a1a3a); color: var(--ms-blue); font-weight: 700; letter-spacing: 0.08em; }
+.ms-beat-time { color: var(--ms-blue); font-weight: 600; }
+.ms-beat-edit { display: flex; flex-direction: column; gap: 4px; } .ms-beat-edit label { display: flex; flex-direction: column; color: var(--ms-muted); }
+.ms-renders { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 12px 0; }
+.ms-render { background: #070c17; border: 1px solid var(--ms-line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ms-progress { position: relative; height: 8px; border-radius: 999px; background: rgba(148, 163, 184, 0.15); overflow: visible; margin-bottom: 18px; }
+.ms-progress span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, #1677ff, #2aa8ff); }
+.ms-progress em { position: absolute; top: 12px; left: 0; color: var(--ms-muted); font-size: 0.75rem; font-style: normal; }
+.ms-calendar { display: grid; gap: 8px; } .ms-calendar--day { grid-template-columns: 1fr; } .ms-calendar--week { grid-template-columns: repeat(7, minmax(0, 1fr)); } .ms-calendar--month { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ms-day { background: var(--ms-panel); border: 1px solid var(--ms-line); border-radius: 10px; padding: 8px; min-height: 90px; display: flex; flex-direction: column; gap: 4px; }
+.ms-day h5 { margin: 0 0 4px; color: var(--ms-silver); font-size: 0.78rem; }
+.ms-post { font-size: 0.75rem; background: rgba(77, 155, 255, 0.1); border-radius: 6px; padding: 4px; }
+.ms-kit { display: grid; grid-template-columns: 110px 1fr; gap: 12px; } .ms-kit img { width: 110px; border-radius: 8px; object-fit: cover; aspect-ratio: 2 / 3; }
+.ms-agent-result { margin-top: 10px; border-top: 1px solid var(--ms-line); padding-top: 10px; }
+.ms-agent-result ol { margin: 0 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 1100px) { .ms-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ms-grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 820px) {
+  .ms-root { grid-template-columns: 1fr; grid-template-areas: 'header' 'nav' 'main'; padding: 12px; }
+  .ms-nav { flex-direction: row; overflow-x: auto; position: static; padding-bottom: 4px; }
+  .ms-nav button { white-space: nowrap; }
+  .ms-grid2, .ms-grid3 { grid-template-columns: 1fr; }
+  .ms-calendar--week, .ms-calendar--month { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ms-table { display: block; overflow-x: auto; }
+  .ms-row:not(.ms-between) { flex-wrap: wrap; }
+}

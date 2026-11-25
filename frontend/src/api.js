@@ -290,6 +290,17 @@ export const api = {
     return response;
   },
 
+  async adminMarketing(path, { method = 'GET', body } = {}) {
+    const res = await fetch(`${API_URL}/admin/marketing/${path}`, {
+      method, headers: await authenticatedHeaders(), cache: 'no-store',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    if (res.status === 204) return null;
+    const response = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(response.error || 'Marketing Studio request failed.'), { status: res.status });
+    return response;
+  },
+
   async recordPlaybackEvent(event, { token, signal } = {}) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);

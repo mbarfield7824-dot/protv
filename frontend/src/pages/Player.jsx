@@ -18,6 +18,7 @@ import {
   FALLBACK_POSTER,
 } from '../data/mockData';
 import '../styles/Player.css';
+import { MEANINGFUL_SECONDS, reportCampaignPlay, reportCampaignSession } from '../utils/marketingAttribution';
 
 const ALL_MOCK_VIDEOS = [...mockVideoData, ...blackCinemaData, ...independentData, ...animeData];
 
@@ -141,6 +142,24 @@ export default function Player() {
     playerEl.addEventListener('loadedmetadata', applyResume);
     return () => playerEl.removeEventListener('loadedmetadata', applyResume);
   }, [progress, user, video]);
+
+  // Marketing Studio attribution: a play start, and a meaningful session after two minutes watched (anonymous).
+  useEffect(() => {
+    const playerEl = playerRef.current;
+    if (!playerEl || !video?.id) return undefined;
+    let watched = 0;
+    let last = null;
+    const onPlay = () => reportCampaignPlay(video.id);
+    const onTime = () => {
+      const now = playerEl.currentTime;
+      if (last !== null && now > last && now - last < 5) watched += now - last;
+      last = now;
+      if (watched >= MEANINGFUL_SECONDS) reportCampaignSession(video.id);
+    };
+    playerEl.addEventListener('play', onPlay);
+    playerEl.addEventListener('timeupdate', onTime);
+    return () => { playerEl.removeEventListener('play', onPlay); playerEl.removeEventListener('timeupdate', onTime); };
+  }, [video?.id]);
 
   // Saves playback position periodically and before the player is removed.
   useEffect(() => {

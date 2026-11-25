@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
+import { captureCampaignVisit } from './utils/marketingAttribution';
 import { useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Movies from './pages/Movies';
@@ -39,6 +40,8 @@ import './App.css';
 function ScrollToTop() {
   const { pathname } = useLocation();
 
+  // Anonymous campaign attribution (Marketing Studio links only).
+  useEffect(() => { captureCampaignVisit(); }, []);
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;

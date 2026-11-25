@@ -1099,6 +1099,21 @@ function createLinearService({
       });
       return { creative: describeCreative(saved) };
     }
+    if (input.source === 'marketing-asset') {
+      // A finished Marketing Studio commercial: already a ready Mux asset, checked here against Mux. It enters the
+      // inventory as a draft and needs the usual approval (with its rights statement) before it can air.
+      const assetId = String(input.muxAssetId || '');
+      if (!/^[A-Za-z0-9]{10,128}$/.test(assetId)) throw new CreativeValidationError('A Marketing Studio commercial needs its Mux asset.');
+      const asset = await muxApi().getAsset(assetId);
+      if (!asset || asset.status !== 'ready') throw new CreativeValidationError('That commercial is not ready in Mux yet.');
+      const playbackId = muxApi().getPlaybackId(asset, 'public');
+      if (!playbackId) throw new CreativeValidationError('That commercial has no public playback ID.');
+      const saved = await store.saveCreative(null, {
+        ...base, source: 'marketing-asset', marketingCommercialId: text(input.marketingCommercialId, 80), muxStatus: 'ready', muxAssetId: assetId,
+        muxPlaybackId: playbackId, playbackPolicy: 'public', durationSeconds: Number(asset.duration) || 0, uploadId: null,
+      });
+      return { creative: describeCreative(saved) };
+    }
     const upload = await muxApi().createDirectUpload(corsOrigin, { playbackPolicy: 'public' });
     const saved = await store.saveCreative(null, {
       ...base, source: 'upload', uploadId: upload.id, muxStatus: 'waiting-for-upload', muxAssetId: null,
