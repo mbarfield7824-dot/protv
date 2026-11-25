@@ -149,8 +149,8 @@ android {
         applicationId = "com.protv.firetv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.2"
+        versionCode = 10
+        versionName = "1.0.3"
         buildConfigField("String", "FIREBASE_API_KEY", buildConfigString(firebaseApiKey))
         buildConfigField("String", "FIREBASE_APPLICATION_ID", buildConfigString(firebaseApplicationId))
         buildConfigField("String", "FIREBASE_PROJECT_ID", buildConfigString(firebaseProjectId))
@@ -206,6 +206,9 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     doFirst {
         require(normalizedApiBaseUrl.startsWith("https://")) {
             "Release builds require an HTTPS protvApiBaseUrl (or PROTV_TV_API_BASE_URL)"
+        }
+        require(listOf(firebaseApiKey, firebaseApplicationId, firebaseProjectId).all(String::isNotBlank)) {
+            "Release builds require the registered Fire TV Firebase app configuration"
         }
     }
 }

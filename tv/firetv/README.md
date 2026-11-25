@@ -31,6 +31,10 @@ encrypted with an Android Keystore key. The QR code contains only the public
 activation URL; viewers enter the displayed code on the website. The app remains
 usable for guest browsing and playback.
 
+Release builds deliberately fail before packaging if the registered Fire TV Firebase
+API key, application ID, or project ID is missing. This prevents a binary that presents
+an unusable account screen from reaching the store.
+
 PROtv LIVE uses the fail-closed `firetv-live-v1` channel response. The app preserves the
 master schedule, replaces uncleared slots with a branded holding card, and polls the guide,
 Now Playing and commercial boundaries without permitting seeking. Coming Soon uses
