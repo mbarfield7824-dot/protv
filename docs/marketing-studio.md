@@ -52,3 +52,25 @@ The website sends anonymous daily counters:
 - meaningful session (2+ minutes watched).
 
 No user IDs, no IP addresses and no viewing history are stored or shared. Metrics are labelled as observed (counted by PROtv), reported (from a platform API) or estimated (planning only).
+
+## Facebook and Instagram publish through PROtv Social Studio (2026-11-25)
+PSS is PROtv's single Meta publisher. It runs on the studio PC and holds Meta app 950590191461014 and the Page and
+Instagram tokens. They are DPAPI-protected and never leave that PC.
+
+**How a post flows:**
+1. Marketing Studio queues approved Facebook/Instagram posts (`queued-pss`).
+2. While PSS is running, it polls `/api/integrations/pss/queue` every 60 s. The request is signed with
+   `MARKETING_PSS_SECRET` (domain `protv-pss-v1`).
+3. PSS claims each post once and publishes it with its existing connection: a Page video, or an Instagram Reel from
+   the HTTPS media link the Studio supplies.
+4. PSS reports the result back to the Studio.
+
+**Rules:**
+- The Studio's own Meta OAuth connector is retired, so there is one integration.
+- Test mode sends an unpublished Page video, and a Reel container that is processed but never published.
+- An uncertain Meta response becomes `needs-check` and is never retried automatically.
+- Scheduled posts publish only while PSS is open on the studio PC. Until then they wait in the queue, and the Studio
+  shows when PSS was last online.
+
+**YouTube and TikTok:** PSS has no integration for either. They stay on manual handoff until developer apps are
+approved.
