@@ -67,3 +67,16 @@ TV and Android**, where these films are still carried under the October standard
 - Post-1978 renewals (films first published in 1950–1963) were not re-checked beyond the October online search.
 - Song titles were not identified for The Exile, The Girl from Chicago and Big Timers. They stay off Apple and Samsung
   rather than being cleared on an assumption.
+
+## PROtv LIVE programming changes (2026-11-25, same master timeline)
+Every change keeps the original start and end to the second, so nothing else on the timeline moves. Logs are in the
+session scratchpad (`unify/*-log-*.json`), listing the removed entries in full.
+- **Murder in Harlem** (rights hold): 14 slots → Three Thirty; The Thirst + Concrete; 2212 + The Lost Camp + Curtain Call.
+- **Petrified World, Plan 9, The Duke Is Tops and The Bronze Buckaroo**: 89 slots → programming cleared on all seven
+  platforms.
+  - Each slot now carries a creator film or a cleared classic, plus a short.
+  - The five Wednesday 8 PM *Mr. Ceasefire* stand-ins return to **UNITED NATIONS**: U.S. viewers on every platform, by
+    signed playback.
+- **Week of Dec 21–27** (previously empty apart from the Dec 24 Ironborn finale): filled by Repeat Week from Dec 14–20.
+  The three Double Date repeats that could not be copied (LIVE not granted) were filled with creator titles.
+- **Breaks:** every new break was filled with house spots, so all 1,040 future breaks carry spots.
