@@ -1,6 +1,5 @@
 // Platform eligibility for the shared viewer catalog.
 const { deviceAppHeld } = require('./rightsHolds');
-const { inUnitedStates } = require('./territory');
 //
 // Fire TV is fail-closed: a Fire TV client sees only titles whose rights
 // evidence covers the copy PROtv streams (Group A in
@@ -47,23 +46,28 @@ function clearedEpisode(video) {
     || (video.contentType === 'SERIES' && Boolean(video.creatorSeriesProjectId) && video.firetvCleared === true);
 }
 
-// Creator titles whose executed agreements name Amazon Fire TV or grant every PROtv app, worldwide (read 2026-11-23 and
-// 2026-11-25; docs/rights-reconciliation-2026-11-25.md). U.S.-only grants (UNITED NATIONS) stay off until Fire TV has a
-// territory check; TV-MA titles stay off until Fire TV's store rating is confirmed. Holds always win.
-const FIRETV_CREATOR_TITLE_IDS = new Set([
-  'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', // A Long Time Coming: STD6040-v1 3e9c05e3 + Addendum C, names Amazon Fire TV
-  'creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', // Three Thirty: STD6040-v1 e1f7a31c + Addendum C, names Amazon Fire TV
-  'creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', // 2212 (film): CUSTOM-v1 fa57d968 + Addendum B, names Amazon Fire TV
-  'creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', // It's a Double Date a Classic: 1a959a6f s.1, "including connected-TV" apps, worldwide
-  'creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', // CAESAR III JUDGEMENT: 59a9f315 + Addendum A-2, all PROtv Properties
-  'creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', // Curtain Call: d2bf0097 + Addendum A-2, all PROtv Properties
-  'creator_ffb0df98-37f2-4ced-ba92-f03df9a65790', // Aunt Tut: STD6040-v1 a20f8f4b, names Amazon Fire TV
-  'creator_613e215e-709f-48ee-91bb-b225d8da4a33', // The Thirst: f2068214 + Addendum F, worldwide, all PROtv Properties
-]);
+// Creator titles reach Fire TV from the shared rights registry (catalog/ctvRightsRegistry.json, evaluated by
+// catalog/ctvPolicy.js with the Fire TV profile): a signed agreement covering every PROtv app, inside its term, with a
+// confirmed signer. Fire TV's store rating is not confirmed, so rated titles (TV-MA) stay off; a U.S.-only grant plays
+// only for U.S. requests and only by its signed playback ID. Holds always win.
+function registryDecision(video, platform, now, territory) {
+  const { evaluate, registry } = require('./ctvPolicy');
+  const entry = video && registry[video.id];
+  return entry && entry.kind === 'agreement' ? evaluate(video, platform, { now, territory }) : null;
+}
 
-function firetvEligible(video) {
+function firetvEligible(video, now = new Date(), territory = null) {
   if (!video || video.firetvHold === true || deviceAppHeld(video)) return false;
-  return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || FIRETV_CREATOR_TITLE_IDS.has(video.id) || clearedEpisode(video);
+  if (FIRETV_LAUNCH_TITLE_IDS.has(video.id) || clearedEpisode(video)) return true;
+  const decision = registryDecision(video, 'firetv', now, territory);
+  return Boolean(decision && decision.eligible);
+}
+
+// What Fire TV receives for an eligible title: a U.S.-only grant carries only its signed playback ID.
+function firetvView(video, now = new Date(), territory = null) {
+  if (!video || FIRETV_LAUNCH_TITLE_IDS.has(video.id)) return video;
+  const decision = registryDecision(video, 'firetv', now, territory);
+  return decision && decision.eligible ? require('./ctvPolicy').ctvView(video, decision) : video;
 }
 
 // Only an explicit header selects a platform. Fire TV builds from 1.0.0 code 6
@@ -91,57 +95,26 @@ function rokuEligible(video) {
   return FIRETV_LAUNCH_TITLE_IDS.has(video.id) || ROKU_REVIEWED_CREATOR_TITLE_IDS.has(video.id) || video.rokuCleared === true;
 }
 
-// Samsung Smart TV (Tizen) is fail-closed with its own allowlist. Roku, Fire TV and iOS clearances do not
-// authorize Samsung. Only titles whose reviewed evidence is worldwide AND covers PROtv's own apps generally
-// (not a list of named platforms) are included, so the Samsung app adds no new geographic exposure:
-// the 2026-11-13 signed-agreement reconciliation (docs/samsung-rights-2026-11-14.md) plus three CC BY 3.0 films.
-// U.S.-only grants and U.S. public-domain findings stay out until playback-level territory controls exist.
-// Inclusive UTC calendar cutoffs; null means no fixed calendar expiry. samsungHold withdraws a title.
+// Samsung Smart TV (Tizen) uses the shared connected-TV policy (catalog/ctvPolicy.js) with its own profile: U.S.-only
+// store, 16+ store rating, fail closed. Agreements must cover every PROtv app inside their term; public-domain titles
+// need the full element review (film, soundtrack and source copy, docs/public-domain-element-review-2026-11-25.md);
+// U.S.-limited titles play only for U.S. requests and only by signed playback ID. samsungHold withdraws a title.
 const SAMSUNG_POLICY = 'samsung-rights-v1';
-const SAMSUNG_LAUNCH_TITLE_EXPIRY = new Map([
-  ['creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', '2028-11-09'], // A Long Time Coming: PROtv apps, worldwide
-  ['creator_2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', '2028-11-06'], // It's a Double Date a Classic: website/app streaming, worldwide
-  ['creator_78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', '2028-11-03'], // CAESAR III JUDGEMENT: other PROtv-controlled platforms, worldwide
-  ['creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d', '2028-11-03'], // Curtain Call: other PROtv-controlled platforms, worldwide
-  ['creator_20752565-9909-4c2b-9f53-c9719ca26769', null], // The Lost Camp: PROtv platform and associated applications, worldwide
-  // Executed 2026-11-18/19 (read 2026-11-23, docs/samsung-live-catalog-2026-11-23.md). Each grant's Schedule names
-  // future PROtv connected-TV apps (the 2212 season agreement names Samsung smart TVs); 24-month terms from signing.
-  ['creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47', '2028-11-17'], // Three Thirty: STD6040-v1 e1f7a31c, worldwide
-  ['creator_dd7efaaf-d87b-44df-93ab-5561936b6a52', '2028-11-17'], // 2212 (film): CUSTOM-v1 fa57d968, worldwide where Licensor holds rights
-  ['creator_613e215e-709f-48ee-91bb-b225d8da4a33', '2027-10-25'], // The Thirst: Addendum F (92fac4b5, executed 2026-11-22) widens f2068214 to worldwide, all PROtv Properties; Original Term
-  // Not yet: You Did Me Dirty, You Reap What You Sow (CUSTOM-v1 ab9730ab, rights otherwise clear) is rated TV-MA, above
-  // the Samsung app's 16+ store rating; add it only once the Samsung listing carries an 18+ rating.
-  ['creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90', '2028-11-18'], // 2212 S1 "Concrete": Season Agreement f936d40d, Samsung named
-  ['creator_episode_dfad5c66-a17d-41d3-9ebf-6da60fada4fa', '2028-11-18'], // 2212 S1 "Death Before Dishonor": f936d40d
-  ['hKPU3JNJ4faWLgWE6ZSq', null], // Big Buck Bunny: CC BY 3.0, worldwide
-  ['sCWQqVE5WIoNNN5wAGQ2', null], // Sintel: CC BY 3.0, worldwide
-  ['gbcxmtl6mAHQeBxx8Dgs', null], // Tears of Steel: CC BY 3.0, worldwide
-]);
 
-// U.S.-only Samsung tier (DEVELOPMENT, docs/samsung-us-territory-2026-11-23.md). Titles whose rights or public-domain
-// finding cover the United States only. Each one plays on Samsung only when ALL of these hold: the request is
-// geolocated to the United States (catalog/territory.js; unknown is denied), its cutoff has not passed, and the title
-// has a signed Mux playback ID, which replaces the public one in every Samsung response (catalog, playback and LIVE)
-// so a stream can only be opened with a short-lived token. Empty until counsel confirms each entry: nothing here is
-// playable on Samsung today.
-const SAMSUNG_US_ONLY_TITLE_EXPIRY = new Map([]);
-
-const SIGNED_PLAYBACK_ID = /^[A-Za-z0-9]{10,128}$/;
-const withinCutoff = (expiresOn, now) => expiresOn === null || now.toISOString().slice(0, 10) <= expiresOn;
-
-function samsungEligible(video, now = new Date(), territory = null, { usOnly = SAMSUNG_US_ONLY_TITLE_EXPIRY } = {}) {
-  if (!video || video.samsungHold === true) return false;
-  const expiresOn = SAMSUNG_LAUNCH_TITLE_EXPIRY.get(video.id);
-  if (expiresOn !== undefined) return withinCutoff(expiresOn, now);
-  const usCutoff = usOnly.get(video.id);
-  if (usCutoff === undefined) return false;
-  return inUnitedStates(territory) && withinCutoff(usCutoff, now) && SIGNED_PLAYBACK_ID.test(String(video.muxSignedPlaybackId || ''));
+function samsungDecision(video, now = new Date(), territory = null) {
+  if (!video || video.samsungHold === true) return null;
+  return require('./ctvPolicy').evaluate(video, 'samsung', { now, territory });
 }
 
-// What Samsung receives for an eligible title: a U.S.-only title carries only its signed playback ID, never the public one.
-function samsungView(video, { usOnly = SAMSUNG_US_ONLY_TITLE_EXPIRY } = {}) {
-  if (!video || SAMSUNG_LAUNCH_TITLE_EXPIRY.has(video.id) || !usOnly.has(video.id)) return video;
-  return { ...video, muxPlaybackId: video.muxSignedPlaybackId, muxPlaybackPolicy: 'signed' };
+function samsungEligible(video, now = new Date(), territory = null) {
+  const decision = samsungDecision(video, now, territory);
+  return Boolean(decision && decision.eligible);
+}
+
+// What Samsung receives for an eligible title: a U.S.-limited title carries only its signed playback ID.
+function samsungView(video, now = new Date(), territory = { country: 'US', reason: 'ip' }) {
+  const decision = samsungDecision(video, now, territory);
+  return decision && decision.eligible ? require('./ctvPolicy').ctvView(video, decision) : video;
 }
 
 // Apple apps use the shared connected-TV policy (catalog/ctvPolicy.js): fail closed, territory-aware, signed-only for
@@ -155,14 +128,14 @@ function appleEligible(videos, platform, now, territory) {
   });
 }
 
-function eligibleForPlatform(videos, platform, now = new Date(), territory = null, options = {}) {
+function eligibleForPlatform(videos, platform, now = new Date(), territory = null) {
   if (platform === 'roku') return videos.filter(rokuEligible);
   if (APPLE_PLATFORMS.has(platform)) return appleEligible(videos, platform, now, territory);
   if (platform === 'samsung') {
-    return videos.filter((video) => samsungEligible(video, now, territory, options)).map((video) => samsungView(video, options));
+    return videos.filter((video) => samsungEligible(video, now, territory)).map((video) => samsungView(video, now, territory));
   }
   if (platform !== 'firetv') return videos;
-  return videos.filter(firetvEligible);
+  return videos.filter((video) => firetvEligible(video, now, territory)).map((video) => firetvView(video, now, territory));
 }
 
 // Responses that applied a platform's own rights policy name it, so a fail-closed client can refuse a
@@ -173,17 +146,15 @@ function platformPolicy(platform) {
 }
 
 module.exports = {
-  FIRETV_CREATOR_TITLE_IDS,
   APPLE_PLATFORMS,
   FIRETV_LAUNCH_TITLE_IDS,
-  SAMSUNG_LAUNCH_TITLE_EXPIRY,
-  SAMSUNG_US_ONLY_TITLE_EXPIRY,
   SAMSUNG_POLICY,
   samsungView,
   platformFromRequest,
   platformPolicy,
   eligibleForPlatform,
   firetvEligible,
+  firetvView,
   rokuEligible,
   samsungEligible,
 };

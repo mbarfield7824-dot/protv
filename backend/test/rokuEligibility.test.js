@@ -59,19 +59,27 @@ test('an explicit platform header and caching both respect the platform', async 
   assert.match(response.headers.get('vary'), /X-PROtv-Platform/);
 });
 
-test('both reviewed creator films stay on Roku; on Fire TV only the worldwide one (The Thirst, Addendum F)', () => {
+test('both reviewed creator films stay on Roku; Fire TV carries UNITED NATIONS only in the U.S., signed', () => {
   const { eligibleForPlatform } = require('../src/catalog/platformEligibility');
-  const films = ['creator_613e215e-709f-48ee-91bb-b225d8da4a33', 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'].map((id) => title(id));
+  const UN = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6';
+  const films = ['creator_613e215e-709f-48ee-91bb-b225d8da4a33', UN].map((id) => title(id));
   assert.equal(eligibleForPlatform(films, 'roku').length, 2);
-  assert.deepEqual(eligibleForPlatform(films, 'firetv').map((v) => v.id), ['creator_613e215e-709f-48ee-91bb-b225d8da4a33'], 'UNITED NATIONS stays off Fire TV (U.S.-only)');
+  assert.deepEqual(eligibleForPlatform(films, 'firetv').map((v) => v.id), ['creator_613e215e-709f-48ee-91bb-b225d8da4a33'], 'unknown location: U.S.-only grant withheld');
+  const us = eligibleForPlatform(films, 'firetv', new Date('2026-11-26T00:00:00Z'), { country: 'US', reason: 'ip' });
+  assert.equal(us.length, 2);
+  const un = us.find((v) => v.id === UN);
+  assert.equal(un.muxPlaybackPolicy, 'signed');
+  assert.notEqual(un.muxPlaybackId, title(UN).muxPlaybackId, 'never the public playback ID');
 });
 
 test('Fire TV carries the creator titles whose executed agreements cover it; holds and TV-MA stay off', () => {
-  const { eligibleForPlatform, FIRETV_CREATOR_TITLE_IDS } = require('../src/catalog/platformEligibility');
-  assert.equal(FIRETV_CREATOR_TITLE_IDS.size, 8);
-  const ids = [...FIRETV_CREATOR_TITLE_IDS, 'creator_08283e5a-f35c-402e-9639-50e1711a5d67'];
-  const out = eligibleForPlatform(ids.map((id) => title(id)), 'firetv').map((v) => v.id);
-  assert.deepEqual(out.sort(), [...FIRETV_CREATOR_TITLE_IDS].sort());
+  const { eligibleForPlatform } = require('../src/catalog/platformEligibility');
+  const CREATORS = ['5a913abe-bbb5-44a5-9c8f-cc12b7496ba9', '693966b2-abd3-4aa4-94a9-e3f5081a0d47', 'dd7efaaf-d87b-44df-93ab-5561936b6a52',
+    '2bf9e385-b47a-4fa4-8643-cda6c8fe05f8', '78bcb14d-1a7b-4a3c-85e7-77b1fe95593f', 'fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d',
+    'ffb0df98-37f2-4ced-ba92-f03df9a65790', '613e215e-709f-48ee-91bb-b225d8da4a33'].map((id) => `creator_${id}`);
+  const ids = [...CREATORS, 'creator_08283e5a-f35c-402e-9639-50e1711a5d67'];
+  const out = eligibleForPlatform(ids.map((id) => title(id)), 'firetv', new Date('2026-11-26T00:00:00Z')).map((v) => v.id);
+  assert.deepEqual(out.sort(), [...CREATORS].sort());
   assert.ok(!out.includes('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), 'You Did Me Dirty (TV-MA)');
   // Rights holds (Dead Air, Murder in Harlem) are removed by the shared viewer and LIVE checks before any platform rule.
   assert.equal(require('../src/catalog/readModel').isViewerEligible(title('creator_89303465-51e3-46bb-bd21-ff5ed2db2c49', { approvalStatus: 'approved', status: 'ready', muxPlaybackId: 'pbDeadAir' })), false);

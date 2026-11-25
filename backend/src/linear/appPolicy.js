@@ -8,14 +8,15 @@
 // governs that app's on-demand catalog allows it (catalog/platformEligibility.js and catalog/rightsHolds.js), on top of
 // the channel's own linear-rights check. A premiere that has not been delivered yet is never shown to an app, because
 // its clearance can only be read from the delivered title.
-const { firetvEligible, rokuEligible, samsungEligible, samsungView } = require('../catalog/platformEligibility');
+const { firetvEligible, firetvView, rokuEligible, samsungEligible, samsungView } = require('../catalog/platformEligibility');
 const { deviceAppHeld, rightsHeld } = require('../catalog/rightsHolds');
 
 const APP_POLICIES = new Map([
-  ['firetv', { platform: 'firetv', policy: 'firetv-live-v1', allows: (video) => firetvEligible(video) }],
+  // Fire TV: U.S.-limited creator grants play only for U.S. requests, by signed playback ID.
+  ['firetv', { platform: 'firetv', policy: 'firetv-live-v1', allows: (video, at, territory) => firetvEligible(video, new Date(at), territory), view: (video) => firetvView(video, new Date(), { country: 'US', reason: 'ip' }) }],
   ['roku', { platform: 'roku', policy: 'roku-live-v1', allows: (video) => rokuEligible(video) }],
   // Samsung also applies the viewer's territory (U.S.-only tier) and plays U.S.-only titles only by signed playback ID.
-  ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at, territory) => samsungEligible(video, new Date(at), territory), view: samsungView }],
+  ['samsung', { platform: 'samsung', policy: 'samsung-live-v1', allows: (video, at, territory) => samsungEligible(video, new Date(at), territory), view: (video) => samsungView(video) }],
   // The Google Play app's on-demand catalog is the website catalog less device-app holds; LIVE follows the same rule.
   ['android', { platform: 'android', policy: 'android-live-v1', allows: (video) => !deviceAppHeld(video) }],
   // Apple apps: the shared connected-TV policy (fail closed, territory-aware, signed-only for U.S.-limited titles).

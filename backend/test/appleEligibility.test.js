@@ -7,11 +7,12 @@ const { createCatalogRouter } = require('../src/catalog/router');
 const ALTC = 'creator_5a913abe-bbb5-44a5-9c8f-cc12b7496ba9'; // signed agreement, worldwide, all PROtv apps
 const YDMD = 'creator_08283e5a-f35c-402e-9639-50e1711a5d67'; // TV-MA: fits Apple's 18+ rating
 const THIRST = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6'; // UNITED NATIONS: U.S.-only grant (The Thirst became worldwide under Addendum F)
-const HIS_GIRL = 'LiMNMZWXBxJj3LoP73kU'; // U.S. public domain, element review not done
+const HIS_GIRL = 'LiMNMZWXBxJj3LoP73kU'; // U.S. public domain, element review complete: signed, U.S. only
+const PLAN9 = 'B2MDEH2b25NknMQMEhoM'; // U.S. public domain, soundtrack (stock library music) unresolved
 const HARLEM = '6h3blkiA6LTeLv66jj1v'; // rights hold
 const UNKNOWN = 'web-only-title'; // no rights record
 const title = (id, extra = {}) => ({ id, title: id, contentType: 'MOVIE', approvalStatus: 'approved', status: 'ready', muxPlaybackId: `Pub${id.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`, category: 'Drama', ...extra });
-const records = [title(ALTC), title(YDMD), title(THIRST), title(HIS_GIRL), title(HARLEM), title(UNKNOWN)];
+const records = [title(ALTC), title(YDMD), title(THIRST), title(HIS_GIRL), title(PLAN9), title(HARLEM), title(UNKNOWN)];
 
 async function serve(context, recs = records) {
   const app = express();
@@ -35,7 +36,7 @@ for (const platform of ['ios', 'appletv']) {
     const body = await response.json();
     assert.equal(response.headers.get('X-PROtv-Platform-Policy'), `${platform}-rights-v1`);
     assert.equal(body.platformPolicy, `${platform}-rights-v1`);
-    assert.deepEqual(body.items.map((item) => item.id).sort(), [ALTC, YDMD, THIRST].sort());
+    assert.deepEqual(body.items.map((item) => item.id).sort(), [ALTC, YDMD, THIRST, HIS_GIRL].sort());
     assert.equal((await get(`/titles/${ALTC}/playback`, headers)).status, 200);
     const thirst = body.items.find((item) => item.id === THIRST);
     assert.notEqual(thirst.muxPlaybackId, title(THIRST).muxPlaybackId, 'the U.S.-only title is listed only by its signed ID');
@@ -43,7 +44,8 @@ for (const platform of ['ios', 'appletv']) {
     assert.equal(signed.muxPlaybackId, thirst.muxPlaybackId);
     assert.equal(signed.playbackToken, `tok-${thirst.muxPlaybackId}`);
     assert.equal((await get(`/titles/${THIRST}/playback`, { 'X-PROtv-Platform': platform })).status, 404, 'unknown location');
-    for (const id of [HIS_GIRL, HARLEM, UNKNOWN]) assert.equal((await get(`/titles/${id}/playback`, headers)).status, 404, id);
+    assert.equal(body.items.find((item) => item.id === HIS_GIRL).muxPlaybackPolicy, 'signed');
+    for (const id of [PLAN9, HARLEM, UNKNOWN]) assert.equal((await get(`/titles/${id}/playback`, headers)).status, 404, id);
     const soon = await (await get('/coming-soon', headers)).json();
     assert.equal(soon.platformPolicy, `${platform}-rights-v1`);
   });

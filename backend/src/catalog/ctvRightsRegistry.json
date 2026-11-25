@@ -3,11 +3,15 @@
   "kind": "public-domain",
   "title": "The Duke Is Tops (1938)",
   "territory": "US",
-  "film": "unresolved",
+  "film": "public-domain-us",
   "tier": "C",
-  "music": "not-reviewed",
+  "music": "third-party-renewed",
   "sourceCopy": "unconfirmed",
-  "rating": null
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "film: no renewal in CCE 1965–1966; but \"Killin' Jive\" (Austin Powell, EU210199) performed in the film was renewed 28 Feb 1967 (R405418)"
+  }
  },
  "2OTfk1MA9SNAJcXQajCl": {
   "kind": "public-domain",
@@ -15,9 +19,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "qXBtCkz1f00ROEI01QGaeiO4o01tBMUEtvBjOvhzZeU8900",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "U.S. Navy production; no renewal in the CCE motion-picture renewal lists for 1969–1970 (no Fox claim)",
+   "music": "pre-1931 and traditional songs; no renewal tied to the film in CCE music 1969–1970",
+   "copy": "original U.S. Navy Technicolor print"
+  }
  },
  "3NAU6BldsmCNs9wjM08a": {
   "kind": "public-domain",
@@ -25,9 +36,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "cQs8rQsEfymW9yK01sTp00VtTIvUrdeNyZCNBH9FWllQk",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "published without notice (Oct 23 sources)",
+   "music": "Fred Katz score, published with the film without notice",
+   "copy": "original black-and-white print"
+  }
  },
  "6h3blkiA6LTeLv66jj1v": {
   "kind": "public-domain",
@@ -38,16 +56,24 @@
   "music": "not-reviewed",
   "sourceCopy": "unconfirmed",
   "rating": null,
-  "flag": "One Internet Archive source is labelled CC BY-NC-ND (non-commercial); PROtv streams with advertising"
+  "flag": "One Internet Archive source is labelled CC BY-NC-ND (non-commercial); PROtv streams with advertising",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "rights hold (owner-approved 2026-11-23)"
+  }
  },
  "6wWGoL2qWRqtCmCTSRQY": {
   "kind": "open-licence",
   "title": "Elephants Dream (2006)",
   "licence": "CC BY 2.5",
   "territory": "WORLDWIDE",
-  "version": "unverified",
+  "version": "verified",
   "sourceCopy": "unconfirmed",
-  "rating": null
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "licence": "CC BY 2.5 stated by the copyright holder (Wikidata Q825197; Commons)"
+  }
  },
  "aFRblRPxcp3LEm1lf4ye": {
   "kind": "public-domain",
@@ -55,10 +81,17 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
   "rating": null,
-  "ratingNote": "Recorded PG has no source (pre-MPAA)"
+  "ratingNote": "Recorded PG has no source (pre-MPAA)",
+  "signedPlaybackId": "GedtkGQ028zx00kC9M9ZJ3e7AX3tuRuJ1011HLyzOmXWrI",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1969–1970",
+   "music": "Miklos Rozsa score; Rozsa renewed other works in 1969 (e.g. Lydia, R466754) but no Jungle Book score or suite renewal appears in CCE music 1969–1970",
+   "copy": "original Technicolor print (book-page titles)"
+  }
  },
  "aIZ4FeTCPjuTlycMgxiK": {
   "kind": "public-domain",
@@ -66,9 +99,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "xH8gixiXBmY02t32H8XULT0115JJEp5P0200KSlRerKXAdc",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "NTA did not renew (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1974–1975",
+   "music": "Richard Hageman original score; Hageman renewals found are other works",
+   "copy": "original black-and-white Republic print, not the 1991 colorized version"
+  }
  },
  "B2MDEH2b25NknMQMEhoM": {
   "kind": "public-domain",
@@ -76,9 +116,13 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
+  "music": "third-party-library",
   "sourceCopy": "unconfirmed",
-  "rating": null
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "score is stock library music (Trevor Duncan and other British library composers); separately owned, possibly restored in the U.S. under 17 U.S.C. 104A"
+  }
  },
  "CmN3oev0txAoerdvsjCb": {
   "kind": "public-domain",
@@ -86,9 +130,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "c8vWtZS4cCpq8PKqP6NDGNgMhU01yZ5g8QGHu1rJRbg00",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1972–1973",
+   "music": "Werner Janssen original score; the 1972 renewal of a song titled \"Captain Kidd\" (Boyd/Kellogg, 1945) is an unrelated popular song",
+   "copy": "original black-and-white Benedict Bogeaus print"
+  }
  },
  "creator_08283e5a-f35c-402e-9639-50e1711a5d67": {
   "kind": "agreement",
@@ -263,17 +314,23 @@
   "services": "all-protv-apps",
   "signer": "confirmed",
   "rating": null,
-  "master": "verified"
+  "master": "verified",
+  "ratingReview": "pending",
+  "ratingReviewNote": "owner: rating to be reviewed before stores rated below 18+ carry it (no rating invented)"
  },
  "dKxiQCeBcuT92BKv9dgJ": {
   "kind": "public-domain",
   "title": "Big Timers (1945)",
   "territory": "US",
-  "film": "unresolved",
+  "film": "public-domain-us",
   "tier": "C",
   "music": "not-reviewed",
   "sourceCopy": "unconfirmed",
-  "rating": null
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "film: no renewal in CCE 1972–1973; musical acts (All American Girl Band) not identified"
+  }
  },
  "evCYYCPlc23BKzpmt2ug": {
   "kind": "public-domain",
@@ -281,9 +338,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "2wCPBetSx2LWvXPL00lCFhW8cJMTXKEYuuiqmrRNOIhk",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1975–1977",
+   "music": "Alexander Laszlo original score; Laszlo renewals found 1972–1976 are other works",
+   "copy": "original black-and-white print (Samba Pictures titles)"
+  }
  },
  "gbcxmtl6mAHQeBxx8Dgs": {
   "kind": "open-licence",
@@ -300,9 +364,13 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
+  "music": "third-party-renewed",
   "sourceCopy": "unconfirmed",
-  "rating": null
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "\"Pay Day Blues\" (w Johnny Lange, m Lew Porter, EU209282, 1939) renewed 28 Feb 1967 (R405470); Lew Porter wrote the film's songs and the film features \"Got the Payday Blues\"; Porter's songs for Harlem on the Prairie (1937) were also renewed"
+  }
  },
  "hKPU3JNJ4faWLgWE6ZSq": {
   "kind": "open-licence",
@@ -319,19 +387,33 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "L3Pe2osM9hOxvp1SF8fLV9aSEHeIvTHU00KMcDR6bZ600",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1973–1974",
+   "music": "Dimitri Tiomkin original score; no renewal tied to this film in CCE music renewals 1972–1977",
+   "copy": "original black-and-white print (Charles R. Rogers titles)"
+  }
  },
  "LiMNMZWXBxJj3LoP73kU": {
   "kind": "public-domain",
   "title": "His Girl Friday (1940)",
   "territory": "US",
-  "film": "mark-only",
+  "film": "public-domain-us",
   "tier": null,
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "IaQXTN61nLH3tZ513GqASSH96QKhYeLWjHZtuyEN7TU",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "on-screen notice \"Copyright MCMXXXIX by Columbia\"; no renewal in the CCE motion-picture renewal lists for 1966–1968",
+   "music": "studio score (work for hire, part of the film); no separately renewed composition in CCE music renewals 1966–1968",
+   "copy": "original Columbia black-and-white print"
+  }
  },
  "MZ6Q6DI2S62pP8laH9Ku": {
   "kind": "public-domain",
@@ -340,8 +422,12 @@
   "film": "unresolved",
   "tier": "C",
   "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "sourceCopy": "rejected",
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "PROtv's copy carries a burned-in \"rarelust.com\" watermark (download site); replace it with a verified archive copy"
+  }
  },
  "PqGsChF8xtTQdaQFEWQI": {
   "kind": "public-domain",
@@ -349,9 +435,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "onmCallUmQNOWpE3yM29Duy02wThYTFwAgu4AnXEN67I",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1968–1969",
+   "music": "traditional spirituals; no renewal tied to the film in CCE music renewals 1968–1969",
+   "copy": "original print (Sack Amusement / Amegro Films titles)"
+  }
  },
  "RwDe3WkIWoHQ1EUzfWn9": {
   "kind": "public-domain",
@@ -359,9 +452,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "vb947chshN9oMSXCRIP3FD00ItBp5rWI01avVIPc8Zb8U",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "published without a valid notice (Oct 23 sources)",
+   "music": "Abe Baker / Tony Restaino score, published with the film",
+   "copy": "original black-and-white print"
+  }
  },
  "sCWQqVE5WIoNNN5wAGQ2": {
   "kind": "open-licence",
@@ -376,11 +476,15 @@
   "kind": "public-domain",
   "title": "The Girl from Chicago (1932)",
   "territory": "US",
-  "film": "unresolved",
+  "film": "public-domain-us",
   "tier": "C",
   "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "film: no renewal in CCE 1959–1960; Library of Congress copy. Musical numbers not identified"
+  }
  },
  "u3dXF1OlGIXiRPAHz3hE": {
   "kind": "public-domain",
@@ -388,9 +492,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "A",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "eM01EU6SDd401UNrzMW56g4w9V43oXSr8gEFdM4gleIOI",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "published 1910",
+   "music": "no audio track (Mux asset has video only)",
+   "copy": "faithful digitization of the 1910 film; only a plain added title card"
+  }
  },
  "uvRcBLWVKxLyHsswVZOo": {
   "kind": "public-domain",
@@ -398,19 +509,30 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "L2hOY6jmcLJasrF1D00UsccXNciDDTa3YqgdhGkrsTGA",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed (Oct 23 sources); no renewal in the CCE motion-picture renewal lists for 1975–1977",
+   "music": "Walter Schumann original score; Schumann renewals found 1974–1975 are other works",
+   "copy": "original black-and-white print (Nassour Studios titles), not a colorized version"
+  }
  },
  "uzZVSNOg0sOZaTk4tlV6": {
   "kind": "public-domain",
   "title": "The Exile (1931)",
   "territory": "US",
-  "film": "unresolved",
+  "film": "public-domain-us",
   "tier": "C",
   "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "blocked": "film: no renewal in CCE 1958–1959; Library of Congress copy. Score and songs by Donald Heywood, who renewed his contemporaneous 1932 songs in 1959 (R235016, R235017); the film's songs are not identified"
+  }
  },
  "WMmLodEvI2gpEVW9v6yL": {
   "kind": "public-domain",
@@ -418,9 +540,16 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "lVRj3eCGcB2Iq1MzU2slfyQNa7aHqb00PguJXV1TVRJ00",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "on-screen notice \"Copyright MCMXLIX by Cardinal Pictures\"; no renewal in the CCE motion-picture renewal lists for 1976–1977",
+   "music": "Dimitri Tiomkin original score; the only Tiomkin renewal found 1972–1977 is Duel in the Sun",
+   "copy": "original black-and-white United Artists print"
+  }
  },
  "ZIWIKF2lyh7hJCcRkPLr": {
   "kind": "public-domain",
@@ -428,8 +557,15 @@
   "territory": "US",
   "film": "public-domain-us",
   "tier": "B",
-  "music": "not-reviewed",
-  "sourceCopy": "unconfirmed",
-  "rating": null
+  "music": "reviewed",
+  "sourceCopy": "confirmed",
+  "rating": null,
+  "signedPlaybackId": "SmCDi00GOdQE02YjWhccG34DybL02ZWeyRw1Tl01Jl23AVw",
+  "evidence": {
+   "review": "element review 2026-11-25 (docs/public-domain-element-review-2026-11-25.md)",
+   "film": "not renewed; no renewal in the online Copyright Office records",
+   "music": "Alexander Laszlo score; no renewal tied to this film found",
+   "copy": "original American International Pictures print"
+  }
  }
 }

@@ -322,13 +322,17 @@ test('a U.S.-limited linear grant plays only for U.S. requests, by signed ID, on
     assert.equal(web.now.kind, 'holding');
     assert.ok(!JSON.stringify(web).includes(UN));
   }
-  // Apps: Roku (U.S.) plays it signed; Roku elsewhere and Samsung (not allowlisted) get the branded card.
+  // Apps: Roku, Fire TV and Samsung (U.S.) play it signed; elsewhere they get the branded card.
   const rokuUs = await service.channelState({ app: appPolicy('roku', US) });
   assert.equal(rokuUs.now.playback.muxPlaybackId, 'SignedUnited00000001');
   const rokuCa = await service.channelState({ app: appPolicy('roku', CA) });
   assert.equal(rokuCa.now.kind, 'restricted');
   assert.equal(rokuCa.now.playback, undefined);
-  assert.equal((await service.channelState({ app: appPolicy('samsung', US) })).now.kind, 'restricted');
+  for (const platform of ['samsung', 'firetv']) {
+    const us = await service.channelState({ app: appPolicy(platform, US) });
+    assert.equal(us.now.playback.muxPlaybackId, 'SignedUnited00000001', platform);
+    assert.equal((await service.channelState({ app: appPolicy(platform, CA) })).now.kind, 'restricted', platform);
+  }
   // Every request sees the same slot times.
   for (const feed of [webUs, rokuUs, rokuCa]) assert.equal(feed.guide[0].endAt || feed.now.endAt, '2026-12-01T13:08:35.000Z');
 });

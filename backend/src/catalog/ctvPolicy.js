@@ -1,5 +1,5 @@
-// One rights-eligibility policy for PROtv's connected-TV apps (DEVELOPMENT; not wired into production).
-// docs/unified-ctv-policy-2026-11-23.md. Roku and Samsung share it; Apple TV and Fire TV are added as profiles.
+// One rights-eligibility policy for PROtv's connected-TV apps. docs/unified-ctv-policy-2026-11-23.md.
+// Used by iPhone/iPad, Apple TV and Samsung for every title, and by Fire TV for creator agreements.
 //
 // A title is evaluated from its rights record (ctvRightsRegistry.json: facts verified against executed agreements,
 // evidence records and Mux) plus the catalog record, for one platform, at one moment, for one viewer territory.
@@ -64,6 +64,8 @@ function evaluate(video, platformId, { now = new Date(), territory = null, stand
   if (entry.rating && age === undefined) deny.push('rating-unrecognized');
   else if (age !== undefined && (platform.maxAge === null || age > platform.maxAge)) deny.push('rating-exceeds-platform');
   else if (age === undefined && platform.maxAge !== 18) review.push('rating-unconfirmed');
+  // An owner rating review is pending: the title stays off apps published under a store rating below 18+.
+  if (entry.ratingReview === 'pending' && typeof platform.maxAge === 'number' && platform.maxAge < 18) deny.push('rating-review-pending');
 
   if (entry.kind === 'agreement') {
     if (entry.signer === 'unconfirmed') deny.push('signer-authority-unconfirmed');
@@ -89,7 +91,8 @@ function evaluate(video, platformId, { now = new Date(), territory = null, stand
 
 // What an app receives for an eligible U.S.-only title: only the signed playback ID, never the public one.
 function ctvView(video, decision, { rights = registry } = {}) {
-  if (!decision || !decision.usOnly) return video;
+  // Already on its signed stream (for example a U.S.-limited linear grant): keep that ID.
+  if (!decision || !decision.usOnly || (video && video.muxPlaybackPolicy === 'signed')) return video;
   return { ...video, muxPlaybackId: signedIdFor(video, rights[video.id]), muxPlaybackPolicy: 'signed' };
 }
 

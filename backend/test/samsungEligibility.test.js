@@ -3,11 +3,11 @@ const test = require('node:test');
 const express = require('express');
 const { createCatalogRouter } = require('../src/catalog/router');
 const {
-  SAMSUNG_LAUNCH_TITLE_EXPIRY,
   FIRETV_LAUNCH_TITLE_IDS,
   eligibleForPlatform,
   samsungEligible,
 } = require('../src/catalog/platformEligibility');
+const { registry } = require('../src/catalog/ctvPolicy');
 
 const SAMSUNG = { 'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36', 'X-PROtv-Platform': 'samsung' };
 const CC_BY = 'gbcxmtl6mAHQeBxx8Dgs'; // Tears of Steel: CC BY 3.0, worldwide
@@ -68,11 +68,13 @@ test('Samsung sees only Samsung-cleared titles on browse, search, detail and pla
   }
 });
 
-test('Roku, Fire TV and iOS clearances never authorize Samsung', () => {
+test('Roku, Fire TV and iOS clearances never authorize Samsung; only the shared rights registry does', () => {
   const cleared = title(ROKU_FLAGGED, { rokuCleared: true, firetvCleared: true, iosCleared: true });
   assert.equal(samsungEligible(cleared), false);
   for (const id of FIRETV_LAUNCH_TITLE_IDS) {
-    if (!SAMSUNG_LAUNCH_TITLE_EXPIRY.has(id)) assert.equal(samsungEligible(title(id)), false, id);
+    const entry = registry[id];
+    const worldwideCleared = entry && entry.territory === 'WORLDWIDE';
+    if (!worldwideCleared) assert.equal(samsungEligible(title(id)), false, `${id}: no U.S. location, so no U.S.-limited title`);
   }
 });
 
@@ -85,18 +87,23 @@ test('Samsung cutoffs are inclusive UTC dates and samsungHold withdraws a title'
   assert.deepEqual(eligibleForPlatform([caesar], 'samsung', new Date('2030-01-01T00:00:00Z')), []);
 });
 
-test('Samsung allowlist holds exactly the thirteen worldwide app-scope clearances', () => {
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.size, 13);
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_613e215e-709f-48ee-91bb-b225d8da4a33'), '2027-10-25', 'The Thirst: Addendum F');
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), false, 'TV-MA exceeds the 16+ Samsung store rating');
-  // Agreements executed 2026-11-18/19 run 24 months from signing; the U.S.-only grants and U.S. public-domain findings stay out.
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_693966b2-abd3-4aa4-94a9-e3f5081a0d47'), '2028-11-17');
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.get('creator_episode_ac1c153a-2cd4-4c1e-a1ba-813fcbdacd90'), '2028-11-18');
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has(US_ONLY_GRANT), false);
-  assert.equal(SAMSUNG_LAUNCH_TITLE_EXPIRY.has(US_PUBLIC_DOMAIN), false);
-  for (const [, cutoff] of SAMSUNG_LAUNCH_TITLE_EXPIRY) {
-    assert.ok(cutoff === null || /^\d{4}-\d{2}-\d{2}$/.test(cutoff));
-  }
+test('Samsung follows the registry: worldwide app-scope titles anywhere, U.S.-limited ones only signed in the U.S.', () => {
+  const US = { country: 'US', reason: 'ip' };
+  const NOW = new Date('2026-11-26T00:00:00Z');
+  const ok = (id, territory = null) => samsungEligible(title(id), NOW, territory);
+  assert.equal(ok('creator_613e215e-709f-48ee-91bb-b225d8da4a33'), true, 'The Thirst: Addendum F, worldwide');
+  assert.equal(ok('creator_08283e5a-f35c-402e-9639-50e1711a5d67'), false, 'TV-MA exceeds the 16+ Samsung store rating');
+  assert.equal(ok('creator_ffb0df98-37f2-4ced-ba92-f03df9a65790'), false, 'Aunt Tut: owner rating review pending');
+  assert.equal(ok('creator_89303465-51e3-46bb-bd21-ff5ed2db2c49', US), false, 'Dead Air: rights hold');
+  assert.equal(ok(US_ONLY_GRANT), false, 'U.S.-only grant, unknown location');
+  assert.equal(ok(US_ONLY_GRANT, US), true, 'U.S.-only grant in the U.S. (signed ID on its rights record)');
+  assert.equal(ok(US_PUBLIC_DOMAIN, US), true, 'His Girl Friday: element review complete, signed ID');
+  assert.equal(ok('B2MDEH2b25NknMQMEhoM', US), false, 'Plan 9: library music unresolved');
+  assert.equal(ok('goOpjlfjJF3YWw5dlHqe', US), false, 'The Bronze Buckaroo: renewed song');
+  assert.equal(ok('MZ6Q6DI2S62pP8laH9Ku', US), false, 'The Incredible Petrified World: unverifiable copy');
+  const [view] = eligibleForPlatform([title(US_PUBLIC_DOMAIN)], 'samsung', NOW, US);
+  assert.equal(view.muxPlaybackPolicy, 'signed');
+  assert.notEqual(view.muxPlaybackId, `playback-${US_PUBLIC_DOMAIN}`, 'never the public playback ID');
 });
 
 test('other clients get unchanged responses with no policy field', async (context) => {
