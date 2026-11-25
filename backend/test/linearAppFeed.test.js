@@ -298,3 +298,37 @@ test('an app never gets the Administrator preview, so an off channel stays off i
   assert.equal(simulated.body.channel.policy, 'roku-live-v1');
   assert.equal((await admin(`/admin/linear/test/channel?at=${at('2026-12-01T13:30:00Z')}&platform=firetv`)).status, 200);
 });
+
+test('a U.S.-limited linear grant plays only for U.S. requests, by signed ID, on one unchanged timeline', async () => {
+  const UN = 'creator_7451a32b-716f-4f5e-8797-ed84d2bdf1d6';
+  const united = film(UN, 'UNITED NATIONS', { duration: 4115 });
+  const entries = [{ id: 'un-slot', kind: 'program', videoId: UN, programType: 'movie', status: 'approved',
+    startAt: '2026-12-01T12:00:00.000Z', endAt: '2026-12-01T13:08:35.000Z', durationSeconds: 4115, sourceStartSeconds: 0 }];
+  const rights = { [`title_${UN}`]: { status: 'confirmed', territory: 'US', signedPlaybackRequired: true, signedPlaybackId: 'SignedUnited00000001', basis: 'f587ce8e' } };
+  const store = new MemoryLinearStore({ videos: [united], rights, entries, settings: { status: 'public' } });
+  const service = createLinearService({ store, now: () => NOW, cacheMs: 0, signPlaybackToken: async (id) => `token:${id}` });
+  const US = { country: 'US', reason: 'ip' };
+  const CA = { country: 'CA', reason: 'ip' };
+  const UNKNOWN = { country: null, reason: 'unknown' };
+  // Website, U.S.: the program plays by its signed ID only.
+  const webUs = await service.channelState({ territory: US });
+  assert.equal(webUs.now.kind, 'program');
+  assert.equal(webUs.now.playback.muxPlaybackId, 'SignedUnited00000001');
+  assert.equal(webUs.now.playback.playbackToken, 'token:SignedUnited00000001');
+  assert.ok(!JSON.stringify(webUs).includes(`pb-${UN}`), 'the public playback ID never appears');
+  // Website outside the U.S. or unknown: holding screen in the same slot, nothing about the title.
+  for (const territory of [CA, UNKNOWN, null]) {
+    const web = await service.channelState({ territory });
+    assert.equal(web.now.kind, 'holding');
+    assert.ok(!JSON.stringify(web).includes(UN));
+  }
+  // Apps: Roku (U.S.) plays it signed; Roku elsewhere and Samsung (not allowlisted) get the branded card.
+  const rokuUs = await service.channelState({ app: appPolicy('roku', US) });
+  assert.equal(rokuUs.now.playback.muxPlaybackId, 'SignedUnited00000001');
+  const rokuCa = await service.channelState({ app: appPolicy('roku', CA) });
+  assert.equal(rokuCa.now.kind, 'restricted');
+  assert.equal(rokuCa.now.playback, undefined);
+  assert.equal((await service.channelState({ app: appPolicy('samsung', US) })).now.kind, 'restricted');
+  // Every request sees the same slot times.
+  for (const feed of [webUs, rokuUs, rokuCa]) assert.equal(feed.guide[0].endAt || feed.now.endAt, '2026-12-01T13:08:35.000Z');
+});

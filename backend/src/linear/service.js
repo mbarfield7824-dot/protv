@@ -4,6 +4,7 @@ const {
   airState, approvalIssues, entryFields, knownDuration, linearRightsFor, normalizeSeriesTitle, overlaps,
   pendingRelease, pendingVideo, PENDING_EPISODE_ID, playableAt, publicItem, rightsKeysFor, validateLineup, validateRightsInput,
 } = require('./model');
+const { inUnitedStates } = require('../catalog/territory');
 const { channelLabel, channelLocalToUtc, channelWeekDates, ChannelTimeError, zonedParts } = require('./time');
 const { seriesKey } = require('../catalog/readModel');
 const { agreementFinding } = require('./agreementReview');
@@ -59,8 +60,25 @@ function createLinearService({
 
   // A countdown airs only while its program is approved, still starts exactly when the countdown ends, and will
   // actually play (released, or an approved premiere awaiting release). Otherwise viewers get a holding screen.
-  function slotState(entry, byId, videos, rights, at, app = null) {
-    const slot = baseSlotState(entry, byId, videos, rights, at);
+  // A linear grant limited to the United States (an executed agreement's territory) that PROtv can honor on the single
+  // worldwide timeline: the slot plays only for requests geolocated to the U.S. (catalog/territory.js; unknown is denied),
+  // and only from the title's signed playback ID, so a stream cannot be opened elsewhere. Everyone else keeps the same slot
+  // as a branded card (apps) or the holding screen (website); the timeline itself never changes.
+  const US_TERRITORY = /^(us|u\.s\.|united states)([\s,.]|$)/i;
+  function usLimitedGrant(video, rights) {
+    const grant = video && rights.get(`title_${video.id}`);
+    return grant && grant.status === 'confirmed' && grant.signedPlaybackRequired === true
+      && US_TERRITORY.test(String(grant.territory || ''))
+      && /^[A-Za-z0-9]{10,128}$/.test(String(grant.signedPlaybackId || '')) ? grant : null;
+  }
+
+  function slotState(entry, byId, videos, rights, at, app = null, territory = null) {
+    let slot = baseSlotState(entry, byId, videos, rights, at);
+    const grant = entry.kind === 'program' && slot.state === 'playing' ? usLimitedGrant(slot.video, rights) : null;
+    if (grant) {
+      if (!inUnitedStates(territory)) return { ...slot, state: app ? 'restricted' : 'unavailable' };
+      slot = { ...slot, video: { ...slot.video, muxPlaybackId: grant.signedPlaybackId, muxPlaybackPolicy: 'signed' } };
+    }
     // A device app sees a slot it is not cleared for as a branded fallback (see appPolicy.js); breaks are PROtv's own.
     if (app && entry.kind !== 'break' && slot.state !== 'unavailable' && !appAllows(app, slot.video, at)) {
       return { ...slot, state: 'restricted' };
@@ -148,7 +166,7 @@ function createLinearService({
 
   // simulatedAt (Administrator test mode only) evaluates the same schedule, rights and spots at another moment. It reads
   // a fresh window that is never stored in the shared viewer cache, writes nothing, and requires preview.
-  async function channelState({ preview = false, simulatedAt, app = null } = {}) {
+  async function channelState({ preview = false, simulatedAt, app = null, territory = app?.territory ?? null } = {}) {
     const actual = now();
     const simulated = simulatedAt !== undefined;
     if (simulated && !preview) throw new LinearValidationError('Simulated time is only available in Administrator preview.');
@@ -161,7 +179,7 @@ function createLinearService({
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
     const all = entries
       .filter((entry) => Date.parse(entry.endAt) > at)
-      .map((entry) => ({ entry, ...slotState(entry, byId, videos, rights, at, app) }));
+      .map((entry) => ({ entry, ...slotState(entry, byId, videos, rights, at, app, territory) }));
     const slots = all.filter((slot) => slot.state !== 'unavailable');
     // An approved slot that cannot play right now (rights withdrawn, title pulled, countdown without its program)
     // shows a holding screen with no title details, instead of silently skipping to the next program.

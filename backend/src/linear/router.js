@@ -54,7 +54,7 @@ function createLinearRouter({ service, analytics, authenticate, rateLimit, clien
       }
       if (app) res.vary('X-PROtv-Platform');
       const preview = !app && req.query.preview === '1' && req.user?.admin === true;
-      return res.json(await service.channelState({ preview, app }));
+      return res.json(await service.channelState({ preview, app, territory: requestTerritory(req) }));
     } catch (error) {
       return fail(res, error, 'channel');
     }
