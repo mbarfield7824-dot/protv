@@ -53,15 +53,22 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   async function catalogMap() { return new Map((await loadCatalog()).map((video) => [video.id, video])); }
 
   // ---------------------------------------------------------------- real programming data
-  async function liveUpcoming(hours = 7 * 24) {
+  // The LIVE master schedule as viewers will see it. A slot is promotable only if the channel itself would play it
+  // (linear rights confirmed, title released, no hold), using the channel's own rules; U.S.-limited grants are flagged.
+  // Premieres and other unplayable slots are returned only on request, never as something to advertise.
+  async function liveUpcoming(hours = 7 * 24, { includeUnplayable = false } = {}) {
     if (!linearStore) return [];
+    const { airState, rightsKeysFor } = require('../linear/model');
     const from = iso(now());
     const entries = (await linearStore.listEntries(from, iso(now() + hours * 3600_000))).filter((entry) => entry.status === 'approved' && entry.kind === 'program');
     const videos = await linearStore.getVideos([...new Set(entries.map((entry) => entry.videoId))]);
+    const grants = linearStore.getRights ? await linearStore.getRights([...videos.values()].flatMap(rightsKeysFor)) : new Map();
     return entries.sort((a, b) => a.startAt.localeCompare(b.startAt)).map((entry) => {
       const video = videos.get(entry.videoId);
-      return { entryId: entry.id, videoId: entry.videoId, title: video ? (video.contentType === 'EPISODE' && video.seriesTitle ? `${video.seriesTitle}: ${video.title}` : video.title) : '(premiere not yet delivered)', startAt: entry.startAt, endAt: entry.endAt, startLabel: etLabel(entry.startAt), programType: entry.programType, creator: String(entry.videoId || '').startsWith('creator_'), released: Boolean(video && video.approvalStatus === 'approved') };
-    });
+      const playable = Boolean(video) && airState(entry, video, grants, Date.parse(entry.startAt) + 1000) === 'playing';
+      const grant = video ? grants.get(`title_${video.id}`) : null;
+      return { entryId: entry.id, videoId: entry.videoId, title: video ? (video.contentType === 'EPISODE' && video.seriesTitle ? `${video.seriesTitle}: ${video.title}` : video.title) : '(premiere not yet delivered)', startAt: entry.startAt, endAt: entry.endAt, startLabel: etLabel(entry.startAt), programType: entry.programType, creator: String(entry.videoId || '').startsWith('creator_'), released: Boolean(video && video.approvalStatus === 'approved'), playable, usOnly: grant?.signedPlaybackRequired === true };
+    }).filter((item) => includeUnplayable || item.playable);
   }
   async function eligibleFootage({ destination = 'social', network = false } = {}) {
     const videos = await loadCatalog();
@@ -401,7 +408,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   // A rolling seven-day plan drafted from the real LIVE lineup and catalog. Nothing is approved or published.
   async function sevenDayPlan(actor, { platforms = ['facebook', 'instagram', 'tiktok', 'youtube'] } = {}) {
     const lineup = (await liveUpcoming(7 * 24)).filter((item) => item.creator && item.released && item.programType !== 'premiere');
-    const premieres = (await liveUpcoming(14 * 24)).filter((item) => item.programType === 'premiere');
+    const premieres = (await liveUpcoming(14 * 24, { includeUnplayable: true })).filter((item) => item.programType === 'premiere');
     const byDay = new Map();
     for (const item of lineup) {
       const day = item.startAt.slice(0, 10);
@@ -520,7 +527,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       const watchUrl = `https://watchprotv.com/title/${encodeURIComponent(item.id)}`;
       return {
         videoId: item.id, title: item.title, poster: item.poster, genre: item.genre, rightsBasis: item.basis, conditions: item.conditions,
-        nextAirings: airings.map((slot) => slot.startLabel),
+        nextAirings: airings.map((slot) => `${slot.startLabel}${slot.usOnly ? ' (U.S. viewers)' : ''}`),
         captions: [
           `${item.title} is streaming FREE on PROtv. ${watchUrl}`,
           airings[0] ? `Catch ${item.title} on PROtv LIVE ${airings[0].startLabel}. Free, no subscription.` : `Watch ${item.title} free, anytime, on PROtv.`,
@@ -569,7 +576,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       },
       budget: { monthlyCapUsd: config.ads.monthlyCapUsd, committedUsd: committed, remainingUsd: Math.max(0, config.ads.monthlyCapUsd - committed), emergencyPause: config.ads.emergencyPause },
       upcomingLive: lineup.filter((item) => item.creator).slice(0, 8),
-      upcomingPremieres: (await liveUpcoming(14 * 24)).filter((item) => item.programType === 'premiere').slice(0, 6),
+      upcomingPremieres: (await liveUpcoming(14 * 24, { includeUnplayable: true })).filter((item) => item.programType === 'premiere').slice(0, 6),
       recentCommercials: commercials.slice(0, 6).map((item) => ({ id: item.id, title: item.title, status: item.status, renders: Object.fromEntries(Object.entries(item.renders || {}).map(([format, render]) => [format, { status: render.status, playbackId: render.asset?.playbackId || null }])) })),
       measured: measured.totals, topCampaigns: measured.campaigns.slice(0, 5), suggestions, recentAssets: assetList.slice(0, 6),
     };

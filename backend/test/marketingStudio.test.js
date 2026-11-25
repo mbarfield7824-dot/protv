@@ -20,7 +20,7 @@ const CURTAIN = 'creator_fddcf883-d5bb-4ea7-8a5d-fa30b96b5f4d';
 const DEAD_AIR = 'creator_89303465-51e3-46bb-bd21-ff5ed2db2c49';
 const HGF = 'LiMNMZWXBxJj3LoP73kU';
 const PLAN9 = 'B2MDEH2b25NknMQMEhoM';
-const video = (id, extra = {}) => ({ id, title: `T ${id.slice(-4)}`, approvalStatus: 'approved', duration: 5000, muxPlaybackId: `pb${id.replace(/[^A-Za-z0-9]/g, '').slice(0, 16)}`, contentType: 'MOVIE', ...extra });
+const video = (id, extra = {}) => ({ id, title: `T ${id.slice(-4)}`, approvalStatus: 'approved', status: 'ready', duration: 5000, muxPlaybackId: `pb${id.replace(/[^A-Za-z0-9]/g, '').slice(0, 16)}`, contentType: 'MOVIE', ...extra });
 const NOW = Date.parse('2026-11-26T15:00:00Z');
 
 test('marketing rights: agreement clauses, holds, endings, on-screen titles and U.S.-only footage', () => {
@@ -88,6 +88,7 @@ function harness(overrides = {}) {
     listEntries: async () => [{ id: 'e1', kind: 'program', status: 'approved', videoId: CAESAR, programType: 'movie', startAt: new Date(NOW + 5 * 3600_000).toISOString(), endAt: new Date(NOW + 6 * 3600_000).toISOString() },
       { id: 'e2', kind: 'program', status: 'approved', videoId: 'creator_episode_unreleased', programType: 'premiere', startAt: new Date(NOW + 30 * 3600_000).toISOString(), endAt: new Date(NOW + 31 * 3600_000).toISOString() }],
     getVideos: async (ids) => new Map(ids.filter((id) => catalog.find((item) => item.id === id)).map((id) => [id, catalog.find((item) => item.id === id)])),
+    getRights: async (keys) => new Map(keys.filter((key) => key === `title_${CAESAR}`).map((key) => [key, { status: 'confirmed', basis: 'test' }])),
   };
   const service = createMarketingService({ store, portal, loadCatalog: async () => catalog, linearStore, linearService, mux, now: () => NOW, ...overrides });
   return { service, store, renders, creatives, catalog };
@@ -153,6 +154,9 @@ test('publishing: approval gates, manual handoff when not connected, idempotent 
 
 test('the seven-day plan drafts from the real lineup and never advertises an unreleased premiere', async () => {
   const { service } = harness();
+  const all = await service.liveUpcoming(48, { includeUnplayable: true });
+  assert.deepEqual(all.map((item) => [item.videoId, item.playable]), [[CAESAR, true], ['creator_episode_unreleased', false]]);
+  assert.equal((await service.liveUpcoming(48)).length, 1, 'only slots the channel will actually play are promotable');
   const plan = await service.sevenDayPlan('a', { platforms: ['facebook'] });
   assert.equal(plan.posts.length, 1);
   assert.equal(plan.posts[0].status, 'draft');
