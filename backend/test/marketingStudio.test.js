@@ -45,6 +45,7 @@ test('planner: the 30-second network structure lands on exact frames, with separ
   const picks = Array.from({ length: 11 }, (_, index) => ({ videoId: index % 2 ? CAESAR : CURTAIN, sourceTitle: 'Title', startSeconds: 20 + index, focusX: 0.4 }));
   const storyboard = planner.networkFreeStoryboard(picks);
   const beats = planner.timeline(storyboard);
+  assert.ok(!JSON.stringify(storyboard, (key, value) => (value === undefined ? '__undefined__' : value)).includes('__undefined__'), 'no undefined fields (Firestore rejects them)');
   assert.equal(beats.at(-1).end, 30);
   assert.deepEqual(beats.filter((beat) => beat.purpose === 'Logo reveal').map((beat) => [beat.start, beat.end]), [[23, 27]]);
   assert.deepEqual(beats.filter((beat) => beat.purpose === 'Call to action').map((beat) => [beat.start, beat.end]), [[27, 30]]);

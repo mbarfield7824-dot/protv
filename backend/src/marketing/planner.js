@@ -176,12 +176,15 @@ function renderPlan(commercial, format, { destination = 'social', videos = new M
   }
   const impacts = beats.filter((beat) => beat.impact).map((beat) => beat.start);
   const logo = beats.find((beat) => beat.kind === 'logo');
-  const id = `${commercial.id}-${format}-${crypto.createHash('sha256').update(JSON.stringify({ storyboard: commercial.storyboard, music: commercial.music, format, destination, revision: commercial.revision || 0 })).digest('hex').slice(0, 12)}`;
-  return {
-    id, title: `${commercial.title} (${FORMATS[format].label})`, format, durationSeconds: total, shots, layers,
+  const body = {
+    title: `${commercial.title} (${FORMATS[format].label})`, format, durationSeconds: total, shots, layers,
     music: { kind: commercial.music?.kind || 'generated', mood: commercial.music?.mood || MOOD_FOR_TONE[commercial.tone] || 'cinematic', bpm: commercial.music?.bpm || 120, impacts, riseTo: logo ? logo.start : null },
     loudness: destination === 'live' ? LOUDNESS.live : LOUDNESS.social,
   };
+  // The job ID is a fingerprint of the whole plan (picture, overlays, music, loudness): an identical plan is never
+  // rendered twice, and any change (including a layout improvement) gets its own render.
+  const fingerprint = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex').slice(0, 12);
+  return { id: `${commercial.id}-${format}-${fingerprint}`, ...body };
 }
 
 // ---- Templates ----
@@ -195,7 +198,7 @@ function networkFreeStoryboard(picks) {
   return [
     { ...hook, kind: 'footage', durationSeconds: 4, purpose: 'Hook', text: { headline: 'YOUR NEXT FAVORITE MOVIE', hero: 'IS FREE' }, label: '', fadeIn: 0.4, pushIn: 0.06, impact: false },
     ...highlights.map((pick, index) => ({ ...pick, kind: 'footage', durationSeconds: index === highlights.length - 1 ? 11 - 1.8 * (highlights.length - 1) : 1.8, purpose: 'Highlights', label: pick.sourceTitle, titleOnScreen: true, impact: index === 0 })),
-    ...variety.map((pick, index) => ({ ...pick, kind: 'footage', durationSeconds: 2, purpose: 'Variety', text: { word: words[index] }, label: pick.sourceTitle, titleOnScreen: true, labelSub: index === 3 ? 'ON PROtv LIVE · 24/7 · FREE' : undefined, impact: index === 0 })),
+    ...variety.map((pick, index) => ({ ...pick, kind: 'footage', durationSeconds: 2, purpose: 'Variety', text: { word: words[index] }, label: pick.sourceTitle, titleOnScreen: true, ...(index === 3 ? { labelSub: 'ON PROtv LIVE · 24/7 · FREE' } : {}), impact: index === 0 })),
     { kind: 'logo', durationSeconds: 4, purpose: 'Logo reveal', text: { sub: 'FREE MOVIES · SERIES · LIVE TV' }, impact: true },
     { kind: 'cta', durationSeconds: 3, purpose: 'Call to action', text: { headline: 'WATCH FREE AT', hero: BRAND.url } },
   ];

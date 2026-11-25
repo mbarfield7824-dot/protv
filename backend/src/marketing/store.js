@@ -35,7 +35,8 @@ class FirestoreMarketingStore {
   constructor(db) { this.db = db; }
   ref(kind, id) { return this.db.collection(COLLECTIONS[kind]).doc(id); }
   async get(kind, id) { const snapshot = await this.ref(kind, id).get(); return snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null; }
-  async put(kind, id, value) { const record = { ...value, id }; await this.ref(kind, id).set(record); return record; }
+  // Records are plain JSON: undefined fields are dropped (Firestore rejects them).
+  async put(kind, id, value) { const record = JSON.parse(JSON.stringify({ ...value, id })); await this.ref(kind, id).set(record); return record; }
   async remove(kind, id) { await this.ref(kind, id).delete(); }
   async list(kind, { where = {}, limit = 500 } = {}) {
     let query = this.db.collection(COLLECTIONS[kind]);
