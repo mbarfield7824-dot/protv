@@ -86,3 +86,40 @@
   .ms-row:not(.ms-between) { flex-wrap: wrap; }
 }
 .ms-download { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Commercial designer (templates, styled storyboard editor, live preview). */
+.cd-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 600px); gap: 16px; align-items: start; }
+.cd-preview { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.cd-stage { position: relative; overflow: hidden; border-radius: 10px; background: #000; border: 1px solid var(--ms-line); margin: 0 auto; max-width: 100%; }
+.cd-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cd-shot--signed { display: grid; place-items: center; color: var(--ms-muted); font-size: 0.8rem; background: #0a1220; }
+.cd-layer { position: absolute; inset: 0; pointer-events: none; }
+.cd-stage-note { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: var(--ms-muted); font-size: 0.85rem; margin: 0; }
+.cd-preview input[type='range'] { flex: 1; }
+.cd-segment { background: #070c17; border: 1px solid var(--ms-line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.cd-segment .ms-row input { flex: 1; min-width: 120px; }
+.cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 12px; align-items: end; }
+.cd-field { display: flex; flex-direction: column; gap: 4px; color: var(--ms-silver); font-size: 0.8rem; min-width: 0; }
+.cd-field em { color: var(--ms-muted); font-style: normal; font-size: 0.72rem; }
+.cd-field input[type='range'] { padding: 0; }
+.cd-color { display: flex; gap: 6px; align-items: center; } .cd-color select { flex: 1; }
+.ms-root input[type='color'] { width: 42px; height: 34px; padding: 2px; cursor: pointer; }
+.cd-pair { display: flex; align-items: center; gap: 8px; color: var(--ms-silver); font-size: 0.8rem; flex-wrap: wrap; }
+.cd-details summary { cursor: pointer; color: var(--ms-blue); font-size: 0.85rem; margin-bottom: 8px; }
+.cd-clips { display: flex; flex-direction: column; gap: 8px; }
+.cd-clip { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: start; border-top: 1px solid rgba(148, 163, 184, 0.12); padding-top: 8px; }
+.cd-clip img, .cd-clip .ms-beat-card { width: 150px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
+.cd-tools { display: flex; flex-direction: column; gap: 4px; }
+.cd-fieldset { border: 1px solid var(--ms-line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cd-fieldset legend { color: var(--ms-silver); padding: 0 6px; }
+.cd-savebar { position: sticky; bottom: 0; background: var(--ms-panel); border: 1px solid var(--ms-line); border-radius: 12px; padding: 10px; z-index: 2; }
+.cd-templates, .cd-template-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.cd-template-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.cd-template { text-align: left; background: #070c17; border: 1px solid var(--ms-line); border-radius: 12px; padding: 10px; color: var(--ms-text); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.cd-template.is-active { border-color: var(--ms-blue); box-shadow: 0 0 0 2px rgba(77, 155, 255, 0.35); }
+.cd-template:disabled { opacity: 0.45; cursor: not-allowed; }
+.cd-template em { color: var(--ms-blue); font-style: normal; font-size: 0.72rem; }
+.cd-swatch { display: block; height: 36px; border-radius: 8px; } .cd-swatch--wide { height: 54px; margin-bottom: 8px; }
+.cd-template-card { display: flex; flex-direction: column; gap: 6px; }
+.cd-template-segment { display: grid; grid-template-columns: 130px 70px 60px repeat(3, minmax(0, 1fr)) 130px 110px auto auto; gap: 6px; align-items: center; }
+@media (max-width: 1250px) { .cd-layout { grid-template-columns: 1fr; } .cd-preview { position: static; } .cd-template-segment { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 820px) { .cd-clip { grid-template-columns: 1fr; } .cd-clip img, .cd-clip .ms-beat-card { width: 100%; } .cd-tools { flex-direction: row; } }

@@ -74,3 +74,30 @@ Instagram tokens. They are DPAPI-protected and never leave that PC.
 
 **YouTube and TikTok:** PSS has no integration for either. They stay on manual handoff until developer apps are
 approved.
+
+## Commercial templates and the designer (2026-11-26)
+**Where:** Admin → Marketing → Commercial Templates, and AI Commercial Studio → New commercial → "Holiday, seasonal or custom (from a template)".
+
+**Templates:** Thanksgiving, Christmas, New Year's, Valentine's Day, Independence Day, birthday, special announcement, premiere, general celebration and custom (blank). Each is a starting storyboard with theme, music and branding (`backend/src/marketing/templates.js`). Built-ins are timed for 30 s and scale to 15 or 60 s.
+- Any built-in can be edited in Admin (stored as an override in `marketingTemplates`) and reset to the original.
+- Any template-based commercial can be saved as a new template ("Save as template"); saved templates keep their exact segments and length.
+- Placeholders in square brackets (`[NAME]`, `[DATE]`, `[TITLE]`, `[ANNOUNCEMENT]`) block rendering until they are replaced.
+- No wording is fixed in the renderer: every line comes from the storyboard.
+
+**Designer (per commercial, `frontend/src/admin/CommercialDesigner.jsx`):**
+- Segments: text card, footage, logo reveal, call to action. Add, remove and reorder them, up to 24, timed in tenths of a second, which always land on whole frames.
+- Three text lines per segment (top, main, bottom). Each has position (top/centre/bottom plus fine offset), alignment, size, colour (metallic silver, electric blue, gold, white or any custom colour), and glow.
+- Animation: cut, quick fade, slow fade, fade and rise, fade and slide.
+- Lines can appear all together, or one sentence at a time without moving the lines already shown.
+- Text timing: text can start after, and leave before, the segment's own start and end.
+- Footage segments hold up to 8 clips, each with its own start, length, 9:16 framing and on-screen title. Excerpts from title-only agreements must show their title for the whole clip; the server enforces it.
+- Theme: background gradient, line colours, title-bar accent and glow colour. Branding: corner logo on or off, corner position and size; PROtv logo above or below any text.
+- Music: original bed on or off, mood, tempo and volume. Volume is applied through the loudness target; LIVE masters stay within −24 ±2 LKFS.
+- Live preview: draws the exact render plan the worker receives, in 16:9, 9:16 or 1:1, with play and scrub.
+- Duplicate copies any commercial, as a new draft without renders or approvals.
+
+**API (admin):** `GET /design`, `GET|POST /templates`, `PUT|DELETE /templates/:id`, `POST /preview`, `POST /commercials/:id/duplicate`. `PUT /commercials/:id/storyboard` also takes `theme`, `branding`, `music` and `title`.
+
+**Render worker v2 (portal 9bffbd9):**
+- Overlay images are drawn in a short-lived process (`server/marketingOverlays.ts`). The first production render (Thanksgiving) stopped at the memory guard when this drawing ran inside the portal (316 MB).
+- Adds layer motion, gold fill, glow colour, and silent spots that skip the loudness check.

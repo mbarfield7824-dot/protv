@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import { api } from '../api';
+import { StyledEditor, TemplateChoice, TemplatesManager } from './CommercialDesigner';
 import '../styles/MarketingStudio.css';
 
 // PROtv Marketing Studio: one workspace for commercials, campaigns, social, paid media, creator promotion and LIVE spots.
 // Every number shown is labelled observed, reported or estimated; nothing here publishes, spends or airs without an
 // explicit approval step.
 const SECTIONS = [
-  ['overview', 'Overview'], ['commercials', 'AI Commercial Studio'], ['hype', 'Hype Clip Studio'], ['campaigns', 'Campaign Manager'],
+  ['overview', 'Overview'], ['commercials', 'AI Commercial Studio'], ['templates', 'Commercial Templates'], ['hype', 'Hype Clip Studio'], ['campaigns', 'Campaign Manager'],
   ['calendar', 'Social Calendar'], ['accounts', 'Social Accounts'], ['growth', 'Audience Growth'], ['paid', 'Paid Advertising'],
   ['creators', 'Creator Promotion Center'], ['sponsors', 'Sponsor Commercials'], ['live', 'PROtv LIVE Ad Manager'], ['analytics', 'Marketing Analytics'],
   ['assets', 'Asset Library'], ['settings', 'Settings & Integrations'],
@@ -121,20 +122,23 @@ function Overview({ go }) {
 // ---------------------------------------------------------------- AI Commercial Studio
 function NewCommercial({ onCreated, sponsorMode = false }) {
   const footage = useData('footage?destination=social');
-  const [form, setForm] = useState({ category: sponsorMode ? 'sponsor' : 'network', durationSeconds: 30, tone: sponsorMode ? 'corporate' : 'cinematic', videoId: '', audience: '', objective: '', mentionLive: true, destinations: ['live', 'social'], sponsor: { name: '', website: '', offer: '', tagline: '', cta: 'Visit', materialsConfirmed: false } });
+  const [form, setForm] = useState({ templateId: '', title: '', category: sponsorMode ? 'sponsor' : 'network', durationSeconds: 30, tone: sponsorMode ? 'corporate' : 'cinematic', videoId: '', audience: '', objective: '', mentionLive: true, destinations: ['live', 'social'], sponsor: { name: '', website: '', offer: '', tagline: '', cta: 'Visit', materialsConfirmed: false } });
   const action = useAction();
   const set = (patch) => setForm((current) => ({ ...current, ...patch }));
   const submit = async (event) => {
     event.preventDefault();
+    if (form.category === 'custom' && !form.templateId) { action.run('create', async () => { throw new Error('Choose a template.'); }); return; }
     const created = await action.run('create', () => call('commercials', { method: 'POST', body: form }));
     if (created) onCreated(created.id);
   };
   return (
     <form className="ms-card ms-form" onSubmit={submit}>
       <h3>{sponsorMode ? 'New sponsor commercial' : 'New commercial'}</h3>
-      {!sponsorMode && <label>Category<select value={form.category} onChange={(event) => set({ category: event.target.value, durationSeconds: event.target.value === 'network' ? 30 : form.durationSeconds })}><option value="network">PROtv network commercial</option><option value="title">Movie or series commercial</option></select></label>}
+      {!sponsorMode && <label>Category<select value={form.category} onChange={(event) => set({ category: event.target.value, durationSeconds: event.target.value === 'network' ? 30 : form.durationSeconds })}><option value="network">PROtv network commercial</option><option value="title">Movie or series commercial</option><option value="custom">Holiday, seasonal or custom (from a template)</option></select></label>}
+      {form.category === 'custom' && <label>Commercial name<input value={form.title} onChange={(event) => set({ title: event.target.value })} placeholder="e.g. Happy Thanksgiving from PROtv" /></label>}
       <label>Duration<select value={form.durationSeconds} onChange={(event) => set({ durationSeconds: Number(event.target.value) })} disabled={form.category === 'network'}>{[15, 30, 60].map((value) => <option key={value} value={value}>{value} seconds</option>)}</select></label>
-      <label>Creative style<select value={form.tone} onChange={(event) => set({ tone: event.target.value })}>{TONES.map((tone) => <option key={tone} value={tone}>{label(tone)}</option>)}</select></label>
+      {form.category === 'custom' ? <TemplateChoice value={form.templateId} durationSeconds={form.durationSeconds} onChange={(templateId) => set({ templateId })} />
+        : <label>Creative style<select value={form.tone} onChange={(event) => set({ tone: event.target.value })}>{TONES.map((tone) => <option key={tone} value={tone}>{label(tone)}</option>)}</select></label>}
       {form.category === 'title' && (
         <label>Title (cleared for marketing)<select value={form.videoId} onChange={(event) => set({ videoId: event.target.value })} required>
           <option value="">Choose…</option>
@@ -226,12 +230,13 @@ function RenderCard({ format, render }) {
   );
 }
 
-function CommercialDetail({ id, onBack }) {
+function CommercialDetail({ id, onBack, onOpen }) {
   const { data: commercial, error, reload } = useData(`commercials/${id}`);
   const footage = useData('footage?destination=social&network=1');
   const [draft, setStoryboard] = useState(null);
   const action = useAction();
   const [note, setNote] = useState('');
+  const [designDirty, setDesignDirty] = useState(false);
   const videos = useMemo(() => new Map((footage.data || []).map((item) => [item.id, item])), [footage.data]);
   const rendering = commercial && Object.values(commercial.renders || {}).some((render) => !(render.status === 'ready' && render.asset?.status === 'ready') && !['failed', 'cancelled'].includes(render.status));
   useEffect(() => {
@@ -243,13 +248,14 @@ function CommercialDetail({ id, onBack }) {
   if (!commercial) return <p className="ms-muted">Loading…</p>;
   const storyboard = draft || commercial.storyboard;
   const starts = storyboard.reduce((list, beat) => [...list, list[list.length - 1] + beat.durationSeconds], [0]);
-  const changed = Boolean(draft) && JSON.stringify(draft) !== JSON.stringify(commercial.storyboard);
+  const styled = Boolean(commercial.theme);
+  const changed = (Boolean(draft) && JSON.stringify(draft) !== JSON.stringify(commercial.storyboard)) || designDirty;
   const editBeat = (index, patch) => setStoryboard(storyboard.map((beat, i) => (i === index ? { ...beat, ...patch } : beat)));
   return (
     <div className="ms-stack">
       <button type="button" className="ms-link" onClick={onBack}>← All commercials</button>
       <section className="ms-card">
-        <div className="ms-row ms-between"><h3>{commercial.title}</h3><Status value={commercial.status} /></div>
+        <div className="ms-row ms-between"><h3>{commercial.title}</h3><div className="ms-row"><Status value={commercial.status} /><button type="button" className="ms-secondary" disabled={Boolean(action.busy)} onClick={() => action.run('duplicate', () => call(`commercials/${id}/duplicate`, { method: 'POST' }).then((copy) => onOpen?.(copy.id)), 'Duplicated.')}>Duplicate</button></div></div>
         <p className="ms-muted">{label(commercial.category)} · {commercial.durationSeconds} s · {label(commercial.tone)} · revision {commercial.revision}</p>
         <div className="ms-grid2">
           <div><h4>Brief</h4><dl className="ms-specs"><dt>Objective</dt><dd>{commercial.brief.objective}</dd><dt>Audience</dt><dd>{commercial.brief.audience}</dd><dt>Message</dt><dd>{commercial.brief.message}</dd><dt>Footage</dt><dd>{commercial.brief.footage.join(', ') || 'Graphics only'}</dd><dt>Music</dt><dd>{commercial.music.source}</dd><dt>Voiceover</dt><dd>{commercial.voiceover.note}</dd></dl></div>
@@ -263,7 +269,7 @@ function CommercialDetail({ id, onBack }) {
           <tbody>{commercial.script.map((line) => <tr key={line.start}><td>{line.start.toFixed(1)}–{line.end.toFixed(1)} s</td><td>{line.purpose}</td><td>{line.picture}</td><td>{line.onScreen}</td></tr>)}</tbody></table>
         <a className="ms-link" href="#captions" onClick={async (event) => { event.preventDefault(); const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/marketing/commercials/${id}/captions.srt`, { headers: { Authorization: `Bearer ${await (await import('../firebase')).firebaseAuth.currentUser.getIdToken()}` } }); const blob = await response.blob(); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${id}.srt`; link.click(); }}>Download captions (.srt)</a>
       </section>
-      <section className="ms-card"><h4>Storyboard and shot list</h4>
+      {styled ? <StyledEditor key={commercial.revision} commercial={commercial} footage={footage.data || []} onSaved={() => { setDesignDirty(false); reload(); }} onDirty={setDesignDirty} /> : <section className="ms-card"><h4>Storyboard and shot list</h4>
         <div className="ms-beats">{storyboard.map((beat, index) => {
           const start = starts[index];
           const end = starts[index + 1];
@@ -286,8 +292,9 @@ function CommercialDetail({ id, onBack }) {
           );
         })}</div>
         {changed && <div className="ms-row"><button type="button" className="ms-primary" onClick={() => action.run('save', () => call(`commercials/${id}/storyboard`, { method: 'PUT', body: { storyboard } }).then(() => { setStoryboard(null); reload(); }), 'Saved as a new revision; render again to see it.')}>Save storyboard</button><button type="button" className="ms-secondary" onClick={() => setStoryboard(null)}>Discard</button></div>}
-      </section>
+      </section>}
       <section className="ms-card"><h4>Render, review and deliver</h4>
+        {changed && <p className="ms-muted">Save or discard your changes before rendering.</p>}
         <div className="ms-row ms-wrap">
           <button type="button" className="ms-primary" disabled={Boolean(action.busy) || changed || commercial.rightsCheck.length > 0} onClick={() => action.run('render', () => call(`commercials/${id}/render`, { method: 'POST', body: { formats: ['widescreen', 'vertical'] } }).then(reload), 'Sent to the render worker. Previews appear here when they are processed.')}>Render 16:9 + 9:16</button>
           <button type="button" className="ms-secondary" disabled={Boolean(action.busy) || changed} onClick={() => action.run('square', () => call(`commercials/${id}/render`, { method: 'POST', body: { formats: ['square'] } }).then(reload))}>Render 1:1</button>
@@ -316,7 +323,7 @@ function Commercials({ initial, sponsorMode = false }) {
   const [selected, setSelected] = useState(initial || null);
   const [creating, setCreating] = useState(false);
   const { data, error, reload } = useData('commercials');
-  if (selected) return <CommercialDetail id={selected} onBack={() => { setSelected(null); reload(); }} />;
+  if (selected) return <CommercialDetail key={selected} id={selected} onBack={() => { setSelected(null); reload(); }} onOpen={setSelected} />;
   const list = (data || []).filter((item) => (sponsorMode ? item.category === 'sponsor' : true));
   return (
     <div className="ms-stack">
@@ -325,7 +332,7 @@ function Commercials({ initial, sponsorMode = false }) {
       {creating && <NewCommercial sponsorMode={sponsorMode} onCreated={(id) => { setCreating(false); setSelected(id); }} />}
       <Notice error={error} />
       <table className="ms-table"><thead><tr><th>Commercial</th><th>Category</th><th>Length</th><th>Status</th><th>Renders</th><th>Updated</th></tr></thead>
-        <tbody>{list.map((item) => <tr key={item.id}><td><button type="button" className="ms-link" onClick={() => setSelected(item.id)}>{item.title}</button></td><td>{label(item.category)}</td><td>{item.durationSeconds} s</td><td><Status value={item.status} /></td><td>{Object.entries(item.renders || {}).map(([format, render]) => `${format}: ${render.status}`).join(' · ') || '—'}</td><td>{et(item.updatedAt)}</td></tr>)}</tbody></table>
+        <tbody>{list.map((item) => <tr key={item.id}><td><button type="button" className="ms-link" onClick={() => setSelected(item.id)}>{item.title}</button></td><td>{item.category === 'custom' ? `Template${item.templateName ? `: ${item.templateName}` : ''}` : label(item.category)}</td><td>{item.durationSeconds} s</td><td><Status value={item.status} /></td><td>{Object.entries(item.renders || {}).map(([format, render]) => `${format}: ${render.status}`).join(' · ') || '—'}</td><td>{et(item.updatedAt)}</td></tr>)}</tbody></table>
       {!list.length && <p className="ms-muted">No commercials yet.</p>}
     </div>
   );
@@ -597,6 +604,7 @@ export default function MarketingStudio() {
       <main className="ms-main">
         {section === 'overview' && <Overview go={go} />}
         {section === 'commercials' && <Commercials key={focus || 'list'} initial={focus} />}
+        {section === 'templates' && <TemplatesManager onOpenCommercial={(id) => go('commercials', id)} />}
         {section === 'hype' && <Assets hypeOnly />}
         {section === 'campaigns' && <Campaigns />}
         {section === 'calendar' && <Calendar />}
