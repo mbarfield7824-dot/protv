@@ -101,3 +101,29 @@ approved.
 **Render worker v2 (portal 9bffbd9):**
 - Overlay images are drawn in a short-lived process (`server/marketingOverlays.ts`). The first production render (Thanksgiving) stopped at the memory guard when this drawing ran inside the portal (316 MB).
 - Adds layer motion, gold fill, glow colour, and silent spots that skip the loudness check.
+
+## Scheduling, outages and rollback (2026-11-26)
+**Live:** website 7dfa119 (dpl_EfBP7nGkqr7E2yCJco1yuZk76SYK). Recovered scheduling work merged as 2b64c16; hardening in 7dfa119.
+
+**Scheduling and approvals:**
+- Times are entered and shown in Eastern Time, with daylight-saving conversion.
+- Every post has a deadline (default 6 hours after its scheduled time). A post that can't go out before its deadline is marked **Missed** and is never published late.
+- Posts can be edited (an edit needs a new approval), rescheduled (the approval is kept), cancelled or tested non-publicly.
+- "Approve campaign + all posts" asks for explicit confirmation of public publishing; the API requires `confirmPublic: true`.
+
+**Outage safety:**
+- **Late claim:** PROtv Social Studio cannot claim a post after its deadline.
+- **Lost claim:** a claim with no result after 30 minutes becomes **Needs review**. It is never retried automatically. Mark it "published" (paste the address) or "not published", then reschedule.
+- **Cancel during publish:** a post PSS is publishing cannot be cancelled.
+- **Release ID:** each queuing carries a `releaseId`. PSS sends a new release (for example a real publish after a non-public test) but never sends a published post twice.
+
+**Alerts:** PSS offline, Meta publishing access expiring (7 days, 3 days, 24 hours, expired), Meta app secret rejected, and failed, missed or needs-review posts.
+
+**Organic metrics:** reported by PSS every 6 hours for posts published in the last 30 days, using existing permissions only.
+
+**Rollback:**
+| What | How |
+|---|---|
+| Website | `vercel promote dpl_9xWYCgEqPdK6ZNyGHBtqxvkdEYkT` (452d96a, templates and designer without scheduling), then `vercel promote dpl_HqXTipP2bjUhh1eA1RTMCbf9zREu` (98cb55c, before templates). Firestore records are unchanged by a rollback. |
+| Portal render worker | Render deploy 9bffbd9 (worker v2) or ee4cea7 (v1). Portal 647740c (core rights) rolls back to 9bffbd9. |
+| PSS | `git checkout 7636dca~1 -- marketing-link.mjs` in D:\PROtv-Social-Studio and restart the Studio. Uninstall background start with `.\Install-Background-Studio.ps1 -Uninstall`. |
