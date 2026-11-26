@@ -415,8 +415,9 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     const renders = { ...commercial.renders };
     let changed = false;
     for (const [format, render] of Object.entries(renders)) {
-      if (render.status !== 'ready' || !render.asset) {
-        const job = await portal.renderStatus(render.jobId).catch((error) => ({ status: render.status, error: error.message }));
+      if (render.status !== 'ready' || !render.asset || render.asset.status !== 'ready') {
+        // A finished render is not asked about again; only its Mux copy is followed until Mux has processed it.
+        const job = render.status === 'ready' && render.asset ? { status: 'ready', progress: render.progress, stage: render.stage, validation: render.validation } : await portal.renderStatus(render.jobId).catch((error) => ({ status: render.status, error: error.message }));
         const next = { ...render, status: job.status, progress: job.progress ?? render.progress, stage: job.stage || render.stage, error: job.error || '', validation: job.validation || render.validation };
         if (job.status === 'ready' && !render.asset && mux) {
           const asset = await mux.createAssetFromUrl(portal.fileUrl('render', render.jobId), { playbackPolicy: 'public' });

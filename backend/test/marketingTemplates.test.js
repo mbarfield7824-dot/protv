@@ -184,3 +184,30 @@ test('legacy network commercials are not styled and keep their original layout',
   assert.equal(plan.shots[0].colors, undefined);
   assert.deepEqual(plan.shots.at(-1).colors, ['#03060d', '#0a1a3a']);
 });
+
+test('after a render is handed to Mux, refresh follows Mux until the copy is processed (then the commercial is in review)', async () => {
+  const store = new MemoryMarketingStore();
+  const catalog = [video(CAESAR), video(CURTAIN), video(THIRTY)];
+  const jobs = new Map();
+  let renderStatusCalls = 0;
+  const portal = { configured: () => true, submitRender: async (plan) => { jobs.set(plan.id, 'queued'); return { id: plan.id, status: 'queued', progress: 0 }; }, renderStatus: async (id) => { renderStatusCalls += 1; return { id, status: jobs.get(id), progress: 100, validation: { ok: true } }; }, fileUrl: () => 'https://portal.test/file' };
+  const muxAssets = new Map();
+  const mux = {
+    createAssetFromUrl: async () => { const asset = { id: `asset${muxAssets.size}`, status: 'preparing', playback_ids: [{ id: `play${muxAssets.size}`, policy: 'public' }] }; muxAssets.set(asset.id, asset); return asset; },
+    getAsset: async (id) => muxAssets.get(id), getPlaybackId: (asset) => asset?.playback_ids?.[0]?.id,
+  };
+  const service = createMarketingService({ store, portal, mux, loadCatalog: async () => catalog, now: () => NOW });
+  const commercial = await service.createCommercial({ category: 'custom', templateId: 'christmas', durationSeconds: 15 }, 'a');
+  await service.renderCommercial(commercial.id, { formats: ['widescreen', 'vertical'] }, 'a');
+  for (const id of jobs.keys()) jobs.set(id, 'ready');
+  const handed = await service.refreshCommercial(commercial.id);
+  assert.deepEqual(Object.values(handed.renders).map((render) => render.asset.status), ['preparing', 'preparing']);
+  assert.equal(handed.status, 'rendering');
+  const calls = renderStatusCalls;
+  for (const asset of muxAssets.values()) asset.status = 'ready';
+  const ready = await service.refreshCommercial(commercial.id);
+  assert.deepEqual(Object.values(ready.renders).map((render) => render.asset.status), ['ready', 'ready']);
+  assert.equal(ready.status, 'in-review');
+  assert.equal(renderStatusCalls, calls, 'a finished render is not polled again');
+  assert.equal(muxAssets.size, 2, 'each render is copied to Mux once');
+});
