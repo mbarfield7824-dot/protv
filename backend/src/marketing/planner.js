@@ -2,6 +2,7 @@
 // Horizontal and vertical are separate compositions (text sizes, positions, safe areas and the framing point of each
 // shot), never a blind crop. The render plan is executed by the portal worker (server/marketingRender.ts).
 const crypto = require('node:crypto');
+const design = require('./design');
 
 const FPS = 30;
 const FORMATS = Object.freeze({
@@ -120,10 +121,16 @@ function timeline(storyboard) {
   });
 }
 
+function pictureOf(beat) {
+  if (beat.kind === 'footage') return design.clipsOf(beat).map((clip) => `${clip.sourceTitle || clip.videoId} at ${Math.round(clip.startSeconds)} s`).join(' + ');
+  if (beat.kind === 'logo') return 'Official PROtv logo reveal';
+  if (beat.kind === 'cta') return beat.style?.logo === 'none' ? 'Call-to-action card' : 'Call-to-action card with the official PROtv logo';
+  return beat.style?.logo && beat.style.logo !== 'none' ? 'Branded card with the PROtv logo' : 'Branded card';
+}
 function scriptFor(commercial) {
   return timeline(commercial.storyboard).map((beat) => ({
     start: beat.start, end: beat.end, purpose: beat.purpose || '',
-    picture: beat.kind === 'footage' ? `${beat.sourceTitle || beat.videoId} at ${Math.round(beat.startSeconds)} s` : beat.kind === 'logo' ? 'Official PROtv logo reveal' : 'Branded card',
+    picture: pictureOf(beat),
     onScreen: [beat.text?.headline, beat.text?.hero, beat.text?.word, beat.label, beat.text?.sub].filter(Boolean).join(' / '),
     narration: beat.narration || '',
   }));
@@ -149,6 +156,18 @@ function renderPlan(commercial, format, { destination = 'social', videos = new M
   const beats = timeline(commercial.storyboard);
   const total = round3(beats.reduce((sum, beat) => sum + beat.durationSeconds, 0));
   if (frames(total) !== total * FPS && Math.abs(frames(total) / FPS - total) > 1e-6) throw new Error('The storyboard must land on whole frames.');
+  if (design.isStyled(commercial)) {
+    const { shots, layers } = design.styledComposition(commercial, beats, L, format, { videos, tokens, helpers: { fitText, CHAR_EM } });
+    const music = design.sanitizeMusic(commercial.music || {});
+    const logo = beats.find((beat) => beat.kind === 'logo' || beat.kind === 'cta');
+    const body = {
+      title: `${commercial.title} (${FORMATS[format].label})`, format, durationSeconds: total, shots, layers,
+      music: { kind: music.kind, mood: music.mood, bpm: music.bpm, impacts: beats.filter((beat) => beat.impact).map((beat) => beat.start).slice(0, 12), riseTo: logo ? logo.start : null },
+      loudness: design.loudnessFor(destination, music, LOUDNESS),
+    };
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex').slice(0, 12);
+    return { id: `${commercial.id}-${format}-${fingerprint}`, ...body };
+  }
   const shots = beats.map((beat) => {
     if (beat.kind !== 'footage') return { kind: 'card', durationSeconds: beat.durationSeconds, colors: [BRAND.colors.night, BRAND.colors.deep] };
     const video = videos.get(beat.videoId);

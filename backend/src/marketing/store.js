@@ -13,6 +13,7 @@ const COLLECTIONS = Object.freeze({
   settings: 'marketingSettings',
   oauth: 'marketingOAuthStates',
   stats: 'marketingDailyStats',
+  templates: 'marketingTemplates',
 });
 
 class MemoryMarketingStore {

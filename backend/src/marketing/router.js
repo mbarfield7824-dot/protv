@@ -40,7 +40,14 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   router.get('/commercials', handle('commercial list', () => service.listCommercials()));
   router.post('/commercials', handle('commercial', (req) => service.createCommercial(req.body || {}, actor(req))));
   router.get('/commercials/:id', handle('commercial', (req) => service.getCommercial(req.params.id)));
-  router.put('/commercials/:id/storyboard', handle('storyboard', (req) => service.updateStoryboard(req.params.id, req.body?.storyboard, actor(req))));
+  router.put('/commercials/:id/storyboard', handle('storyboard', (req) => service.updateStoryboard(req.params.id, req.body?.storyboard, actor(req), { theme: req.body?.theme, branding: req.body?.branding, music: req.body?.music, title: req.body?.title })));
+  router.post('/commercials/:id/duplicate', handle('duplicate', (req) => service.duplicateCommercial(req.params.id, actor(req))));
+  router.post('/preview', handle('preview', (req) => service.previewPlan(req.body || {})));
+  router.get('/design', handle('design options', () => service.designOptions()));
+  router.get('/templates', handle('template list', () => service.listTemplates()));
+  router.post('/templates', handle('template', (req) => service.saveTemplate(req.body || {}, actor(req))));
+  router.put('/templates/:id', handle('template', (req) => service.updateTemplate(req.params.id, req.body || {}, actor(req))));
+  router.delete('/templates/:id', handle('template', (req) => service.deleteTemplate(req.params.id, actor(req))));
   router.post('/commercials/:id/render', handle('render', (req) => service.renderCommercial(req.params.id, { formats: req.body?.formats }, actor(req))));
   router.post('/commercials/:id/refresh', handle('render status', (req) => service.refreshCommercial(req.params.id)));
   router.post('/commercials/:id/cancel', handle('render cancel', (req) => service.cancelRender(req.params.id, req.body?.format, actor(req))));
