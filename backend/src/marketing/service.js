@@ -12,6 +12,7 @@ const social = require('./social');
 const ads = require('./ads');
 const analytics = require('./analytics');
 const { PSS_PLATFORMS } = require('./pss');
+const { channelLocalToUtc } = require('../linear/time');
 
 class MarketingError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
 
@@ -542,13 +543,13 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     if (!platform) throw new MarketingError('Choose a platform.');
     const campaign = input.campaignId ? await requireRecord('campaigns', input.campaignId, 'Campaign') : null;
     const asset = input.assetId ? await requireRecord('assets', input.assetId, 'Asset') : null;
-    const scheduledAt = input.scheduledAt ? iso(input.scheduledAt) : null;
+    const { scheduledAt, latestPublishAt } = scheduleFields(input);
     const postId = newId('mp');
     const link = campaign ? analytics.trackingUrl({ campaignId: campaign.id, postId: postId.slice(3, 15), platform, destination: input.destination || campaign.landingPage }) : (input.destination || 'https://watchprotv.com/');
     const caption = text(input.caption, 2200) || captionFor(platform, { title: input.title, line: text(input.line, 200) || 'Your next favorite movie is FREE.', link, hashtags: input.hashtags });
     const post = {
       platform, campaignId: campaign?.id || '', assetId: asset?.id || '', title: text(input.title, 100), caption, link, hashtags: input.hashtags || [],
-      targetId: text(input.targetId, 80), mode: input.mode === 'draft' ? 'draft' : 'publish', scheduledAt, status: 'draft', attempts: 0, receipt: null, error: '',
+      targetId: text(input.targetId, 80), mode: input.mode === 'draft' ? 'draft' : 'publish', scheduledAt, latestPublishAt, purpose: text(input.purpose, 80), status: 'draft', attempts: 0, receipt: null, error: '',
       idempotencyKey: `${postId}`, createdBy: actor, createdAt: stamp(), updatedAt: stamp(), history: [{ at: stamp(), actor, status: 'draft' }],
     };
     const saved = await store.put('posts', postId, post);
@@ -558,7 +559,14 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   async function approvePost(id, actor) {
     const post = await requireRecord('posts', id, 'Post');
     if (!['draft', 'held', 'failed'].includes(post.status)) throw new MarketingError(`A ${post.status} post cannot be approved.`);
-    if (post.assetId) { const asset = await store.get('assets', post.assetId); if (!asset || asset.status !== 'approved') throw new MarketingError('Approve the attached video first.'); }
+    if (PSS_PLATFORMS.has(post.platform) && !post.assetId) throw new MarketingError('Attach a video first.');
+    if (post.assetId) {
+      const asset = await store.get('assets', post.assetId);
+      if (!asset || asset.status !== 'approved') throw new MarketingError('Approve the attached video first.');
+      const need = FORMAT_FOR[post.platform];
+      if (need && asset.format && asset.format !== need) throw new MarketingError(`${post.platform === 'instagram' ? 'Instagram Reels need the vertical 9:16' : 'Facebook needs the horizontal 16:9'} version of this video.`);
+    }
+    if (post.latestPublishAt && Date.parse(post.latestPublishAt) <= now()) throw new MarketingError('This post is past its publishing deadline. Reschedule it first.');
     const status = post.scheduledAt ? 'scheduled' : 'approved';
     await log(actor, 'post_approve', `Approved the ${post.platform} post${post.scheduledAt ? ` scheduled for ${etLabel(post.scheduledAt)}` : ''}.`, { postId: id });
     return store.put('posts', id, { ...post, status, approvedBy: actor, approvedAt: stamp(), updatedAt: stamp(), history: [...post.history, { at: stamp(), actor, status }] });
@@ -605,6 +613,98 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       return store.put('posts', id, { ...post, status: retry ? post.status : 'failed', attempts, error: error.message, nextAttemptAt: retry ? iso(now() + 2 ** attempts * 60_000) : null, updatedAt: stamp() });
     }
   }
+  // ---------------------------------------------------------------- scheduling (Eastern Time)
+  // Times are entered as Eastern wall-clock times ('YYYY-MM-DDTHH:mm') and converted with daylight-saving rules. Every
+  // post has a relevance deadline (latestPublishAt): a post that could not go out before it is marked missed, never
+  // published late. Default deadline: six hours after the scheduled time.
+  function scheduleFields(input) {
+    const toUtc = (value) => {
+      if (!value) return null;
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(value))) return channelLocalToUtc(String(value));
+      const parsed = typeof value === 'number' ? value : Date.parse(value);
+      if (!Number.isFinite(parsed)) throw new MarketingError('Times must be YYYY-MM-DDTHH:mm (Eastern Time).');
+      return new Date(parsed).toISOString();
+    };
+    const scheduledAt = toUtc(input.scheduledAtLocal ?? input.scheduledAt);
+    const explicitLatest = toUtc(input.latestPublishAtLocal ?? input.latestPublishAt);
+    const latestPublishAt = explicitLatest || (scheduledAt ? new Date(Date.parse(scheduledAt) + 6 * 3600_000).toISOString() : null);
+    if (scheduledAt && latestPublishAt && Date.parse(latestPublishAt) <= Date.parse(scheduledAt)) throw new MarketingError('The publishing deadline must be after the scheduled time.');
+    return { scheduledAt, latestPublishAt };
+  }
+  const FORMAT_FOR = { facebook: 'widescreen', instagram: 'vertical' };
+  const EDITABLE = ['draft', 'approved', 'scheduled', 'missed', 'failed', 'test-passed', 'held'];
+  // Changing only the time keeps the approval (the content was approved); a time in the past is refused.
+  async function reschedulePost(id, input, actor) {
+    const post = await requireRecord('posts', id, 'Post');
+    if (!EDITABLE.includes(post.status) || (post.receipt && !post.receipt.test)) throw new MarketingError(`A ${post.status} post cannot be rescheduled.`);
+    const { scheduledAt, latestPublishAt } = scheduleFields(input);
+    if (!scheduledAt || Date.parse(scheduledAt) <= now()) throw new MarketingError('Choose a future time (Eastern Time).');
+    const approved = Boolean(post.approvedAt) && post.status !== 'draft';
+    const status = approved ? 'scheduled' : 'draft';
+    await log(actor, 'post_reschedule', `Rescheduled the ${post.platform} post to ${etLabel(scheduledAt)}.`, { postId: id });
+    return store.put('posts', id, { ...post, scheduledAt, latestPublishAt, status, error: '', attempts: 0, nextAttemptAt: null, updatedAt: stamp(), history: [...(post.history || []), { at: stamp(), actor, status, note: 'rescheduled' }] });
+  }
+  // Changing the words or the video sends the post back to draft for a new approval.
+  async function editPost(id, input, actor) {
+    const post = await requireRecord('posts', id, 'Post');
+    if (!EDITABLE.includes(post.status) || (post.receipt && !post.receipt.test)) throw new MarketingError(`A ${post.status} post cannot be edited.`);
+    const patch = {};
+    if (input.caption !== undefined) patch.caption = text(input.caption, 2200);
+    if (input.title !== undefined) patch.title = text(input.title, 100);
+    if (input.assetId !== undefined) { await requireRecord('assets', input.assetId, 'Asset'); patch.assetId = String(input.assetId); }
+    if (!Object.keys(patch).length) throw new MarketingError('Nothing to change.');
+    await log(actor, 'post_edit', `Edited the ${post.platform} post; it needs approval again.`, { postId: id });
+    return store.put('posts', id, { ...post, ...patch, status: 'draft', approvedAt: null, approvedBy: null, receipt: null, updatedAt: stamp(), history: [...(post.history || []), { at: stamp(), actor, status: 'draft', note: 'edited' }] });
+  }
+  // One action for a prepared week: approve the campaign and every draft post in it (each checked as usual).
+  async function approveCampaignAndPosts(id, actor) {
+    const campaign = await requireRecord('campaigns', id, 'Campaign');
+    if (!['draft', 'in-review', 'approved', 'active'].includes(campaign.status)) throw new MarketingError(`A ${campaign.status} campaign cannot be approved.`);
+    if (['draft', 'in-review'].includes(campaign.status)) await transitionCampaign(id, 'approve', actor, 'Approved with its posts.');
+    const results = [];
+    for (const post of await store.list('posts', { where: { campaignId: id } })) {
+      if (post.status !== 'draft') continue;
+      try { const saved = await approvePost(post.id, actor); results.push({ id: post.id, platform: post.platform, status: saved.status, scheduledAt: saved.scheduledAt }); } catch (error) { results.push({ id: post.id, platform: post.platform, error: error.message }); }
+    }
+    return { campaign: await store.get('campaigns', id), results };
+  }
+  async function pssMetrics(items) {
+    let stored = 0;
+    for (const item of (Array.isArray(items) ? items : []).slice(0, 200)) {
+      const post = await store.get('posts', String(item.postId || ''));
+      if (!post || post.platform !== item.platform) continue;
+      const values = Object.fromEntries(Object.entries(item.metrics || {}).filter(([key, value]) => /^[a-zA-Z]{2,20}$/.test(key) && Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]));
+      const unavailable = Object.fromEntries(Object.entries(item.unavailable || {}).filter(([key]) => /^[a-zA-Z]{2,20}$/.test(key)).map(([key, value]) => [key, text(value, 60)]));
+      await store.put('posts', post.id, { ...post, metrics: { kind: 'reported', source: 'Meta via PROtv Social Studio', values, unavailable, fetchedAt: text(item.fetchedAt, 40) || stamp() }, receipt: post.receipt && !post.receipt.url && /^https:\/\//.test(String(item.permalink || '')) ? { ...post.receipt, url: item.permalink } : post.receipt, updatedAt: stamp() });
+      stored += 1;
+    }
+    return { stored };
+  }
+  // Everything that needs the owner's attention, in one list.
+  async function alerts() {
+    const list = [];
+    const pss = await pssState();
+    const posts = await store.list('posts', { limit: 1000 });
+    const upcoming = posts.filter((post) => ['scheduled', 'queued-pss', 'publishing-pss'].includes(post.status) && PSS_PLATFORMS.has(post.platform) && (!post.scheduledAt || Date.parse(post.scheduledAt) < now() + 24 * 3600_000));
+    const offline = !pss || Date.parse(pss.lastSeenAt) < now() - 15 * 60_000;
+    if (offline && upcoming.length) list.push({ level: 'error', kind: 'pss-offline', message: `PROtv Social Studio has not checked in since ${pss ? etLabel(pss.lastSeenAt) : 'it was linked'}; ${upcoming.length} Facebook/Instagram post(s) are due within 24 hours. Turn on the studio PC.` });
+    else if (offline && pss) list.push({ level: 'info', kind: 'pss-offline', message: `PROtv Social Studio last checked in ${etLabel(pss.lastSeenAt)}. Scheduled posts go out when it is next online.` });
+    if (pss) {
+      const left = pss.connectionExpiresAt ? Date.parse(pss.connectionExpiresAt) - now() : Infinity;
+      if (pss.reauthRequired || !pss.connected || left <= 0) list.push({ level: 'error', kind: 'meta-expired', message: 'The Meta connection has expired. Reconnect Facebook/Instagram in PROtv Social Studio.' });
+      else if (left <= 24 * 3600_000) list.push({ level: 'error', kind: 'meta-24h', message: `The Meta connection expires ${etLabel(pss.connectionExpiresAt)} (within 24 hours). Reconnect in PROtv Social Studio.` });
+      else if (left <= 3 * 86_400_000) list.push({ level: 'warning', kind: 'meta-3d', message: `The Meta connection expires ${etLabel(pss.connectionExpiresAt)} (within 3 days). Reconnect in PROtv Social Studio.` });
+      else if (left <= 7 * 86_400_000) list.push({ level: 'warning', kind: 'meta-7d', message: `The Meta connection expires ${etLabel(pss.connectionExpiresAt)} (within 7 days). Reconnect in PROtv Social Studio.` });
+      if (pss.appSecretAccepted === false) list.push({ level: 'warning', kind: 'meta-app-secret', message: 'Meta rejects the app secret stored in PROtv Social Studio. Publishing still works, but a reconnect will fail until the current secret is entered in PSS Settings.' });
+    }
+    for (const post of posts) {
+      if (post.status === 'failed') list.push({ level: 'error', kind: 'post-failed', postId: post.id, message: `${post.platform} post failed: ${post.error || 'see the post'}.` });
+      if (post.status === 'needs-check') list.push({ level: 'error', kind: 'post-needs-check', postId: post.id, message: `${post.platform} post may or may not have been published. Check the account, then mark it.` });
+      if (post.status === 'missed') list.push({ level: 'warning', kind: 'post-missed', postId: post.id, message: `${post.platform} post missed its window (${post.error || 'deadline passed'}). Reschedule or cancel it.` });
+    }
+    return list;
+  }
+
   // ---------------------------------------------------------------- PROtv Social Studio (PSS) publishing
   async function pssState() { return store.get('settings', 'pss'); }
   async function queueForPss(post, actor, mode) {
@@ -645,7 +745,14 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   }
   async function pssQueue() {
     const items = [];
-    for (const post of (await store.list('posts', { where: { status: 'queued-pss' } })).slice(0, 10)) {
+    for (const post of (await store.list('posts', { where: { status: 'queued-pss' } })).slice(0, 20)) {
+      if (post.latestPublishAt && Date.parse(post.latestPublishAt) <= now()) {
+        await store.put('posts', post.id, { ...post, status: 'missed', error: `not published before its deadline ${etLabel(post.latestPublishAt)} (PROtv Social Studio was offline or the video was not ready)`, updatedAt: stamp() });
+        await log('scheduler', 'post_missed', `The ${post.platform} post missed its deadline and was not published.`, { postId: post.id });
+        continue;
+      }
+      if (post.nextAttemptAt && Date.parse(post.nextAttemptAt) > now()) continue;
+      if (items.length >= 10) break;
       if (post.campaignId) { const campaign = await store.get('campaigns', post.campaignId); if (!campaign || !['approved', 'active'].includes(campaign.status)) continue; }
       const asset = post.assetId ? await store.get('assets', post.assetId) : null;
       if (!asset || asset.status !== 'approved') continue;
@@ -673,19 +780,30 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     if (status === 'published') next = { status: 'published', receipt: { ...receipt, state: 'published' }, error: '' };
     else if (status === 'test-uploaded' || status === 'test-container-ready') next = { status: 'test-passed', receipt: { ...receipt, state: status, test: true }, error: '' };
     else if (status === 'unknown') next = { status: 'needs-check', error: text(outcome.message, 500) || 'Meta may have received this post. Check the account before retrying.' };
-    else next = { status: 'failed', error: text(outcome.message, 500) || 'Publishing failed.' };
+    else if (outcome.retryable === true && (post.attempts || 0) + 1 < 3 && (!post.latestPublishAt || Date.parse(post.latestPublishAt) > now() + 5 * 60_000)) {
+      next = { status: 'queued-pss', nextAttemptAt: iso(now() + 5 * 60_000 * 2 ** (post.attempts || 0)), error: `${text(outcome.message, 400)} (Meta reported a temporary problem; retrying automatically.)` };
+    } else next = { status: 'failed', error: text(outcome.message, 500) || 'Publishing failed.' };
     await log('pss', `post_pss_${next.status}`, `PROtv Social Studio reported the ${post.platform} post: ${next.status}${next.error ? ` (${next.error})` : ''}.`, { postId: id, platformPostId: receipt.platformPostId });
     return store.put('posts', id, { ...post, ...next, attempts: (post.attempts || 0) + 1, updatedAt: at });
   }
 
   async function dispatchDue(actor = 'scheduler') {
-    const due = (await store.list('posts', { where: { status: 'scheduled' } })).filter((post) => post.scheduledAt && Date.parse(post.scheduledAt) <= now() && (!post.nextAttemptAt || Date.parse(post.nextAttemptAt) <= now()));
+    const scheduled = await store.list('posts', { where: { status: 'scheduled' } });
+    for (const post of scheduled.filter((item) => item.latestPublishAt && Date.parse(item.latestPublishAt) <= now())) {
+      await store.put('posts', post.id, { ...post, status: 'missed', error: `its deadline ${etLabel(post.latestPublishAt)} passed before it could be sent`, updatedAt: stamp() });
+      await log(actor, 'post_missed', `The ${post.platform} post missed its deadline and was not published.`, { postId: post.id });
+    }
+    const due = scheduled.filter((post) => post.scheduledAt && Date.parse(post.scheduledAt) <= now() && (!post.latestPublishAt || Date.parse(post.latestPublishAt) > now()) && (!post.nextAttemptAt || Date.parse(post.nextAttemptAt) <= now()));
     const results = [];
     for (const post of due.slice(0, 10)) results.push(await publishPost(post.id, actor).then((saved) => ({ id: post.id, status: saved.status })).catch((error) => ({ id: post.id, error: error.message })));
     return { due: due.length, results };
   }
   async function recordManualPost(id, { url }, actor) {
     const post = await requireRecord('posts', id, 'Post');
+    if (url === 'not-published' && post.status === 'needs-check') {
+      await log(actor, 'post_checked', `Confirmed the ${post.platform} post was not published; it can be rescheduled.`, { postId: id });
+      return store.put('posts', id, { ...post, status: 'missed', error: 'confirmed not published', updatedAt: stamp() });
+    }
     if (!/^https:\/\/\S+$/.test(String(url || ''))) throw new MarketingError('Paste the address of the published post.');
     await log(actor, 'post_manual', `Recorded the manually published ${post.platform} post.`, { postId: id, url });
     return store.put('posts', id, { ...post, status: 'published', receipt: { state: 'published', url, manual: true, at: stamp() }, updatedAt: stamp() });
@@ -878,6 +996,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       upcomingPremieres: (await liveUpcoming(14 * 24, { includeUnplayable: true })).filter((item) => item.programType === 'premiere').slice(0, 6),
       recentCommercials: commercials.slice(0, 6).map((item) => ({ id: item.id, title: item.title, status: item.status, renders: Object.fromEntries(Object.entries(item.renders || {}).map(([format, render]) => [format, { status: render.status, playbackId: render.asset?.playbackId || null }])) })),
       measured: measured.totals, topCampaigns: measured.campaigns.slice(0, 5), suggestions, recentAssets: assetList.slice(0, 6),
+      alerts: await alerts(), pss: await pssState().then((pss) => (pss ? { ...pss, online: Date.parse(pss.lastSeenAt) > now() - 15 * 60_000 } : null)),
     };
   }
 
@@ -906,7 +1025,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     async cancelRender(id, format, actor) { const commercial = await requireRecord('commercials', id, 'Commercial'); const render = commercial.renders[format]; if (!render) throw new MarketingError('No such render.'); await portal.cancelRender(render.jobId); await log(actor, 'commercial_cancel', `Cancelled the ${format} render of "${commercial.title}".`, { commercialId: id }); return refreshCommercial(id); },
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
     listAssets, importHypeClip, downloadAsset,
-    createPost, approvePost, publishPost, testPost, dispatchDue, recordManualPost, sevenDayPlan, pssHeartbeat, pssQueue, pssClaim, pssResult, pssState, listPosts: () => store.list('posts'),
+    createPost, approvePost, publishPost, testPost, reschedulePost, editPost, approveCampaignAndPosts, pssMetrics, alerts, dispatchDue, recordManualPost, sevenDayPlan, pssHeartbeat, pssQueue, pssClaim, pssResult, pssState, listPosts: () => store.list('posts'),
     async cancelPost(id, actor) { const post = await requireRecord('posts', id, 'Post'); if (post.receipt) throw new MarketingError('This post was already published.'); await log(actor, 'post_cancel', `Withdrew the ${post.platform} post.`, { postId: id }); return store.put('posts', id, { ...post, status: 'cancelled', updatedAt: stamp() }); },
     accounts, startConnect, finishConnect, disconnect,
     createAd, adAction, listAds: () => store.list('ads'),
