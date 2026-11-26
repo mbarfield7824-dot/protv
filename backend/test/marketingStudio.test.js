@@ -393,7 +393,9 @@ test('one-click week approval checks formats; alerts cover offline PSS, Meta exp
   await store.put('assets', 'as_t', { title: 'Spot', format: 'vertical', renderJobId: 'job-t', status: 'approved' });
   const ok = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_t', scheduledAtLocal: '2026-11-27T19:00' }, 'a');
   const wrong = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_w', scheduledAtLocal: '2026-11-27T19:00' }, 'a');
-  const result = await service.approveCampaignAndPosts(campaign.id, 'owner');
+  await assert.rejects(service.approveCampaignAndPosts(campaign.id, 'owner'), /Confirm public publishing/, 'public publishing is confirmed explicitly');
+  assert.equal((await store.get('campaigns', campaign.id)).status, 'draft', 'nothing approved without the confirmation');
+  const result = await service.approveCampaignAndPosts(campaign.id, 'owner', { confirmPublic: true });
   assert.equal(result.campaign.status, 'approved');
   assert.equal(result.results.find((item) => item.id === ok.id).status, 'scheduled');
   assert.match(result.results.find((item) => item.id === wrong.id).error, /vertical 9:16/);
@@ -417,4 +419,31 @@ test('performance from PSS is stored as reported values with unavailable metrics
   assert.equal(post.metrics.unavailable.reactions, 'pages_read_user_content');
   assert.equal(post.metrics.kind, 'reported');
   assert.equal(post.receipt.url, 'https://www.facebook.com/p/1');
+});
+
+test('restarts and outages: no late claim, a lost claim becomes needs-check (never retried), and a publishing post cannot be cancelled', async () => {
+  let clock = Date.parse('2026-11-27T23:00:00Z');
+  const { service, store } = harness({ now: () => clock });
+  const campaign = await service.createCampaign({ name: 'Outage', type: 'live-promotion', platforms: ['facebook'] }, 'a');
+  await store.put('assets', 'as_w', { title: 'Spot', format: 'widescreen', renderJobId: 'job-w', status: 'approved' });
+  await service.pssHeartbeat({ connected: true, facebookReady: true, instagramReady: true });
+  const late = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_w', scheduledAtLocal: '2026-11-27T18:00', latestPublishAtLocal: '2026-11-27T19:00' }, 'a');
+  await store.put('posts', late.id, { ...(await store.get('posts', late.id)), status: 'queued-pss', mode: 'publish' });
+  clock = Date.parse('2026-11-28T00:30:00Z'); // 7:30 PM ET: the deadline (7 PM ET) has passed while PSS was offline
+  await assert.rejects(service.pssClaim(late.id), /past its publishing deadline/);
+  assert.equal((await store.get('posts', late.id)).status, 'missed');
+  const lost = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_w' }, 'a');
+  await store.put('posts', lost.id, { ...(await store.get('posts', lost.id)), status: 'queued-pss', mode: 'publish' });
+  await service.pssClaim(lost.id);
+  await assert.rejects(service.cancelPost(lost.id, 'a'), /publishing this post right now/);
+  clock += 20 * 60_000;
+  await service.pssQueue();
+  assert.equal((await store.get('posts', lost.id)).status, 'publishing-pss', 'not stale yet');
+  clock += 15 * 60_000;
+  const queue = await service.pssQueue();
+  const swept = await store.get('posts', lost.id);
+  assert.equal(swept.status, 'needs-check');
+  assert.match(swept.error, /did not report a result/);
+  assert.ok(!queue.items.some((item) => item.id === lost.id), 'never offered again');
+  assert.ok((await service.alerts()).some((alert) => alert.kind === 'post-needs-check' && alert.postId === lost.id));
 });

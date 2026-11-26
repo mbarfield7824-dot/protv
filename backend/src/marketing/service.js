@@ -657,8 +657,12 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     return store.put('posts', id, { ...post, ...patch, status: 'draft', approvedAt: null, approvedBy: null, receipt: null, updatedAt: stamp(), history: [...(post.history || []), { at: stamp(), actor, status: 'draft', note: 'edited' }] });
   }
   // One action for a prepared week: approve the campaign and every draft post in it (each checked as usual).
-  async function approveCampaignAndPosts(id, actor) {
+  async function approveCampaignAndPosts(id, actor, { confirmPublic = false } = {}) {
     const campaign = await requireRecord('campaigns', id, 'Campaign');
+    const drafts = (await store.list('posts', { where: { campaignId: id } })).filter((post) => post.status === 'draft');
+    if (drafts.length && confirmPublic !== true) {
+      throw new MarketingError(`Approving publishes ${drafts.length} post(s) publicly at their scheduled times. Confirm public publishing to continue.`, 428);
+    }
     if (!['draft', 'in-review', 'approved', 'active'].includes(campaign.status)) throw new MarketingError(`A ${campaign.status} campaign cannot be approved.`);
     if (['draft', 'in-review'].includes(campaign.status)) await transitionCampaign(id, 'approve', actor, 'Approved with its posts.');
     const results = [];
@@ -743,7 +747,18 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     if (!previous) await log('pss', 'pss_link', `PROtv Social Studio linked (${status.page?.name || 'no Page'} / @${status.instagram?.username || 'no Instagram'}).`, {});
     return { ok: true };
   }
+  // PROtv Social Studio claimed a post but never reported a result (for example the PC lost power mid-upload). Meta may or
+  // may not have it, so it is never retried automatically: the owner checks the account and marks it.
+  const STALE_CLAIM_MS = 30 * 60_000;
+  async function sweepStaleClaims() {
+    for (const post of await store.list('posts', { where: { status: 'publishing-pss' } })) {
+      if (!post.claimedAt || Date.parse(post.claimedAt) > now() - STALE_CLAIM_MS) continue;
+      await store.put('posts', post.id, { ...post, status: 'needs-check', error: `PROtv Social Studio started publishing at ${etLabel(post.claimedAt)} but did not report a result. Check the ${post.platform} account, then mark it published or not published.`, updatedAt: stamp() });
+      await log('scheduler', 'post_needs_check', `The ${post.platform} post has no result from PROtv Social Studio; it needs a manual check and will not be retried automatically.`, { postId: post.id });
+    }
+  }
   async function pssQueue() {
+    await sweepStaleClaims();
     const items = [];
     for (const post of (await store.list('posts', { where: { status: 'queued-pss' } })).slice(0, 20)) {
       if (post.latestPublishAt && Date.parse(post.latestPublishAt) <= now()) {
@@ -758,16 +773,20 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       if (!asset || asset.status !== 'approved') continue;
       const mediaUrl = await mediaUrlFor(asset);
       if (!mediaUrl) continue;
-      items.push({ id: post.id, platform: post.platform, mode: post.mode === 'test' ? 'test' : 'publish', caption: post.caption, title: post.title || '', mediaUrl, format: asset.format || '' });
-    }
-    for (const post of await store.list('posts', { where: { status: 'publishing-pss' } })) {
-      if (Date.parse(post.claimedAt || 0) < now() - 30 * 60_000) await store.put('posts', post.id, { ...post, status: 'needs-check', error: 'PROtv Social Studio did not report back. Check the account before retrying.', updatedAt: stamp() });
+      // releaseId changes only when the post is queued again (for example after the owner confirmed it was not published),
+      // so PROtv Social Studio can tell a deliberate re-release from a duplicate.
+      items.push({ id: post.id, releaseId: String(post.queuedAt || post.updatedAt || ''), platform: post.platform, mode: post.mode === 'test' ? 'test' : 'publish', caption: post.caption, title: post.title || '', mediaUrl, format: asset.format || '' });
     }
     return { items };
   }
   async function pssClaim(id) {
     const post = await requireRecord('posts', id, 'Post');
     if (post.status !== 'queued-pss') throw new MarketingError('This post is not waiting for PROtv Social Studio.', 409);
+    if (post.mode !== 'test' && post.latestPublishAt && Date.parse(post.latestPublishAt) <= now()) {
+      await store.put('posts', id, { ...post, status: 'missed', error: `not published before its deadline ${etLabel(post.latestPublishAt)}`, updatedAt: stamp() });
+      await log('scheduler', 'post_missed', `The ${post.platform} post missed its deadline and was not published.`, { postId: id });
+      throw new MarketingError('This post is past its publishing deadline and was marked missed.', 409);
+    }
     await store.put('posts', id, { ...post, status: 'publishing-pss', claimedAt: stamp(), updatedAt: stamp() });
     return { claimed: true };
   }
@@ -788,6 +807,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
   }
 
   async function dispatchDue(actor = 'scheduler') {
+    await sweepStaleClaims();
     const scheduled = await store.list('posts', { where: { status: 'scheduled' } });
     for (const post of scheduled.filter((item) => item.latestPublishAt && Date.parse(item.latestPublishAt) <= now())) {
       await store.put('posts', post.id, { ...post, status: 'missed', error: `its deadline ${etLabel(post.latestPublishAt)} passed before it could be sent`, updatedAt: stamp() });
@@ -1026,7 +1046,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
     listAssets, importHypeClip, downloadAsset,
     createPost, approvePost, publishPost, testPost, reschedulePost, editPost, approveCampaignAndPosts, pssMetrics, alerts, dispatchDue, recordManualPost, sevenDayPlan, pssHeartbeat, pssQueue, pssClaim, pssResult, pssState, listPosts: () => store.list('posts'),
-    async cancelPost(id, actor) { const post = await requireRecord('posts', id, 'Post'); if (post.receipt) throw new MarketingError('This post was already published.'); await log(actor, 'post_cancel', `Withdrew the ${post.platform} post.`, { postId: id }); return store.put('posts', id, { ...post, status: 'cancelled', updatedAt: stamp() }); },
+    async cancelPost(id, actor) { const post = await requireRecord('posts', id, 'Post'); if (post.receipt && !post.receipt.test) throw new MarketingError('This post was already published.'); if (post.status === 'publishing-pss') throw new MarketingError('PROtv Social Studio is publishing this post right now. Wait for its result, then remove it from the account if needed.', 409); await log(actor, 'post_cancel', `Withdrew the ${post.platform} post.`, { postId: id }); return store.put('posts', id, { ...post, status: 'cancelled', updatedAt: stamp() }); },
     accounts, startConnect, finishConnect, disconnect,
     createAd, adAction, listAds: () => store.list('ads'),
     creatorKits,

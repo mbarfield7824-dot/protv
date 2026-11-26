@@ -387,7 +387,12 @@ function Campaigns() {
   const [creating, setCreating] = useState(false);
   const action = useAction();
   const verbs = { draft: ['approve-all', 'archive'], 'in-review': ['approve-all', 'archive'], approved: ['approve-all', 'pause', 'archive'], active: ['approve-all', 'pause'], paused: ['resume', 'archive'], archived: ['reopen'] };
-  const run = (campaign, verb) => action.run(campaign.id + verb, () => call(verb === 'approve-all' ? `campaigns/${campaign.id}/approve-all` : `campaigns/${campaign.id}/${verb}`, { method: 'POST', body: {} }).then((result) => { reload(); return result; }),
+  const run = (campaign, verb) => {
+    // Approving a campaign with its posts authorizes public publishing at the scheduled times: always asked explicitly.
+    if (verb === 'approve-all' && !window.confirm(`Approve "${campaign.name}" and all of its draft posts? Approved posts publish PUBLICLY to Facebook/Instagram at their scheduled Eastern times through PROtv Social Studio.`)) return null;
+    return runVerb(campaign, verb);
+  };
+  const runVerb = (campaign, verb) => action.run(campaign.id + verb, () => call(verb === 'approve-all' ? `campaigns/${campaign.id}/approve-all` : `campaigns/${campaign.id}/${verb}`, { method: 'POST', body: verb === 'approve-all' ? { confirmPublic: true } : {} }).then((result) => { reload(); return result; }),
     (result) => (verb === 'approve-all' ? `Approved "${campaign.name}" and ${(result?.results || []).filter((item) => !item.error).length} post(s).${(result?.results || []).some((item) => item.error) ? ` Not approved: ${(result.results || []).filter((item) => item.error).map((item) => `${item.platform} (${item.error})`).join('; ')}` : ''}` : 'Done.'));
   return (
     <div className="ms-stack">
