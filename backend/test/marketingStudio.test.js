@@ -131,10 +131,11 @@ test('a held or uncleared title can never be rendered', async () => {
 });
 
 test('publishing: approval gates, manual handoff when not connected, idempotent receipts, campaign pause holds posts', async () => {
-  const { service } = harness();
+  const { service, store: harnessStore } = harness();
   const campaign = await service.createCampaign({ name: 'Launch week', type: 'network-awareness', platforms: ['facebook', 'manual'] }, 'a');
   assert.match(campaign.trackingLinks[0].url, /utm_campaign=mc_/);
-  const post = await service.createPost({ platform: 'facebook', campaignId: campaign.id, scheduledAt: NOW - 60_000 }, 'a');
+  await harnessStore.put('assets', 'as_pub', { title: 'Spot', format: 'widescreen', renderJobId: 'job-pub', status: 'approved' });
+  const post = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_pub', scheduledAt: NOW - 60_000 }, 'a');
   assert.match(post.caption, /utm_source=facebook/);
   await assert.rejects(service.publishPost(post.id, 'a'), /approved post/);
   await service.approvePost(post.id, 'a');
@@ -145,7 +146,7 @@ test('publishing: approval gates, manual handoff when not connected, idempotent 
   const recorded = await service.recordManualPost(post.id, { url: 'https://facebook.com/protv/posts/1' }, 'a');
   assert.equal(recorded.status, 'published');
   assert.equal((await service.publishPost(post.id, 'a')).receipt.url, 'https://facebook.com/protv/posts/1');
-  const second = await service.createPost({ platform: 'facebook', campaignId: campaign.id, scheduledAt: NOW + 3600_000 }, 'a');
+  const second = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_pub', scheduledAt: NOW + 3600_000 }, 'a');
   await service.approvePost(second.id, 'a');
   await service.transitionCampaign(campaign.id, 'activate', 'owner');
   await service.transitionCampaign(campaign.id, 'pause', 'owner');
@@ -307,7 +308,8 @@ test('Facebook and Instagram publish only through PROtv Social Studio: queue, cl
   assert.equal(live.status, 'published');
   assert.equal(live.receipt.url, 'https://www.facebook.com/p/videos/v124');
   assert.equal((await service.publishPost(fb.id, 'a')).receipt.platformPostId, 'v124', 'a published post is never sent again');
-  const ig = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_w' }, 'a');
+  await store.put('assets', 'as_t', { title: 'Spot', format: 'vertical', renderJobId: 'job-t', status: 'approved' });
+  const ig = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_t' }, 'a');
   await service.approvePost(ig.id, 'a');
   await service.publishPost(ig.id, 'a');
   await service.pssClaim(ig.id);
@@ -327,4 +329,92 @@ test('PSS endpoints require a valid signature', async (context) => {
   const ts = String(Date.now());
   assert.equal((await fetch(url, { headers: { 'X-PROtv-PSS-Timestamp': ts, 'X-PROtv-PSS-Signature': pssSignature('k'.repeat(43), 'GET', '/integrations/pss/queue', ts, '') } })).status, 200);
   assert.equal((await fetch(url, { headers: { 'X-PROtv-PSS-Timestamp': ts, 'X-PROtv-PSS-Signature': pssSignature('wrong'.repeat(9), 'GET', '/integrations/pss/queue', ts, '') } })).status, 401);
+});
+
+test('scheduling: Eastern wall-clock times across daylight saving; deadlines turn into missed, never late posts', async () => {
+  let clock = Date.parse('2026-10-30T12:00:00Z');
+  const { service, store } = harness({ now: () => clock });
+  const campaign = await service.createCampaign({ name: 'DST', type: 'live-promotion', platforms: ['facebook'] }, 'a');
+  await service.transitionCampaign(campaign.id, 'approve', 'owner');
+  await store.put('assets', 'as_w', { title: 'Spot', format: 'widescreen', renderJobId: 'job-w', status: 'approved' });
+  const before = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_w', scheduledAtLocal: '2026-10-31T20:00' }, 'a');
+  const after = await service.createPost({ platform: 'facebook', campaignId: campaign.id, assetId: 'as_w', scheduledAtLocal: '2026-11-02T20:00' }, 'a');
+  assert.equal(before.scheduledAt, '2026-11-01T00:00:00.000Z', 'EDT: UTC-4');
+  assert.equal(after.scheduledAt, '2026-11-03T01:00:00.000Z', 'EST: UTC-5');
+  assert.equal(before.latestPublishAt, '2026-11-01T06:00:00.000Z', 'default deadline: six hours after');
+  await service.approvePost(before.id, 'a');
+  await service.pssHeartbeat({ connected: true, facebookReady: true, instagramReady: true });
+  clock = Date.parse('2026-11-01T07:00:00Z'); // the studio PC was off until after the deadline
+  await service.dispatchDue('scheduler');
+  const missed = await store.get('posts', before.id);
+  assert.equal(missed.status, 'missed');
+  assert.equal(missed.receipt, null, 'nothing was published late');
+  await assert.rejects(service.reschedulePost(before.id, { scheduledAtLocal: '2026-10-31T21:00' }, 'a'), /future time/);
+  const again = await service.reschedulePost(before.id, { scheduledAtLocal: '2026-11-01T20:00' }, 'a');
+  assert.equal(again.status, 'scheduled', 'rescheduling keeps the approval');
+  const edited = await service.editPost(before.id, { caption: 'New words' }, 'a');
+  assert.equal(edited.status, 'draft', 'changing the words needs a new approval');
+  await assert.rejects(service.createPost({ platform: 'facebook', scheduledAtLocal: '2026-11-02T20:00', latestPublishAtLocal: '2026-11-02T19:00' }, 'a'), /deadline must be after/);
+});
+
+test('queued posts: deadline, retry only when PSS says it is safe, at most three attempts', async () => {
+  let clock = NOW;
+  const { service, store } = harness({ now: () => clock });
+  const campaign = await service.createCampaign({ name: 'Retry', type: 'live-promotion', platforms: ['instagram'] }, 'a');
+  await service.transitionCampaign(campaign.id, 'approve', 'owner');
+  await store.put('assets', 'as_t', { title: 'Spot', format: 'vertical', renderJobId: 'job-t', status: 'approved' });
+  await service.pssHeartbeat({ connected: true, facebookReady: true, instagramReady: true });
+  const post = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_t' }, 'a');
+  await service.approvePost(post.id, 'a');
+  await service.publishPost(post.id, 'a');
+  await service.pssClaim(post.id);
+  const retry = await service.pssResult(post.id, { status: 'failed', retryable: true, message: 'Service temporarily unavailable' });
+  assert.equal(retry.status, 'queued-pss');
+  assert.deepEqual((await service.pssQueue()).items, [], 'waits for the backoff');
+  clock += 6 * 60_000;
+  assert.equal((await service.pssQueue()).items.length, 1);
+  await service.pssClaim(post.id);
+  await service.pssResult(post.id, { status: 'failed', retryable: true, message: 'again' });
+  clock += 11 * 60_000;
+  await service.pssClaim(post.id);
+  assert.equal((await service.pssResult(post.id, { status: 'failed', retryable: true, message: 'third' })).status, 'failed', 'no more than three attempts');
+  const other = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_t' }, 'a');
+  await service.approvePost(other.id, 'a');
+  await service.publishPost(other.id, 'a');
+  await service.pssClaim(other.id);
+  assert.equal((await service.pssResult(other.id, { status: 'failed', retryable: false, message: 'Invalid video' })).status, 'failed', 'not retryable: stops');
+});
+
+test('one-click week approval checks formats; alerts cover offline PSS, Meta expiry tiers and problem posts', async () => {
+  let clock = NOW;
+  const { service, store } = harness({ now: () => clock });
+  const campaign = await service.createCampaign({ name: 'Week', type: 'live-promotion', platforms: ['facebook', 'instagram'] }, 'a');
+  await store.put('assets', 'as_w', { title: 'Spot', format: 'widescreen', renderJobId: 'job-w', status: 'approved' });
+  await store.put('assets', 'as_t', { title: 'Spot', format: 'vertical', renderJobId: 'job-t', status: 'approved' });
+  const ok = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_t', scheduledAtLocal: '2026-11-27T19:00' }, 'a');
+  const wrong = await service.createPost({ platform: 'instagram', campaignId: campaign.id, assetId: 'as_w', scheduledAtLocal: '2026-11-27T19:00' }, 'a');
+  const result = await service.approveCampaignAndPosts(campaign.id, 'owner');
+  assert.equal(result.campaign.status, 'approved');
+  assert.equal(result.results.find((item) => item.id === ok.id).status, 'scheduled');
+  assert.match(result.results.find((item) => item.id === wrong.id).error, /vertical 9:16/);
+  await service.pssHeartbeat({ connected: true, facebookReady: true, instagramReady: true, connectionExpiresAt: new Date(NOW + 5 * 86_400_000).toISOString(), appSecretAccepted: false });
+  let kinds = (await service.alerts()).map((alert) => alert.kind);
+  assert.ok(kinds.includes('meta-7d') && kinds.includes('meta-app-secret'));
+  clock = NOW + 2.5 * 86_400_000;
+  kinds = (await service.alerts()).map((alert) => alert.kind);
+  assert.ok(kinds.includes('meta-3d'));
+  assert.ok(kinds.includes('pss-offline'), 'PSS has not checked in for days');
+  clock = NOW + 4.5 * 86_400_000;
+  assert.ok((await service.alerts()).some((alert) => alert.kind === 'meta-24h'));
+});
+
+test('performance from PSS is stored as reported values with unavailable metrics named, never zero-filled', async () => {
+  const { service, store } = harness();
+  await store.put('posts', 'mp_x', { platform: 'facebook', status: 'published', receipt: { state: 'published' } });
+  await service.pssMetrics([{ postId: 'mp_x', platform: 'facebook', metrics: { shares: 7, reactions: 'NaN' }, unavailable: { reactions: 'pages_read_user_content', views: 'read_insights' }, permalink: 'https://www.facebook.com/p/1' }]);
+  const post = await store.get('posts', 'mp_x');
+  assert.deepEqual(post.metrics.values, { shares: 7 });
+  assert.equal(post.metrics.unavailable.reactions, 'pages_read_user_content');
+  assert.equal(post.metrics.kind, 'reported');
+  assert.equal(post.receipt.url, 'https://www.facebook.com/p/1');
 });

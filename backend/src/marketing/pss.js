@@ -37,6 +37,11 @@ function cleanStatus(input = {}) {
     version: String(input.version || '').slice(0, 40), connected: input.connected === true, reauthRequired: input.reauthRequired === true,
     connectionExpiresAt: typeof input.connectionExpiresAt === 'string' ? input.connectionExpiresAt.slice(0, 40) : null,
     facebookReady: input.facebookReady === true, instagramReady: input.instagramReady === true, page, instagram,
+    userTokenExpiresAt: typeof input.userTokenExpiresAt === 'string' ? input.userTokenExpiresAt.slice(0, 40) : null,
+    dataAccessExpiresAt: typeof input.dataAccessExpiresAt === 'string' ? input.dataAccessExpiresAt.slice(0, 40) : null,
+    pageTokenNeverExpires: input.pageTokenNeverExpires === true, healthCheckedAt: typeof input.healthCheckedAt === 'string' ? input.healthCheckedAt.slice(0, 40) : null,
+    appSecretAccepted: typeof input.appSecretAccepted === 'boolean' ? input.appSecretAccepted : null,
+    scopes: Array.isArray(input.scopes) ? input.scopes.map((scope) => String(scope).replace(/[^a-z_]/g, '').slice(0, 60)).filter(Boolean).slice(0, 30) : [],
   };
 }
 
@@ -54,6 +59,7 @@ function createPssRouter({ service, secret }) {
   router.get('/queue', handle(() => service.pssQueue()));
   router.post('/posts/:id/claim', handle((req) => service.pssClaim(req.params.id)));
   router.post('/posts/:id/result', handle((req) => service.pssResult(req.params.id, req.body || {})));
+  router.post('/metrics', handle((req) => service.pssMetrics(req.body?.items)));
   return router;
 }
 

@@ -58,6 +58,10 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   router.get('/posts', handle('post list', () => service.listPosts()));
   router.post('/posts', handle('post', (req) => service.createPost(req.body || {}, actor(req))));
   router.post('/posts/:id/approve', handle('post approval', (req) => service.approvePost(req.params.id, actor(req))));
+  router.post('/posts/:id/reschedule', handle('reschedule', (req) => service.reschedulePost(req.params.id, req.body || {}, actor(req))));
+  router.patch('/posts/:id', handle('post edit', (req) => service.editPost(req.params.id, req.body || {}, actor(req))));
+  router.post('/campaigns/:id/approve-all', handle('campaign approval', (req) => service.approveCampaignAndPosts(req.params.id, actor(req))));
+  router.get('/alerts', handle('alerts', () => service.alerts()));
   router.post('/posts/:id/test', handle('publishing test', (req) => service.testPost(req.params.id, actor(req))));
   router.post('/posts/:id/publish', handle('publishing', (req) => service.publishPost(req.params.id, actor(req))));
   router.post('/posts/:id/manual', handle('manual post', (req) => service.recordManualPost(req.params.id, req.body || {}, actor(req))));

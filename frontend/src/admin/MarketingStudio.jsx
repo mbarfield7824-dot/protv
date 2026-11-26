@@ -32,7 +32,23 @@ function useData(path, deps = []) {
   const reload = useCallback(() => setVersion((value) => value + 1), []);
   return { ...state, reload };
 }
-function Status({ value }) { return <span className={`ms-status ms-status--${String(value || 'none').replace(/[^a-z-]/g, '')}`}>{label(value)}</span>; }
+// One vocabulary for every post and campaign state.
+const STATUS_LABELS = {
+  draft: 'Draft', 'in-review': 'Needs approval', approved: 'Approved', scheduled: 'Scheduled', active: 'Active', paused: 'Paused', held: 'On hold',
+  'queued-pss': 'Publishing', 'publishing-pss': 'Publishing', published: 'Published', failed: 'Failed', 'needs-check': 'Needs review',
+  missed: 'Missed', 'test-passed': 'Test passed', cancelled: 'Cancelled', 'ready-for-manual': 'Post manually', archived: 'Archived', completed: 'Completed',
+};
+const STATUS_TONE = { 'queued-pss': 'rendering', 'publishing-pss': 'rendering', 'needs-check': 'failed', missed: 'held', 'in-review': 'in-review' };
+function Status({ value }) {
+  const tone = STATUS_TONE[value] || value;
+  return <span className={`ms-status ms-status--${String(tone || 'none').replace(/[^a-z-]/g, '')}`}>{STATUS_LABELS[value] || label(value)}</span>;
+}
+// Eastern wall-clock value for <input type="datetime-local">.
+const etInput = (iso) => {
+  if (!iso) return '';
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso)).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
 function Notice({ error, message }) {
   if (error) return <p className="ms-notice ms-notice--error" role="alert">{error}</p>;
   return message ? <p className="ms-notice">{message}</p> : null;
@@ -82,6 +98,30 @@ function Agent({ onDone }) {
   );
 }
 
+function Alerts({ alerts }) {
+  if (!alerts?.length) return <p className="ms-notice">All clear: no failed, missed or unreviewed posts, and Facebook/Instagram are healthy.</p>;
+  return (
+    <section className="ms-card"><h3>Needs your attention</h3>
+      <ul className="ms-alerts">{alerts.map((alert, index) => <li key={index} className={`ms-alert ms-alert--${alert.level}`}>{alert.message}</li>)}</ul>
+    </section>
+  );
+}
+function MetaHealth({ pss }) {
+  if (!pss) return <section className="ms-card"><h3>Facebook &amp; Instagram</h3><p className="ms-muted">PROtv Social Studio has not linked yet.</p></section>;
+  const { online } = pss;
+  return (
+    <section className="ms-card"><h3>Facebook &amp; Instagram (via PROtv Social Studio)</h3>
+      <dl className="ms-specs">
+        <dt>Accounts</dt><dd>{pss.page?.name || '—'} · @{pss.instagram?.username || '—'} {pss.facebookReady && pss.instagramReady ? <span className="ms-good">ready</span> : <span className="ms-bad">not ready</span>}</dd>
+        <dt>Studio PC</dt><dd>{online ? <span className="ms-good">online</span> : <span className="ms-bad">offline</span>} · last check-in {et(pss.lastSeenAt)}</dd>
+        <dt>Publishing access</dt><dd>until {et(pss.connectionExpiresAt)}{pss.pageTokenNeverExpires ? ' (Page token never expires; Meta data access window)' : ''}</dd>
+        <dt>Verified</dt><dd>{pss.healthCheckedAt ? et(pss.healthCheckedAt) : 'not yet'}</dd>
+        {pss.appSecretAccepted === false && <><dt>App secret</dt><dd className="ms-bad">rejected by Meta: re-enter it in PSS Settings before reconnecting</dd></>}
+      </dl>
+    </section>
+  );
+}
+
 function Overview({ go }) {
   const { data, error, loading, reload } = useData('overview');
   return (
@@ -90,6 +130,8 @@ function Overview({ go }) {
       <Notice error={error} message={loading && !data ? 'Loading…' : ''} />
       {data && (
         <>
+          <Alerts alerts={data.alerts} />
+          <MetaHealth pss={data.pss} />
           <div className="ms-kpis">
             {[['Draft campaigns', data.counts.draftCampaigns, 'campaigns'], ['Awaiting approval', data.counts.awaitingApproval, 'commercials'], ['Scheduled posts', data.counts.scheduledPosts, 'calendar'], ['Publishing failures', data.counts.publishingFailures, 'calendar'], ['Manual handoffs ready', data.counts.manualHandoffs, 'calendar'], ['Active paid campaigns', data.counts.activePaidCampaigns, 'paid']].map(([name, value, section]) => (
               <button type="button" key={name} className="ms-kpi" onClick={() => go(section)}><span>{name}</span><strong>{value}</strong></button>
@@ -335,29 +377,77 @@ function Commercials({ initial, sponsorMode = false }) {
 function Campaigns() {
   const { data, error, reload } = useData('campaigns');
   const [form, setForm] = useState({ name: '', type: 'network-awareness', platforms: ['facebook', 'instagram'], audience: '', startDate: '', endDate: '', landingPage: 'https://watchprotv.com/' });
+  const [creating, setCreating] = useState(false);
   const action = useAction();
+  const verbs = { draft: ['approve-all', 'archive'], 'in-review': ['approve-all', 'archive'], approved: ['approve-all', 'pause', 'archive'], active: ['approve-all', 'pause'], paused: ['resume', 'archive'], archived: ['reopen'] };
+  const run = (campaign, verb) => action.run(campaign.id + verb, () => call(verb === 'approve-all' ? `campaigns/${campaign.id}/approve-all` : `campaigns/${campaign.id}/${verb}`, { method: 'POST', body: {} }).then((result) => { reload(); return result; }),
+    (result) => (verb === 'approve-all' ? `Approved "${campaign.name}" and ${(result?.results || []).filter((item) => !item.error).length} post(s).${(result?.results || []).some((item) => item.error) ? ` Not approved: ${(result.results || []).filter((item) => item.error).map((item) => `${item.platform} (${item.error})`).join('; ')}` : ''}` : 'Done.'));
   return (
     <div className="ms-stack">
-      <form className="ms-card ms-form" onSubmit={(event) => { event.preventDefault(); action.run('create', () => call('campaigns', { method: 'POST', body: form }).then(reload), 'Campaign drafted.'); }}>
-        <h3>New campaign</h3>
-        <label>Name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
-        <label>Type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>{CAMPAIGN_TYPES.map((type) => <option key={type} value={type}>{label(type)}</option>)}</select></label>
-        <label>Audience<input value={form.audience} onChange={(event) => setForm({ ...form, audience: event.target.value })} /></label>
-        <label>Landing page<input value={form.landingPage} onChange={(event) => setForm({ ...form, landingPage: event.target.value })} /></label>
-        <div className="ms-row"><label>Start<input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></label><label>End<input type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} /></label></div>
-        <fieldset className="ms-inline"><legend>Platforms</legend>{PLATFORMS.map((platform) => <label key={platform} className="ms-check"><input type="checkbox" checked={form.platforms.includes(platform)} onChange={(event) => setForm({ ...form, platforms: event.target.checked ? [...form.platforms, platform] : form.platforms.filter((item) => item !== platform) })} />{label(platform)}</label>)}</fieldset>
-        <button type="submit" className="ms-primary">Create draft</button>
-      </form>
+      <div className="ms-row"><button type="button" className="ms-secondary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'New campaign'}</button></div>
+      {creating && (
+        <form className="ms-card ms-form" onSubmit={(event) => { event.preventDefault(); action.run('create', () => call('campaigns', { method: 'POST', body: form }).then(reload), 'Campaign drafted. Add posts in the Social Calendar.'); }}>
+          <label>Name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+          <label>Type<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>{CAMPAIGN_TYPES.map((type) => <option key={type} value={type}>{label(type)}</option>)}</select></label>
+          <label>Landing page<input value={form.landingPage} onChange={(event) => setForm({ ...form, landingPage: event.target.value })} /></label>
+          <fieldset className="ms-inline"><legend>Platforms</legend>{PLATFORMS.map((platform) => <label key={platform} className="ms-check"><input type="checkbox" checked={form.platforms.includes(platform)} onChange={(event) => setForm({ ...form, platforms: event.target.checked ? [...form.platforms, platform] : form.platforms.filter((item) => item !== platform) })} />{label(platform)}</label>)}</fieldset>
+          <button type="submit" className="ms-primary">Create draft</button>
+        </form>
+      )}
       <Notice error={error || action.error} message={action.message} />
-      {(data || []).map((campaign) => (
+      {(data || []).filter((campaign) => campaign.status !== 'archived').map((campaign) => (
         <section key={campaign.id} className="ms-card">
           <div className="ms-row ms-between"><h4>{campaign.name}</h4><Status value={campaign.status} /></div>
-          <p className="ms-muted">{label(campaign.type)} · {campaign.platforms.join(', ') || 'no platforms'} · {campaign.startDate}{campaign.endDate ? ` → ${campaign.endDate}` : ''}{campaign.budgetUsd ? ` · budget $${campaign.budgetUsd}` : ''}</p>
-          {campaign.trackingLinks?.length > 0 && <details><summary>Tracking links</summary><ul className="ms-mono">{campaign.trackingLinks.map((link) => <li key={link.platform}>{link.platform}: {link.url}</li>)}</ul></details>}
-          <div className="ms-row ms-wrap">{['submit', 'approve', 'activate', 'pause', 'resume', 'complete', 'archive'].map((verb) => <button key={verb} type="button" className="ms-secondary" onClick={() => action.run(verb, () => call(`campaigns/${campaign.id}/${verb}`, { method: 'POST', body: {} }).then(reload))}>{label(verb)}</button>)}
-            <button type="button" className="ms-secondary" onClick={() => action.run('dup', () => call(`campaigns/${campaign.id}/duplicate`, { method: 'POST' }).then(reload))}>Duplicate</button></div>
+          <p className="ms-muted">{label(campaign.type)} · {campaign.platforms.join(', ') || 'no platforms'}{campaign.notes ? ` · ${campaign.notes}` : ''}</p>
+          <div className="ms-row ms-wrap">{(verbs[campaign.status] || []).map((verb) => <button key={verb} type="button" className={verb === 'approve-all' ? 'ms-primary' : 'ms-secondary'} onClick={() => run(campaign, verb)}>{verb === 'approve-all' ? 'Approve campaign + all posts' : label(verb)}</button>)}
+            <button type="button" className="ms-link" onClick={() => action.run('dup', () => call(`campaigns/${campaign.id}/duplicate`, { method: 'POST' }).then(reload))}>Duplicate</button></div>
         </section>
       ))}
+    </div>
+  );
+}
+
+function PostRow({ post, asset, campaign, onDone }) {
+  const action = useAction();
+  const meta = ['facebook', 'instagram'].includes(post.platform);
+  const go = (path, body, done) => action.run(post.id, () => call(path, { method: 'POST', body: body || {} }).then(onDone), done);
+  const reschedule = () => {
+    const value = window.prompt('New time, Eastern Time (YYYY-MM-DDTHH:mm):', etInput(post.scheduledAt) || '');
+    if (value) go(`posts/${post.id}/reschedule`, { scheduledAtLocal: value.trim() }, 'Rescheduled; the approval is kept.');
+  };
+  const edit = () => {
+    const caption = window.prompt('Caption (editing needs a new approval):', post.caption);
+    if (caption !== null && caption !== post.caption) action.run(post.id, () => call(`posts/${post.id}`, { method: 'PATCH', body: { caption } }).then(onDone), 'Saved as a draft; approve it again.');
+  };
+  const formatOk = !asset || !meta || (post.platform === 'instagram' ? asset.format === 'vertical' : asset.format === 'widescreen');
+  return (
+    <div className="ms-post-card">
+      <div className="ms-post-media">
+        {asset?.playbackId ? <img src={`https://image.mux.com/${asset.playbackId}/thumbnail.jpg?time=8&width=${asset.format === 'vertical' ? 180 : 320}`} alt="" className={asset.format === 'vertical' ? 'is-vertical' : ''} /> : <div className="ms-beat-card">{meta ? 'No video' : 'Text'}</div>}
+        {asset && <span className={formatOk ? 'ms-good' : 'ms-bad'}>{asset.format === 'vertical' ? '9:16' : asset.format === 'widescreen' ? '16:9' : asset.format}{formatOk ? '' : ' · wrong shape'}</span>}
+      </div>
+      <div className="ms-post-body">
+        <div className="ms-row ms-between"><strong>{label(post.platform)}{campaign ? ` · ${campaign.name}` : ''}</strong><Status value={post.status} /></div>
+        <p className="ms-muted">{post.scheduledAt ? `Scheduled ${et(post.scheduledAt)}` : 'Not scheduled'}{post.latestPublishAt ? ` · deadline ${et(post.latestPublishAt)}` : ''}{post.purpose ? ` · ${post.purpose}` : ''}</p>
+        <p className="ms-caption">{post.caption}</p>
+        {post.error && <p className="ms-bad">{post.error}</p>}
+        {post.receipt && <p className="ms-good">{post.receipt.test ? 'Test passed' : 'Published'} {et(post.receipt.at)}{post.receipt.platformPostId ? ` · ID ${post.receipt.platformPostId}` : ''} {post.receipt.url && <a href={post.receipt.url} target="_blank" rel="noreferrer">View post</a>}{post.receipt.note ? ` · ${post.receipt.note}` : ''}</p>}
+        {post.metrics && <p className="ms-muted">Meta (reported {et(post.metrics.fetchedAt)}): {Object.entries(post.metrics.values).map(([key, value]) => `${value} ${key}`).join(' · ') || 'no counts yet'}{Object.keys(post.metrics.unavailable || {}).length ? ` · not available: ${Object.keys(post.metrics.unavailable).join(', ')}` : ''}</p>}
+        <div className="ms-actions">
+          {post.status === 'draft' && <button type="button" className="ms-primary" onClick={() => go(`posts/${post.id}/approve`, {}, post.scheduledAt ? 'Approved and scheduled.' : 'Approved.')}>Approve{post.scheduledAt ? ' & schedule' : ''}</button>}
+          {meta && ['approved', 'scheduled', 'test-passed', 'failed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={() => go(`posts/${post.id}/test`, {}, 'Queued a non-public test for PROtv Social Studio.')}>Test (not public)</button>}
+          {['approved', 'test-passed'].includes(post.status) && <button type="button" className="ms-primary" onClick={() => { if (window.confirm(`Publish this post publicly to ${post.platform} now?`)) go(`posts/${post.id}/publish`); }}>Publish now</button>}
+          {['draft', 'approved', 'scheduled', 'missed', 'failed', 'test-passed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={reschedule}>{post.scheduledAt ? 'Reschedule' : 'Schedule'}</button>}
+          {['draft', 'approved', 'scheduled', 'missed', 'failed', 'test-passed'].includes(post.status) && <button type="button" className="ms-link" onClick={edit}>Edit caption</button>}
+          {post.status === 'needs-check' && <>
+            <button type="button" className="ms-secondary" onClick={() => { const url = window.prompt('It was published. Paste the post address:'); if (url) go(`posts/${post.id}/manual`, { url }); }}>It was published</button>
+            <button type="button" className="ms-secondary" onClick={() => go(`posts/${post.id}/manual`, { url: 'not-published' }, 'Marked as not published; reschedule it if needed.')}>It was not published</button>
+          </>}
+          {post.status === 'ready-for-manual' && <button type="button" className="ms-secondary" onClick={() => { navigator.clipboard?.writeText(post.caption); const url = window.prompt('Caption copied. After posting, paste the post address:'); if (url) go(`posts/${post.id}/manual`, { url }); }}>Post manually</button>}
+          {!post.receipt && !['cancelled', 'published', 'queued-pss', 'publishing-pss'].includes(post.status) && <button type="button" className="ms-link" onClick={() => go(`posts/${post.id}/cancel`)}>Cancel</button>}
+        </div>
+        <Notice error={action.error} message={action.message} />
+      </div>
     </div>
   );
 }
@@ -368,79 +458,71 @@ function Calendar() {
   const campaigns = useData('campaigns');
   const [view, setView] = useState('week');
   const [platform, setPlatform] = useState('all');
+  const [show, setShow] = useState('upcoming');
   const [today] = useState(() => Date.now());
-  const [form, setForm] = useState({ platform: 'facebook', campaignId: '', assetId: '', line: '', scheduledAt: '' });
+  const [form, setForm] = useState({ platform: 'facebook', campaignId: '', assetId: '', line: '', scheduledAtLocal: '', latestPublishAtLocal: '' });
   const action = useAction();
-  const visible = (posts.data || []).filter((post) => platform === 'all' || post.platform === platform);
+  const assetMap = useMemo(() => new Map((assets.data?.items || []).map((asset) => [asset.id, asset])), [assets.data]);
+  const campaignMap = useMemo(() => new Map((campaigns.data || []).map((campaign) => [campaign.id, campaign])), [campaigns.data]);
+  const visible = (posts.data || []).filter((post) => (platform === 'all' || post.platform === platform)
+    && (show === 'all' || (show === 'attention' ? ['failed', 'needs-check', 'missed'].includes(post.status) : !['cancelled', 'published'].includes(post.status))))
+    .sort((a, b) => String(a.scheduledAt || 'z').localeCompare(String(b.scheduledAt || 'z')));
   const days = view === 'day' ? 1 : view === 'week' ? 7 : 31;
-  const buckets = Array.from({ length: days }, (_, index) => { const date = new Date(today + index * 86_400_000); return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); });
+  const buckets = Array.from({ length: days }, (_, index) => new Date(today + index * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }));
   const reload = () => posts.reload();
+  const fit = () => { const asset = assetMap.get(form.assetId); return !asset || (form.platform === 'instagram' ? asset.format === 'vertical' : form.platform === 'facebook' ? asset.format === 'widescreen' : true); };
   return (
     <div className="ms-stack">
+      <p className="ms-muted">All times are Eastern Time. Approved, scheduled Facebook and Instagram posts publish automatically through PROtv Social Studio; a post that cannot go out before its deadline is marked Missed instead of publishing late.</p>
       <div className="ms-row ms-wrap">
         {['day', 'week', 'month'].map((value) => <button key={value} type="button" className={view === value ? 'ms-primary' : 'ms-secondary'} onClick={() => setView(value)}>{label(value)}</button>)}
         <select value={platform} onChange={(event) => setPlatform(event.target.value)} aria-label="Platform filter"><option value="all">All platforms</option>{PLATFORMS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-        <button type="button" className="ms-secondary" onClick={() => action.run('plan', () => call('plan/seven-days', { method: 'POST', body: {} }).then(reload), (result) => `Drafted ${result?.posts?.length || 0} posts from the LIVE schedule. Nothing is scheduled until approved.`)}>Prepare the 7-day plan</button>
+        <select value={show} onChange={(event) => setShow(event.target.value)} aria-label="Which posts"><option value="upcoming">Upcoming and in progress</option><option value="attention">Needs attention</option><option value="all">All, including published</option></select>
+        <button type="button" className="ms-secondary" onClick={() => action.run('plan', () => call('plan/seven-days', { method: 'POST', body: {} }).then(reload), (result) => `Drafted ${result?.posts?.length || 0} posts from the LIVE schedule. Nothing is scheduled until approved.`)}>Draft the 7-day plan</button>
       </div>
       <Notice error={posts.error || action.error} message={action.message} />
       <div className={`ms-calendar ms-calendar--${view}`}>{buckets.map((day) => (
         <div key={day} className="ms-day"><h5>{new Date(`${day}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h5>
-          {visible.filter((post) => post.scheduledAt && new Date(post.scheduledAt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === day).map((post) => <div key={post.id} className={`ms-post ms-post--${post.status}`}>{label(post.platform)} · {new Date(post.scheduledAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}<Status value={post.status} /></div>)}
+          {(posts.data || []).filter((post) => post.scheduledAt && (platform === 'all' || post.platform === platform) && post.status !== 'cancelled' && new Date(post.scheduledAt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === day).map((post) => <div key={post.id} className={`ms-post ms-post--${post.status}`}>{label(post.platform)} · {new Date(post.scheduledAt).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}<Status value={post.status} /></div>)}
         </div>))}</div>
-      <form className="ms-card ms-form" onSubmit={(event) => { event.preventDefault(); action.run('post', () => call('posts', { method: 'POST', body: { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null } }).then(reload), 'Draft post created.'); }}>
-        <h3>New post</h3>
-        <label>Platform<select value={form.platform} onChange={(event) => setForm({ ...form, platform: event.target.value })}>{PLATFORMS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
-        <label>Campaign<select value={form.campaignId} onChange={(event) => setForm({ ...form, campaignId: event.target.value })}><option value="">None</option>{(campaigns.data || []).map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
-        <label>Video<select value={form.assetId} onChange={(event) => setForm({ ...form, assetId: event.target.value })}><option value="">None</option>{(assets.data?.items || []).filter((asset) => asset.status === 'approved').map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}</select></label>
-        <label>Opening line<input value={form.line} onChange={(event) => setForm({ ...form, line: event.target.value })} placeholder="Your next favorite movie is FREE." /></label>
-        <label>Publish at (your local time)<input type="datetime-local" value={form.scheduledAt} onChange={(event) => setForm({ ...form, scheduledAt: event.target.value })} /></label>
-        <button type="submit" className="ms-primary">Create draft</button>
-      </form>
-      <table className="ms-table"><thead><tr><th>Platform</th><th>Caption</th><th>When</th><th>Status</th><th /></tr></thead>
-        <tbody>{visible.map((post) => (
-          <tr key={post.id}><td>{label(post.platform)}</td><td className="ms-caption">{post.caption}</td><td>{et(post.scheduledAt)}</td><td><Status value={post.status} />{post.error && <div className="ms-bad">{post.error}</div>}{post.receipt?.url && <a href={post.receipt.url} target="_blank" rel="noreferrer">View</a>}</td>
-            <td className="ms-actions">
-              {['draft', 'held', 'failed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={() => action.run(post.id, () => call(`posts/${post.id}/approve`, { method: 'POST' }).then(reload))}>Approve</button>}
-              {['approved', 'test-passed'].includes(post.status) && <button type="button" className="ms-primary" onClick={() => { if (!['facebook', 'instagram'].includes(post.platform) || window.confirm(`Publish this post publicly to ${post.platform} through PROtv Social Studio?`)) action.run(post.id, () => call(`posts/${post.id}/publish`, { method: 'POST' }).then(reload)); }}>{['facebook', 'instagram'].includes(post.platform) ? 'Publish via PSS' : 'Publish now'}</button>}
-              {['facebook', 'instagram'].includes(post.platform) && ['approved', 'test-passed', 'failed'].includes(post.status) && <button type="button" className="ms-secondary" onClick={() => action.run(post.id, () => call(`posts/${post.id}/test`, { method: 'POST' }).then(reload), 'Queued a non-public test for PROtv Social Studio.')}>Test via PSS (not public)</button>}
-              {['queued-pss', 'publishing-pss'].includes(post.status) && <span className="ms-muted">Waiting for PROtv Social Studio{post.mode === 'test' ? ' (test)' : ''}</span>}
-              {post.status === 'test-passed' && post.receipt?.note && <span className="ms-good">{post.receipt.note}</span>}
-              {post.status === 'ready-for-manual' && <button type="button" className="ms-secondary" onClick={() => { navigator.clipboard?.writeText(post.caption); const url = window.prompt('Caption copied. After posting, paste the post address:'); if (url) action.run(post.id, () => call(`posts/${post.id}/manual`, { method: 'POST', body: { url } }).then(reload)); }}>Manual handoff</button>}
-              {!post.receipt && post.status !== 'cancelled' && <button type="button" className="ms-link" onClick={() => action.run(post.id, () => call(`posts/${post.id}/cancel`, { method: 'POST' }).then(reload))}>Withdraw</button>}
-            </td></tr>))}</tbody></table>
+      <details className="ms-card"><summary><strong>New post</strong></summary>
+        <form className="ms-form" onSubmit={(event) => { event.preventDefault(); action.run('post', () => call('posts', { method: 'POST', body: { ...form, scheduledAtLocal: form.scheduledAtLocal || undefined, latestPublishAtLocal: form.latestPublishAtLocal || undefined } }).then(reload), 'Draft post created. Approve it to schedule.'); }}>
+          <label>Platform<select value={form.platform} onChange={(event) => setForm({ ...form, platform: event.target.value })}>{PLATFORMS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
+          <label>Campaign<select value={form.campaignId} onChange={(event) => setForm({ ...form, campaignId: event.target.value })}><option value="">None</option>{(campaigns.data || []).filter((campaign) => campaign.status !== 'archived').map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
+          <label>Video ({form.platform === 'instagram' ? 'vertical 9:16 for Reels' : form.platform === 'facebook' ? 'horizontal 16:9' : 'optional'})<select value={form.assetId} onChange={(event) => setForm({ ...form, assetId: event.target.value })}><option value="">None</option>{(assets.data?.items || []).filter((asset) => asset.status === 'approved').map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}</select></label>
+          {!fit() && <p className="ms-bad">That video is the wrong shape for {form.platform}.</p>}
+          <label>Opening line (a caption with the tracked link and hashtags is generated; edit it after)<input value={form.line} onChange={(event) => setForm({ ...form, line: event.target.value })} placeholder="Your next favorite movie is FREE." /></label>
+          <div className="ms-row"><label>Publish at (Eastern Time)<input type="datetime-local" value={form.scheduledAtLocal} onChange={(event) => setForm({ ...form, scheduledAtLocal: event.target.value })} /></label>
+            <label>Deadline (optional; default 6 hours later)<input type="datetime-local" value={form.latestPublishAtLocal} onChange={(event) => setForm({ ...form, latestPublishAtLocal: event.target.value })} /></label></div>
+          <button type="submit" className="ms-primary">Create draft</button>
+        </form>
+      </details>
+      <div className="ms-stack">{visible.map((post) => <PostRow key={post.id} post={post} asset={assetMap.get(post.assetId)} campaign={campaignMap.get(post.campaignId)} onDone={reload} />)}</div>
+      {!visible.length && <p className="ms-muted">No posts in this view.</p>}
     </div>
   );
 }
 
 function Accounts() {
   const { data, error, reload } = useData('accounts');
+  const overview = useData('overview');
   const action = useAction();
-  const params = new URLSearchParams(window.location.search);
   return (
     <div className="ms-stack">
-      {params.get('connected') && <p className="ms-notice">Connected {params.get('connected')}.</p>}
-      {params.get('connectError') && <p className="ms-notice ms-notice--error">{params.get('connectError')}</p>}
-      <p className="ms-muted">Connections use each platform's official sign-in (OAuth). PROtv never asks for or stores a social password. Tokens are encrypted on the server and never reach this page.</p>
+      <MetaHealth pss={overview.data?.pss} />
+      <p className="ms-muted">Facebook and Instagram are connected in PROtv Social Studio on the studio PC, which keeps the credentials and publishes for Marketing Studio. YouTube and TikTok have no connection yet; their posts use the manual handoff.</p>
       <Notice error={error || action.error} message={action.message} />
-      <div className="ms-grid2">{(data || []).map((item) => (
+      <div className="ms-grid2">{(data || []).filter((item) => item.id !== 'manual').map((item) => (
         <section key={item.id} className="ms-card">
           <div className="ms-row ms-between"><h4>{item.name}</h4><Status value={item.state} /></div>
-          {item.account && <p>{item.via ? `Connected in ${item.via}: ` : 'Connected: '}{item.account.label}{item.via ? ` · ${item.account.online ? 'PSS online' : `PSS last seen ${et(item.account.lastSeenAt)}`}` : ''}</p>}
-          {item.via && item.account?.expiresAt && <p className="ms-muted">Meta connection valid until {et(item.account.expiresAt)}; reconnect in PROtv Social Studio before then.</p>}
-          {item.via && !item.account && <p className="ms-muted">Open PROtv Social Studio on the studio PC and turn on its Marketing Studio link.</p>}
-          {item.missingSettings?.length > 0 && <p className="ms-muted">Needs server settings: {item.missingSettings.join(', ')} (PROtv's developer app for this platform).</p>}
-          {item.review && <p className="ms-muted">{item.review}</p>}
-          <p className="ms-muted">Without connection: {item.draftRoute}.</p>
-          <div className="ms-row">
-            {item.id !== 'manual' && !item.via && item.state !== 'connected' && <button type="button" className="ms-primary" disabled={item.state === 'not-configured'} onClick={() => action.run(item.id, async () => { const { url } = await call(`accounts/${item.id}/connect`, { method: 'POST' }); window.location.assign(url); })}>Connect</button>}
-            {item.state === 'connected' && <button type="button" className="ms-secondary" onClick={() => action.run(item.id, () => call(`accounts/${item.id}/disconnect`, { method: 'POST' }).then(reload))}>Disconnect</button>}
-          </div>
+          {item.account && <p>{item.via ? `${item.account.label} · ${item.account.online ? 'PSS online' : `PSS last seen ${et(item.account.lastSeenAt)}`}` : `Connected: ${item.account.label}`}</p>}
+          {!item.via && item.missingSettings?.length > 0 && <p className="ms-muted">Not connected. Needs a developer app (not created, per your instruction).</p>}
+          {!item.via && item.state === 'connected' && <button type="button" className="ms-secondary" onClick={() => action.run(item.id, () => call(`accounts/${item.id}/disconnect`, { method: 'POST' }).then(reload))}>Disconnect</button>}
         </section>))}</div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------- Growth, paid, creators, LIVE, analytics, assets, settings
 function Growth() {
   const report = useData('analytics?days=30');
   return (
@@ -517,13 +599,34 @@ function LiveAds() {
 function Analytics() {
   const [days, setDays] = useState(30);
   const { data, error } = useData(`analytics?days=${days}`, [days]);
+  const posts = useData('posts');
+  const campaigns = useData('campaigns');
+  const engagement = useMemo(() => {
+    const rows = new Map();
+    for (const post of (posts.data || []).filter((item) => item.metrics && item.status === 'published')) {
+      const row = rows.get(post.campaignId) || { campaignId: post.campaignId, posts: 0, values: {}, unavailable: new Set(), fetchedAt: '' };
+      row.posts += 1;
+      for (const [key, value] of Object.entries(post.metrics.values)) row.values[`${post.platform} ${key}`] = (row.values[`${post.platform} ${key}`] || 0) + value;
+      for (const key of Object.keys(post.metrics.unavailable || {})) row.unavailable.add(`${post.platform} ${key}`);
+      if (post.metrics.fetchedAt > row.fetchedAt) row.fetchedAt = post.metrics.fetchedAt;
+      rows.set(post.campaignId, row);
+    }
+    return [...rows.values()];
+  }, [posts.data]);
+  const names = new Map((campaigns.data || []).map((campaign) => [campaign.id, campaign.name]));
   return (
     <div className="ms-stack">
+      <section className="ms-card"><h3>Engagement on Facebook and Instagram (reported by Meta)</h3>
+        <p className="ms-muted">Counts come from Meta through PROtv Social Studio every six hours. Metrics Meta withholds without extra permissions are listed as not available, never shown as zero: views, reach, impressions and link clicks need read_insights (Facebook) or instagram_manage_insights (Instagram); Facebook reactions and comments need pages_read_user_content.</p>
+        {engagement.length ? <table className="ms-table"><thead><tr><th>Campaign</th><th>Published posts</th><th>Counts</th><th>Not available</th><th>Updated</th></tr></thead>
+          <tbody>{engagement.map((row) => <tr key={row.campaignId}><td>{names.get(row.campaignId) || 'No campaign'}</td><td>{row.posts}</td><td>{Object.entries(row.values).map(([key, value]) => `${value} ${key}`).join(' · ') || '—'}</td><td>{[...row.unavailable].join(', ')}</td><td>{et(row.fetchedAt)}</td></tr>)}</tbody></table>
+          : <p className="ms-muted">No published Marketing Studio posts with Meta counts yet.</p>}
+      </section>
       <div className="ms-row"><select value={days} onChange={(event) => setDays(Number(event.target.value))} aria-label="Period">{[7, 30, 90].map((value) => <option key={value} value={value}>Last {value} days</option>)}</select></div>
       <Notice error={error} message={data?.note} />
-      {data && <table className="ms-table"><thead><tr><th>Campaign</th><th>Channel</th><th>Visits</th><th>Play starts</th><th>Meaningful sessions (2+ min)</th><th>Returning</th><th>Visit→play</th><th>Reported spend</th></tr></thead>
-        <tbody>{data.campaigns.map((row) => <tr key={row.campaignId}><td>{row.name}</td><td>{row.channel}</td><td>{row.observed.visits}</td><td>{row.observed.playStarts}</td><td>{row.observed.meaningfulSessions}</td><td>{row.observed.returningVisits}</td><td>{row.rates.visitToPlay ?? '—'}%</td><td>{row.reported ? `$${row.reported.spendUsd} (${row.reported.costPerMeaningfulSession ?? '—'}/session)` : '—'}</td></tr>)}</tbody></table>}
-      {data && !data.campaigns.length && <p className="ms-muted">No tracked campaign traffic yet (observed counts start when tracked links are used).</p>}
+      {data && <table className="ms-table"><thead><tr><th>Campaign</th><th>Visits</th><th>Play starts</th><th>Meaningful sessions (2+ min)</th><th>Returning</th><th>Visit→play</th></tr></thead>
+        <tbody>{data.campaigns.map((row) => <tr key={row.campaignId}><td>{row.name}</td><td>{row.observed.visits}</td><td>{row.observed.playStarts}</td><td>{row.observed.meaningfulSessions}</td><td>{row.observed.returningVisits}</td><td>{row.rates.visitToPlay ?? '—'}%</td></tr>)}</tbody></table>}
+      {data && !data.campaigns.length && <p className="ms-muted">No tracked visits to watchprotv.com from campaign links yet (observed counts start when people click the tracked links).</p>}
     </div>
   );
 }
