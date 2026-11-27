@@ -9,6 +9,7 @@ const planner = require('./planner');
 const design = require('./design');
 const templates = require('./templates');
 const imageLibrary = require('./images');
+const maker = require('./maker');
 const rights = require('./rights');
 const social = require('./social');
 const ads = require('./ads');
@@ -437,6 +438,127 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     return map;
   }
 
+  // ---------------------------------------------------------------- Commercial Maker (one prompt → a finished draft)
+  const round5 = (value) => Math.round(value * 1e5) / 1e5;
+  async function makerUsage() {
+    const month = maker.monthKey(now());
+    const record = await store.get('aiUsage', month);
+    return { month, capUsd: maker.MONTHLY_CAP_USD, actualUsd: record?.actualUsd || 0, estimatedUsd: record?.estimatedUsd || 0, calls: record?.calls || 0, prices: maker.PRICES };
+  }
+  // One AI request through the Creator Portal (pay-per-use provider), refused before it is sent if it could pass the
+  // monthly cap. A failed request is counted at its estimate, so the cap can never be overrun by errors.
+  async function aiCall(system, user) {
+    if (!portal.configured()) throw new MarketingError('The Creator Portal connection is not configured, so the AI cannot be reached.', 503);
+    const month = maker.monthKey(now());
+    const record = (await store.get('aiUsage', month)) || { month, actualUsd: 0, estimatedUsd: 0, calls: 0, promptTokens: 0, completionTokens: 0 };
+    const estimate = maker.estimateUsd(system.length + user.length);
+    if ((record.actualUsd || 0) + estimate > maker.MONTHLY_CAP_USD) throw new MarketingError(`This request could pass the $${maker.MONTHLY_CAP_USD.toFixed(2)} monthly AI spending cap ($${(record.actualUsd || 0).toFixed(3)} used in ${month}). The cap resets next month.`, 402);
+    let result = null;
+    let failure = null;
+    try { result = await portal.ai(system, user, maker.MAX_TOKENS); } catch (error) { failure = error; }
+    const actual = result ? maker.actualUsd(result.usage) : estimate;
+    await store.put('aiUsage', month, { ...record, month, capUsd: maker.MONTHLY_CAP_USD, estimatedUsd: round5((record.estimatedUsd || 0) + estimate), actualUsd: round5((record.actualUsd || 0) + actual), calls: (record.calls || 0) + 1,
+      promptTokens: (record.promptTokens || 0) + (result?.usage?.promptTokens || 0), completionTokens: (record.completionTokens || 0) + (result?.usage?.completionTokens || 0), updatedAt: stamp() });
+    if (failure || !result?.json) throw new MarketingError(`The AI could not write the commercial: ${String(failure?.message || 'no answer').slice(0, 200)}`, 502);
+    return { json: result.json, usage: result.usage, estimateUsd: estimate, actualUsd: actual };
+  }
+  async function makerContext() {
+    const footage = (await eligibleFootage({ destination: 'social', network: true })).sort((a, b) => Number(b.creator) - Number(a.creator));
+    const images = (await store.list('images', { limit: 200 })).map(({ data: _data, ...rest }) => rest);
+    return { footage, images };
+  }
+  // Ranked moments of each title, measured from Mux thumbnails (exposure, detail); kept with the draft for revisions.
+  async function momentsFor(plan, footage, known = {}) {
+    const sharp = require('sharp');
+    const out = new Map(Object.entries(known || {}));
+    const titles = [...new Set(plan.segments.flatMap((segment) => segment.footage || []))].map((name) => footage.find((item) => item.title === name)).filter(Boolean);
+    for (const item of titles) {
+      if (out.has(item.id)) continue;
+      const times = maker.candidateTimes(item);
+      const measured = [];
+      for (let index = 0; index < times.length; index += 8) {
+        measured.push(...(await Promise.all(times.slice(index, index + 8).map(async (t) => {
+          try {
+            const response = await fetcher(`https://image.mux.com/${encodeURIComponent(item.muxPlaybackId)}/thumbnail.jpg?time=${t}&width=192`, { signal: AbortSignal.timeout(8000) });
+            if (!response.ok) return null;
+            const stats = await sharp(Buffer.from(await response.arrayBuffer())).stats();
+            const [r, g, b] = stats.channels;
+            const luma = 0.2126 * r.mean + 0.7152 * g.mean + 0.0722 * b.mean;
+            return { t, luma: Math.round(luma), score: maker.frameScore({ luma, spread: (r.stdev + g.stdev + b.stdev) / 3, sharpness: stats.sharpness }) };
+          } catch { return null; }
+        }))).filter(Boolean));
+      }
+      out.set(item.id, measured.sort((a, b) => b.score - a.score));
+    }
+    return out;
+  }
+  // Ask, validate, and repair once if the copy makes a claim PROtv cannot support.
+  async function makerPlan(system, user, ctx, sources, { durationSeconds = null } = {}) {
+    const calls = [];
+    const parse = (json) => { try { return maker.parsePlan(json, ctx, { durationSeconds }); } catch (error) { throw new MarketingError(error.message, 502); } };
+    calls.push(await aiCall(system, user));
+    let plan = parse(calls[0].json);
+    let problems = maker.claimProblems(plan, sources);
+    if (problems.length) {
+      calls.push(await aiCall(system, `${user}
+
+Your plan: ${JSON.stringify(plan)}
+
+${maker.repairPrompt(problems)}`));
+      plan = parse(calls[1].json);
+      problems = maker.claimProblems(plan, sources);
+    }
+    const cost = { estimatedUsd: round5(calls.reduce((sum, call) => sum + call.estimateUsd, 0)), actualUsd: round5(calls.reduce((sum, call) => sum + call.actualUsd, 0)), calls: calls.length,
+      promptTokens: calls.reduce((sum, call) => sum + (call.usage?.promptTokens || 0), 0), completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completionTokens || 0), 0) };
+    return { plan, problems, cost };
+  }
+  function claimCheck(problems) {
+    return problems.length ? { level: 'warning', text: `Check before rendering: ${problems.join(' ')}` } : { level: 'ok', text: 'Copy: every claim comes from your request or PROtv facts; no banned claims.' };
+  }
+  const addCost = (total = {}, cost) => ({ estimatedUsd: round5((total.estimatedUsd || 0) + cost.estimatedUsd), actualUsd: round5((total.actualUsd || 0) + cost.actualUsd), calls: (total.calls || 0) + cost.calls });
+
+  async function makerCreate(input, actor) {
+    const prompt = text(input?.prompt, 2000);
+    if (prompt.length < 8) throw new MarketingError('Describe the commercial you want in a sentence or two.');
+    const durationSeconds = DURATIONS.includes(Number(input.durationSeconds)) ? Number(input.durationSeconds) : null;
+    const ctx = await makerContext();
+    const user = maker.userPrompt({ request: prompt, durationSeconds, footage: ctx.footage, images: ctx.images, today: stamp().slice(0, 10) });
+    const { plan, problems, cost } = await makerPlan(maker.systemPrompt(), user, ctx, prompt, { durationSeconds });
+    const moments = await momentsFor(plan, ctx.footage);
+    const built = maker.direct(plan, { ...ctx, moments });
+    const created = await createCommercial({ category: 'custom', templateId: 'custom', durationSeconds: plan.durationSeconds, title: plan.title, objective: plan.concept, storyboard: built.storyboard, theme: built.theme, branding: built.branding, music: built.music, destinations: ['live', 'social'] }, actor);
+    const state = {
+      prompt, plan, concept: plan.concept, approach: plan.approach, palette: plan.palette, checks: [claimCheck(problems), ...built.checks], moments: Object.fromEntries(moments),
+      history: [{ at: stamp(), actor, kind: 'draft', request: prompt, summary: plan.summary || plan.concept, cost }], cost: addCost({}, cost), storyboardRevision: created.revision,
+    };
+    const saved = await store.put('commercials', created.id, { ...created, templateName: 'Commercial Maker', maker: state, updatedAt: stamp() });
+    await log(actor, 'maker_draft', `Commercial Maker drafted "${plan.title}" (${plan.durationSeconds}s, ${plan.approach}) from a prompt (AI ${cost.calls} call(s), $${cost.actualUsd.toFixed(4)}).`, { commercialId: created.id });
+    return saved;
+  }
+
+  async function makerRevise(id, input, actor) {
+    const commercial = await requireRecord('commercials', id, 'Commercial');
+    if (!commercial.maker) throw new MarketingError('This commercial was not made with the Commercial Maker; edit it in the editor.');
+    const message = text(input?.message, 1000);
+    if (message.length < 3) throw new MarketingError('Say what to change.');
+    const ctx = await makerContext();
+    const earlier = (commercial.maker.history || []).filter((item) => item.kind === 'revision').map((item) => item.request).slice(-6);
+    const user = maker.userPrompt({ request: commercial.maker.prompt, footage: ctx.footage, images: ctx.images, today: stamp().slice(0, 10), current: commercial.maker.plan, revision: message, history: earlier });
+    const sources = [commercial.maker.prompt, ...earlier, message].join(' ');
+    const { plan, problems, cost } = await makerPlan(maker.systemPrompt(), user, ctx, sources);
+    const moments = await momentsFor(plan, ctx.footage, commercial.maker.moments);
+    const built = maker.direct(plan, { ...ctx, moments });
+    if (plan.durationSeconds !== commercial.durationSeconds) await store.put('commercials', id, { ...commercial, durationSeconds: plan.durationSeconds });
+    const updated = await updateStoryboard(id, built.storyboard, actor, { theme: built.theme, branding: built.branding, music: built.music, title: plan.title });
+    const state = {
+      ...commercial.maker, plan, concept: plan.concept, approach: plan.approach, palette: plan.palette, checks: [claimCheck(problems), ...built.checks], moments: Object.fromEntries(moments),
+      history: [...(commercial.maker.history || []), { at: stamp(), actor, kind: 'revision', request: message, summary: plan.summary || 'Revised.', cost }].slice(-40), cost: addCost(commercial.maker.cost, cost), storyboardRevision: updated.revision,
+    };
+    const saved = await store.put('commercials', id, { ...updated, maker: state, updatedAt: stamp() });
+    await log(actor, 'maker_revise', `Commercial Maker revised "${plan.title}": ${message.slice(0, 120)} (AI $${cost.actualUsd.toFixed(4)}).`, { commercialId: id });
+    return saved;
+  }
+
   function designOptions() {
     return {
       animations: Object.entries(design.ANIMATIONS).map(([id, item]) => ({ id, label: item.label })), positions: design.POSITIONS, aligns: design.ALIGNS, reveals: design.REVEALS,
@@ -455,7 +577,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       const destination = format === 'widescreen' && commercial.destinations.includes('live') ? 'live' : 'social';
       const plan = planner.renderPlan(commercial, format, { destination, videos, images: await imageMap(commercial.storyboard) });
       const job = await portal.submitRender(plan);
-      renders[format] = { jobId: plan.id, status: job.status, progress: job.progress, destination, submittedAt: stamp(), validation: null, asset: null, error: '' };
+      renders[format] = { jobId: plan.id, status: job.status, progress: job.progress, destination, submittedAt: stamp(), validation: null, asset: null, error: '', labels: maker.labelCheck(plan) };
     }
     await log(actor, 'commercial_render', `Sent "${commercial.title}" to the render worker (${Object.keys(renders).join(', ')}).`, { commercialId: id });
     return store.put('commercials', id, { ...commercial, renders, status: 'rendering', updatedAt: stamp() });
@@ -1091,7 +1213,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     createCampaign, updateCampaign, transitionCampaign, duplicateCampaign, listCampaigns: () => store.list('campaigns'), getCampaign: (id) => requireRecord('campaigns', id, 'Campaign'),
     createCommercial, updateStoryboard, renderCommercial, refreshCommercial, reviewCommercial, recordSponsorApproval, registerForLive,
     listCommercials: () => store.list('commercials'), getCommercial: (id) => requireRecord('commercials', id, 'Commercial'),
-    duplicateCommercial, previewPlan, designOptions, uploadImage, listImages, deleteImage, imageBytes, listTemplates, getTemplate, saveTemplate, updateTemplate, deleteTemplate,
+    duplicateCommercial, previewPlan, designOptions, uploadImage, listImages, deleteImage, imageBytes, makerCreate, makerRevise, makerUsage, listTemplates, getTemplate, saveTemplate, updateTemplate, deleteTemplate,
     async cancelRender(id, format, actor) { const commercial = await requireRecord('commercials', id, 'Commercial'); const render = commercial.renders[format]; if (!render) throw new MarketingError('No such render.'); await portal.cancelRender(render.jobId); await log(actor, 'commercial_cancel', `Cancelled the ${format} render of "${commercial.title}".`, { commercialId: id }); return refreshCommercial(id); },
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
     listAssets, importHypeClip, downloadAsset,

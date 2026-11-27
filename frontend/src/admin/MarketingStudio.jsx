@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
 import { api } from '../api';
 import { StyledEditor, TemplateChoice, TemplatesManager } from './CommercialDesigner';
+import { MakerPanel, MakerPrompt, RenderQuality } from './CommercialMaker';
 import '../styles/MarketingStudio.css';
 
 // PROtv Marketing Studio: one workspace for commercials, campaigns, social, paid media, creator promotion and LIVE spots.
@@ -268,6 +269,7 @@ function RenderCard({ format, render }) {
           <dt>Checks</dt><dd>{render.validation.ok ? 'All passed' : render.validation.problems.join(' ')}</dd>
         </dl>
       )}
+      <RenderQuality render={render} />
     </div>
   );
 }
@@ -311,7 +313,12 @@ function CommercialDetail({ id, onBack, onOpen }) {
           <tbody>{commercial.script.map((line) => <tr key={line.start}><td>{line.start.toFixed(1)}–{line.end.toFixed(1)} s</td><td>{line.purpose}</td><td>{line.picture}</td><td>{line.onScreen}</td></tr>)}</tbody></table>
         <a className="ms-link" href="#captions" onClick={async (event) => { event.preventDefault(); const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/marketing/commercials/${id}/captions.srt`, { headers: { Authorization: `Bearer ${await (await import('../firebase')).firebaseAuth.currentUser.getIdToken()}` } }); const blob = await response.blob(); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${id}.srt`; link.click(); }}>Download captions (.srt)</a>
       </section>
-      {styled ? <StyledEditor key={commercial.revision} commercial={commercial} footage={footage.data || []} onSaved={() => { setDesignDirty(false); reload(); }} onDirty={setDesignDirty} /> : <section className="ms-card"><h4>Storyboard and shot list</h4>
+      {commercial.maker && <MakerPanel commercial={commercial} onChanged={reload} />}
+      {styled && commercial.maker ? (
+        <details className="ms-card cm-finetune"><summary>Fine-tune by hand (optional): every segment, word, colour, image and timing</summary>
+          <StyledEditor key={commercial.revision} commercial={commercial} footage={footage.data || []} onSaved={() => { setDesignDirty(false); reload(); }} onDirty={setDesignDirty} />
+        </details>
+      ) : styled ? <StyledEditor key={commercial.revision} commercial={commercial} footage={footage.data || []} onSaved={() => { setDesignDirty(false); reload(); }} onDirty={setDesignDirty} /> : <section className="ms-card"><h4>Storyboard and shot list</h4>
         <div className="ms-beats">{storyboard.map((beat, index) => {
           const start = starts[index];
           const end = starts[index + 1];
@@ -370,11 +377,12 @@ function Commercials({ initial, sponsorMode = false }) {
   return (
     <div className="ms-stack">
       {sponsorMode && <p className="ms-muted">Sponsors and deals are managed in the existing sponsorship pipeline (<a href="https://creators.watchprotv.com/#sponsorships" target="_blank" rel="noreferrer">Creator Portal → Sponsorships</a>). Build their commercials here from the materials they approved.</p>}
-      <div className="ms-row"><button type="button" className="ms-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : sponsorMode ? 'New sponsor commercial' : 'New commercial'}</button></div>
+      {!sponsorMode && <MakerPrompt onCreated={(id) => setSelected(id)} />}
+      <div className="ms-row"><button type="button" className={sponsorMode ? 'ms-primary' : 'ms-secondary'} onClick={() => setCreating(!creating)}>{creating ? 'Close' : sponsorMode ? 'New sponsor commercial' : 'New commercial from a template'}</button></div>
       {creating && <NewCommercial sponsorMode={sponsorMode} onCreated={(id) => { setCreating(false); setSelected(id); }} />}
       <Notice error={error} />
       <table className="ms-table"><thead><tr><th>Commercial</th><th>Category</th><th>Length</th><th>Status</th><th>Renders</th><th>Updated</th></tr></thead>
-        <tbody>{list.map((item) => <tr key={item.id}><td><button type="button" className="ms-link" onClick={() => setSelected(item.id)}>{item.title}</button></td><td>{item.category === 'custom' ? `Template${item.templateName ? `: ${item.templateName}` : ''}` : label(item.category)}</td><td>{item.durationSeconds} s</td><td><Status value={item.status} /></td><td>{Object.entries(item.renders || {}).map(([format, render]) => `${format}: ${render.status}`).join(' · ') || '—'}</td><td>{et(item.updatedAt)}</td></tr>)}</tbody></table>
+        <tbody>{list.map((item) => <tr key={item.id}><td><button type="button" className="ms-link" onClick={() => setSelected(item.id)}>{item.title}</button></td><td>{item.templateName === 'Commercial Maker' ? 'Commercial Maker' : item.category === 'custom' ? `Template${item.templateName ? `: ${item.templateName}` : ''}` : label(item.category)}</td><td>{item.durationSeconds} s</td><td><Status value={item.status} /></td><td>{Object.entries(item.renders || {}).map(([format, render]) => `${format}: ${render.status}`).join(' · ') || '—'}</td><td>{et(item.updatedAt)}</td></tr>)}</tbody></table>
       {!list.length && <p className="ms-muted">No commercials yet.</p>}
     </div>
   );

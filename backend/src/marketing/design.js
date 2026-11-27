@@ -118,13 +118,16 @@ function sanitizeText(input = {}) {
   for (const [key, max] of [['headline', 120], ['hero', 140], ['sub', 160]]) { const value = str(input[key], max); if (value) out[key] = value; }
   return out;
 }
-// Image layers (badges, app screenshots, logos): centre point and width as fractions of the frame.
+// Image layers (badges, app screenshots, logos): centre point and width as fractions of the frame, or a slot
+// ('devices', 'badge', 'feature') that is laid out automatically around the text for each format (Commercial Maker).
 const FRAMES = ['none', 'phone', 'tablet'];
+const SLOTS = ['devices', 'badge', 'feature'];
 function sanitizeImages(input) {
   if (!Array.isArray(input)) return [];
   return input.slice(0, 4).filter((item) => /^mi_[a-f0-9]{20}$/.test(String(item?.imageId || ''))).map((item) => ({
     imageId: item.imageId, x: clamp(item.x, 0, 1, 0.5), y: clamp(item.y, 0, 1, 0.5), width: clamp(item.width, 0.04, 1, 0.3),
     frame: FRAMES.includes(item.frame) ? item.frame : 'none', shadow: item.shadow === true,
+    ...(SLOTS.includes(item.slot) ? { slot: item.slot } : {}),
   }));
 }
 
@@ -234,7 +237,82 @@ function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
     const x = align === 'left' ? L.margin : align === 'right' ? L.W - L.margin - logo.width : Math.round((L.W - logo.width) / 2);
     elements.push({ group: Math.max(0, items.length - 1), element: { type: 'logo', x, y: y + logoGap - gap, width: logo.width, glow: true } });
   }
-  return { elements, groups: Math.max(1, items.length), chars: items.reduce((sum, item) => sum + item.text.length, 0) * CHAR_EM };
+  const first = elements[0]?.element;
+  const blockTop = first ? first.y : null;
+  return { elements, groups: Math.max(1, items.length), chars: items.reduce((sum, item) => sum + item.text.length, 0) * CHAR_EM, bounds: first ? { top: blockTop, bottom: y + (logo && logoPlacement === 'below' ? logo.height + logoGap : 0) - gap } : null };
+}
+
+// ---------------------------------------------------------------- automatic image layout (slots)
+const frameOf = (image) => (image.height / image.width > 1.2 ? 'phone' : 'tablet');
+const bezelShare = (frame) => (frame === 'phone' ? 0.04 : frame === 'tablet' ? 0.03 : 0);
+// Height of a framed image per unit of width (bezel on both sides).
+const heightPerWidth = (image, frame) => { const b = bezelShare(frame); return (image.height / image.width) * (1 - 2 * b) + 2 * b; };
+function badgeHeight(L) { return Math.round(L.H * (L.W > L.H ? 0.12 : L.W === L.H ? 0.1 : 0.085)); }
+// Room the badges of a segment need under the text, so the text can make space for them.
+function slotReserve(beat, L, images) {
+  const badges = (beat.images || []).filter((placed) => placed.slot === 'badge' && images?.get(placed.imageId));
+  return badges.length ? badgeHeight(L) + Math.round(L.H * 0.05) : 0;
+}
+function slotElements(beat, L, images, bounds) {
+  const safe = safeArea(L);
+  const placed = (beat.images || []).filter((item) => item.slot);
+  if (!placed.length) return [];
+  const regionTop = bounds ? bounds.bottom + Math.round(L.H * 0.045) : safe.top;
+  const regionBottom = L.H - safe.bottom;
+  const regionWidth = L.W - 2 * L.margin;
+  const out = [];
+  const image = (item) => { const found = images?.get(item.imageId); if (!found) throw new Error('An image in this storyboard is no longer in the image library.'); return found; };
+  const element = (item, found, frame, x, y, width) => {
+    const bezel = frame === 'none' ? 0 : Math.max(6, Math.round(width * bezelShare(frame)));
+    const height = Math.round((width - 2 * bezel) * (found.height / found.width) + 2 * bezel);
+    return { type: 'image', url: found.url, x: Math.round(x), y: Math.round(y), width: Math.round(width), height, frame, radius: frame === 'none' ? 0 : 0, shadow: frame !== 'none' || item.shadow === true };
+  };
+  // Badges sit centred just under the text.
+  let badgeBottom = regionTop;
+  for (const item of placed.filter((entry) => entry.slot === 'badge').slice(0, 2)) {
+    const found = image(item);
+    const height = badgeHeight(L);
+    const width = Math.min(regionWidth * 0.6, height * (found.width / found.height));
+    const y = Math.min(badgeBottom, regionBottom - width * (found.height / found.width));
+    out.push(element(item, found, 'none', (L.W - width) / 2, y, width));
+    badgeBottom = y + width * (found.height / found.width) + Math.round(L.H * 0.03);
+  }
+  const top = out.length ? badgeBottom : regionTop;
+  const regionHeight = Math.max(80, regionBottom - top);
+  // App screenshots: one device, or a tablet with a phone in front of its right edge, as large as the space allows.
+  const devices = placed.filter((entry) => entry.slot === 'devices').slice(0, 2).map((item) => ({ item, found: image(item) }));
+  if (devices.length) {
+    devices.sort((a, b) => (frameOf(a.found) === 'tablet' ? -1 : 0) - (frameOf(b.found) === 'tablet' ? -1 : 0));
+    const cap = L.H * 0.78;
+    if (devices.length === 1) {
+      const { item, found } = devices[0];
+      const frame = frameOf(found);
+      const k = heightPerWidth(found, frame);
+      const height = Math.min(regionHeight, cap, regionWidth * 0.9 * k);
+      const width = height / k;
+      out.push(element(item, found, frame, (L.W - width) / 2, top + (regionHeight - height) / 2, width));
+    } else {
+      const [back, front] = devices;
+      const backFrame = frameOf(back.found), frontFrame = frameOf(front.found);
+      const kb = heightPerWidth(back.found, backFrame), kf = heightPerWidth(front.found, frontFrame);
+      const frontShare = 0.86, overlap = 0.35;
+      const groupWidthPerHeight = 1 / kb + (1 - overlap) * frontShare / kf;
+      const height = Math.min(regionHeight / 1.03, cap, (regionWidth * 0.94) / groupWidthPerHeight);
+      const backWidth = height / kb, frontWidth = (height * frontShare) / kf;
+      const left = (L.W - (backWidth + (1 - overlap) * frontWidth)) / 2;
+      const y0 = top + (regionHeight - height * 1.03) / 2;
+      out.push(element(back.item, back.found, backFrame, left, y0, backWidth));
+      out.push(element(front.item, front.found, frontFrame, left + backWidth - overlap * frontWidth, y0 + height * 1.03 - height * frontShare, frontWidth));
+    }
+  }
+  // Artwork, posters, photos and logos: contained in the space left, centred.
+  for (const item of placed.filter((entry) => entry.slot === 'feature').slice(0, 1)) {
+    const found = image(item);
+    const ratio = found.height / found.width;
+    const width = Math.min(regionWidth * 0.8, (regionHeight * 0.92) / ratio);
+    out.push(element(item, found, 'none', (L.W - width) / 2, top + (regionHeight - width * ratio) / 2, width));
+  }
+  return out;
 }
 
 function lowerThirdFor(clip, L, theme, { fitText, CHAR_EM }) {
@@ -293,7 +371,9 @@ function styledComposition(commercial, beats, L, format, { videos, tokens, helpe
     const windowEnd = Math.round((beat.end - (style.textOut || 0)) * 1000) / 1000;
     const clips = clipsOf(beat);
     const labelled = beat.kind === 'footage' && clips.some((clip) => clip.label);
-    const block = textBlock(beat, L, theme, { ...helpers, bottomLimit: labelled ? L.lowerThirdY - 40 : undefined });
+    const reserve = slotReserve(beat, L, helpers.images);
+    const limit = labelled ? L.lowerThirdY - 40 : undefined;
+    const block = textBlock(beat, L, theme, { ...helpers, bottomLimit: reserve ? Math.min(limit ?? L.H - safeArea(L).bottom, L.H - safeArea(L).bottom - reserve) : limit });
     const motion = animation.motion ? { dx: Math.round(animation.motion.dx * L.W), dy: Math.round(animation.motion.dy * L.H) } : null;
     if (beat.kind === 'footage' && block.elements.length && (style.shade ?? 0.5) > 0) {
       layers.push({ start: beat.start, end: beat.end, fade: 0.18, elements: [{ type: 'gradient', x: 0, y: 0, width: L.W, height: L.H, from: '#000000', to: '#000000', fromOpacity: Math.min(0.9, (style.shade ?? 0.5) * 0.6), toOpacity: style.shade ?? 0.5, vertical: true }] });
@@ -308,7 +388,9 @@ function styledComposition(commercial, beats, L, format, { videos, tokens, helpe
       }
     }
     // Image layers share the segment's text timing and animation.
-    for (const placed of beat.images || []) {
+    const slotted = slotElements(beat, L, helpers.images, block.bounds);
+    if (slotted.length && windowEnd - windowStart > 0.2) layers.push({ start: windowStart, end: windowEnd, fade: Math.min(animation.fade, (windowEnd - windowStart) / 2), ...(motion ? { motion } : {}), elements: slotted });
+    for (const placed of (beat.images || []).filter((item) => !item.slot)) {
       const image = helpers.images?.get(placed.imageId);
       if (!image) throw new Error('An image in this storyboard is no longer in the image library.');
       const width = Math.round(placed.width * L.W);
@@ -344,5 +426,5 @@ function loudnessFor(destination, music, LOUDNESS) {
 module.exports = {
   BRAND_THEME, ANIMATIONS, POSITIONS, ALIGNS, REVEALS, LOGO_PLACEMENTS, BUG_POSITIONS, MUSIC_MOODS, KINDS, NAMED_FILLS,
   DesignError, sanitizeImages, isStyled, clipsOf, footageShots, sanitizeTheme, sanitizeBranding, sanitizeMusic, sanitizeStyle, sanitizeText, sanitizeStoryboard,
-  placeholders, safeArea, styledComposition, loudnessFor,
+  placeholders, safeArea, styledComposition, loudnessFor, textBlock, slotReserve, SLOTS,
 };

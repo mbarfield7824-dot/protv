@@ -45,6 +45,9 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   router.post('/preview', handle('preview', (req) => service.previewPlan(req.body || {})));
   router.get('/design', handle('design options', () => service.designOptions()));
   router.get('/images', handle('image list', () => service.listImages()));
+  router.get('/maker/usage', handle('AI usage', () => service.makerUsage()));
+  router.post('/maker', handle('Commercial Maker', (req) => service.makerCreate(req.body || {}, actor(req))));
+  router.post('/commercials/:id/maker/revise', handle('Commercial Maker revision', (req) => service.makerRevise(req.params.id, req.body || {}, actor(req))));
   router.post('/images', handle('image upload', (req) => service.uploadImage(req.body || {}, actor(req))));
   router.delete('/images/:id', handle('image', (req) => service.deleteImage(req.params.id, actor(req))));
   router.get('/templates', handle('template list', () => service.listTemplates()));

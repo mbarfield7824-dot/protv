@@ -106,13 +106,13 @@ export function CommercialPreview({ draft, durationSeconds, onRights }) {
   );
 }
 
-function PreviewShot({ shot, offset }) {
+export function PreviewShot({ shot, offset }) {
   if (shot.kind === 'card') return <div className="cd-shot" style={{ background: `linear-gradient(135deg, ${shot.colors[0]}, ${shot.colors[1]})` }} />;
   if (shot.token) return <div className="cd-shot cd-shot--signed">Signed footage (preview after render)</div>;
   return <img className="cd-shot" alt="" src={thumb(shot.playbackId, shot.startSeconds + offset, 640)} style={{ objectPosition: `${(shot.focusX ?? 0.5) * 100}% 50%` }} />;
 }
 
-function PreviewElement({ element, scale }) {
+export function PreviewElement({ element, scale }) {
   const box = { position: 'absolute', left: element.x * scale, top: element.y * scale };
   if (element.type === 'rect') return <div style={{ ...box, width: element.width * scale, height: element.height * scale, background: element.color, opacity: element.opacity, borderRadius: (element.radius || 0) * scale }} />;
   if (element.type === 'gradient') {
@@ -204,7 +204,13 @@ function SegmentImages({ beat, library, onChange }) {
   return (
     <details className="cd-details" open={placed.length > 0}>
       <summary>Images ({placed.length}): badges, app screenshots, logos</summary>
-      {placed.map((item, index) => (
+      {placed.map((item, index) => (item.slot ? (
+        <div key={index} className="cd-grid cd-image-row">
+          <p className="ms-muted">{library.find((image) => image.id === item.imageId)?.name || 'Image'}: placed automatically for each format ({item.slot}).</p>
+          <button type="button" className="ms-secondary" onClick={() => set(index, { slot: undefined })}>Place by hand</button>
+          <button type="button" className="ms-danger" aria-label="Remove image" onClick={() => onChange({ ...beat, images: placed.filter((_, i) => i !== index) })}>✕</button>
+        </div>
+      ) : (
         <div key={index} className="cd-grid cd-image-row">
           <Field label="Image"><select value={item.imageId} onChange={(event) => set(index, { imageId: event.target.value })}>
             {!library.find((image) => image.id === item.imageId) && <option value={item.imageId}>(missing image)</option>}
@@ -217,7 +223,7 @@ function SegmentImages({ beat, library, onChange }) {
           <label className="ms-check"><input type="checkbox" checked={item.shadow === true} onChange={(event) => set(index, { shadow: event.target.checked })} /> Shadow</label>
           <button type="button" className="ms-danger" aria-label="Remove image" onClick={() => onChange({ ...beat, images: placed.filter((_, i) => i !== index) })}>✕</button>
         </div>
-      ))}
+      )))}
       <button type="button" className="ms-secondary" disabled={!library.length || placed.length >= 4} onClick={() => onChange({ ...beat, images: [...placed, { imageId: library[0].id, x: 0.5, y: 0.5, width: library[0].kind === 'screenshot' ? 0.22 : 0.25, frame: library[0].kind === 'screenshot' ? 'phone' : 'none', shadow: library[0].kind === 'screenshot' }] })}>Add image</button>
       {!library.length && <p className="studio-hint ms-muted">Upload an image to the image library first.</p>}
     </details>
