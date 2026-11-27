@@ -233,16 +233,19 @@ function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
   const role = (name, value, size, lineHeight, spacing, weight) => {
     if (!value) return;
     const parts = name === 'hero' && style.reveal === 'stagger' ? value.split(/(?<=[.!?])\s+/).filter(Boolean) : [value];
-    const fitted = parts.map((part) => fitText(part, Math.round(size * scale), width, { maxLines: 3, spacing }));
+    // Balanced (Commercial Maker) segments plan their lines on 88% of the width: bold capitals in the real font run
+    // wider than the estimate, and a line the renderer has to re-wrap would run into the line below.
+    const fitWidth = style.balance ? Math.round(width * 0.88) : width;
+    const fitted = parts.map((part) => fitText(part, Math.round(size * scale), fitWidth, { maxLines: 3, spacing }));
     const common = Math.min(...fitted.map((item) => item.size));
     parts.forEach((part) => {
-      let fit = fitText(part, common, width, { maxLines: 3, spacing });
+      let fit = fitText(part, common, fitWidth, { maxLines: 3, spacing });
       let fitted = style.balance ? balanceLines(fit.text) : fit.text;
       // Balanced segments keep full-size type when even lines work ("THE WAIT / IS OVER."); only a line that still
       // strands a word takes one line fewer at up to 25% smaller type.
-      if (style.balance && fit.lines > 1 && strandedLine(fitted)) {
+      if (style.balance && fit.lines > 1 && (strandedLine(fitted) || fit.lines >= 3)) {
         for (let size = fit.size - 4; size >= Math.round(common * 0.75); size -= 4) {
-          const tighter = fitText(part, size, width, { maxLines: fit.lines - 1, spacing });
+          const tighter = fitText(part, size, fitWidth, { maxLines: fit.lines - 1, spacing });
           if (tighter.lines < fit.lines && tighter.size === size) { fit = tighter; fitted = balanceLines(tighter.text); break; }
         }
       }
