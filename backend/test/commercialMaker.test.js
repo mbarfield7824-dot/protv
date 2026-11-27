@@ -199,3 +199,11 @@ test('balanced line breaks keep the fitted size and never strand a word (maker s
   assert.equal(maker.strandedLine(balanced.text), false, balanced.text);
   assert.ok(Math.max(...balanced.text.split('\n').map((line) => line.length)) <= Math.max(...plain.text.split('\n').map((line) => line.length)));
 });
+
+test('promotions use PROtv originals; classic films only when the request is about classics', () => {
+  const footage = [{ title: 'The Lost Camp', creator: true }, { title: 'His Girl Friday (1940)', creator: false }];
+  const plan = (titles) => ({ segments: [{ visual: 'footage', seconds: 8, hero: 'MOVIES', footage: titles }, { visual: 'cta', seconds: 4, hero: 'WATCHPROTV.COM' }] });
+  assert.match(maker.critique(plan(['The Lost Camp', 'His Girl Friday (1940)']), 'App launch spot with real PROtv content.', footage).join(' '), /classic public-domain films \(His Girl Friday \(1940\)\)/);
+  assert.deepEqual(maker.critique(plan(['His Girl Friday (1940)']), 'A classics night promo with clips.', footage), []);
+  assert.deepEqual(maker.critique(plan(['The Lost Camp']), 'App launch spot with real PROtv content.', footage), []);
+});

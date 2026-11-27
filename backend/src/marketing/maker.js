@@ -68,7 +68,7 @@ function systemPrompt() {
     'Structure: one message per segment, never two messages in one segment. If the request lists messages, each listed message gets its own segment, in order, with its words kept; split a listed message into kicker + hero where it reads naturally (e.g. "NOW ON" / "iPHONE & iPAD", "PREMIERE WEEK" / "DECEMBER 1").',
     'Rhythm: vary lengths like a real spot: a fast hook (2-4 s), quick beats for short lines, a longer content or montage moment (6-10 s), and a call to action of 4-6 s. Never make every segment the same length.',
     'Visuals: match each visual to its message. "card" = bold typography on brand colour; "product" = app screenshots in device frames (use where the message is about the app, phones, tablets or devices); "image" = artwork, poster or photo from the image library; "footage" = clips from cleared titles (use where the message is about movies, series, shows, content or a title); "cta" = closing card with logo and optional badge image; "logo" = logo reveal.',
-    'Footage is optional: use it when the commercial is about a title, a premiere or the catalogue, or when the request asks to show content, clips, movies or shows. Otherwise graphics, product shots or artwork often work better. Pick 2-3 varied titles for a montage.',
+    'Footage is optional: use it when the commercial is about a title, a premiere or the catalogue, or when the request asks to show content, clips, movies or shows. Otherwise graphics, product shots or artwork often work better. Pick 2-3 varied titles for a montage: PROtv originals for anything promoting PROtv today; classic films only when the request is about classics, nostalgia or a specific classic.',
     'The request\'s explicit instructions always win (wording, order, length, what to show or avoid).',
     'Truth: use only facts from the request and from the PROtv facts list. Never invent dates, prices, rankings, awards, audience numbers, availability or features. Never use banned claims.',
     'Use only footage titles and image ids from the inventory, written exactly. Badges go in the cta segment; screenshots in product segments.',
@@ -83,7 +83,7 @@ function systemPrompt() {
 }
 
 function inventory({ footage, images }) {
-  const titles = footage.slice(0, 30).map((item) => `- ${item.title} (${item.contentType === 'EPISODE' ? 'episode' : String(item.contentType || 'title').toLowerCase()}${item.genre ? `, ${item.genre}` : ''})`);
+  const titles = footage.slice(0, 30).map((item) => `- ${item.title} (${item.creator ? 'PROtv original' : 'classic film, public domain'}, ${item.contentType === 'EPISODE' ? 'episode' : String(item.contentType || 'title').toLowerCase()}${item.genre ? `, ${item.genre}` : ''})`);
   const library = images.slice(0, 30).map((image) => `- ${image.id}: ${image.name} (${image.kind}, ${image.height > image.width * 1.2 ? 'portrait' : image.width > image.height * 1.2 ? 'landscape' : 'square'})`);
   return [
     'PROtv facts:', ...FACTS.map((fact) => `- ${fact}`),
@@ -193,8 +193,12 @@ function listedMessages(request) {
   return parts.length >= 2 ? parts : [];
 }
 const squash = (value) => norm(value).replace(/[^a-z0-9&%]+/g, ' ').trim();
-function critique(plan, request) {
+const WANTS_CLASSICS = /\b(classic|vintage|retro|old[- ]school|nostalgi|black[- ]and[- ]white|golden age|public domain)/i;
+function critique(plan, request, footage = []) {
   const problems = [];
+  const classics = new Set(footage.filter((item) => !item.creator).map((item) => item.title));
+  const usedClassics = [...new Set(plan.segments.flatMap((segment) => segment.footage || []).filter((title) => classics.has(title)))];
+  if (usedClassics.length && !WANTS_CLASSICS.test(request)) problems.push(`The montage uses classic public-domain films (${usedClassics.join(', ')}). For a PROtv promotion use PROtv originals instead.`);
   if (WANTS_FOOTAGE.test(request) && !plan.segments.some((segment) => segment.visual === 'footage')) problems.push('The request asks to show real PROtv content, but the plan has no footage segment. Add one (2-3 varied cleared titles) where the message is about the content.');
   const messages = listedMessages(request);
   for (const message of messages) {

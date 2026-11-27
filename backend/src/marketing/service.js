@@ -499,7 +499,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     calls.push(await aiCall(system, user));
     let plan = parse(calls[0].json);
     let problems = maker.claimProblems(plan, sources);
-    const review = maker.critique(plan, requestText);
+    const review = maker.critique(plan, requestText, ctx.footage);
     if (problems.length || review.length) {
       calls.push(await aiCall(system, `${user}\n\nYour plan: ${JSON.stringify(plan)}\n\n${maker.repairPrompt([...problems, ...review])}`));
       const repaired = parse(calls[1].json);
