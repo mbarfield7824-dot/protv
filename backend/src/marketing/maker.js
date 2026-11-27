@@ -217,6 +217,11 @@ function critique(plan, request, footage = []) {
 // Hierarchy in code: every message has a hero; a lone kicker becomes the hero, split at a separator or a lead phrase.
 const LEADS = ['now streaming on', 'now on', 'available on', 'coming to', 'only on', 'watch free at', 'watch free on', 'stream free at'];
 function hierarchy(segment) {
+  // A main line with a separator ("PREMIERE WEEK • DECEMBER 1") reads better as a kicker over the hero.
+  if (segment.hero && !segment.headline) {
+    const split = segment.hero.match(/^(.{3,40}?)\s*[•|—–]\s*(.{1,60})$/);
+    return split ? { ...segment, headline: split[1].trim(), hero: split[2].trim() } : segment;
+  }
   if (segment.hero || !segment.headline) return segment;
   const text = segment.headline;
   const separator = text.match(/^(.{3,40}?)\s*[•|:—–]\s*(.{1,60})$/);
@@ -224,6 +229,24 @@ function hierarchy(segment) {
   const lead = LEADS.find((phrase) => norm(text).startsWith(`${phrase} `));
   if (lead) return { ...segment, headline: text.slice(0, lead.length).trim(), hero: text.slice(lead.length).trim() };
   return { ...segment, headline: '', hero: text };
+}
+
+// Words belong over the picture: a wordless montage takes the content message of the card right after (or before)
+// it, and that card's time joins the montage.
+const CONTENT_WORDS = /\b(movies?|series|films?|shows?|stories|content|watch|catalog(ue)?|titles?|originals?)\b/i;
+function wordsOverFootage(segments) {
+  const out = segments.map((segment) => ({ ...segment }));
+  for (let index = 0; index < out.length; index += 1) {
+    const montage = out[index];
+    if (montage.visual !== 'footage' || montage.hero || montage.headline) continue;
+    const neighbour = [index + 1, index - 1].find((other) => out[other] && out[other].visual === 'card' && CONTENT_WORDS.test(`${out[other].headline} ${out[other].hero}`));
+    if (neighbour === undefined) continue;
+    const card = out[neighbour];
+    Object.assign(montage, { headline: card.headline, hero: card.hero, sub: card.sub || montage.sub, seconds: montage.seconds + card.seconds, energy: card.energy === 'punch' ? 'punch' : montage.energy });
+    out.splice(neighbour, 1);
+    if (neighbour < index) index -= 1;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- timing
@@ -313,11 +336,12 @@ function direct(plan, { footage, images, moments }) {
   const theme = design.sanitizeTheme(palette.theme);
   const library = new Map(images.map((image) => [image.id, image]));
   const imageSizes = new Map(images.map((image) => [image.id, { width: image.width, height: image.height, url: '' }]));
-  const seconds = timeSegments(plan.segments, plan.durationSeconds);
+  const segments = wordsOverFootage(plan.segments).map(hierarchy);
+  const seconds = timeSegments(segments, plan.durationSeconds);
   const used = new Map();
   const checks = [];
   let previous = '';
-  const storyboard = plan.segments.map(hierarchy).map((segment, index) => {
+  const storyboard = segments.map((segment, index) => {
     const options = ANIMATION_FOR[segment.energy] || ANIMATION_FOR.build;
     const animation = options.find((name) => name !== previous) || options[0];
     previous = animation;
@@ -390,6 +414,6 @@ const monthKey = (date) => new Date(date).toISOString().slice(0, 7);
 
 module.exports = {
   PRICES, MONTHLY_CAP_USD, MAX_TOKENS, PALETTES, FACTS, MakerError,
-  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, critique, listedMessages, hierarchy, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
+  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, critique, listedMessages, hierarchy, wordsOverFootage, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
   estimateUsd, actualUsd, monthKey,
 };

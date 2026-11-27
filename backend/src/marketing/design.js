@@ -227,7 +227,14 @@ function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
     const fitted = parts.map((part) => fitText(part, Math.round(size * scale), width, { maxLines: 3, spacing }));
     const common = Math.min(...fitted.map((item) => item.size));
     parts.forEach((part) => {
-      const fit = fitText(part, common, width, { maxLines: 3, spacing });
+      let fit = fitText(part, common, width, { maxLines: 3, spacing });
+      // Balanced segments prefer one line fewer at up to 25% smaller type over a short last line.
+      if (style.balance && fit.lines > 1) {
+        for (let size = fit.size - 4; size >= Math.round(common * 0.75); size -= 4) {
+          const tighter = fitText(part, size, width, { maxLines: fit.lines - 1, spacing });
+          if (tighter.lines < fit.lines && tighter.size === size) { fit = tighter; break; }
+        }
+      }
       const fitted = style.balance ? balanceLines(fit.text) : fit.text;
       items.push({ role: name, text: fitted, size: fit.size, lines: fit.lines, height: Math.round(fit.size * lineHeight * fit.lines), spacing, weight });
     });

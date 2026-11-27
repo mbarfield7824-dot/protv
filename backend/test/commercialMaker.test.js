@@ -207,3 +207,20 @@ test('promotions use PROtv originals; classic films only when the request is abo
   assert.deepEqual(maker.critique(plan(['His Girl Friday (1940)']), 'A classics night promo with clips.', footage), []);
   assert.deepEqual(maker.critique(plan(['The Lost Camp']), 'App launch spot with real PROtv content.', footage), []);
 });
+
+test('words go over the picture, kickers split at a bullet, and a three-line end card drops to two lines', () => {
+  const merged = maker.wordsOverFootage([
+    { visual: 'card', seconds: 3, hero: 'HOOK' },
+    { visual: 'footage', seconds: 6, hero: '', headline: '', footage: ['The Lost Camp'] },
+    { visual: 'card', seconds: 3, hero: 'MOVIES. SERIES. LIVE TV.', energy: 'punch' },
+    { visual: 'card', seconds: 3, hero: '100% FREE.' },
+  ]);
+  assert.equal(merged.length, 3);
+  assert.deepEqual([merged[1].visual, merged[1].hero, merged[1].seconds, merged[1].energy], ['footage', 'MOVIES. SERIES. LIVE TV.', 9, 'punch']);
+  assert.deepEqual(maker.hierarchy({ headline: '', hero: 'PREMIERE WEEK • DECEMBER 1' }), { headline: 'PREMIERE WEEK', hero: 'DECEMBER 1' });
+  const design = require('../src/marketing/design');
+  const L = planner.layout('vertical');
+  const cta = { kind: 'cta', text: { hero: 'DOWNLOAD PROtv STREAMING TODAY', sub: 'watchprotv.com' }, style: design.sanitizeStyle({ logo: 'above', balance: true }) };
+  const hero = design.textBlock(cta, L, design.sanitizeTheme({}), { fitText: planner.fitText, CHAR_EM: 0.64, bottomLimit: L.H - design.safeArea(L).bottom - 260 }).elements.map((item) => item.element).find((element) => element.type === 'text');
+  assert.equal(maker.strandedLine(hero.text), false, hero.text);
+});
