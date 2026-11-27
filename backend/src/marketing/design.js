@@ -118,6 +118,16 @@ function sanitizeText(input = {}) {
   for (const [key, max] of [['headline', 120], ['hero', 140], ['sub', 160]]) { const value = str(input[key], max); if (value) out[key] = value; }
   return out;
 }
+// Image layers (badges, app screenshots, logos): centre point and width as fractions of the frame.
+const FRAMES = ['none', 'phone', 'tablet'];
+function sanitizeImages(input) {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 4).filter((item) => /^mi_[a-f0-9]{20}$/.test(String(item?.imageId || ''))).map((item) => ({
+    imageId: item.imageId, x: clamp(item.x, 0, 1, 0.5), y: clamp(item.y, 0, 1, 0.5), width: clamp(item.width, 0.04, 1, 0.3),
+    frame: FRAMES.includes(item.frame) ? item.frame : 'none', shadow: item.shadow === true,
+  }));
+}
+
 function sanitizeClip(input = {}) {
   const clip = {
     videoId: str(input.videoId, 200), sourceTitle: str(input.sourceTitle, 200),
@@ -147,6 +157,8 @@ function sanitizeStoryboard(input, { durationSeconds }) {
     if (beat.durationSeconds > 20 && kind !== 'footage') throw new DesignError(`Segment ${index + 1} is longer than 20 seconds.`);
     if (beat.style.textIn + beat.style.textOut > beat.durationSeconds - 0.3) { beat.style.textIn = 0; beat.style.textOut = 0; }
     if (raw.impact) beat.impact = true;
+    const images = sanitizeImages(raw.images);
+    if (images.length) beat.images = images;
     return beat;
   });
   const total = tenth(beats.reduce((sum, beat) => sum + beat.durationSeconds, 0));
@@ -295,6 +307,16 @@ function styledComposition(commercial, beats, L, format, { videos, tokens, helpe
         if (elements.length && windowEnd - start > 0.2) layers.push({ start, end: windowEnd, fade: Math.min(animation.fade, (windowEnd - start) / 2), ...(motion ? { motion } : {}), elements });
       }
     }
+    // Image layers share the segment's text timing and animation.
+    for (const placed of beat.images || []) {
+      const image = helpers.images?.get(placed.imageId);
+      if (!image) throw new Error('An image in this storyboard is no longer in the image library.');
+      const width = Math.round(placed.width * L.W);
+      const bezel = placed.frame === 'phone' ? Math.max(6, Math.round(width * 0.04)) : placed.frame === 'tablet' ? Math.max(6, Math.round(width * 0.03)) : 0;
+      const height = Math.round((width - 2 * bezel) * (image.height / image.width) + 2 * bezel);
+      const element = { type: 'image', url: image.url, x: Math.round(placed.x * L.W - width / 2), y: Math.round(placed.y * L.H - height / 2), width, height, frame: placed.frame, radius: 0, shadow: placed.shadow };
+      if (windowEnd - windowStart > 0.2) layers.push({ start: windowStart, end: windowEnd, fade: Math.min(animation.fade, (windowEnd - windowStart) / 2), ...(motion ? { motion } : {}), elements: [element] });
+    }
     // A creator excerpt's title stays on screen for the whole clip (agreement condition).
     if (beat.kind === 'footage') {
       let clipAt = beat.start;
@@ -321,6 +343,6 @@ function loudnessFor(destination, music, LOUDNESS) {
 
 module.exports = {
   BRAND_THEME, ANIMATIONS, POSITIONS, ALIGNS, REVEALS, LOGO_PLACEMENTS, BUG_POSITIONS, MUSIC_MOODS, KINDS, NAMED_FILLS,
-  DesignError, isStyled, clipsOf, footageShots, sanitizeTheme, sanitizeBranding, sanitizeMusic, sanitizeStyle, sanitizeText, sanitizeStoryboard,
+  DesignError, sanitizeImages, isStyled, clipsOf, footageShots, sanitizeTheme, sanitizeBranding, sanitizeMusic, sanitizeStyle, sanitizeText, sanitizeStoryboard,
   placeholders, safeArea, styledComposition, loudnessFor,
 };

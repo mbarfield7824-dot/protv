@@ -211,3 +211,38 @@ test('after a render is handed to Mux, refresh follows Mux until the copy is pro
   assert.equal(renderStatusCalls, calls, 'a finished render is not polled again');
   assert.equal(muxAssets.size, 2, 'each render is copied to Mux once');
 });
+
+test('image library: upload re-encodes, signed links only, images placed and framed in the render plan', async () => {
+  const sharp = require('sharp');
+  const images = require('../src/marketing/images');
+  const store = new MemoryMarketingStore();
+  const catalog = [video(CAESAR), video(CURTAIN), video(THIRTY)];
+  const portal = { configured: () => true, submitRender: async (plan) => ({ id: plan.id, status: 'queued' }), renderStatus: async () => ({}), fileUrl: () => '' };
+  const service = createMarketingService({ store, portal, loadCatalog: async () => catalog, now: () => NOW, imageSecret: () => 'k'.repeat(43), siteBase: () => 'https://watchprotv.com' });
+  const png = await sharp({ create: { width: 1080, height: 1920, channels: 4, background: { r: 10, g: 20, b: 30, alpha: 0.9 } } }).png().toBuffer();
+  await assert.rejects(service.uploadImage({ name: 'Shot', kind: 'screenshot', dataBase64: png.toString('base64') }, 'a'), /where the image comes from/);
+  await assert.rejects(service.uploadImage({ name: 'Bad', kind: 'other', source: 'x', dataBase64: Buffer.from('not an image').toString('base64') }, 'a'), /not a readable image/);
+  const shot = await service.uploadImage({ name: 'Home screen', kind: 'screenshot', source: 'PROtv app screenshot', dataBase64: `data:image/png;base64,${png.toString('base64')}` }, 'a');
+  assert.equal(shot.mime, 'image/png');
+  assert.ok(shot.width <= 2000 && shot.height <= 2000 && !('data' in shot));
+  assert.match(shot.previewUrl, /^https:\/\/watchprotv\.com\/api\/marketing\/images\/mi_[a-f0-9]{20}\.png\?expires=\d{13}&signature=[0-9a-f]{64}$/);
+  const url = new URL(shot.previewUrl);
+  const ok = { id: shot.id, expires: url.searchParams.get('expires'), signature: url.searchParams.get('signature') };
+  assert.equal(images.verifyImageRequest(ok, { secret: 'k'.repeat(43), now: NOW }), true);
+  assert.equal(images.verifyImageRequest({ ...ok, signature: '0'.repeat(64) }, { secret: 'k'.repeat(43), now: NOW }), false);
+  assert.equal(images.verifyImageRequest(ok, { secret: 'k'.repeat(43), now: NOW + 2 * 3600_000 }), false, 'expired');
+
+  const base = await service.createCommercial({ category: 'custom', templateId: 'custom', durationSeconds: 15 }, 'a');
+  const storyboard = structuredClone(base.storyboard);
+  storyboard[0].images = [{ imageId: shot.id, x: 0.7, y: 0.5, width: 0.2, frame: 'phone', shadow: true }, { imageId: 'nope', x: 0.5, y: 0.5, width: 0.1 }];
+  const saved = await service.updateStoryboard(base.id, storyboard, 'a');
+  assert.equal(saved.storyboard[0].images.length, 1, 'invalid image ids are dropped');
+  const { plan } = await service.previewPlan({ storyboard: saved.storyboard, theme: saved.theme, branding: saved.branding, music: saved.music, durationSeconds: 15, format: 'widescreen' });
+  const element = plan.layers.flatMap((layer) => layer.elements).find((item) => item.type === 'image');
+  assert.equal(element.frame, 'phone');
+  assert.equal(element.width, 384);
+  assert.ok(element.height > element.width * 1.7, 'portrait screenshot keeps its shape');
+  assert.equal(Math.round(element.x + element.width / 2), 1344);
+  assert.match(element.url, /^https:\/\/watchprotv\.com\/api\/marketing\/images\//);
+  await assert.rejects(service.deleteImage(shot.id, 'a'), /used by/);
+});

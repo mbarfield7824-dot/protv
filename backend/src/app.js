@@ -44,6 +44,8 @@ app.use((req, res, next) => {
 const reportRouters = createReportRouters();
 app.use(`${apiPrefix}/reports`, reportRouters.publicRouter);
 app.use(`${apiPrefix}/admin/reports`, reportRouters.adminRouter);
+// Marketing Studio image uploads (base64, at most 3 MB of image) need a larger body than the default 100 KB.
+app.use(`${apiPrefix}/admin/marketing/images`, express.json({ limit: '4.5mb' }));
 app.use(express.json({
   verify: (request, response, buffer) => {
     request.rawBody = Buffer.from(buffer);

@@ -150,14 +150,14 @@ function srt(captions) {
   return captions.map((cue, index) => `${index + 1}\n${stamp(cue.start)} --> ${stamp(cue.end)}\n${cue.text}\n`).join('\n');
 }
 
-function renderPlan(commercial, format, { destination = 'social', videos = new Map(), tokens = new Map() } = {}) {
+function renderPlan(commercial, format, { destination = 'social', videos = new Map(), tokens = new Map(), images = new Map() } = {}) {
   if (!FORMATS[format]) throw new Error(`Unknown format ${format}.`);
   const L = layout(format);
   const beats = timeline(commercial.storyboard);
   const total = round3(beats.reduce((sum, beat) => sum + beat.durationSeconds, 0));
   if (frames(total) !== total * FPS && Math.abs(frames(total) / FPS - total) > 1e-6) throw new Error('The storyboard must land on whole frames.');
   if (design.isStyled(commercial)) {
-    const { shots, layers } = design.styledComposition(commercial, beats, L, format, { videos, tokens, helpers: { fitText, CHAR_EM } });
+    const { shots, layers } = design.styledComposition(commercial, beats, L, format, { videos, tokens, helpers: { fitText, CHAR_EM, images } });
     const music = design.sanitizeMusic(commercial.music || {});
     const logo = beats.find((beat) => beat.kind === 'logo' || beat.kind === 'cta');
     const body = {

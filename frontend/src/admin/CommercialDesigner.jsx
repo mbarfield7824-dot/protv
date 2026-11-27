@@ -119,6 +119,16 @@ function PreviewElement({ element, scale }) {
     const rgba = (hex, alpha) => `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, ${alpha})`;
     return <div style={{ ...box, width: element.width * scale, height: element.height * scale, background: `linear-gradient(${element.vertical === false ? 'to right' : 'to bottom'}, ${rgba(element.from, element.fromOpacity)}, ${rgba(element.to, element.toOpacity)})` }} />;
   }
+  if (element.type === 'image') {
+    const bezel = element.frame === 'phone' ? Math.max(6, Math.round(element.width * 0.04)) : element.frame === 'tablet' ? Math.max(6, Math.round(element.width * 0.03)) : 0;
+    const radius = element.frame === 'phone' ? element.width * 0.13 : element.frame === 'tablet' ? element.width * 0.05 : element.radius || 0;
+    return (
+      <div style={{ ...box, width: element.width * scale, height: element.height * scale, borderRadius: radius * scale, padding: bezel * scale, boxSizing: 'border-box',
+        background: bezel ? 'linear-gradient(135deg, #d9dee6, #7d8794 50%, #d9dee6)' : 'transparent', boxShadow: element.shadow || bezel ? `0 ${8 * scale}px ${40 * scale}px rgba(0,0,0,0.65)` : 'none' }}>
+        <img alt="" src={element.url} style={{ width: '100%', height: '100%', objectFit: bezel ? 'cover' : 'contain', objectPosition: 'top', borderRadius: Math.max(0, radius - bezel) * scale, display: 'block', background: bezel ? '#05070b' : 'transparent' }} />
+      </div>
+    );
+  }
   if (element.type === 'logo') return <img alt="PROtv" src="/brand/protv-logo-480.webp" style={{ ...box, width: element.width * scale, filter: element.glow ? `drop-shadow(0 0 ${Math.max(2, element.width * scale / 20)}px rgba(30, 144, 255, 0.7))` : undefined }} />;
   const glow = element.glow ? `drop-shadow(0 0 ${Math.max(2, element.size * scale / 6)}px ${element.glowColor || '#1e90ff'})` : '';
   const shadow = element.shadow === false ? '' : `drop-shadow(${element.size * scale / 30}px ${element.size * scale / 22}px ${Math.max(1, element.size * scale / 14)}px rgba(0, 0, 0, 0.9))`;
@@ -188,7 +198,99 @@ function ClipRow({ clip, index, count, footage, onChange, onMove, onRemove }) {
   );
 }
 
-function SegmentCard({ beat, index, count, start, footage, options, onChange, onMove, onRemove }) {
+function SegmentImages({ beat, library, onChange }) {
+  const placed = beat.images || [];
+  const set = (index, patch) => onChange({ ...beat, images: placed.map((item, i) => (i === index ? { ...item, ...patch } : item)) });
+  return (
+    <details className="cd-details" open={placed.length > 0}>
+      <summary>Images ({placed.length}): badges, app screenshots, logos</summary>
+      {placed.map((item, index) => (
+        <div key={index} className="cd-grid cd-image-row">
+          <Field label="Image"><select value={item.imageId} onChange={(event) => set(index, { imageId: event.target.value })}>
+            {!library.find((image) => image.id === item.imageId) && <option value={item.imageId}>(missing image)</option>}
+            {library.map((image) => <option key={image.id} value={image.id}>{image.name}</option>)}
+          </select></Field>
+          <Slider label="Left ↔ right" value={item.x} min={0} max={1} step={0.01} onChange={(value) => set(index, { x: value })} format={(v) => `${Math.round(v * 100)}%`} />
+          <Slider label="Top ↕ bottom" value={item.y} min={0} max={1} step={0.01} onChange={(value) => set(index, { y: value })} format={(v) => `${Math.round(v * 100)}%`} />
+          <Slider label="Width" value={item.width} min={0.04} max={1} step={0.01} onChange={(value) => set(index, { width: value })} format={(v) => `${Math.round(v * 100)}% of the frame`} />
+          <Field label="Frame"><select value={item.frame || 'none'} onChange={(event) => set(index, { frame: event.target.value })}><option value="none">None</option><option value="phone">Phone</option><option value="tablet">Tablet</option></select></Field>
+          <label className="ms-check"><input type="checkbox" checked={item.shadow === true} onChange={(event) => set(index, { shadow: event.target.checked })} /> Shadow</label>
+          <button type="button" className="ms-danger" aria-label="Remove image" onClick={() => onChange({ ...beat, images: placed.filter((_, i) => i !== index) })}>✕</button>
+        </div>
+      ))}
+      <button type="button" className="ms-secondary" disabled={!library.length || placed.length >= 4} onClick={() => onChange({ ...beat, images: [...placed, { imageId: library[0].id, x: 0.5, y: 0.5, width: library[0].kind === 'screenshot' ? 0.22 : 0.25, frame: library[0].kind === 'screenshot' ? 'phone' : 'none', shadow: library[0].kind === 'screenshot' }] })}>Add image</button>
+      {!library.length && <p className="studio-hint ms-muted">Upload an image to the image library first.</p>}
+    </details>
+  );
+}
+
+// Image library: images are shrunk in the browser (longest side 2000 px) before upload; the server re-encodes them.
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('The file could not be read.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file is not an image the browser can read.'));
+      img.onload = () => {
+        const scale = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.9));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+export function ImageLibrary({ library, onChanged }) {
+  const [form, setForm] = useState({ name: '', kind: 'screenshot', source: '' });
+  const [state, setState] = useState({ busy: false, error: '', message: '' });
+  const fileRef = useRef(null);
+  const upload = async (event) => {
+    event.preventDefault();
+    const file = fileRef.current?.files?.[0];
+    if (!file) { setState({ busy: false, error: 'Choose an image file.', message: '' }); return; }
+    setState({ busy: true, error: '', message: '' });
+    try {
+      const dataBase64 = await shrinkImage(file);
+      await call('images', { method: 'POST', body: { ...form, name: form.name || file.name.replace(/\.[^.]+$/, ''), dataBase64 } });
+      setForm({ name: '', kind: form.kind, source: form.source });
+      if (fileRef.current) fileRef.current.value = '';
+      setState({ busy: false, error: '', message: 'Added to the image library.' });
+      onChanged?.();
+    } catch (error) { setState({ busy: false, error: error.message, message: '' }); }
+  };
+  const remove = async (image) => {
+    if (!window.confirm(`Remove "${image.name}" from the image library?`)) return;
+    try { await call(`images/${image.id}`, { method: 'DELETE' }); onChanged?.(); } catch (error) { setState({ busy: false, error: error.message, message: '' }); }
+  };
+  return (
+    <details className="cd-details">
+      <summary>Image library ({library.length}): App Store badge, app screenshots, logos</summary>
+      <form className="cd-grid" onSubmit={upload}>
+        <Field label="Image file (PNG, JPEG or WebP)"><input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" /></Field>
+        <Field label="Name"><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g. App Store badge" /></Field>
+        <Field label="Type"><select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>{['badge', 'screenshot', 'logo', 'photo', 'other'].map((kind) => <option key={kind} value={kind}>{label(kind)}</option>)}</select></Field>
+        <Field label="Source and permission (required)"><input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="e.g. Apple official badge, unmodified" /></Field>
+        <button type="submit" className="ms-primary" disabled={state.busy}>{state.busy ? 'Uploading…' : 'Add image'}</button>
+      </form>
+      {state.error && <p className="ms-notice ms-notice--error" role="alert">{state.error}</p>}
+      {state.message && <p className="ms-notice">{state.message}</p>}
+      <div className="cd-image-library">{library.map((image) => (
+        <figure key={image.id} className="cd-image-card">
+          {image.previewUrl ? <img alt="" src={image.previewUrl} /> : <div className="ms-beat-card">No preview</div>}
+          <figcaption><strong>{image.name}</strong><span className="ms-muted">{label(image.kind)} · {image.width}×{image.height}</span><span className="ms-muted">{image.source}</span>
+            <button type="button" className="ms-link" onClick={() => remove(image)}>Remove</button></figcaption>
+        </figure>
+      ))}</div>
+    </details>
+  );
+}
+
+function SegmentCard({ beat, index, count, start, footage, options, library = [], onChange, onMove, onRemove }) {
   const seconds = segmentSeconds(beat);
   const setText = (key, value) => onChange({ ...beat, text: { ...(beat.text || {}), [key]: value } });
   const clips = beat.clips || [];
@@ -213,6 +315,7 @@ function SegmentCard({ beat, index, count, start, footage, options, onChange, on
         {beat.kind !== 'footage' && <Field label="Length (s)"><input type="number" min="0.5" max="20" step="0.1" value={beat.durationSeconds} onChange={(event) => onChange({ ...beat, durationSeconds: tenth(event.target.value) })} /></Field>}
       </div>
       <TextStyle style={beat.style || {}} kind={beat.kind} options={options} onStyle={(style) => onChange({ ...beat, style })} />
+      <SegmentImages beat={beat} library={library} onChange={onChange} />
       {beat.kind === 'footage' && (
         <div className="cd-clips">
           {clips.map((clip, clipIndex) => (
@@ -268,6 +371,9 @@ export function StyledEditor({ commercial, footage, onSaved, onDirty }) {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState({ error: '', message: '' });
   const options = useOnce('design').data;
+  const [library, setLibrary] = useState([]);
+  const [libraryVersion, setLibraryVersion] = useState(0);
+  useEffect(() => { let live = true; call('images').then((data) => live && setLibrary(data || [])).catch(() => {}); return () => { live = false; }; }, [libraryVersion]);
   const changed = JSON.stringify(draft) !== JSON.stringify(initial);
   useEffect(() => { onDirty?.(changed); }, [changed]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = totalSeconds(draft.storyboard);
@@ -286,6 +392,7 @@ export function StyledEditor({ commercial, footage, onSaved, onDirty }) {
         </div>
         <Field label="Commercial name"><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></Field>
         <ThemeFields theme={draft.theme || {}} onTheme={(theme) => setDraft({ ...draft, theme })} branding={draft.branding} onBranding={(branding) => setDraft({ ...draft, branding })} music={draft.music || {}} onMusic={(music) => setDraft({ ...draft, music })} options={options} />
+        <ImageLibrary library={library} onChanged={() => setLibraryVersion((value) => value + 1)} />
       </section>
       <div className="cd-layout">
         <section className="ms-card">
@@ -295,7 +402,7 @@ export function StyledEditor({ commercial, footage, onSaved, onDirty }) {
           </div>
           <div className="ms-stack">
             {draft.storyboard.map((beat, index) => (
-              <SegmentCard key={index} beat={beat} index={index} count={draft.storyboard.length} start={starts[index]} footage={footage} options={options}
+              <SegmentCard key={index} beat={beat} index={index} count={draft.storyboard.length} start={starts[index]} footage={footage} options={options} library={library}
                 onChange={(next) => setBeat(index, next)} onMove={(to) => setDraft({ ...draft, storyboard: moveItem(draft.storyboard, index, to) })}
                 onRemove={() => setDraft({ ...draft, storyboard: draft.storyboard.filter((_, i) => i !== index) })} />
             ))}

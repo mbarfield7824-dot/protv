@@ -2171,3 +2171,14 @@
     white-space: normal;
   }
 }
+
+/* App Store badge (Apple artwork as supplied; clear space kept around it). */
+.ptv-appstore-badge { display: inline-block; line-height: 0; }
+.ptv-footer__badge { margin-top: 16px; }
+.ptv-get-app { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  margin: 48px 4% 8px; padding: 28px 32px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(120deg, rgba(229,9,20,0.18), rgba(10,14,24,0.9) 55%); }
+.ptv-get-app h2 { margin: 4px 0 6px; font-size: clamp(22px, 3vw, 32px); }
+.ptv-get-app h2 span { color: var(--ptv-red, #e50914); }
+.ptv-get-app__eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.14em; font-size: 12px; font-weight: 700; color: var(--ptv-ink-2); }
+.ptv-get-app__body { margin: 0; color: var(--ptv-ink-2); font-size: 15px; }

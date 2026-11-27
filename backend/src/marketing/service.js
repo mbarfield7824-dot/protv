@@ -3,10 +3,12 @@
 //   - real data only (catalog, LIVE master schedule, observed counters); nothing invented is shown as a result;
 //   - footage only where marketing rights allow it (marketing/rights.js), checked again before every render;
 //   - nothing public, paid or on air happens without an Administrator's approval; every action is audited.
+const crypto = require('node:crypto');
 const { newId } = require('./store');
 const planner = require('./planner');
 const design = require('./design');
 const templates = require('./templates');
+const imageLibrary = require('./images');
 const rights = require('./rights');
 const social = require('./social');
 const ads = require('./ads');
@@ -42,7 +44,7 @@ const text = (value, max = 2000) => (typeof value === 'string' ? value.trim().sl
 const etLabel = (at) => new Date(at).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(/:00(?= [AP]M)/, '') + ' ET';
 const slug = (value) => String(value || '').normalize('NFD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '').slice(0, 30);
 
-function createMarketingService({ store, portal, loadCatalog, linearStore = null, linearService = null, mux = null, now = () => Date.now(), fetcher = fetch, audit = async () => {} } = {}) {
+function createMarketingService({ store, portal, loadCatalog, linearStore = null, linearService = null, mux = null, now = () => Date.now(), fetcher = fetch, audit = async () => {}, imageSecret = () => process.env.PROTV_PUBLISHING_SECRET || '', siteBase = () => process.env.PUBLIC_SITE_URL || 'https://watchprotv.com' } = {}) {
   const at = () => new Date(now());
   const stamp = () => at().toISOString();
   async function log(actor, action, message, details = {}) {
@@ -384,9 +386,57 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
       commercial = { id: 'cm_preview', title: text(input.title, 120) || 'Preview', category: 'custom', durationSeconds, tone: 'network', storyboard: design.sanitizeStoryboard(input.storyboard, { durationSeconds }), theme: design.sanitizeTheme(input.theme || {}), branding: design.sanitizeBranding(input.branding || {}), music: design.sanitizeMusic(input.music || {}) };
     } catch (error) { throw asMarketingError(error); }
     let plan;
-    try { plan = planner.renderPlan(commercial, format, { destination: format === 'widescreen' ? 'live' : 'social', videos }); } catch (error) { throw new MarketingError(error.message); }
+    try { plan = planner.renderPlan(commercial, format, { destination: format === 'widescreen' ? 'live' : 'social', videos, images: await imageMap(commercial.storyboard) }); } catch (error) { throw new MarketingError(error.message); }
     return { plan, rightsCheck: checkRights(commercial, videos), script: planner.scriptFor(commercial) };
   }
+  // ---------------------------------------------------------------- image library (badges, screenshots, logos)
+  async function uploadImage(input, actor) {
+    const name = text(input?.name, 120);
+    if (!name) throw new MarketingError('Name the image.');
+    const kind = imageLibrary.KINDS.includes(input.kind) ? input.kind : 'other';
+    const source = text(input.source, 300);
+    if (!source) throw new MarketingError('Say where the image comes from and that PROtv may use it (for example "Apple official badge, apple.com/app-store/marketing" or "PROtv app screenshot").');
+    const raw = String(input.dataBase64 || '').replace(/^data:[^,]*,/, '');
+    if (!raw || raw.length > Math.ceil(imageLibrary.MAX_UPLOAD_BYTES * 4 / 3) + 8) throw new MarketingError('Images are limited to 3 MB.');
+    let image;
+    try { image = await imageLibrary.normalizeImage(Buffer.from(raw, 'base64')); } catch (error) { throw new MarketingError(error.message, error.status || 400); }
+    const id = newId('mi');
+    const record = { name, kind, source, mime: image.mime, width: image.width, height: image.height, sha256: crypto.createHash('sha256').update(image.bytes).digest('hex'), data: image.bytes.toString('base64'), createdBy: actor, createdAt: stamp(), updatedAt: stamp() };
+    await store.put('images', id, record);
+    await log(actor, 'image_upload', `Added the image "${name}" (${kind}, ${image.width}×${image.height}).`, { imageId: id });
+    return publicImage({ ...record, id });
+  }
+  function publicImage(record) {
+    const { data: _data, ...rest } = record;
+    let previewUrl = null;
+    try { previewUrl = imageLibrary.imageUrl(record, { secret: imageSecret(), base: siteBase(), now: now(), ttlMs: 3600_000 }); } catch { previewUrl = null; }
+    return { ...rest, previewUrl };
+  }
+  async function listImages() { return (await store.list('images', { limit: 200 })).map(publicImage); }
+  async function deleteImage(id, actor) {
+    const image = await requireRecord('images', id, 'Image');
+    const used = (await store.list('commercials', { limit: 500 })).filter((item) => (item.storyboard || []).some((beat) => (beat.images || []).some((placed) => placed.imageId === id)));
+    if (used.length) throw new MarketingError(`This image is used by ${used.map((item) => `"${item.title}"`).join(', ')}. Remove it there first.`, 409);
+    await store.remove('images', id);
+    await log(actor, 'image_delete', `Removed the image "${image.name}".`, { imageId: id });
+    return { deleted: true };
+  }
+  async function imageBytes(id) {
+    const image = await store.get('images', id);
+    return image ? { bytes: Buffer.from(image.data, 'base64'), mime: image.mime } : null;
+  }
+  // Signed links (6 hours) for every image a storyboard uses: the worker downloads them while rendering.
+  async function imageMap(storyboard) {
+    const ids = [...new Set((storyboard || []).flatMap((beat) => (beat.images || []).map((placed) => placed.imageId)))];
+    const map = new Map();
+    for (const id of ids) {
+      const image = await store.get('images', id);
+      if (!image) throw new MarketingError('An image in this storyboard is no longer in the image library.');
+      map.set(id, { width: image.width, height: image.height, url: imageLibrary.imageUrl({ id, mime: image.mime }, { secret: imageSecret(), base: siteBase(), now: now() }) });
+    }
+    return map;
+  }
+
   function designOptions() {
     return {
       animations: Object.entries(design.ANIMATIONS).map(([id, item]) => ({ id, label: item.label })), positions: design.POSITIONS, aligns: design.ALIGNS, reveals: design.REVEALS,
@@ -403,7 +453,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     const renders = { ...commercial.renders };
     for (const format of formats.filter((item) => planner.FORMATS[item])) {
       const destination = format === 'widescreen' && commercial.destinations.includes('live') ? 'live' : 'social';
-      const plan = planner.renderPlan(commercial, format, { destination, videos });
+      const plan = planner.renderPlan(commercial, format, { destination, videos, images: await imageMap(commercial.storyboard) });
       const job = await portal.submitRender(plan);
       renders[format] = { jobId: plan.id, status: job.status, progress: job.progress, destination, submittedAt: stamp(), validation: null, asset: null, error: '' };
     }
@@ -1041,7 +1091,7 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     createCampaign, updateCampaign, transitionCampaign, duplicateCampaign, listCampaigns: () => store.list('campaigns'), getCampaign: (id) => requireRecord('campaigns', id, 'Campaign'),
     createCommercial, updateStoryboard, renderCommercial, refreshCommercial, reviewCommercial, recordSponsorApproval, registerForLive,
     listCommercials: () => store.list('commercials'), getCommercial: (id) => requireRecord('commercials', id, 'Commercial'),
-    duplicateCommercial, previewPlan, designOptions, listTemplates, getTemplate, saveTemplate, updateTemplate, deleteTemplate,
+    duplicateCommercial, previewPlan, designOptions, uploadImage, listImages, deleteImage, imageBytes, listTemplates, getTemplate, saveTemplate, updateTemplate, deleteTemplate,
     async cancelRender(id, format, actor) { const commercial = await requireRecord('commercials', id, 'Commercial'); const render = commercial.renders[format]; if (!render) throw new MarketingError('No such render.'); await portal.cancelRender(render.jobId); await log(actor, 'commercial_cancel', `Cancelled the ${format} render of "${commercial.title}".`, { commercialId: id }); return refreshCommercial(id); },
     srt: async (id) => planner.srt((await requireRecord('commercials', id, 'Commercial')).captions),
     listAssets, importHypeClip, downloadAsset,

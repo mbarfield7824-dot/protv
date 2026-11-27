@@ -14,6 +14,7 @@ const COLLECTIONS = Object.freeze({
   oauth: 'marketingOAuthStates',
   stats: 'marketingDailyStats',
   templates: 'marketingTemplates',
+  images: 'marketingImages',
 });
 
 class MemoryMarketingStore {

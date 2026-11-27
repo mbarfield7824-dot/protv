@@ -44,6 +44,9 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   router.post('/commercials/:id/duplicate', handle('duplicate', (req) => service.duplicateCommercial(req.params.id, actor(req))));
   router.post('/preview', handle('preview', (req) => service.previewPlan(req.body || {})));
   router.get('/design', handle('design options', () => service.designOptions()));
+  router.get('/images', handle('image list', () => service.listImages()));
+  router.post('/images', handle('image upload', (req) => service.uploadImage(req.body || {}, actor(req))));
+  router.delete('/images/:id', handle('image', (req) => service.deleteImage(req.params.id, actor(req))));
   router.get('/templates', handle('template list', () => service.listTemplates()));
   router.post('/templates', handle('template', (req) => service.saveTemplate(req.body || {}, actor(req))));
   router.put('/templates/:id', handle('template', (req) => service.updateTemplate(req.params.id, req.body || {}, actor(req))));
@@ -92,7 +95,7 @@ function createAdminMarketingRouter({ service, verifyAdmin, loadCatalog, redirec
   return router;
 }
 
-function createPublicMarketingRouter({ service, rateLimit, clientAddress, redirectBase = () => process.env.FRONTEND_URL || 'https://watchprotv.com' }) {
+function createPublicMarketingRouter({ service, rateLimit, clientAddress, redirectBase = () => process.env.FRONTEND_URL || 'https://watchprotv.com', imageSecret = () => process.env.PROTV_PUBLISHING_SECRET || '' }) {
   const router = express.Router();
   router.post('/events', noStore, async (req, res) => {
     try {
@@ -103,6 +106,18 @@ function createPublicMarketingRouter({ service, rateLimit, clientAddress, redire
       if (error?.status === 429) return res.status(429).end();
       return res.status(204).end(); // measurement never breaks the site
     }
+  });
+  // Marketing images for the render worker and the Admin preview: only through a valid, unexpired signed link.
+  router.get('/images/:file', async (req, res) => {
+    const match = /^(mi_[a-f0-9]{20})\.(png|jpg)$/.exec(String(req.params.file || ''));
+    const { verifyImageRequest } = require('./images');
+    if (!match || !verifyImageRequest({ id: match[1], expires: req.query.expires, signature: req.query.signature }, { secret: imageSecret() })) return res.status(404).end();
+    try {
+      const image = await service.imageBytes(match[1]);
+      if (!image) return res.status(404).end();
+      res.set({ 'Content-Type': image.mime, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+      return res.send(image.bytes);
+    } catch (error) { return fail(res, error, 'image'); }
   });
   router.get('/oauth/:platform/callback', noStore, async (req, res) => {
     const base = String(redirectBase()).replace(/\/+$/, '');

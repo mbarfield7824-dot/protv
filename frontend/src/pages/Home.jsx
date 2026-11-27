@@ -11,6 +11,7 @@ import StreamingCard from '../components/StreamingCard';
 import SpotlightFeature from '../components/SpotlightFeature';
 import CreatorBanner from '../components/CreatorBanner';
 import ProTVFooter from '../components/ProTVFooter';
+import { GetTheApp } from '../components/AppStoreBadge';
 import MoviePreview from '../components/MoviePreview';
 import EmptyState from '../components/EmptyState';
 import ComingSoonCard from '../components/ComingSoonCard';
@@ -377,6 +378,8 @@ export default function Home() {
         <div className="ptv-stack">
           {editorialRails.map(renderRail)}
         </div>
+
+        <GetTheApp />
 
         <CreatorBanner imageUrl={creatorArt} stats={stats} />
       </main>
