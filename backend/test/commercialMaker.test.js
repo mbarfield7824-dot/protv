@@ -167,3 +167,35 @@ test('typography: a stranded word is fixed by sizing, and segment timing always 
     assert.equal(Math.round(secs.reduce((a, b) => a + b, 0) * 10) / 10, total);
   }
 });
+
+test('the art-director review catches missing or merged listed messages, missing requested footage and flat pacing', () => {
+  const request = 'Messages, in this order: THE WAIT IS OVER. / NOW ON iPHONE & iPAD / PREMIERE WEEK • DECEMBER 1 / DOWNLOAD PROtv STREAMING TODAY. Show real PROtv content.';
+  assert.deepEqual(maker.listedMessages(request), ['THE WAIT IS OVER', 'NOW ON iPHONE & iPAD', 'PREMIERE WEEK • DECEMBER 1', 'DOWNLOAD PROtv STREAMING TODAY']);
+  const flat = { segments: [['THE WAIT IS OVER', ''], ['NOW ON', 'iPHONE & iPAD'], ['PREMIERE WEEK • DECEMBER 1', 'DOWNLOAD PROtv STREAMING TODAY'], ['', 'WATCHPROTV.COM']].map(([headline, hero]) => ({ visual: 'card', seconds: 6, headline, hero, sub: '' })) };
+  const problems = maker.critique(flat, request);
+  assert.equal(problems.length, 3, problems.join('\n'));
+  assert.match(problems.join(' '), /no footage segment/);
+  assert.match(problems.join(' '), /Segment 3 holds 2 listed messages/);
+  assert.match(problems.join(' '), /same length/);
+  assert.deepEqual(maker.critique({ segments: [{ visual: 'card', seconds: 3, hero: 'MERRY CHRISTMAS' }, { visual: 'cta', seconds: 4, hero: 'WATCHPROTV.COM' }] }, 'A warm Christmas card from PROtv.'), []);
+  // Hierarchy: the main message is always the big line.
+  assert.deepEqual(maker.hierarchy({ headline: 'PREMIERE WEEK • DECEMBER 1', hero: '' }), { headline: 'PREMIERE WEEK', hero: 'DECEMBER 1' });
+  assert.deepEqual(maker.hierarchy({ headline: 'NOW ON iPHONE & iPAD', hero: '' }), { headline: 'NOW ON', hero: 'iPHONE & iPAD' });
+  assert.deepEqual(maker.hierarchy({ headline: 'THE WAIT IS OVER', hero: '' }), { headline: '', hero: 'THE WAIT IS OVER' });
+  // Flat AI lengths become a rhythm: a quicker hook, longer content and call to action.
+  const secs = maker.timeSegments([{ seconds: 6, visual: 'card', hero: 'HOOK' }, { seconds: 6, visual: 'footage' }, { seconds: 6, visual: 'card', hero: 'FREE' }, { seconds: 6, visual: 'product', hero: 'APP' }, { seconds: 6, visual: 'cta', hero: 'WATCHPROTV.COM' }], 30);
+  assert.ok(secs[0] < secs[1] && secs[1] > secs[2], secs.join(','));
+});
+
+test('balanced line breaks keep the fitted size and never strand a word (maker segments only)', () => {
+  const design = require('../src/marketing/design');
+  const L = planner.layout('widescreen');
+  const theme = design.sanitizeTheme({});
+  const beat = (balance) => ({ kind: 'card', text: { hero: 'DOWNLOAD PROtv STREAMING TODAY' }, style: design.sanitizeStyle({ scale: 1, balance }) });
+  const plain = design.textBlock(beat(false), L, theme, { fitText: planner.fitText, CHAR_EM: 0.64 }).elements[0].element;
+  const balanced = design.textBlock(beat(true), L, theme, { fitText: planner.fitText, CHAR_EM: 0.64 }).elements[0].element;
+  assert.equal(balanced.size, plain.size);
+  assert.equal(balanced.text.split('\n').length, plain.text.split('\n').length);
+  assert.equal(maker.strandedLine(balanced.text), false, balanced.text);
+  assert.ok(Math.max(...balanced.text.split('\n').map((line) => line.length)) <= Math.max(...plain.text.split('\n').map((line) => line.length)));
+});

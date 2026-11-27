@@ -492,21 +492,20 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     }
     return out;
   }
-  // Ask, validate, and repair once if the copy makes a claim PROtv cannot support.
-  async function makerPlan(system, user, ctx, sources, { durationSeconds = null } = {}) {
+  // Ask, validate, and repair once: unsupported claims plus the art-director review of the plan against the request.
+  async function makerPlan(system, user, ctx, sources, { durationSeconds = null, requestText = sources } = {}) {
     const calls = [];
     const parse = (json) => { try { return maker.parsePlan(json, ctx, { durationSeconds }); } catch (error) { throw new MarketingError(error.message, 502); } };
     calls.push(await aiCall(system, user));
     let plan = parse(calls[0].json);
     let problems = maker.claimProblems(plan, sources);
-    if (problems.length) {
-      calls.push(await aiCall(system, `${user}
-
-Your plan: ${JSON.stringify(plan)}
-
-${maker.repairPrompt(problems)}`));
-      plan = parse(calls[1].json);
-      problems = maker.claimProblems(plan, sources);
+    const review = maker.critique(plan, requestText);
+    if (problems.length || review.length) {
+      calls.push(await aiCall(system, `${user}\n\nYour plan: ${JSON.stringify(plan)}\n\n${maker.repairPrompt([...problems, ...review])}`));
+      const repaired = parse(calls[1].json);
+      const repairedProblems = maker.claimProblems(repaired, sources);
+      // Keep the repaired plan unless it made the claims worse.
+      if (repairedProblems.length <= problems.length) { plan = repaired; problems = repairedProblems; }
     }
     const cost = { estimatedUsd: round5(calls.reduce((sum, call) => sum + call.estimateUsd, 0)), actualUsd: round5(calls.reduce((sum, call) => sum + call.actualUsd, 0)), calls: calls.length,
       promptTokens: calls.reduce((sum, call) => sum + (call.usage?.promptTokens || 0), 0), completionTokens: calls.reduce((sum, call) => sum + (call.usage?.completionTokens || 0), 0) };
@@ -545,7 +544,7 @@ ${maker.repairPrompt(problems)}`));
     const earlier = (commercial.maker.history || []).filter((item) => item.kind === 'revision').map((item) => item.request).slice(-6);
     const user = maker.userPrompt({ request: commercial.maker.prompt, footage: ctx.footage, images: ctx.images, today: stamp().slice(0, 10), current: commercial.maker.plan, revision: message, history: earlier });
     const sources = [commercial.maker.prompt, ...earlier, message].join(' ');
-    const { plan, problems, cost } = await makerPlan(maker.systemPrompt(), user, ctx, sources);
+    const { plan, problems, cost } = await makerPlan(maker.systemPrompt(), user, ctx, sources, { requestText: message });
     const moments = await momentsFor(plan, ctx.footage, commercial.maker.moments);
     const built = maker.direct(plan, { ...ctx, moments });
     if (plan.durationSeconds !== commercial.durationSeconds) await store.put('commercials', id, { ...commercial, durationSeconds: plan.durationSeconds });

@@ -49,13 +49,27 @@ const words = (value) => String(value || '').split(/\s+/).filter(Boolean).length
 const norm = (value) => String(value || '').toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim();
 
 // ---------------------------------------------------------------- prompts
+const EXAMPLE = {
+  title: 'Holiday Nights on PROtv', concept: 'Cosy winter nights, warm stories, all free.', durationSeconds: 30, palette: 'festive-green', music: { mood: 'warm', bpm: 96 }, approach: 'mixed',
+  segments: [
+    { purpose: 'Hook', seconds: 3, visual: 'card', headline: 'THIS SEASON', hero: 'STAY IN.', sub: '', energy: 'punch', logo: 'none' },
+    { purpose: 'Content', seconds: 9, visual: 'footage', headline: '', hero: 'STORIES WORTH SHARING', sub: '', energy: 'build', logo: 'none', footage: ['<exact title>', '<exact title>'] },
+    { purpose: 'Value', seconds: 5, visual: 'card', headline: 'MOVIES. SERIES. LIVE TV.', hero: 'ALL FREE.', sub: 'No subscription needed.', energy: 'build', logo: 'none' },
+    { purpose: 'Where', seconds: 6, visual: 'product', headline: 'WATCH ANYWHERE', hero: 'ON YOUR PHONE', sub: '', energy: 'build', logo: 'none', images: ['<screenshot id>'] },
+    { purpose: 'Call to action', seconds: 7, visual: 'cta', headline: 'WATCH FREE AT', hero: 'WATCHPROTV.COM', sub: '', energy: 'calm', logo: 'above', images: [] },
+  ],
+  summary: 'A warm 30-second holiday invitation.',
+};
+
 function systemPrompt() {
   return [
     'You are the creative director of PROtv, a free streaming network. You turn one request into a finished TV and social commercial plan.',
-    'Craft: hook in the first 2 seconds; one idea per segment; copy is short and punchy (hero line 2-6 words, headline kicker 1-4 words, sub line optional and under 10 words); build energy toward the payoff; end on a clear call to action.',
-    'Visual approach: decide per segment what serves the message best. "card" = bold typography on brand colour; "product" = app screenshots in device frames; "image" = artwork, poster or photo from the image library; "footage" = clips from cleared titles; "cta" = closing card with logo and optional badge images; "logo" = logo reveal.',
-    'Footage is optional: use it only when the commercial is about a title, a premiere or the catalogue, or when the request asks for it. App, announcement, holiday and sponsor spots often work better with graphics, product shots or artwork.',
-    'The request\'s explicit instructions always win (wording, length, what to show or avoid).',
+    'Hierarchy: "hero" is the main message, the biggest words on screen, every segment that has words has a hero. "headline" is an optional small kicker ABOVE the hero (1-4 words, e.g. "NOW ON", "PREMIERE WEEK"). "sub" is an optional small line under it. Hero 1-6 words.',
+    'Structure: one message per segment, never two messages in one segment. If the request lists messages, each listed message gets its own segment, in order, with its words kept; split a listed message into kicker + hero where it reads naturally (e.g. "NOW ON" / "iPHONE & iPAD", "PREMIERE WEEK" / "DECEMBER 1").',
+    'Rhythm: vary lengths like a real spot: a fast hook (2-4 s), quick beats for short lines, a longer content or montage moment (6-10 s), and a call to action of 4-6 s. Never make every segment the same length.',
+    'Visuals: match each visual to its message. "card" = bold typography on brand colour; "product" = app screenshots in device frames (use where the message is about the app, phones, tablets or devices); "image" = artwork, poster or photo from the image library; "footage" = clips from cleared titles (use where the message is about movies, series, shows, content or a title); "cta" = closing card with logo and optional badge image; "logo" = logo reveal.',
+    'Footage is optional: use it when the commercial is about a title, a premiere or the catalogue, or when the request asks to show content, clips, movies or shows. Otherwise graphics, product shots or artwork often work better. Pick 2-3 varied titles for a montage.',
+    'The request\'s explicit instructions always win (wording, order, length, what to show or avoid).',
     'Truth: use only facts from the request and from the PROtv facts list. Never invent dates, prices, rankings, awards, audience numbers, availability or features. Never use banned claims.',
     'Use only footage titles and image ids from the inventory, written exactly. Badges go in the cta segment; screenshots in product segments.',
     'Durations: segments add up to the commercial length; most segments 2-6 seconds; text-heavy segments need time to read.',
@@ -64,6 +78,7 @@ function systemPrompt() {
     ' "segments": [{"purpose": string, "seconds": number, "visual": "card|product|image|footage|cta|logo", "headline": string, "hero": string, "sub": string, "energy": "calm|build|punch", "logo": "none|above|below", "footage": [exact titles] (footage only), "images": [image ids] (product, image, cta only), "alternate": 0}],',
     ' "summary": what you made or changed, one sentence}',
     'To swap the clips of a footage segment during a revision, raise its "alternate" number by 1.',
+    `Example of the craft (a different request): ${JSON.stringify(EXAMPLE)}`,
   ].join('\n');
 }
 
@@ -166,11 +181,56 @@ function claimProblems(plan, sources) {
   return [...new Set(problems)];
 }
 
+// Art-director review of the AI's plan against the request: problems go back to the AI in its one repair round.
+const WANTS_FOOTAGE = /\b(footage|clips?|scenes?|trailers?|montage|real (protv )?content|show(ing)? (our |the )?(movies|films|shows|series|titles|content)|from (our|the) (movies|films|shows|series))\b/i;
+function listedMessages(request) {
+  const head = /(?:messages?|lines?|copy|on-screen text)[^:\n]{0,40}:\s*/i.exec(String(request));
+  if (!head) return [];
+  const rest = String(request).slice(head.index + head[0].length);
+  const stop = /\.\s+(?=[A-Z][a-z])|\n/.exec(rest);
+  const source = stop ? rest.slice(0, stop.index) : rest;
+  const parts = source.split(/\s+\/\s+|\s*\|\s*/).map((part) => part.trim().replace(/^["“]|["”]$/g, '').replace(/[.]+$/, '').trim()).filter((part) => part.length >= 3);
+  return parts.length >= 2 ? parts : [];
+}
+const squash = (value) => norm(value).replace(/[^a-z0-9&%]+/g, ' ').trim();
+function critique(plan, request) {
+  const problems = [];
+  if (WANTS_FOOTAGE.test(request) && !plan.segments.some((segment) => segment.visual === 'footage')) problems.push('The request asks to show real PROtv content, but the plan has no footage segment. Add one (2-3 varied cleared titles) where the message is about the content.');
+  const messages = listedMessages(request);
+  for (const message of messages) {
+    const wanted = squash(message);
+    const homes = plan.segments.filter((segment) => squash(`${segment.headline} ${segment.hero} ${segment.sub}`).includes(wanted));
+    if (!homes.length) problems.push(`The listed message "${message}" is missing or reworded. Give it its own segment with these words.`);
+  }
+  plan.segments.forEach((segment, index) => {
+    const inside = messages.filter((message) => squash(`${segment.headline} ${segment.hero} ${segment.sub}`).includes(squash(message)));
+    if (inside.length > 1) problems.push(`Segment ${index + 1} holds ${inside.length} listed messages (${inside.map((item) => `"${item}"`).join(', ')}). Give each its own segment.`);
+  });
+  if (plan.segments.length >= 4 && new Set(plan.segments.map((segment) => Math.round(segment.seconds))).size === 1) problems.push('Every segment has the same length. Vary the rhythm: a fast hook, quick beats, a longer content moment, a 4-6 s call to action.');
+  return problems;
+}
+
+// Hierarchy in code: every message has a hero; a lone kicker becomes the hero, split at a separator or a lead phrase.
+const LEADS = ['now streaming on', 'now on', 'available on', 'coming to', 'only on', 'watch free at', 'watch free on', 'stream free at'];
+function hierarchy(segment) {
+  if (segment.hero || !segment.headline) return segment;
+  const text = segment.headline;
+  const separator = text.match(/^(.{3,40}?)\s*[•|:—–]\s*(.{1,60})$/);
+  if (separator) return { ...segment, headline: separator[1].trim(), hero: separator[2].trim() };
+  const lead = LEADS.find((phrase) => norm(text).startsWith(`${phrase} `));
+  if (lead) return { ...segment, headline: text.slice(0, lead.length).trim(), hero: text.slice(lead.length).trim() };
+  return { ...segment, headline: '', hero: text };
+}
+
 // ---------------------------------------------------------------- timing
 const readSeconds = (segment) => Math.min(6, 1.1 + 0.3 * (words(segment.headline) + words(segment.hero) + words(segment.sub)));
+const RHYTHM = { footage: 1.5, product: 1.2, image: 1.15, cta: 1.15, logo: 0.9, card: 0.85 };
 function timeSegments(segments, total) {
   const mins = segments.map((segment) => Math.max(1.5, segment.visual === 'footage' ? 2 : readSeconds(segment)));
-  let secs = segments.map((segment, index) => Math.max(mins[index], segment.seconds));
+  const flat = segments.length >= 4 && new Set(segments.map((segment) => Math.round(segment.seconds))).size === 1;
+  // Flat lengths read as a slideshow: weight by role (a quick hook, longer content and call to action).
+  const base = flat ? segments.map((segment, index) => segment.seconds * (RHYTHM[segment.visual] || 1) * (index === 0 ? 0.7 : 1)) : segments.map((segment) => segment.seconds);
+  let secs = segments.map((segment, index) => Math.max(mins[index], base[index]));
   for (let round = 0; round < 8; round += 1) {
     const sum = secs.reduce((a, b) => a + b, 0);
     const diff = total - sum;
@@ -253,14 +313,14 @@ function direct(plan, { footage, images, moments }) {
   const used = new Map();
   const checks = [];
   let previous = '';
-  const storyboard = plan.segments.map((segment, index) => {
+  const storyboard = plan.segments.map(hierarchy).map((segment, index) => {
     const options = ANIMATION_FOR[segment.energy] || ANIMATION_FOR.build;
     const animation = options.find((name) => name !== previous) || options[0];
     previous = animation;
     const text = {};
     for (const field of ['headline', 'hero', 'sub']) if (segment[field]) text[field] = segment[field];
     const sentences = String(segment.hero || '').split(/(?<=[.!?])\s+/).filter(Boolean).length;
-    const style = { position: 'centre', align: 'centre', offsetY: 0, scale: 1, animation, reveal: sentences > 1 ? 'stagger' : 'together', textIn: 0, textOut: 0, shade: 0.5, glow: true, logo: segment.logo, logoScale: 1 };
+    const style = { position: 'centre', align: 'centre', offsetY: 0, scale: 1, animation, reveal: sentences > 1 ? 'stagger' : 'together', textIn: 0, textOut: 0, shade: 0.5, glow: true, balance: true, logo: segment.logo, logoScale: 1 };
     const beat = { kind: 'card', purpose: segment.purpose, text, style, durationSeconds: seconds[index] };
     if (segment.visual === 'logo') beat.kind = 'logo';
     if (segment.visual === 'cta') { beat.kind = 'cta'; if (style.logo === 'none') style.logo = 'above'; }
@@ -326,6 +386,6 @@ const monthKey = (date) => new Date(date).toISOString().slice(0, 7);
 
 module.exports = {
   PRICES, MONTHLY_CAP_USD, MAX_TOKENS, PALETTES, FACTS, MakerError,
-  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
+  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, critique, listedMessages, hierarchy, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
   estimateUsd, actualUsd, monthKey,
 };

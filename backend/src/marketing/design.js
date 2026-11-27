@@ -106,6 +106,7 @@ function sanitizeStyle(input = {}) {
     textOut: clamp(input.textOut, 0, 10, 0),
     shade: clamp(input.shade, 0, 0.9, 0.5),
     glow: input.glow !== false,
+    ...(input.balance === true ? { balance: true } : {}),
     logo: LOGO_PLACEMENTS.includes(input.logo) ? input.logo : 'none',
     logoScale: clamp(input.logoScale, 0.3, 1.6, 1),
   };
@@ -186,6 +187,29 @@ function fill(token) {
   return { fill: NAMED_FILLS.includes(token) ? token : 'white' };
 }
 
+// Even line lengths at the fitted size (no short last line): the longest line never grows, so the text still fits.
+function balanceLines(text) {
+  const lines = String(text).split('\n');
+  if (lines.length < 2) return text;
+  const words = lines.join(' ').split(' ').filter(Boolean);
+  const count = lines.length;
+  const longest = Math.max(...lines.map((line) => line.length));
+  let best = null;
+  const search = (start, left, acc) => {
+    if (left === 1) {
+      const line = words.slice(start).join(' ');
+      if (!line) return;
+      const all = [...acc, line];
+      const width = Math.max(...all.map((item) => item.length));
+      if (width <= longest && (!best || width < best.width)) best = { width, lines: all };
+      return;
+    }
+    for (let end = start + 1; end <= words.length - left + 1; end += 1) search(end, left - 1, [...acc, words.slice(start, end).join(' ')]);
+  };
+  if (words.length <= 14) search(0, count, []);
+  return best ? best.lines.join('\n') : text;
+}
+
 // The text block of a segment: one element per line, positioned once for the whole message so a staggered reveal
 // never moves lines that are already on screen.
 function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
@@ -204,7 +228,8 @@ function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
     const common = Math.min(...fitted.map((item) => item.size));
     parts.forEach((part) => {
       const fit = fitText(part, common, width, { maxLines: 3, spacing });
-      items.push({ role: name, text: fit.text, size: fit.size, lines: fit.lines, height: Math.round(fit.size * lineHeight * fit.lines), spacing, weight });
+      const fitted = style.balance ? balanceLines(fit.text) : fit.text;
+      items.push({ role: name, text: fitted, size: fit.size, lines: fit.lines, height: Math.round(fit.size * lineHeight * fit.lines), spacing, weight });
     });
   };
   role('headline', text.headline, L.headline, 1.28, 2, 'bold');
