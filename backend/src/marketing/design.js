@@ -187,6 +187,15 @@ function fill(token) {
   return { fill: NAMED_FILLS.includes(token) ? token : 'white' };
 }
 
+// A last line that strands one short word ("DECEMBER / 1") reads as a mistake.
+function strandedLine(text) {
+  const lines = String(text).split('\n');
+  if (lines.length < 2) return false;
+  const last = lines[lines.length - 1].trim();
+  const longest = Math.max(...lines.map((line) => line.length));
+  return last.split(/\s+/).filter(Boolean).length === 1 && (last.length <= 4 || last.length < longest * 0.4);
+}
+
 // Even line lengths at the fitted size (no short last line): the longest line never grows, so the text still fits.
 function balanceLines(text) {
   const lines = String(text).split('\n');
@@ -228,14 +237,15 @@ function textBlock(beat, L, theme, { fitText, CHAR_EM, bottomLimit }) {
     const common = Math.min(...fitted.map((item) => item.size));
     parts.forEach((part) => {
       let fit = fitText(part, common, width, { maxLines: 3, spacing });
-      // Balanced segments prefer one line fewer at up to 25% smaller type over a short last line.
-      if (style.balance && fit.lines > 1) {
+      let fitted = style.balance ? balanceLines(fit.text) : fit.text;
+      // Balanced segments keep full-size type when even lines work ("THE WAIT / IS OVER."); only a line that still
+      // strands a word takes one line fewer at up to 25% smaller type.
+      if (style.balance && fit.lines > 1 && strandedLine(fitted)) {
         for (let size = fit.size - 4; size >= Math.round(common * 0.75); size -= 4) {
           const tighter = fitText(part, size, width, { maxLines: fit.lines - 1, spacing });
-          if (tighter.lines < fit.lines && tighter.size === size) { fit = tighter; break; }
+          if (tighter.lines < fit.lines && tighter.size === size) { fit = tighter; fitted = balanceLines(tighter.text); break; }
         }
       }
-      const fitted = style.balance ? balanceLines(fit.text) : fit.text;
       items.push({ role: name, text: fitted, size: fit.size, lines: fit.lines, height: Math.round(fit.size * lineHeight * fit.lines), spacing, weight });
     });
   };
@@ -458,5 +468,5 @@ function loudnessFor(destination, music, LOUDNESS) {
 module.exports = {
   BRAND_THEME, ANIMATIONS, POSITIONS, ALIGNS, REVEALS, LOGO_PLACEMENTS, BUG_POSITIONS, MUSIC_MOODS, KINDS, NAMED_FILLS,
   DesignError, sanitizeImages, isStyled, clipsOf, footageShots, sanitizeTheme, sanitizeBranding, sanitizeMusic, sanitizeStyle, sanitizeText, sanitizeStoryboard,
-  placeholders, safeArea, styledComposition, loudnessFor, textBlock, slotReserve, SLOTS,
+  placeholders, safeArea, styledComposition, loudnessFor, textBlock, slotReserve, strandedLine, SLOTS,
 };

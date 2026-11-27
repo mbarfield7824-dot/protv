@@ -224,3 +224,14 @@ test('words go over the picture, kickers split at a bullet, and a three-line end
   const hero = design.textBlock(cta, L, design.sanitizeTheme({}), { fitText: planner.fitText, CHAR_EM: 0.64, bottomLimit: L.H - design.safeArea(L).bottom - 260 }).elements.map((item) => item.element).find((element) => element.type === 'text');
   assert.equal(maker.strandedLine(hero.text), false, hero.text);
 });
+
+test('full-size type when even lines work, and a short date becomes the big line', () => {
+  const design = require('../src/marketing/design');
+  const L = planner.layout('vertical');
+  const el = design.textBlock({ kind: 'card', text: { hero: 'THE WAIT IS OVER.' }, style: design.sanitizeStyle({ balance: true }) }, L, design.sanitizeTheme({}), { fitText: planner.fitText, CHAR_EM: 0.64 }).elements[0].element;
+  const plain = design.textBlock({ kind: 'card', text: { hero: 'THE WAIT IS OVER.' }, style: design.sanitizeStyle({}) }, L, design.sanitizeTheme({}), { fitText: planner.fitText, CHAR_EM: 0.64 }).elements[0].element;
+  assert.equal(el.size, plain.size, 'no shrinking when balanced lines work');
+  assert.equal(maker.strandedLine(el.text), false, el.text);
+  assert.deepEqual(maker.hierarchy({ headline: '', hero: 'PREMIERE WEEK', sub: 'DECEMBER 1' }), { headline: 'PREMIERE WEEK', hero: 'DECEMBER 1', sub: '' });
+  assert.deepEqual(maker.hierarchy({ headline: '', hero: '100% FREE.', sub: 'NO SUBSCRIPTIONS.' }), { headline: '', hero: '100% FREE.', sub: 'NO SUBSCRIPTIONS.' });
+});

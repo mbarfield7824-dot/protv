@@ -220,7 +220,11 @@ function hierarchy(segment) {
   // A main line with a separator ("PREMIERE WEEK • DECEMBER 1") reads better as a kicker over the hero.
   if (segment.hero && !segment.headline) {
     const split = segment.hero.match(/^(.{3,40}?)\s*[•|—–]\s*(.{1,60})$/);
-    return split ? { ...segment, headline: split[1].trim(), hero: split[2].trim() } : segment;
+    if (split) return { ...segment, headline: split[1].trim(), hero: split[2].trim() };
+    // A short phrase over a short date or number ("PREMIERE WEEK" / "DECEMBER 1"): the date is the news, so it is
+    // the big line and the phrase becomes the kicker.
+    if (words(segment.hero) <= 3 && segment.sub && words(segment.sub) <= 3 && /\d/.test(segment.sub) && !/\d/.test(segment.hero)) return { ...segment, headline: segment.hero, hero: segment.sub, sub: '' };
+    return segment;
   }
   if (segment.hero || !segment.headline) return segment;
   const text = segment.headline;
