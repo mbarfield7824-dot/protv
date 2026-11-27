@@ -149,8 +149,8 @@ android {
         applicationId = "com.protv.firetv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.0.3"
+        versionCode = 11
+        versionName = "1.0.4"
         buildConfigField("String", "FIREBASE_API_KEY", buildConfigString(firebaseApiKey))
         buildConfigField("String", "FIREBASE_APPLICATION_ID", buildConfigString(firebaseApplicationId))
         buildConfigField("String", "FIREBASE_PROJECT_ID", buildConfigString(firebaseProjectId))

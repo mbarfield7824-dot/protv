@@ -106,18 +106,27 @@ fun LiveScreen(
     val context = LocalContext.current
     val player = remember { ExoPlayer.Builder(context).build() }
     DisposableEffect(Unit) { onDispose { player.release() } }
-    LaunchedEffect(now?.entryId, now?.playback?.muxPlaybackId, now?.playback?.playbackToken, load.receivedAtMillis) {
+    // A new program (or commercial) loads its stream once. Routine guide refreshes (every minute) never reload it;
+    // a fresh signed token for the same program is not a new program either.
+    LaunchedEffect(now?.entryId, now?.playback?.muxPlaybackId) {
         val playback = now?.playback
         if (playback == null) {
             player.pause()
             player.clearMediaItems()
             return@LaunchedEffect
         }
-        val elapsedSeconds = ((System.currentTimeMillis() - load.receivedAtMillis).coerceAtLeast(0) / 1000.0)
         player.setMediaItem(MediaItem.Builder().setUri(playback.hlsUrl()).setMimeType(MimeTypes.APPLICATION_M3U8).build())
         player.prepare()
-        player.seekTo(((playback.offsetSeconds + elapsedSeconds) * 1000).toLong())
+        player.seekTo(liveTargetMs(playback, load.receivedAtMillis, System.currentTimeMillis()))
         player.playWhenReady = true
+    }
+    // Each refresh only corrects drift: if the playing stream is more than LIVE_DRIFT_MS away from the schedule
+    // (for example after buffering), it rejoins the channel. A viewer's pause is respected.
+    LaunchedEffect(load.receivedAtMillis) {
+        val playback = now?.playback ?: return@LaunchedEffect
+        if (player.currentMediaItem == null || !player.playWhenReady || player.playbackState != Player.STATE_READY) return@LaunchedEffect
+        val target = liveTargetMs(playback, load.receivedAtMillis, System.currentTimeMillis())
+        if (needsLiveResync(player.currentPosition, target)) player.seekTo(target)
     }
     DisposableEffect(remoteKeys, player) {
         val unregister = remoteKeys.register { event ->
@@ -198,6 +207,13 @@ fun LiveScreen(
         LaunchedEffect(Unit) { focus.requestFocus() }
     }
 }
+
+internal const val LIVE_DRIFT_MS = 8_000L
+
+internal fun liveTargetMs(playback: LivePlayback, receivedAtMillis: Long, nowMillis: Long): Long =
+    ((playback.offsetSeconds * 1000).toLong() + (nowMillis - receivedAtMillis).coerceAtLeast(0)).coerceAtLeast(0)
+
+internal fun needsLiveResync(positionMs: Long, targetMs: Long): Boolean = kotlin.math.abs(positionMs - targetMs) > LIVE_DRIFT_MS
 
 private fun LivePlayback.hlsUrl(): String {
     require(muxPlaybackId.matches(Regex("[A-Za-z0-9]+"))) { "Invalid LIVE playback ID" }
