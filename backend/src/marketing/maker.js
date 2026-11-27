@@ -253,6 +253,28 @@ function wordsOverFootage(segments) {
   return out;
 }
 
+// Revisions are surgical: what the request does not mention stays exactly as it was (footage titles and clip choice,
+// images, palette, music), for segments still in the same place with the same kind of picture.
+const MENTIONS = {
+  footage: /\b(clips?|footage|montage|scenes?|swap|replace|titles?|films?|trailers?)\b/i,
+  images: /\b(images?|screenshots?|badges?|devices?|pictures?|photos?|posters?|artwork|mock-?ups?)\b/i,
+  palette: /\b(colou?rs?|palette|gold|red|blue|green|silver|darker|brighter|theme|look)\b/i,
+  music: /\b(music|mood|tempo|bpm|beat|soundtrack|song)\b/i,
+};
+function keepUnmentioned(previous, next, request) {
+  if (!previous?.segments) return next;
+  const out = { ...next, segments: next.segments.map((segment) => ({ ...segment })) };
+  if (!MENTIONS.palette.test(request)) out.palette = previous.palette;
+  if (!MENTIONS.music.test(request)) out.music = { ...previous.music };
+  out.segments.forEach((segment, index) => {
+    const before = previous.segments[index];
+    if (!before || before.visual !== segment.visual) return;
+    if (segment.visual === 'footage' && !MENTIONS.footage.test(request)) { segment.footage = [...(before.footage || [])]; segment.alternate = before.alternate || 0; }
+    if (['product', 'image', 'cta'].includes(segment.visual) && !MENTIONS.images.test(request) && before.images) segment.images = [...before.images];
+  });
+  return out;
+}
+
 // ---------------------------------------------------------------- timing
 const readSeconds = (segment) => Math.min(6, 1.1 + 0.3 * (words(segment.headline) + words(segment.hero) + words(segment.sub)));
 const RHYTHM = { footage: 1.5, product: 1.2, image: 1.15, cta: 1.15, logo: 0.9, card: 0.85 };
@@ -418,6 +440,6 @@ const monthKey = (date) => new Date(date).toISOString().slice(0, 7);
 
 module.exports = {
   PRICES, MONTHLY_CAP_USD, MAX_TOKENS, PALETTES, FACTS, MakerError,
-  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, critique, listedMessages, hierarchy, wordsOverFootage, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
+  systemPrompt, userPrompt, repairPrompt, parsePlan, claimProblems, critique, listedMessages, hierarchy, wordsOverFootage, keepUnmentioned, timeSegments, frameScore, candidateTimes, direct, strandedLine, labelCheck,
   estimateUsd, actualUsd, monthKey,
 };

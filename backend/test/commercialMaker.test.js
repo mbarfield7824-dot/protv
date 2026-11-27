@@ -235,3 +235,12 @@ test('full-size type when even lines work, and a short date becomes the big line
   assert.deepEqual(maker.hierarchy({ headline: '', hero: 'PREMIERE WEEK', sub: 'DECEMBER 1' }), { headline: 'PREMIERE WEEK', hero: 'DECEMBER 1', sub: '' });
   assert.deepEqual(maker.hierarchy({ headline: '', hero: '100% FREE.', sub: 'NO SUBSCRIPTIONS.' }), { headline: '', hero: '100% FREE.', sub: 'NO SUBSCRIPTIONS.' });
 });
+
+test('revisions change only what the request mentions', () => {
+  const previous = { palette: 'protv-blue', music: { mood: 'energetic', bpm: 128 }, segments: [{ visual: 'footage', footage: ['A', 'B', 'C'], alternate: 0, hero: 'MOVIES.' }, { visual: 'cta', images: ['mi_1'], hero: 'GO' }] };
+  const next = { palette: 'midnight-gold', music: { mood: 'warm', bpm: 90 }, segments: [{ visual: 'footage', footage: ['A', 'B'], alternate: 1, hero: 'MOVIES.' }, { visual: 'cta', images: [], hero: 'DOWNLOAD TODAY' }] };
+  const kept = maker.keepUnmentioned(previous, next, 'On the end card, drop the kicker. Keep everything else.');
+  assert.deepEqual([kept.palette, kept.music.bpm, kept.segments[0].footage, kept.segments[0].alternate, kept.segments[1].images, kept.segments[1].hero], ['protv-blue', 128, ['A', 'B', 'C'], 0, ['mi_1'], 'DOWNLOAD TODAY']);
+  const swapped = maker.keepUnmentioned(previous, next, 'Swap the clips and make it gold.');
+  assert.deepEqual([swapped.palette, swapped.segments[0].footage, swapped.segments[0].alternate], ['midnight-gold', ['A', 'B'], 1]);
+});

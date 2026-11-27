@@ -544,7 +544,9 @@ function createMarketingService({ store, portal, loadCatalog, linearStore = null
     const earlier = (commercial.maker.history || []).filter((item) => item.kind === 'revision').map((item) => item.request).slice(-6);
     const user = maker.userPrompt({ request: commercial.maker.prompt, footage: ctx.footage, images: ctx.images, today: stamp().slice(0, 10), current: commercial.maker.plan, revision: message, history: earlier });
     const sources = [commercial.maker.prompt, ...earlier, message].join(' ');
-    const { plan, problems, cost } = await makerPlan(maker.systemPrompt(), user, ctx, sources, { requestText: message });
+    const answer = await makerPlan(maker.systemPrompt(), user, ctx, sources, { requestText: message });
+    const { problems, cost } = answer;
+    const plan = maker.keepUnmentioned(commercial.maker.plan, answer.plan, message);
     const moments = await momentsFor(plan, ctx.footage, commercial.maker.moments);
     const built = maker.direct(plan, { ...ctx, moments });
     if (plan.durationSeconds !== commercial.durationSeconds) await store.put('commercials', id, { ...commercial, durationSeconds: plan.durationSeconds });
